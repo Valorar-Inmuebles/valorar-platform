@@ -6,6 +6,8 @@ import {
   PropertyLayout,
   PropertyType,
   Orientation,
+  GeocodeSource,
+  GeocodeAccuracy,
 } from '../../../../generated/prisma/client';
 
 export class PropertyResponseDto {
@@ -58,6 +60,13 @@ export class PropertyResponseDto {
   city: string;
 
   @ApiPropertyOptional()
+  province: string | null;
+
+  /** @deprecated Use province. Mirrors province for backward compatibility. */
+  @ApiPropertyOptional({
+    deprecated: true,
+    description: 'Deprecated. Same value as province.',
+  })
   state: string | null;
 
   @ApiProperty()
@@ -71,6 +80,18 @@ export class PropertyResponseDto {
 
   @ApiPropertyOptional()
   longitude: number | null;
+
+  @ApiPropertyOptional()
+  googlePlaceId: string | null;
+
+  @ApiPropertyOptional()
+  formattedAddress: string | null;
+
+  @ApiPropertyOptional({ enum: GeocodeSource })
+  geocodeSource: GeocodeSource | null;
+
+  @ApiPropertyOptional({ enum: GeocodeAccuracy })
+  geocodeAccuracy: GeocodeAccuracy | null;
 
   @ApiPropertyOptional()
   totalArea: number | null;
@@ -138,11 +159,16 @@ export class PropertyResponseDto {
       apartment: property.apartment,
       neighborhood: property.neighborhood,
       city: property.city,
-      state: property.state,
+      province: property.province,
+      state: property.province,
       country: property.country,
       postalCode: property.postalCode,
       latitude: property.latitude != null ? Number(property.latitude) : null,
       longitude: property.longitude != null ? Number(property.longitude) : null,
+      googlePlaceId: property.googlePlaceId,
+      formattedAddress: property.formattedAddress,
+      geocodeSource: property.geocodeSource,
+      geocodeAccuracy: property.geocodeAccuracy,
       totalArea: property.totalArea != null ? Number(property.totalArea) : null,
       coveredArea:
         property.coveredArea != null ? Number(property.coveredArea) : null,

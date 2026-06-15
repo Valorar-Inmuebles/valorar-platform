@@ -171,8 +171,8 @@ Filtros en listado:
 Respuesta pública (`PublicPropertyCardDto` / `PublicPropertyDetailDto`):
 
 * Expone: `id`, `slug`, `title`, `description`, `propertyType`, `city`, `neighborhood`, `coverImage`, `price`, `currency`, `bedrooms`, `bathrooms`, `totalArea`, `listingType`
-* Detalle incluye además: listing activo, galería completa, features asignadas activas
-* No expone: `tenantId`, `createdById`, `internalCode`, datos de agentes
+* Detalle incluye además: `province`, `country`, `latitude`, `longitude`, listing activo, galería completa, features asignadas activas
+* No expone: `tenantId`, `createdById`, `internalCode`, `street`, `streetNumber`, datos de agentes, campos de enriquecimiento Google
 
 Pendiente: resolución de tenant por dominio/header, sitemap, SEO metadata, frontend Next.js.
 
@@ -202,7 +202,8 @@ Una propiedad puede tener varias publicaciones simultáneas (una por tipo).
 | URL pública         | slug            |
 | Código interno      | internalCode    |
 | Dirección           | street, streetNumber, floor, apartment |
-| Ubicación           | neighborhood, city, state, country, postalCode, latitude, longitude |
+| Ubicación           | neighborhood, city, province, country, postalCode, latitude, longitude |
+| Geocoding (admin)   | googlePlaceId, formattedAddress, geocodeSource, geocodeAccuracy |
 | Metros totales      | totalArea       |
 | Metros cubiertos    | coveredArea     |
 | Metros descubiertos | uncoveredArea   |

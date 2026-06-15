@@ -1,9 +1,17 @@
 export type {
   Currency,
+  GeocodeAccuracy,
+  GeocodeSource,
+  PropertyFeatureCategory,
   PropertyListingType,
   PropertyType,
   PublicCoverImage,
   PublicPropertyCard,
+  PublicPropertyDetail,
+  PublicPropertyFeature,
+  PublicPropertyImage,
+  PublicPropertyListing,
   PublicPropertyListMeta,
   PublicPropertyListResponse,
+  PublicPropertyPrimaryPrice,
 } from "./public-property";

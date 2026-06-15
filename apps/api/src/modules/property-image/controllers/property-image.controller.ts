@@ -113,10 +113,7 @@ export class PropertyImageController {
   })
   @ApiBadRequestResponse({ description: 'Invalid query parameters' })
   @ApiNotFoundResponse({ description: 'Property image not found' })
-  remove(
-    @Param('id') id: string,
-    @Query() query: PropertyImageTenantQueryDto,
-  ) {
+  remove(@Param('id') id: string, @Query() query: PropertyImageTenantQueryDto) {
     return this.propertyImageService.remove(id, query.tenantId);
   }
 }

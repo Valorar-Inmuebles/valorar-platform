@@ -18,7 +18,9 @@ export class PrismaExceptionFilter implements ExceptionFilter {
 
     const httpException = this.toHttpException(exception);
 
-    response.status(httpException.getStatus()).json(httpException.getResponse());
+    response
+      .status(httpException.getStatus())
+      .json(httpException.getResponse());
   }
 
   private toHttpException(
@@ -26,7 +28,9 @@ export class PrismaExceptionFilter implements ExceptionFilter {
   ): HttpException {
     switch (exception.code) {
       case 'P2002':
-        return new ConflictException(this.formatUniqueConstraintMessage(exception));
+        return new ConflictException(
+          this.formatUniqueConstraintMessage(exception),
+        );
       case 'P2003':
         return new BadRequestException(
           'Invalid reference: related record does not exist',

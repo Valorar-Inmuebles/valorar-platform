@@ -21,7 +21,10 @@ export class CreatePropertyPriceDto {
   @IsNotEmpty()
   listingId: string;
 
-  @ApiProperty({ minimum: 0.01, description: 'Price amount (must be greater than 0)' })
+  @ApiProperty({
+    minimum: 0.01,
+    description: 'Price amount (must be greater than 0)',
+  })
   @IsNumber()
   @Min(0.01)
   amount: number;

@@ -23,9 +23,7 @@ export class PropertyPriceService {
     private readonly propertyListingRepository: PropertyListingRepository,
   ) {}
 
-  async create(
-    dto: CreatePropertyPriceDto,
-  ): Promise<PropertyPriceResponseDto> {
+  async create(dto: CreatePropertyPriceDto): Promise<PropertyPriceResponseDto> {
     await this.assertTenantExists(dto.tenantId);
     await this.assertListingBelongsToTenant(dto.listingId, dto.tenantId);
 
@@ -34,8 +32,7 @@ export class PropertyPriceService {
       dto.tenantId,
     );
 
-    const isPrimary =
-      existingCount === 0 ? true : (dto.isPrimary ?? false);
+    const isPrimary = existingCount === 0 ? true : (dto.isPrimary ?? false);
 
     const price = await this.propertyPriceRepository.createWithPrimaryHandling(
       {
@@ -107,12 +104,13 @@ export class PropertyPriceService {
         );
       }
 
-      const price = await this.propertyPriceRepository.updateWithPrimaryDemotion(
-        id,
-        tenantId,
-        existing.listingId,
-        updateData,
-      );
+      const price =
+        await this.propertyPriceRepository.updateWithPrimaryDemotion(
+          id,
+          tenantId,
+          existing.listingId,
+          updateData,
+        );
 
       if (!price) {
         throw new NotFoundException(`Property price with id "${id}" not found`);

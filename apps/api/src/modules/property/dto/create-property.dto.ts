@@ -5,6 +5,8 @@ import {
   PropertyLayout,
   PropertyType,
   Orientation,
+  GeocodeSource,
+  GeocodeAccuracy,
 } from '../../../../generated/prisma/client';
 import {
   IsBoolean,
@@ -103,7 +105,16 @@ export class CreatePropertyDto {
   @IsNotEmpty()
   city: string;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ description: 'Province or state name' })
+  @IsOptional()
+  @IsString()
+  province?: string;
+
+  /** @deprecated Use province instead. Accepted for backward compatibility. */
+  @ApiPropertyOptional({
+    deprecated: true,
+    description: 'Deprecated. Use province instead.',
+  })
   @IsOptional()
   @IsString()
   state?: string;
@@ -131,6 +142,36 @@ export class CreatePropertyDto {
   @Min(-180)
   @Max(180)
   longitude?: number;
+
+  @ApiPropertyOptional({
+    description: 'Google Places ID. Optional enrichment field.',
+  })
+  @IsOptional()
+  @IsString()
+  googlePlaceId?: string;
+
+  @ApiPropertyOptional({
+    description: 'Formatted address snapshot. Optional enrichment field.',
+  })
+  @IsOptional()
+  @IsString()
+  formattedAddress?: string;
+
+  @ApiPropertyOptional({
+    enum: GeocodeSource,
+    description: 'Source of geocoding data. Optional enrichment field.',
+  })
+  @IsOptional()
+  @IsEnum(GeocodeSource)
+  geocodeSource?: GeocodeSource;
+
+  @ApiPropertyOptional({
+    enum: GeocodeAccuracy,
+    description: 'Accuracy of coordinates. Optional enrichment field.',
+  })
+  @IsOptional()
+  @IsEnum(GeocodeAccuracy)
+  geocodeAccuracy?: GeocodeAccuracy;
 
   @ApiPropertyOptional()
   @IsOptional()

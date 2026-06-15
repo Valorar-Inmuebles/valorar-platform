@@ -1,8 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import {
-  Prisma,
-  PropertyPrice,
-} from '../../../../generated/prisma/client';
+import { Prisma, PropertyPrice } from '../../../../generated/prisma/client';
 import { PrismaService } from '../../../prisma/prisma.service';
 
 export type CreatePropertyPriceData = Prisma.PropertyPriceUncheckedCreateInput;

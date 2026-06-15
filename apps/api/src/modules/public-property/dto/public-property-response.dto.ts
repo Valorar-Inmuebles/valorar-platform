@@ -155,6 +155,18 @@ export class PublicPropertyDetailDto {
   neighborhood: string | null;
 
   @ApiPropertyOptional()
+  province: string | null;
+
+  @ApiProperty()
+  country: string;
+
+  @ApiPropertyOptional()
+  latitude: number | null;
+
+  @ApiPropertyOptional()
+  longitude: number | null;
+
+  @ApiPropertyOptional()
   bedrooms: number | null;
 
   @ApiPropertyOptional()

@@ -96,7 +96,23 @@ TO_RENOVATE         → A refaccionar
 | Terreno      | lotFront, lotDepth                                  |
 | Distribución | rooms, bedrooms, bathrooms, halfBathrooms, parkingSpaces |
 | Características | yearBuilt, orientation, layout, brightness       |
-| Ubicación    | street, streetNumber, floor, apartment, neighborhood, city, state, country, postalCode, latitude, longitude |
+| Ubicación    | street, streetNumber, floor, apartment, neighborhood, city, province, country, postalCode, latitude, longitude |
+| Geocoding (opcional) | googlePlaceId, formattedAddress, geocodeSource, geocodeAccuracy |
+
+### Location v1.1
+
+Campos de dominio inmobiliario (fuente de verdad): `country`, `province`, `city`, `neighborhood`, `street`, `streetNumber`, `postalCode`, `latitude`, `longitude`. Carga manual soportada en todos los casos.
+
+Campos de enriquecimiento opcional (Google Places — sin integración activa): `googlePlaceId`, `formattedAddress`, `geocodeSource`, `geocodeAccuracy`.
+
+Enums:
+
+* `GeocodeSource`: `MANUAL`, `GOOGLE_PLACES`, `IMPORT`
+* `GeocodeAccuracy`: `EXACT`, `APPROXIMATE`, `NEIGHBORHOOD`, `CITY`
+
+Compatibilidad API admin: el campo deprecado `state` en request/response es alias de `province`.
+
+Migración: `202606150002_property_location_v1_1` (renombra columna `state` → `province`).
 
 ### Ownership
 

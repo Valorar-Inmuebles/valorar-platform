@@ -46,7 +46,8 @@ export class PropertyListingController {
     description: 'Validation error, tenant not found, or property not found',
   })
   @ApiConflictResponse({
-    description: 'A listing with the same type already exists for this property',
+    description:
+      'A listing with the same type already exists for this property',
   })
   create(@Body() dto: CreatePropertyListingDto) {
     return this.propertyListingService.create(dto);
@@ -93,7 +94,8 @@ export class PropertyListingController {
     type: PropertyListingResponseDto,
   })
   @ApiBadRequestResponse({
-    description: 'Validation error, invalid status transition, or invalid query',
+    description:
+      'Validation error, invalid status transition, or invalid query',
   })
   @ApiNotFoundResponse({ description: 'Property listing not found' })
   update(

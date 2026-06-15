@@ -16,9 +16,7 @@ export class PropertyImageService {
     private readonly propertyRepository: PropertyRepository,
   ) {}
 
-  async create(
-    dto: CreatePropertyImageDto,
-  ): Promise<PropertyImageResponseDto> {
+  async create(dto: CreatePropertyImageDto): Promise<PropertyImageResponseDto> {
     await this.assertTenantExists(dto.tenantId);
     await this.assertPropertyIsActiveForImage(dto.propertyId, dto.tenantId);
 
@@ -27,8 +25,7 @@ export class PropertyImageService {
       dto.tenantId,
     );
 
-    const isCover =
-      existingCount === 0 ? true : (dto.isCover ?? false);
+    const isCover = existingCount === 0 ? true : (dto.isCover ?? false);
 
     const image = await this.propertyImageRepository.createWithCoverHandling(
       {

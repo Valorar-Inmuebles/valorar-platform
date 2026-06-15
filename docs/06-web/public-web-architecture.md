@@ -126,7 +126,7 @@ Campos **no expuestos** por la API pública (no mostrar ni inferir): `tenantId`,
 | ------------- | ---------- | -------------- | ----------------- |
 | Resolución tenant por dominio | Pendiente | `TENANT_ID` en env server-side | Middleware + `TenantSetting.domain` |
 | Branding (`logoUrl`, colores, WhatsApp) | Sin endpoint público | Variables de entorno por deploy | `GET /public/tenant` o settings públicos |
-| Dirección completa y coordenadas en detalle | No en `PublicPropertyDetailDto` | Ocultar mapa o mostrar solo barrio/ciudad | Extender DTO público |
+| Dirección completa y coordenadas en detalle | Parcial — detalle expone province, country, lat/lng; sin calle/número | Mapa en web cuando haya coords | Extender visibilidad pública según política |
 | Filtro por `condition` | No soportado | Omitir filtro UI | Agregar query param en API |
 | Filtro por features | No soportado | Omitir filtro UI | Agregar query param en API |
 | Propiedades relacionadas | Sin endpoint dedicado | Reutilizar listado con filtros heurísticos | Endpoint `/related` opcional |
