@@ -1,6 +1,23 @@
 {
   "$schema": "https://turborepo.dev/schema.json",
   "ui": "tui",
+  "globalEnv": [
+    "TENANT_ID",
+    "NEXT_PUBLIC_SITE_URL",
+    "PUBLIC_COMPANY_NAME",
+    "PUBLIC_SITE_DESCRIPTION",
+    "PUBLIC_WHATSAPP",
+    "PUBLIC_EMAIL",
+    "PUBLIC_PHONE",
+    "PUBLIC_ADDRESS",
+    "PUBLIC_PRIMARY_COLOR",
+    "PUBLIC_SECONDARY_COLOR",
+    "PUBLIC_FACEBOOK_URL",
+    "PUBLIC_INSTAGRAM_URL",
+    "PUBLIC_LINKEDIN_URL",
+    "API_URL",
+    "NODE_ENV"
+  ],
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
