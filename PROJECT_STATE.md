@@ -17,7 +17,7 @@ Plataforma SaaS inmobiliaria multi-tenant orientada a:
 
 ## Estado Actual
 
-Fase: Foundation + Property API Foundation + Public API Foundation + Public Web Foundation (Fase 1)
+Fase: Foundation + Property API Foundation + Public API Foundation + Public Web Foundation (Fase 1–6)
 
 Infraestructura inicial:
 
@@ -32,7 +32,7 @@ Roadmap Property API: `docs/09-roadmap/property-api-roadmap.md`
 
 Lead Domain v1: documentado y congelado (inquiry-centric). `docs/03-database/lead-domain.md`
 
-Public Web: documentación en `docs/06-web/*`. Fase 1 implementada en `apps/web` (layout, header, footer, Tailwind, SEO base).
+Public Web: documentación en `docs/06-web/*`. Fases 1–6 ✅ (layout, home, listado, detalle, SEO & production hardening).
 
 ---
 
@@ -206,7 +206,11 @@ Modelo: cada lead es una consulta individual; no representa un contacto único.
 
 * Documentación: `docs/06-web/public-web-architecture.md`, `public-web-ui.md`, `component-inventory.md`, `frontend-roadmap.md`
 * Fase 1 ✅: App Router `(site)`, Header (7 ítems + menú hamburguesa), Footer, TailwindCSS v4, Geist, metadata/OG/robots, branding vía env, placeholders de rutas
-* Pendiente Fase 2+: Home, listado/detalle propiedades, emprendimientos, integración Public Property API
+* Fase 2 ✅: Home (hero, buscador UI, destacadas/recientes vía Public Property API, categorías), `PublicPropertyCard`, branding real (`public/brand/`), `@repo/shared-types`
+* Fase 3 ✅: Listado `/propiedades` (filtros sidebar/drawer, URL sync, paginación, empty/loading states, SEO dinámico)
+* Fase 4 ✅: Detalle `/propiedades/[slug]` (galería, precio, features, descripción, mapa placeholder, relacionadas, metadata dinámica)
+* Fase 6 ✅: SEO & production hardening (sitemap dinámico, robots, JSON-LD Organization/RealEstateListing/BreadcrumbList, metadata OG/canonical por página, manifest, security headers, error boundary global)
+* Pendiente Fase 5+: Emprendimientos completos, performance (Fase 7)
 
 Roadmap frontend: `docs/06-web/frontend-roadmap.md`
 
