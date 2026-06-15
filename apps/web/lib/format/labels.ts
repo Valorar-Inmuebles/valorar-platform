@@ -42,3 +42,14 @@ export const SEARCH_PROPERTY_TYPE_OPTIONS: Array<{
   { value: "LAND", label: "Terreno" },
   { value: "COUNTRY_HOUSE", label: "Casa quinta" },
 ];
+
+export const FILTER_PROPERTY_TYPE_OPTIONS: Array<{
+  value: PropertyType | "";
+  label: string;
+}> = [
+  { value: "", label: "Todos los tipos" },
+  ...Object.entries(PROPERTY_TYPE_LABELS).map(([value, label]) => ({
+    value: value as PropertyType,
+    label,
+  })),
+];

@@ -17,7 +17,7 @@ Plataforma SaaS inmobiliaria multi-tenant orientada a:
 
 ## Estado Actual
 
-Fase: Foundation + Property API Foundation + Public API Foundation + Public Web Foundation (Fase 1–2)
+Fase: Foundation + Property API Foundation + Public API Foundation + Public Web Foundation (Fase 1–3)
 
 Infraestructura inicial:
 
@@ -32,7 +32,7 @@ Roadmap Property API: `docs/09-roadmap/property-api-roadmap.md`
 
 Lead Domain v1: documentado y congelado (inquiry-centric). `docs/03-database/lead-domain.md`
 
-Public Web: documentación en `docs/06-web/*`. Fase 1 ✅ layout/base. Fase 2 ✅ Home con API pública, branding real y buscador UI.
+Public Web: documentación en `docs/06-web/*`. Fase 1 ✅ layout/base. Fase 2 ✅ Home. Fase 3 ✅ listado `/propiedades`.
 
 ---
 
@@ -207,7 +207,8 @@ Modelo: cada lead es una consulta individual; no representa un contacto único.
 * Documentación: `docs/06-web/public-web-architecture.md`, `public-web-ui.md`, `component-inventory.md`, `frontend-roadmap.md`
 * Fase 1 ✅: App Router `(site)`, Header (7 ítems + menú hamburguesa), Footer, TailwindCSS v4, Geist, metadata/OG/robots, branding vía env, placeholders de rutas
 * Fase 2 ✅: Home (hero, buscador UI, destacadas/recientes vía Public Property API, categorías), `PublicPropertyCard`, branding real (`public/brand/`), `@repo/shared-types`
-* Pendiente Fase 3+: Listado/detalle propiedades, emprendimientos completos
+* Fase 3 ✅: Listado `/propiedades` (filtros sidebar/drawer, URL sync, paginación, empty/loading states, SEO dinámico)
+* Pendiente Fase 4+: Detalle propiedad, emprendimientos completos
 
 Roadmap frontend: `docs/06-web/frontend-roadmap.md`
 

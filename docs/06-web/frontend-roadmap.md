@@ -144,7 +144,9 @@ Implementar la página de inicio completa: hero, buscador con tabs, propiedades 
 
 ---
 
-## Fase 3 — Listado de propiedades
+## Fase 3 — Listado de propiedades ✅
+
+Estado: **Completada** (2026-06-15).
 
 ### Objetivo
 
@@ -179,15 +181,15 @@ Página `/propiedades` con filtros laterales, grid de cards, paginación y sincr
 
 ### Criterios de aceptación
 
-- [ ] `/propiedades` lista propiedades publicables del tenant
-- [ ] Cada filtro UI modifica query string y resultados API
-- [ ] Paginación muestra `meta.total`, `meta.page`, `meta.totalPages`
-- [ ] Botón «Limpiar filtros» resetea a `/propiedades`
-- [ ] Mobile: filtros en drawer; desktop: sidebar visible
-- [ ] Grid responsive: 1 / 2 / 3 columnas
-- [ ] Empty state cuando `meta.total = 0`
-- [ ] URL compartible reproduce mismos resultados
-- [ ] Sin filtros no soportados por API en UI (condition, features)
+- [x] `/propiedades` lista propiedades publicables del tenant
+- [x] Cada filtro UI modifica query string y resultados API
+- [x] Paginación muestra `meta.total`, `meta.page`, `meta.totalPages`
+- [x] Botón «Limpiar filtros» resetea a `/propiedades`
+- [x] Mobile: filtros en drawer; desktop: sidebar visible
+- [x] Grid responsive: 1 / 2 / 3 columnas
+- [x] Empty state cuando `meta.total = 0`
+- [x] URL compartible reproduce mismos resultados
+- [x] Sin filtros no soportados por API en UI (condition, features)
 
 ---
 
@@ -429,7 +431,7 @@ Al completar cada fase, actualizar:
 | ---- | ----------- | ----- |
 | 1 | Baja | Fundación ✅ |
 | 2 | Media | Home + API ✅ |
-| 3 | Alta | Filtros + URL sync |
+| 3 | Alta | Filtros + URL sync ✅ |
 | 4 | Alta | Galería + detalle |
 | 5a | Baja | Placeholder |
 | 5b | Alta | Depende API nueva |
