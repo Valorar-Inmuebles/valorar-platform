@@ -30,6 +30,8 @@ Dominio Property v1: migrado (`202606150001_property_foundation`).
 
 Roadmap Property API: `docs/09-roadmap/property-api-roadmap.md`
 
+Lead Domain v1: documentado y congelado (inquiry-centric). `docs/03-database/lead-domain.md`
+
 ---
 
 ## Arquitectura
@@ -101,6 +103,20 @@ Documentación: `docs/03-database/property-domain.md`
 
 Migración: `202606150001_property_foundation`
 
+### Lead Domain v1 (documentado)
+
+* Lead (inquiry-centric — consulta capturada)
+* LeadStatus
+* LeadSource
+* LeadAssignment
+* LeadActivity
+* LeadTag
+* LeadTagAssignment
+
+Documentación: `docs/03-database/lead-domain.md`
+
+Modelo: cada lead es una consulta individual; no representa un contacto único.
+
 ---
 
 ## Módulos Pendientes
@@ -118,11 +134,16 @@ Migración: `202606150001_property_foundation`
 
 Roadmap: `docs/09-roadmap/property-api-roadmap.md`
 
+### Lead Domain v1 (lógica de negocio)
+
+* API / Services / Controllers
+* UI admin y formularios web
+* Consolidación de contactos (`Client`, `LeadInterest`) — futuro
+
 ### Otros módulos
 
 * Development
 * DevelopmentUnit
-* Lead
 
 ---
 
