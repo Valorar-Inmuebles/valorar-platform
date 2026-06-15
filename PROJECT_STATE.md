@@ -26,6 +26,8 @@ Infraestructura inicial:
 * Railway
 * Neon PostgreSQL
 
+Dominio Property v1: documentado y congelado. Pendiente de migración Prisma.
+
 ---
 
 ## Arquitectura
@@ -82,11 +84,20 @@ Infraestructura:
 
 ## Módulos Pendientes
 
+### Property Domain v1 (documentado)
+
 * Property
 * PropertyListing
 * PropertyPrice
 * PropertyImage
 * PropertyFeature
+* PropertyFeatureAssignment
+* PropertyAgentAccess
+
+Documentación: `docs/03-database/property-domain.md`
+
+### Otros módulos
+
 * Development
 * DevelopmentUnit
 * Lead
