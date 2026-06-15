@@ -173,6 +173,8 @@ PropertyFeatureCategory (enum)
 Orientation             (enum)
 PropertyLayout          (enum)
 PropertyBrightness      (enum)
+GeocodeSource           (enum)
+GeocodeAccuracy         (enum)
 PropertyFeature         (tabla)
 ```
 
@@ -288,6 +290,23 @@ MEDIUM
 HIGH
 ```
 
+### GeocodeSource
+
+```txt
+MANUAL
+GOOGLE_PLACES
+IMPORT
+```
+
+### GeocodeAccuracy
+
+```txt
+EXACT
+APPROXIMATE
+NEIGHBORHOOD
+CITY
+```
+
 ---
 
 # Property
@@ -326,12 +345,16 @@ No contiene publicaciones comerciales ni precios.
 | floor          | String?             | Piso                                     |
 | apartment      | String?             | Departamento                             |
 | neighborhood   | String?             | Barrio                                   |
-| city           | String              | Ciudad                                   |
-| state          | String?             | Provincia                                |
+| city           | String              | Localidad / ciudad                       |
+| province       | String?             | Provincia (renombrado desde `state`)     |
 | country        | String              | País (default: AR)                       |
 | postalCode     | String?             | Código postal                            |
 | latitude       | Decimal?            | Latitud                                  |
 | longitude      | Decimal?            | Longitud                                 |
+| googlePlaceId  | String?             | Google Places ID (enriquecimiento)       |
+| formattedAddress | String?           | Dirección formateada (enriquecimiento)   |
+| geocodeSource  | GeocodeSource?      | Origen geocodificación                   |
+| geocodeAccuracy | GeocodeAccuracy?   | Precisión de coordenadas                 |
 | totalArea      | Decimal?            | Metros totales (m²)                      |
 | coveredArea    | Decimal?            | Metros cubiertos (m²)                    |
 | uncoveredArea  | Decimal?            | Metros descubiertos (m²)                 |
@@ -353,7 +376,7 @@ No contiene publicaciones comerciales ni precios.
 
 * `@@unique([tenantId, slug])`
 * `@@unique([tenantId, internalCode])` cuando `internalCode` está definido
-* Índices: `tenantId`, `[tenantId, createdById]`, `[tenantId, city]`, `[tenantId, propertyType]`, `[tenantId, condition]`, `[tenantId, updatedAt]`
+* Índices: `tenantId`, `[tenantId, createdById]`, `[tenantId, city]`, `[tenantId, province]`, `[tenantId, propertyType]`, `[tenantId, condition]`, `[tenantId, updatedAt]`
 
 ## Slug
 

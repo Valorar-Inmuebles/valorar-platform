@@ -1,6 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import {
-  Currency,
   PropertyImage,
   PropertyListing,
   PropertyListingType,
@@ -67,9 +66,7 @@ export class PublicPropertyService {
       );
 
     const data = properties
-      .map((property) =>
-        this.toCardDto(property, query.listingType),
-      )
+      .map((property) => this.toCardDto(property, query.listingType))
       .filter((card): card is PublicPropertyCardDto => card !== null);
 
     return {
@@ -145,8 +142,7 @@ export class PublicPropertyService {
       currency: primaryPrice.currency,
       bedrooms: property.bedrooms,
       bathrooms: property.bathrooms,
-      totalArea:
-        property.totalArea != null ? Number(property.totalArea) : null,
+      totalArea: property.totalArea != null ? Number(property.totalArea) : null,
       listingType: listing.listingType,
     };
   }
@@ -175,8 +171,7 @@ export class PublicPropertyService {
       currency: primaryPrice.currency,
       bedrooms: property.bedrooms,
       bathrooms: property.bathrooms,
-      totalArea:
-        property.totalArea != null ? Number(property.totalArea) : null,
+      totalArea: property.totalArea != null ? Number(property.totalArea) : null,
       listingType: listing.listingType,
     };
   }
@@ -208,10 +203,13 @@ export class PublicPropertyService {
       propertyType: property.propertyType,
       city: property.city,
       neighborhood: property.neighborhood,
+      province: property.province,
+      country: property.country,
+      latitude: property.latitude != null ? Number(property.latitude) : null,
+      longitude: property.longitude != null ? Number(property.longitude) : null,
       bedrooms: property.bedrooms,
       bathrooms: property.bathrooms,
-      totalArea:
-        property.totalArea != null ? Number(property.totalArea) : null,
+      totalArea: property.totalArea != null ? Number(property.totalArea) : null,
       coverImage: this.toCoverImageDto(coverImage),
       price: primaryPriceDto,
       listingType: listing.listingType,
@@ -227,9 +225,7 @@ export class PublicPropertyService {
     listings: PublishableListing[],
     preferredListingType?: PropertyListingType,
   ): PublishableListing | null {
-    const publishable = listings.filter(
-      (listing) => listing.prices.length > 0,
-    );
+    const publishable = listings.filter((listing) => listing.prices.length > 0);
 
     if (publishable.length === 0) {
       return null;
@@ -275,7 +271,9 @@ export class PublicPropertyService {
     };
   }
 
-  private toPrimaryPriceDto(price: PropertyPrice): PublicPropertyPrimaryPriceDto {
+  private toPrimaryPriceDto(
+    price: PropertyPrice,
+  ): PublicPropertyPrimaryPriceDto {
     return {
       amount: Number(price.amount),
       currency: price.currency,
@@ -293,10 +291,8 @@ export class PublicPropertyService {
       isFeatured: listing.isFeatured,
       publishedAt: listing.publishedAt,
       expensesAmount:
-        listing.expensesAmount != null
-          ? Number(listing.expensesAmount)
-          : null,
-      expensesCurrency: listing.expensesCurrency as Currency | null,
+        listing.expensesAmount != null ? Number(listing.expensesAmount) : null,
+      expensesCurrency: listing.expensesCurrency,
       primaryPrice: this.toPrimaryPriceDto(primaryPrice),
     };
   }

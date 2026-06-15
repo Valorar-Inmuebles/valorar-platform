@@ -6,9 +6,11 @@ import {
 } from '../../../../generated/prisma/client';
 import { PrismaService } from '../../../prisma/prisma.service';
 
-export type CreatePropertyListingData = Prisma.PropertyListingUncheckedCreateInput;
+export type CreatePropertyListingData =
+  Prisma.PropertyListingUncheckedCreateInput;
 
-export type UpdatePropertyListingData = Prisma.PropertyListingUncheckedUpdateInput;
+export type UpdatePropertyListingData =
+  Prisma.PropertyListingUncheckedUpdateInput;
 
 export interface FindManyPropertyListingsOptions {
   propertyId?: string;
@@ -78,7 +80,10 @@ export class PropertyListingRepository {
     return this.findById(id, tenantId);
   }
 
-  async softClose(id: string, tenantId: string): Promise<PropertyListing | null> {
+  async softClose(
+    id: string,
+    tenantId: string,
+  ): Promise<PropertyListing | null> {
     const result = await this.prisma.propertyListing.updateMany({
       where: { id, tenantId },
       data: {

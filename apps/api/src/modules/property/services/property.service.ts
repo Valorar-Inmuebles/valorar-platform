@@ -8,6 +8,10 @@ import { CreatePropertyDto } from '../dto/create-property.dto';
 import { PropertyResponseDto } from '../dto/property-response.dto';
 import { UpdatePropertyDto } from '../dto/update-property.dto';
 import { PropertyRepository } from '../repositories/property.repository';
+import {
+  mapLocationEnrichmentFields,
+  resolveProvince,
+} from '../utils/location-fields';
 
 @Injectable()
 export class PropertyService {
@@ -169,11 +173,12 @@ export class PropertyService {
       apartment: dto.apartment,
       neighborhood: dto.neighborhood,
       city: dto.city,
-      state: dto.state,
+      province: resolveProvince(dto),
       country: dto.country ?? 'AR',
       postalCode: dto.postalCode,
       latitude: dto.latitude,
       longitude: dto.longitude,
+      ...mapLocationEnrichmentFields(dto),
       totalArea: dto.totalArea,
       coveredArea: dto.coveredArea,
       uncoveredArea: dto.uncoveredArea,
@@ -198,7 +203,9 @@ export class PropertyService {
     return {
       ...(dto.slug !== undefined ? { slug: dto.slug } : {}),
       ...(dto.title !== undefined ? { title: dto.title } : {}),
-      ...(dto.description !== undefined ? { description: dto.description } : {}),
+      ...(dto.description !== undefined
+        ? { description: dto.description }
+        : {}),
       ...(internalCode !== undefined ? { internalCode } : {}),
       ...(dto.propertyType !== undefined
         ? { propertyType: dto.propertyType }
@@ -215,13 +222,18 @@ export class PropertyService {
         ? { neighborhood: dto.neighborhood }
         : {}),
       ...(dto.city !== undefined ? { city: dto.city } : {}),
-      ...(dto.state !== undefined ? { state: dto.state } : {}),
+      ...(resolveProvince(dto) !== undefined
+        ? { province: resolveProvince(dto) }
+        : {}),
       ...(dto.country !== undefined ? { country: dto.country } : {}),
       ...(dto.postalCode !== undefined ? { postalCode: dto.postalCode } : {}),
       ...(dto.latitude !== undefined ? { latitude: dto.latitude } : {}),
       ...(dto.longitude !== undefined ? { longitude: dto.longitude } : {}),
+      ...mapLocationEnrichmentFields(dto),
       ...(dto.totalArea !== undefined ? { totalArea: dto.totalArea } : {}),
-      ...(dto.coveredArea !== undefined ? { coveredArea: dto.coveredArea } : {}),
+      ...(dto.coveredArea !== undefined
+        ? { coveredArea: dto.coveredArea }
+        : {}),
       ...(dto.uncoveredArea !== undefined
         ? { uncoveredArea: dto.uncoveredArea }
         : {}),
@@ -237,7 +249,9 @@ export class PropertyService {
         ? { parkingSpaces: dto.parkingSpaces }
         : {}),
       ...(dto.yearBuilt !== undefined ? { yearBuilt: dto.yearBuilt } : {}),
-      ...(dto.orientation !== undefined ? { orientation: dto.orientation } : {}),
+      ...(dto.orientation !== undefined
+        ? { orientation: dto.orientation }
+        : {}),
       ...(dto.layout !== undefined ? { layout: dto.layout } : {}),
       ...(dto.brightness !== undefined ? { brightness: dto.brightness } : {}),
     };

@@ -27,7 +27,11 @@ export class PublicPropertyController {
   @Get()
   @ApiOperation({ summary: 'List publishable properties' })
   @ApiQuery({ name: 'tenantId', required: true, type: String })
-  @ApiQuery({ name: 'listingType', required: false, enum: ['SALE', 'RENT', 'TEMPORARY_RENT'] })
+  @ApiQuery({
+    name: 'listingType',
+    required: false,
+    enum: ['SALE', 'RENT', 'TEMPORARY_RENT'],
+  })
   @ApiQuery({ name: 'propertyType', required: false })
   @ApiQuery({ name: 'city', required: false, type: String })
   @ApiQuery({ name: 'neighborhood', required: false, type: String })
@@ -67,7 +71,11 @@ export class PublicPropertyController {
   @ApiOperation({ summary: 'Get a publishable property by slug' })
   @ApiParam({ name: 'slug', type: String })
   @ApiQuery({ name: 'tenantId', required: true, type: String })
-  @ApiQuery({ name: 'listingType', required: false, enum: ['SALE', 'RENT', 'TEMPORARY_RENT'] })
+  @ApiQuery({
+    name: 'listingType',
+    required: false,
+    enum: ['SALE', 'RENT', 'TEMPORARY_RENT'],
+  })
   @ApiOkResponse({
     description: 'Public property detail',
     type: PublicPropertyDetailDto,

@@ -1,8 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import {
-  Prisma,
-  PropertyImage,
-} from '../../../../generated/prisma/client';
+import { Prisma, PropertyImage } from '../../../../generated/prisma/client';
 import { PrismaService } from '../../../prisma/prisma.service';
 
 export type CreatePropertyImageData = Prisma.PropertyImageUncheckedCreateInput;

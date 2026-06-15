@@ -117,10 +117,7 @@ export class PropertyPriceController {
       'Invalid query parameters or cannot delete the only price of a publishable listing (ACTIVE, PAUSED, or RESERVED)',
   })
   @ApiNotFoundResponse({ description: 'Property price not found' })
-  remove(
-    @Param('id') id: string,
-    @Query() query: PropertyPriceTenantQueryDto,
-  ) {
+  remove(@Param('id') id: string, @Query() query: PropertyPriceTenantQueryDto) {
     return this.propertyPriceService.remove(id, query.tenantId);
   }
 }

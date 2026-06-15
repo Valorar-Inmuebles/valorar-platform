@@ -94,7 +94,10 @@ export class PropertyListingService {
     tenantId: string,
     dto: UpdatePropertyListingDto,
   ): Promise<PropertyListingResponseDto> {
-    const existing = await this.propertyListingRepository.findById(id, tenantId);
+    const existing = await this.propertyListingRepository.findById(
+      id,
+      tenantId,
+    );
 
     if (!existing) {
       throw new NotFoundException(`Property listing with id "${id}" not found`);
@@ -135,7 +138,10 @@ export class PropertyListingService {
     id: string,
     tenantId: string,
   ): Promise<PropertyListingResponseDto> {
-    const existing = await this.propertyListingRepository.findById(id, tenantId);
+    const existing = await this.propertyListingRepository.findById(
+      id,
+      tenantId,
+    );
 
     if (!existing) {
       throw new NotFoundException(`Property listing with id "${id}" not found`);
@@ -145,7 +151,10 @@ export class PropertyListingService {
       return PropertyListingResponseDto.fromEntity(existing);
     }
 
-    const listing = await this.propertyListingRepository.softClose(id, tenantId);
+    const listing = await this.propertyListingRepository.softClose(
+      id,
+      tenantId,
+    );
 
     if (!listing) {
       throw new NotFoundException(`Property listing with id "${id}" not found`);
@@ -224,7 +233,10 @@ export class PropertyListingService {
     tenantId: string,
     action: 'create' | 'activate',
   ): Promise<void> {
-    const property = await this.propertyRepository.findById(propertyId, tenantId);
+    const property = await this.propertyRepository.findById(
+      propertyId,
+      tenantId,
+    );
 
     if (!property) {
       throw new BadRequestException(

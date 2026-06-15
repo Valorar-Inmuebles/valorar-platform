@@ -151,6 +151,19 @@ enum PropertyBrightness {
   HIGH
 }
 
+enum GeocodeSource {
+  MANUAL
+  GOOGLE_PLACES
+  IMPORT
+}
+
+enum GeocodeAccuracy {
+  EXACT
+  APPROXIMATE
+  NEIGHBORHOOD
+  CITY
+}
+
 model Property {
   id String @id @default(cuid())
 
@@ -176,11 +189,15 @@ model Property {
   apartment    String?
   neighborhood String?
   city         String
-  state        String?
+  province     String?
   country      String  @default("AR")
   postalCode   String?
   latitude     Decimal? @db.Decimal(10, 7)
   longitude    Decimal? @db.Decimal(10, 7)
+  googlePlaceId      String?
+  formattedAddress   String?
+  geocodeSource      GeocodeSource?
+  geocodeAccuracy    GeocodeAccuracy?
 
   totalArea     Decimal? @db.Decimal(10, 2)
   coveredArea   Decimal? @db.Decimal(10, 2)
@@ -212,6 +229,7 @@ model Property {
   @@index([tenantId])
   @@index([tenantId, createdById])
   @@index([tenantId, city])
+  @@index([tenantId, province])
   @@index([tenantId, propertyType])
   @@index([tenantId, condition])
   @@index([tenantId, updatedAt])

@@ -176,7 +176,7 @@ Pendiente en Property API: features admin, storage upload, resolución tenant po
 
 Documentación: `docs/03-database/property-domain.md`
 
-Migración: `202606150001_property_foundation`
+Migración: `202606150001_property_foundation`, `202606150002_property_location_v1_1`
 
 ### Lead Domain v1 (documentado)
 

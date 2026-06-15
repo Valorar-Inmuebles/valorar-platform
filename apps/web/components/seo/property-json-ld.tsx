@@ -14,28 +14,40 @@ export function PropertyJsonLd({ property }: PropertyJsonLdProps) {
     property.description?.trim() ??
     `${getListingTypeLabel(property.listingType)} en ${property.city}.`;
 
+  const address: Record<string, string> = {
+    "@type": "PostalAddress",
+    addressCountry: property.country,
+    addressLocality: property.city,
+  };
+
+  if (property.province) {
+    address.addressRegion = property.province;
+  }
+
   const data: Record<string, unknown> = {
     "@context": "https://schema.org",
     "@type": "RealEstateListing",
     name: property.title,
     description,
     url,
+    address,
     offers: {
       "@type": "Offer",
       price: property.price.amount,
       priceCurrency: property.price.currency,
     },
-    address: {
-      "@type": "PostalAddress",
-      addressLocality: property.city,
-      ...(property.neighborhood && {
-        addressRegion: property.neighborhood,
-      }),
-    },
   };
 
   if (property.coverImage.url) {
     data.image = property.coverImage.url;
+  }
+
+  if (property.latitude != null && property.longitude != null) {
+    data.geo = {
+      "@type": "GeoCoordinates",
+      latitude: property.latitude,
+      longitude: property.longitude,
+    };
   }
 
   if (property.bedrooms != null) {

@@ -3,13 +3,7 @@ import {
   Currency,
   PropertyListingStatus,
 } from '../../../../generated/prisma/client';
-import {
-  IsBoolean,
-  IsEnum,
-  IsNumber,
-  IsOptional,
-  Min,
-} from 'class-validator';
+import { IsBoolean, IsEnum, IsNumber, IsOptional, Min } from 'class-validator';
 
 export class UpdatePropertyListingDto {
   @ApiPropertyOptional({ enum: PropertyListingStatus })
