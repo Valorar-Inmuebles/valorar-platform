@@ -1,36 +1,62 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Valorar Admin (`apps/admin`)
 
-## Getting Started
+Panel administrativo de Valorar Platform. Toda operación de negocio pasa por la API NestJS (`apps/api`); este frontend **no** accede a Prisma ni a PostgreSQL.
 
-First, run the development server:
+## Stack
+
+- Next.js 16 (App Router, Server First)
+- TypeScript
+- Tailwind CSS v4
+- `@repo/ui` — componentes compartidos del monorepo
+- `@repo/eslint-config` / `@repo/typescript-config` — configuración compartida
+
+## Desarrollo local
+
+Desde la raíz del monorepo:
+
+```bash
+npm install
+npm run dev -- --filter=admin
+```
+
+La app corre en [http://localhost:3001](http://localhost:3001) (puerto distinto de `apps/web`).
+
+Comandos desde `apps/admin`:
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm run build
+npm run lint
+npm run check-types
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Estructura (Fase 0)
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```txt
+apps/admin/
+├── app/              # App Router (layout raíz, globals.css)
+├── components/       # UI específica del admin
+├── lib/              # Utilidades (API client en fases posteriores)
+└── providers/        # Client providers (toast, auth, etc.)
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+La estructura de rutas `(auth)` / `(dashboard)` y el shell (sidebar, topbar) se implementan en fases posteriores. Ver `docs/07-admin/admin-nav.md`.
 
-## Learn More
+## Variables de entorno
 
-To learn more about Next.js, take a look at the following resources:
+Fase 0 no requiere variables. En fases futuras:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+| Variable | Uso |
+| -------- | --- |
+| `API_URL` | Base URL de `apps/api` |
+| `ADMIN_DEV_ROLE` | Rol mock en desarrollo sin auth |
+| `ADMIN_DEV_TENANT_ID` | Tenant mock para `SUPER_ADMIN` en dev |
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Documentación
 
-## Deploy on Vercel
+- `docs/07-admin/admin-nav.md` — navegación, rutas y RBAC
+- `PROJECT_STATE.md` — estado global del proyecto
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Referencia UI
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+El directorio `proyecto-ejemplo/` (temporal) sirve solo como referencia visual para layout, tablas y formularios. No copiar módulos de negocio ni código legal.
