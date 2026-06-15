@@ -28,6 +28,8 @@ Infraestructura inicial:
 
 Dominio Property v1: migrado (`202606150001_property_foundation`).
 
+Roadmap Property API: `docs/09-roadmap/property-api-roadmap.md`
+
 ---
 
 ## Arquitectura
@@ -113,6 +115,8 @@ Migración: `202606150001_property_foundation`
 
 * API / Services / Controllers
 * UI admin y web pública
+
+Roadmap: `docs/09-roadmap/property-api-roadmap.md`
 
 ### Otros módulos
 
