@@ -1,5 +1,6 @@
 import type {
   PublicPropertyCard,
+  PublicPropertyDetail,
   PublicPropertyListResponse,
   PropertyListingType,
   PropertyType,
@@ -127,6 +128,84 @@ export async function getRecentProperties(
   });
 
   return response.data;
+}
+
+export async function getPropertyBySlug(
+  slug: string,
+  listingType?: PropertyListingType,
+): Promise<PublicPropertyDetail | null> {
+  const tenantId = getTenantId();
+
+  if (!tenantId) {
+    return null;
+  }
+
+  const params = new URLSearchParams();
+  params.set("tenantId", tenantId);
+
+  if (listingType) {
+    params.set("listingType", listingType);
+  }
+
+  try {
+    return await apiFetch<PublicPropertyDetail>(
+      `/public/properties/${encodeURIComponent(slug)}?${params.toString()}`,
+      { revalidate: 300 },
+    );
+  } catch {
+    return null;
+  }
+}
+
+export async function getAllPublicPropertySlugs(): Promise<string[]> {
+  const tenantId = getTenantId();
+
+  if (!tenantId) {
+    return [];
+  }
+
+  const slugs: string[] = [];
+  let page = 1;
+  let totalPages = 1;
+  const limit = 100;
+
+  while (page <= totalPages) {
+    const params = new URLSearchParams();
+    params.set("tenantId", tenantId);
+    params.set("page", String(page));
+    params.set("limit", String(limit));
+
+    try {
+      const response = await apiFetch<PublicPropertyListResponse>(
+        `/public/properties?${params.toString()}`,
+        { revalidate: 3600 },
+      );
+
+      slugs.push(...response.data.map((property) => property.slug));
+      totalPages = response.meta.totalPages;
+      page += 1;
+    } catch {
+      break;
+    }
+  }
+
+  return slugs;
+}
+
+export async function getRelatedProperties(
+  property: PublicPropertyDetail,
+  limit = 4,
+): Promise<PublicPropertyCard[]> {
+  const response = await getPublicProperties({
+    city: property.city,
+    propertyType: property.propertyType,
+    page: 1,
+    limit: limit + 1,
+  });
+
+  return response.data
+    .filter((item) => item.slug !== property.slug)
+    .slice(0, limit);
 }
 
 export type { PropertyListingType, PropertyType, Currency };

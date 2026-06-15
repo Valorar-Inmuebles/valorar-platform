@@ -1,10 +1,12 @@
 import type { Metadata } from "next";
 import { PageShell } from "@/components/content/page-shell";
+import { createStaticPageMetadata } from "@/lib/seo/metadata";
 
-export const metadata: Metadata = {
-  title: "Nosotros",
-  description: "Conocé nuestra inmobiliaria.",
-};
+export const metadata: Metadata = createStaticPageMetadata(
+  "Nosotros",
+  "Conocé nuestra inmobiliaria.",
+  "/nosotros",
+);
 
 export default function AboutPage() {
   return (

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { BreadcrumbJsonLd } from "@/components/seo/breadcrumb-json-ld";
 
 export type BreadcrumbItem = {
   label: string;
@@ -11,7 +12,9 @@ type BreadcrumbsProps = {
 
 export function Breadcrumbs({ items }: BreadcrumbsProps) {
   return (
-    <nav aria-label="Breadcrumb">
+    <>
+      <BreadcrumbJsonLd items={items} />
+      <nav aria-label="Breadcrumb">
       <ol className="flex flex-wrap items-center gap-2 text-sm text-muted">
         {items.map((item, index) => {
           const isLast = index === items.length - 1;
@@ -43,5 +46,6 @@ export function Breadcrumbs({ items }: BreadcrumbsProps) {
         })}
       </ol>
     </nav>
+    </>
   );
 }

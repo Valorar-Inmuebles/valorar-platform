@@ -1,12 +1,14 @@
 import type { Metadata } from "next";
 import { PageShell } from "@/components/content/page-shell";
 import { FOOTER_CONTACT } from "@/lib/constants/navigation";
+import { createStaticPageMetadata } from "@/lib/seo/metadata";
 import { getPublicSiteConfig } from "@/lib/tenant/site-config";
 
-export const metadata: Metadata = {
-  title: "Contacto",
-  description: "Contactanos para consultas sobre propiedades y servicios.",
-};
+export const metadata: Metadata = createStaticPageMetadata(
+  "Contacto",
+  "Contactanos para consultas sobre propiedades y servicios.",
+  "/contacto",
+);
 
 export default function ContactPage() {
   const site = getPublicSiteConfig();

@@ -1,4 +1,8 @@
-import type { PropertyListingType, PropertyType } from "@repo/shared-types";
+import type {
+  PropertyFeatureCategory,
+  PropertyListingType,
+  PropertyType,
+} from "@repo/shared-types";
 
 const PROPERTY_TYPE_LABELS: Record<PropertyType, string> = {
   HOUSE: "Casa",
@@ -28,6 +32,26 @@ export function getPropertyTypeLabel(propertyType: PropertyType): string {
 export function getListingTypeLabel(listingType: PropertyListingType): string {
   return LISTING_TYPE_LABELS[listingType];
 }
+
+const FEATURE_CATEGORY_LABELS: Record<PropertyFeatureCategory, string> = {
+  GENERAL: "Generales",
+  SERVICE: "Servicios",
+  ROOM: "Ambientes",
+  AMENITY: "Amenities",
+};
+
+export function getFeatureCategoryLabel(
+  category: PropertyFeatureCategory,
+): string {
+  return FEATURE_CATEGORY_LABELS[category];
+}
+
+export const FEATURE_CATEGORY_ORDER: PropertyFeatureCategory[] = [
+  "GENERAL",
+  "SERVICE",
+  "ROOM",
+  "AMENITY",
+];
 
 export const SEARCH_PROPERTY_TYPE_OPTIONS: Array<{
   value: PropertyType | "";

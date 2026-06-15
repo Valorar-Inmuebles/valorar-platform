@@ -14,6 +14,7 @@ import {
 } from "@/components/property/property-results-count";
 import { getPublicProperties } from "@/lib/api/public-property";
 import { getListingTypeLabel } from "@/lib/format/labels";
+import { createPageMetadata } from "@/lib/seo/metadata";
 import {
   hasActivePropertyListFilters,
   parsePropertyListSearchParams,
@@ -45,15 +46,13 @@ export async function generateMetadata({
   const params = await searchParams;
   const filters = parsePropertyListSearchParams(params);
   const title = buildPropertiesListTitle(filters);
+  const description = buildPropertiesDescription(filters);
 
-  return {
+  return createPageMetadata({
     title,
-    description: buildPropertiesDescription(filters),
-    openGraph: {
-      title,
-      description: buildPropertiesDescription(filters),
-    },
-  };
+    description,
+    path: "/propiedades",
+  });
 }
 
 export const revalidate = 60;

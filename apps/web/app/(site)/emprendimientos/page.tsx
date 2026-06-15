@@ -1,14 +1,13 @@
 import type { Metadata } from "next";
 import { PageShell } from "@/components/content/page-shell";
+import { createPageMetadata } from "@/lib/seo/metadata";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = createPageMetadata({
   title: "Emprendimientos",
   description: "Emprendimientos inmobiliarios y unidades disponibles.",
-  robots: {
-    index: false,
-    follow: true,
-  },
-};
+  path: "/emprendimientos",
+  noIndex: true,
+});
 
 export default function DevelopmentsPage() {
   return (

@@ -194,6 +194,8 @@ Leyenda de tipo:
 | ---------- | ---- | --------- | ----------- |
 | `PropertyJsonLd` | SC | `components/seo/` | JSON-LD RealEstateListing |
 | `OrganizationJsonLd` | SC | `components/seo/` | JSON-LD Organization (home) |
+| `BreadcrumbJsonLd` | SC | `components/seo/` | JSON-LD BreadcrumbList |
+| `JsonLd` | SC | `components/seo/` | Script base JSON-LD |
 | `OpenGraphTags` | SC | vía `generateMetadata` | OG tags por página |
 | `CanonicalUrl` | SC | vía `generateMetadata` | URL canónica |
 

@@ -1,10 +1,12 @@
 import type { Metadata } from "next";
 import { PageShell } from "@/components/content/page-shell";
+import { createStaticPageMetadata } from "@/lib/seo/metadata";
 
-export const metadata: Metadata = {
-  title: "Asesoramiento Jurídico",
-  description: "Asesoramiento jurídico inmobiliario.",
-};
+export const metadata: Metadata = createStaticPageMetadata(
+  "Asesoramiento Jurídico",
+  "Asesoramiento jurídico inmobiliario.",
+  "/asesoramiento-juridico",
+);
 
 export default function LegalAdvisoryPage() {
   return (

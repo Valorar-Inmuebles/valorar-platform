@@ -5,28 +5,34 @@ import { FeaturedPropertiesSection } from "@/components/home/featured-properties
 import { HeroSection } from "@/components/home/hero-section";
 import { RecentPropertiesSection } from "@/components/home/recent-properties-section";
 import { PropertyGridSkeleton } from "@/components/property/property-grid-skeleton";
-import { BRAND_ASSETS } from "@/lib/constants/brand";
+import { OrganizationJsonLd } from "@/components/seo/organization-json-ld";
+import { getSiteConfig } from "@/config/site";
 import {
   getFeaturedProperties,
   getRecentProperties,
 } from "@/lib/api/public-property";
+import { BRAND_ASSETS } from "@/lib/constants/brand";
+import { createPageMetadata } from "@/lib/seo/metadata";
 
-export const metadata: Metadata = {
-  title: "Valorar Inmuebles",
-  description: "Inmuebles, alquileres, ventas y emprendimientos.",
-  openGraph: {
-    title: "Valorar Inmuebles",
-    description: "Inmuebles, alquileres, ventas y emprendimientos.",
-    images: [
-      {
-        url: BRAND_ASSETS.logo512,
-        width: 512,
-        height: 512,
-        alt: "Valorar Inmuebles",
-      },
-    ],
-  },
-};
+export function generateMetadata(): Metadata {
+  const site = getSiteConfig();
+
+  return createPageMetadata({
+    title: `${site.companyName} — Inmobiliaria`,
+    description: site.description,
+    path: "/",
+    openGraph: {
+      images: [
+        {
+          url: BRAND_ASSETS.hero,
+          width: 1920,
+          height: 1080,
+          alt: site.companyName,
+        },
+      ],
+    },
+  });
+}
 
 export const revalidate = 300;
 
@@ -45,6 +51,8 @@ async function RecentSection() {
 export default function HomePage() {
   return (
     <>
+      <OrganizationJsonLd />
+
       <HeroSection />
 
       <Suspense
