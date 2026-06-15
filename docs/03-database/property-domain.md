@@ -1,8 +1,8 @@
 # Property Domain
 
-Versión: v1 (congelada)
+Versión: v1 (migrada)
 
-Estado: documentado. Pendiente de migración Prisma.
+Estado: migrado (`202606150001_property_foundation`).
 
 ---
 
@@ -77,6 +77,11 @@ TO_RENOVATE         → A refaccionar
 
 * `yearBuilt`: dato objetivo (año de construcción).
 * `condition`: clasificación comercial subjetiva.
+
+### Visibilidad
+
+* `isActive`: controla si la propiedad está activa o archivada (default: `true`).
+* Propiedades con `isActive = false` quedan ocultas de la web pública sin borrado físico.
 
 ### Identificación pública
 
@@ -173,6 +178,7 @@ Relación N:M entre `Property` (tenant) y `PropertyFeature` (global).
 
 * Lleva `tenantId` para consultas directas por tenant.
 * `value` opcional para detalles adicionales.
+* `createdAt` y `updatedAt` para auditoría de asignaciones.
 
 ---
 
@@ -197,13 +203,16 @@ Compartición entre agentes del mismo tenant.
 | Slug generado al crear; estable tras publicación | Aplicación |
 | AGENT: propias + compartidas | Permisos |
 | TENANT_ADMIN: todas del tenant | Permisos |
+| Web: `isActive = true` | Query pública |
 | Web: `status = ACTIVE` | Query pública |
 | Web: detalle por `slug` | Query pública |
+| Listados recientes / sitemap / ISR: `updatedAt` | Query pública |
 
 ---
 
 ## Filtros públicos previstos
 
+* `isActive`
 * `propertyType`
 * `condition`
 * `listingType`

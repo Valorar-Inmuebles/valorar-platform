@@ -1,6 +1,6 @@
 # Properties Module
 
-Versión: v1 (congelada)
+Versión: v1 (migrada)
 
 ## Objetivo
 
@@ -42,6 +42,7 @@ Una propiedad puede tener varias publicaciones simultáneas (una por tipo).
 | ------------------- | --------------- |
 | Tipo de inmueble    | propertyType    |
 | Condición           | condition       |
+| Activa              | isActive        |
 | URL pública         | slug            |
 | Código interno      | internalCode    |
 | Dirección           | street, streetNumber, floor, apartment |
@@ -180,7 +181,8 @@ Solo `SUPER_ADMIN` gestiona el catálogo global.
 
 ## Web pública
 
-* Lista `PropertyListing` con `status = ACTIVE` a nivel tenant.
+* Lista propiedades con `isActive = true` y `PropertyListing` con `status = ACTIVE` a nivel tenant.
 * Detalle por `slug` de la propiedad.
 * Filtros por tipo, condición, operación, ubicación, precio y características.
+* Listados recientes, sitemap e ISR ordenados por `updatedAt`.
 * No depende del agente creador.

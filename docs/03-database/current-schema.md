@@ -2,14 +2,14 @@
 
 ## Estado
 
-Versión: Foundation v1 + Property Domain v1 (documentado)
+Versión: Foundation v1 + Property Domain v1
 
 Base de datos:
 
 * PostgreSQL
 * Prisma ORM
 
-Dominio Property: congelado a nivel documental. Pendiente de migración Prisma.
+Dominio Property: migrado (`202606150001_property_foundation`).
 
 ---
 
@@ -131,7 +131,7 @@ AGENT
 
 # Property Domain v1
 
-Estado: documentado. Pendiente de migración Prisma.
+Estado: migrado (`202606150001_property_foundation`).
 
 Documentación detallada: `docs/03-database/property-domain.md`
 
@@ -295,6 +295,7 @@ Representa un inmueble físico.
 * Distribución (ambientes, dormitorios, baños).
 * Antigüedad, orientación, disposición y luminosidad.
 * Condición del inmueble.
+* Visibilidad (`isActive`).
 * Slug público para URLs SEO.
 * Ownership del agente creador.
 
@@ -313,6 +314,7 @@ No contiene publicaciones comerciales ni precios.
 | description    | String?             | Descripción                              |
 | propertyType   | PropertyType        | Tipo de inmueble                         |
 | condition      | PropertyCondition?  | Estado / condición comercial             |
+| isActive       | Boolean             | Activa / archivada (default: true)       |
 | street         | String?             | Calle                                    |
 | streetNumber   | String?             | Altura                                   |
 | floor          | String?             | Piso                                     |
@@ -345,7 +347,7 @@ No contiene publicaciones comerciales ni precios.
 
 * `@@unique([tenantId, slug])`
 * `@@unique([tenantId, internalCode])` cuando `internalCode` está definido
-* Índices: `tenantId`, `[tenantId, createdById]`, `[tenantId, city]`, `[tenantId, propertyType]`, `[tenantId, condition]`
+* Índices: `tenantId`, `[tenantId, createdById]`, `[tenantId, city]`, `[tenantId, propertyType]`, `[tenantId, condition]`, `[tenantId, updatedAt]`
 
 ## Slug
 
@@ -526,6 +528,7 @@ Asigna características globales a propiedades de un tenant.
 | featureId  | String   | → PropertyFeature |
 | value      | String?  | Detalle opcional  |
 | createdAt  | DateTime |                   |
+| updatedAt  | DateTime |                   |
 
 ## Restricciones
 
@@ -606,9 +609,11 @@ Toda propiedad tiene un creador (`createdById`). Acceso extendido vía `Property
 
 ## Web pública
 
-Publica `PropertyListing` con `status = ACTIVE` a nivel tenant.
+Publica `Property` con `isActive = true` y `PropertyListing` con `status = ACTIVE` a nivel tenant.
 
 URLs de detalle: `/propiedades/{slug}` (slug único por tenant).
+
+Listados recientes, sitemap e ISR: `@@index([tenantId, updatedAt])`.
 
 ## Inglés
 

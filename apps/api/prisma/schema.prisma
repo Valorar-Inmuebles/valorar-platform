@@ -1,8 +1,6 @@
 // This is your Prisma schema file,
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
-// Get a free hosted Postgres database in seconds: `npx create-db`
-
 generator client {
   provider = "prisma-client"
   output   = "../generated/prisma"
@@ -20,8 +18,14 @@ model Tenant {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  users    User[]
-  settings TenantSetting?
+  users                      User[]
+  settings                   TenantSetting?
+  properties                 Property[]
+  propertyListings           PropertyListing[]
+  propertyPrices             PropertyPrice[]
+  propertyImages             PropertyImage[]
+  propertyFeatureAssignments PropertyFeatureAssignment[]
+  propertyAgentAccess        PropertyAgentAccess[]
 }
 
 enum UserRole {
@@ -43,6 +47,10 @@ model User {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  createdProperties     Property[]            @relation("PropertyCreator")
+  sharedPropertyAccess  PropertyAgentAccess[] @relation("PropertySharedWith")
+  grantedPropertyAccess PropertyAgentAccess[] @relation("PropertyAccessGrantedBy")
 }
 
 model TenantSetting {
@@ -65,4 +73,290 @@ model TenantSetting {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+enum PropertyType {
+  HOUSE
+  APARTMENT
+  PH
+  OFFICE
+  COMMERCIAL
+  WAREHOUSE
+  INDUSTRIAL
+  LAND
+  FIELD
+  GARAGE
+  COUNTRY_HOUSE
+  OTHER
+}
+
+enum PropertyCondition {
+  NEW
+  EXCELLENT
+  VERY_GOOD
+  GOOD
+  REGULAR
+  TO_RENOVATE
+  UNDER_CONSTRUCTION
+}
+
+enum PropertyListingType {
+  SALE
+  RENT
+  TEMPORARY_RENT
+}
+
+enum PropertyListingStatus {
+  DRAFT
+  ACTIVE
+  PAUSED
+  RESERVED
+  CLOSED
+}
+
+enum Currency {
+  ARS
+  USD
+}
+
+enum PropertyFeatureCategory {
+  GENERAL
+  SERVICE
+  ROOM
+  AMENITY
+}
+
+enum Orientation {
+  NORTH
+  SOUTH
+  EAST
+  WEST
+  NORTHEAST
+  NORTHWEST
+  SOUTHEAST
+  SOUTHWEST
+}
+
+enum PropertyLayout {
+  FRONT
+  BACK
+  SIDE
+  INTERNAL
+  CORNER
+}
+
+enum PropertyBrightness {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+model Property {
+  id String @id @default(cuid())
+
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  createdById String
+  createdBy   User   @relation("PropertyCreator", fields: [createdById], references: [id])
+
+  slug         String
+  internalCode String?
+  title        String
+  description  String? @db.Text
+
+  propertyType PropertyType
+  condition    PropertyCondition?
+
+  isActive Boolean @default(true)
+
+  street       String?
+  streetNumber String?
+  floor        String?
+  apartment    String?
+  neighborhood String?
+  city         String
+  state        String?
+  country      String  @default("AR")
+  postalCode   String?
+  latitude     Decimal? @db.Decimal(10, 7)
+  longitude    Decimal? @db.Decimal(10, 7)
+
+  totalArea     Decimal? @db.Decimal(10, 2)
+  coveredArea   Decimal? @db.Decimal(10, 2)
+  uncoveredArea Decimal? @db.Decimal(10, 2)
+  lotFront      Decimal? @db.Decimal(10, 2)
+  lotDepth      Decimal? @db.Decimal(10, 2)
+
+  rooms         Int?
+  bedrooms      Int?
+  bathrooms     Int?
+  halfBathrooms Int?
+  parkingSpaces Int?
+
+  yearBuilt   Int?
+  orientation Orientation?
+  layout      PropertyLayout?
+  brightness  PropertyBrightness?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  listings           PropertyListing[]
+  images             PropertyImage[]
+  featureAssignments PropertyFeatureAssignment[]
+  agentAccess        PropertyAgentAccess[]
+
+  @@unique([tenantId, slug])
+  @@unique([tenantId, internalCode])
+  @@index([tenantId])
+  @@index([tenantId, createdById])
+  @@index([tenantId, city])
+  @@index([tenantId, propertyType])
+  @@index([tenantId, condition])
+  @@index([tenantId, updatedAt])
+}
+
+model PropertyListing {
+  id String @id @default(cuid())
+
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  propertyId String
+  property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  listingType PropertyListingType
+  status      PropertyListingStatus @default(DRAFT)
+
+  expensesAmount   Decimal?  @db.Decimal(12, 2)
+  expensesCurrency Currency?
+  isFeatured       Boolean   @default(false)
+
+  publishedAt DateTime?
+  closedAt    DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  prices PropertyPrice[]
+
+  @@unique([propertyId, listingType])
+  @@index([tenantId])
+  @@index([tenantId, listingType, status])
+  @@index([tenantId, isFeatured])
+}
+
+model PropertyPrice {
+  id String @id @default(cuid())
+
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  listingId String
+  listing   PropertyListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  amount   Decimal  @db.Decimal(14, 2)
+  currency Currency
+
+  isPrimary Boolean @default(false)
+  label     String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([tenantId])
+  @@index([listingId])
+}
+
+model PropertyImage {
+  id String @id @default(cuid())
+
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  propertyId String
+  property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  storageKey String
+  url        String?
+  altText    String?
+  mimeType   String?
+  fileSize   Int?
+
+  sortOrder Int     @default(0)
+  isCover   Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([tenantId])
+  @@index([propertyId, sortOrder])
+}
+
+model PropertyFeature {
+  id String @id @default(cuid())
+
+  name     String
+  slug     String @unique
+  category PropertyFeatureCategory
+
+  isActive  Boolean @default(true)
+  sortOrder Int     @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  assignments PropertyFeatureAssignment[]
+
+  @@index([category])
+}
+
+model PropertyFeatureAssignment {
+  id String @id @default(cuid())
+
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  propertyId String
+  property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  featureId String
+  feature   PropertyFeature @relation(fields: [featureId], references: [id], onDelete: Restrict)
+
+  value String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([propertyId, featureId])
+  @@index([tenantId])
+  @@index([propertyId])
+  @@index([featureId])
+}
+
+model PropertyAgentAccess {
+  id String @id @default(cuid())
+
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  propertyId String
+  property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  userId String
+  user   User   @relation("PropertySharedWith", fields: [userId], references: [id], onDelete: Cascade)
+
+  canView Boolean @default(true)
+  canEdit Boolean @default(false)
+
+  grantedById String?
+  grantedBy   User?   @relation("PropertyAccessGrantedBy", fields: [grantedById], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([propertyId, userId])
+  @@index([tenantId])
+  @@index([userId])
 }

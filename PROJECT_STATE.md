@@ -17,7 +17,7 @@ Plataforma SaaS inmobiliaria multi-tenant orientada a:
 
 ## Estado Actual
 
-Fase: Foundation
+Fase: Foundation + Property Foundation
 
 Infraestructura inicial:
 
@@ -26,7 +26,7 @@ Infraestructura inicial:
 * Railway
 * Neon PostgreSQL
 
-Dominio Property v1: documentado y congelado. Pendiente de migración Prisma.
+Dominio Property v1: migrado (`202606150001_property_foundation`).
 
 ---
 
@@ -79,22 +79,26 @@ Infraestructura:
 * Tenant
 * User
 * TenantSetting
+* Property (schema)
+* PropertyListing (schema)
+* PropertyPrice (schema)
+* PropertyImage (schema)
+* PropertyFeature (schema)
+* PropertyFeatureAssignment (schema)
+* PropertyAgentAccess (schema)
+
+Documentación: `docs/03-database/property-domain.md`
+
+Migración: `202606150001_property_foundation`
 
 ---
 
 ## Módulos Pendientes
 
-### Property Domain v1 (documentado)
+### Property Domain v1 (lógica de negocio)
 
-* Property
-* PropertyListing
-* PropertyPrice
-* PropertyImage
-* PropertyFeature
-* PropertyFeatureAssignment
-* PropertyAgentAccess
-
-Documentación: `docs/03-database/property-domain.md`
+* API / Services / Controllers
+* UI admin y web pública
 
 ### Otros módulos
 
