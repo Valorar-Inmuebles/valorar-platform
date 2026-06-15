@@ -26,14 +26,17 @@ Representa una inmobiliaria dentro de la plataforma.
 
 ## Campos
 
-| Campo     | Tipo     |
-| --------- | -------- |
-| id        | String   |
-| name      | String   |
-| slug      | String   |
-| isActive  | Boolean  |
-| createdAt | DateTime |
-| updatedAt | DateTime |
+| Campo     | Tipo     | Descripción              |
+| --------- | -------- | ------------------------ |
+| id        | String   | Identificador (`cuid`)   |
+| name      | String   | Nombre de la inmobiliaria|
+| slug      | String   | Identificador URL único  |
+| createdAt | DateTime |                          |
+| updatedAt | DateTime |                          |
+
+## Restricciones
+
+* `slug`: único (`@unique`)
 
 ## Relaciones
 
@@ -47,8 +50,8 @@ Tenant
 ├── PropertyImages
 ├── PropertyFeatureAssignments
 ├── PropertyAgentAccess
-├── Developments
-└── Leads
+├── Developments (planificado)
+└── Leads (planificado)
 ```
 
 ---
@@ -57,28 +60,22 @@ Tenant
 
 Representa una persona que utiliza el sistema.
 
-## Roles
-
-```txt
-SUPER_ADMIN
-TENANT_ADMIN
-AGENT
-```
-
 ## Campos
 
-| Campo        | Tipo     |
-| ------------ | -------- |
-| id           | String   |
-| tenantId     | String   |
-| name         | String   |
-| email        | String   |
-| passwordHash | String   |
-| role         | UserRole |
-| isActive     | Boolean  |
-| lastLoginAt  | DateTime |
-| createdAt    | DateTime |
-| updatedAt    | DateTime |
+| Campo     | Tipo      | Descripción                              |
+| --------- | --------- | ---------------------------------------- |
+| id        | String    | Identificador (`cuid`)                   |
+| tenantId  | String?   | Tenant al que pertenece (`null` en SUPER_ADMIN) |
+| name      | String    | Nombre                                   |
+| email     | String    | Email único                              |
+| role      | UserRole  | Rol del usuario (default: `AGENT`)       |
+| createdAt | DateTime  |                                          |
+| updatedAt | DateTime  |                                          |
+
+## Restricciones
+
+* `email`: único (`@unique`)
+* `tenantId`: opcional para permitir `SUPER_ADMIN` sin tenant
 
 ## Relaciones
 
@@ -96,28 +93,33 @@ User
 
 Configuración de branding de cada inmobiliaria.
 
+Relación 1:1 con `Tenant`.
+
 ## Campos
 
-| Campo          | Tipo     |
-| -------------- | -------- |
-| id             | String   |
-| tenantId       | String   |
-| companyName    | String   |
-| logoUrl        | String   |
-| primaryColor   | String   |
-| secondaryColor | String   |
-| whatsapp       | String   |
-| email          | String   |
-| domain         | String   |
-| facebookUrl    | String   |
-| instagramUrl   | String   |
-| linkedinUrl    | String   |
-| createdAt      | DateTime |
-| updatedAt      | DateTime |
+| Campo          | Tipo     | Descripción |
+| -------------- | -------- | ----------- |
+| id             | String   |             |
+| tenantId       | String   | Único       |
+| companyName    | String?  |             |
+| logoUrl        | String?  |             |
+| primaryColor   | String?  |             |
+| secondaryColor | String?  |             |
+| whatsapp       | String?  |             |
+| email          | String?  |             |
+| domain         | String?  |             |
+| createdAt      | DateTime |             |
+| updatedAt      | DateTime |             |
+
+## Restricciones
+
+* `tenantId`: único (`@unique`) — una configuración por tenant
 
 ---
 
 # UserRole
+
+Enum de roles de usuario.
 
 ## Valores
 
@@ -126,6 +128,10 @@ SUPER_ADMIN
 TENANT_ADMIN
 AGENT
 ```
+
+## Default
+
+`AGENT` (en modelo `User`)
 
 ---
 

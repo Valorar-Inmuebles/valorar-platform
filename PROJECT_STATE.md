@@ -76,16 +76,24 @@ Infraestructura:
 
 ## Módulos Implementados
 
+### Foundation (schema + migración)
+
 * Tenant
 * User
+* UserRole
 * TenantSetting
-* Property (schema)
-* PropertyListing (schema)
-* PropertyPrice (schema)
-* PropertyImage (schema)
-* PropertyFeature (schema)
-* PropertyFeatureAssignment (schema)
-* PropertyAgentAccess (schema)
+
+Documentación: `docs/03-database/current-schema.md`
+
+### Property Domain v1 (schema + migración)
+
+* Property
+* PropertyListing
+* PropertyPrice
+* PropertyImage
+* PropertyFeature
+* PropertyFeatureAssignment
+* PropertyAgentAccess
 
 Documentación: `docs/03-database/property-domain.md`
 
@@ -94,6 +102,12 @@ Migración: `202606150001_property_foundation`
 ---
 
 ## Módulos Pendientes
+
+### Foundation (campos futuros)
+
+* `Tenant.isActive`
+* `User.passwordHash`, `User.isActive`, `User.lastLoginAt`
+* `TenantSetting.facebookUrl`, `TenantSetting.instagramUrl`, `TenantSetting.linkedinUrl`
 
 ### Property Domain v1 (lógica de negocio)
 
