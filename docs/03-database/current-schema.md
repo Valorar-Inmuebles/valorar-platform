@@ -2,14 +2,14 @@
 
 ## Estado
 
-Versión: Foundation v1 + Property Domain v1 (documentado)
+Versión: Foundation v1 + Property Domain v1
 
 Base de datos:
 
 * PostgreSQL
 * Prisma ORM
 
-Dominio Property: congelado a nivel documental. Pendiente de migración Prisma.
+Dominio Property: migrado (`202606150001_property_foundation`).
 
 ---
 
@@ -26,14 +26,17 @@ Representa una inmobiliaria dentro de la plataforma.
 
 ## Campos
 
-| Campo     | Tipo     |
-| --------- | -------- |
-| id        | String   |
-| name      | String   |
-| slug      | String   |
-| isActive  | Boolean  |
-| createdAt | DateTime |
-| updatedAt | DateTime |
+| Campo     | Tipo     | Descripción              |
+| --------- | -------- | ------------------------ |
+| id        | String   | Identificador (`cuid`)   |
+| name      | String   | Nombre de la inmobiliaria|
+| slug      | String   | Identificador URL único  |
+| createdAt | DateTime |                          |
+| updatedAt | DateTime |                          |
+
+## Restricciones
+
+* `slug`: único (`@unique`)
 
 ## Relaciones
 
@@ -47,8 +50,8 @@ Tenant
 ├── PropertyImages
 ├── PropertyFeatureAssignments
 ├── PropertyAgentAccess
-├── Developments
-└── Leads
+├── Developments (planificado)
+└── Leads (planificado)
 ```
 
 ---
@@ -57,28 +60,22 @@ Tenant
 
 Representa una persona que utiliza el sistema.
 
-## Roles
-
-```txt
-SUPER_ADMIN
-TENANT_ADMIN
-AGENT
-```
-
 ## Campos
 
-| Campo        | Tipo     |
-| ------------ | -------- |
-| id           | String   |
-| tenantId     | String   |
-| name         | String   |
-| email        | String   |
-| passwordHash | String   |
-| role         | UserRole |
-| isActive     | Boolean  |
-| lastLoginAt  | DateTime |
-| createdAt    | DateTime |
-| updatedAt    | DateTime |
+| Campo     | Tipo      | Descripción                              |
+| --------- | --------- | ---------------------------------------- |
+| id        | String    | Identificador (`cuid`)                   |
+| tenantId  | String?   | Tenant al que pertenece (`null` en SUPER_ADMIN) |
+| name      | String    | Nombre                                   |
+| email     | String    | Email único                              |
+| role      | UserRole  | Rol del usuario (default: `AGENT`)       |
+| createdAt | DateTime  |                                          |
+| updatedAt | DateTime  |                                          |
+
+## Restricciones
+
+* `email`: único (`@unique`)
+* `tenantId`: opcional para permitir `SUPER_ADMIN` sin tenant
 
 ## Relaciones
 
@@ -96,28 +93,33 @@ User
 
 Configuración de branding de cada inmobiliaria.
 
+Relación 1:1 con `Tenant`.
+
 ## Campos
 
-| Campo          | Tipo     |
-| -------------- | -------- |
-| id             | String   |
-| tenantId       | String   |
-| companyName    | String   |
-| logoUrl        | String   |
-| primaryColor   | String   |
-| secondaryColor | String   |
-| whatsapp       | String   |
-| email          | String   |
-| domain         | String   |
-| facebookUrl    | String   |
-| instagramUrl   | String   |
-| linkedinUrl    | String   |
-| createdAt      | DateTime |
-| updatedAt      | DateTime |
+| Campo          | Tipo     | Descripción |
+| -------------- | -------- | ----------- |
+| id             | String   |             |
+| tenantId       | String   | Único       |
+| companyName    | String?  |             |
+| logoUrl        | String?  |             |
+| primaryColor   | String?  |             |
+| secondaryColor | String?  |             |
+| whatsapp       | String?  |             |
+| email          | String?  |             |
+| domain         | String?  |             |
+| createdAt      | DateTime |             |
+| updatedAt      | DateTime |             |
+
+## Restricciones
+
+* `tenantId`: único (`@unique`) — una configuración por tenant
 
 ---
 
 # UserRole
+
+Enum de roles de usuario.
 
 ## Valores
 
@@ -127,11 +129,15 @@ TENANT_ADMIN
 AGENT
 ```
 
+## Default
+
+`AGENT` (en modelo `User`)
+
 ---
 
 # Property Domain v1
 
-Estado: documentado. Pendiente de migración Prisma.
+Estado: migrado (`202606150001_property_foundation`).
 
 Documentación detallada: `docs/03-database/property-domain.md`
 
@@ -295,6 +301,7 @@ Representa un inmueble físico.
 * Distribución (ambientes, dormitorios, baños).
 * Antigüedad, orientación, disposición y luminosidad.
 * Condición del inmueble.
+* Visibilidad (`isActive`).
 * Slug público para URLs SEO.
 * Ownership del agente creador.
 
@@ -313,6 +320,7 @@ No contiene publicaciones comerciales ni precios.
 | description    | String?             | Descripción                              |
 | propertyType   | PropertyType        | Tipo de inmueble                         |
 | condition      | PropertyCondition?  | Estado / condición comercial             |
+| isActive       | Boolean             | Activa / archivada (default: true)       |
 | street         | String?             | Calle                                    |
 | streetNumber   | String?             | Altura                                   |
 | floor          | String?             | Piso                                     |
@@ -345,7 +353,7 @@ No contiene publicaciones comerciales ni precios.
 
 * `@@unique([tenantId, slug])`
 * `@@unique([tenantId, internalCode])` cuando `internalCode` está definido
-* Índices: `tenantId`, `[tenantId, createdById]`, `[tenantId, city]`, `[tenantId, propertyType]`, `[tenantId, condition]`
+* Índices: `tenantId`, `[tenantId, createdById]`, `[tenantId, city]`, `[tenantId, propertyType]`, `[tenantId, condition]`, `[tenantId, updatedAt]`
 
 ## Slug
 
@@ -391,15 +399,31 @@ Representa una publicación comercial.
 | expensesAmount   | Decimal?              | Expensas                   |
 | expensesCurrency | Currency?             | Moneda de expensas         |
 | isFeatured       | Boolean               | Destacado                  |
-| publishedAt      | DateTime?             |                            |
-| closedAt         | DateTime?             |                            |
+| publishedAt      | DateTime?             | Primera activación (`→ ACTIVE`) |
+| closedAt         | DateTime?             | Cierre (`→ CLOSED`); `null` al reactivar |
 | createdAt        | DateTime              |                            |
 | updatedAt        | DateTime              |                            |
 
+## Ciclo de estados
+
+```txt
+DRAFT → ACTIVE → PAUSED / RESERVED → CLOSED → ACTIVE
+```
+
+| Transición | `publishedAt` | `closedAt` |
+| ---------- | ------------- | ---------- |
+| Primera `→ ACTIVE` | Se asigna si es `null` | Sin cambio |
+| `→ CLOSED` | Sin cambio | Se asigna |
+| `CLOSED → ACTIVE` | Se conserva si ya existía | `null` |
+
+Soft delete: el cierre usa `status = CLOSED`, sin borrado físico.
+
 ## Reglas
 
-* Una propiedad puede tener múltiples publicaciones simultáneas.
-* Solo una por tipo: `@@unique([propertyId, listingType])`
+* Una propiedad puede tener múltiples publicaciones simultáneas (una por `listingType`).
+* Solo una por tipo: `@@unique([propertyId, listingType])` — incluye listings `CLOSED`.
+* Listings `CLOSED` se **reactivan** (`PATCH` `status: ACTIVE`); no se crea un registro nuevo para el mismo `listingType`.
+* No crear ni activar listings si `Property.isActive = false`.
 
 ## Relaciones
 
@@ -443,8 +467,13 @@ Property "Casa Palermo"
 
 ## Reglas
 
-* Múltiples precios por publicación en distintas monedas.
-* Solo un `isPrimary = true` por publicación (validación en aplicación).
+* Múltiples precios por publicación; se permiten varias entradas en la misma moneda si tienen `label` distinto (ej. contado / financiado).
+* Exactamente un `isPrimary = true` por publicación cuando existen precios (validación en aplicación).
+* Primer precio auto `isPrimary = true`.
+* Promoción automática al eliminar o desmarcar el principal (si hay otros precios).
+* No eliminar el único precio si el listing está `ACTIVE`, `PAUSED` o `RESERVED`.
+* Borrado físico en Foundation; `amount > 0`.
+* Activar listing (`→ ACTIVE`) requiere al menos un precio (validación en `PropertyListingService`).
 
 ---
 
@@ -474,6 +503,11 @@ Compatible con Cloudflare R2, Supabase Storage y AWS S3.
 ## Reglas
 
 * Solo una imagen `isCover = true` por propiedad (validación en aplicación).
+* Primera imagen auto `isCover = true`.
+* Promoción automática al eliminar la portada (si hay imágenes restantes).
+* No crear imágenes si `Property.isActive = false`.
+* Borrado físico en Foundation; `storageKey` obligatorio al crear.
+* `sortOrder` persistido; reordenamiento UI pendiente.
 
 ---
 
@@ -526,6 +560,7 @@ Asigna características globales a propiedades de un tenant.
 | featureId  | String   | → PropertyFeature |
 | value      | String?  | Detalle opcional  |
 | createdAt  | DateTime |                   |
+| updatedAt  | DateTime |                   |
 
 ## Restricciones
 
@@ -606,9 +641,11 @@ Toda propiedad tiene un creador (`createdById`). Acceso extendido vía `Property
 
 ## Web pública
 
-Publica `PropertyListing` con `status = ACTIVE` a nivel tenant.
+Publica `Property` con `isActive = true` y `PropertyListing` con `status = ACTIVE` a nivel tenant.
 
 URLs de detalle: `/propiedades/{slug}` (slug único por tenant).
+
+Listados recientes, sitemap e ISR: `@@index([tenantId, updatedAt])`.
 
 ## Inglés
 
