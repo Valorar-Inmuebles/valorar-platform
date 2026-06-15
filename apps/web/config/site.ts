@@ -23,7 +23,7 @@ export function getSiteConfig(): SiteConfig {
     siteUrl: process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000",
     description:
       process.env.PUBLIC_SITE_DESCRIPTION ??
-      "Encontrá tu próximo hogar. Propiedades en venta y alquiler.",
+      "Inmuebles, alquileres, ventas y emprendimientos.",
     whatsapp: process.env.PUBLIC_WHATSAPP ?? "",
     email: process.env.PUBLIC_EMAIL ?? "contacto@inmobiliaria.com",
     phone: process.env.PUBLIC_PHONE ?? "+54 11 0000-0000",
@@ -56,12 +56,11 @@ export function createSiteMetadata(overrides?: Partial<Metadata>): Metadata {
       siteName: site.companyName,
       title: site.companyName,
       description: site.description,
-      // Placeholder: replace with /brand/og-image.jpg when the tenant asset is available.
       images: [
         {
-          url: "/brand/og-image.jpg",
-          width: 1200,
-          height: 630,
+          url: "/brand/logo-512.png",
+          width: 512,
+          height: 512,
           alt: site.companyName,
         },
       ],

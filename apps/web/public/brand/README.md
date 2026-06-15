@@ -1,17 +1,17 @@
-# Brand assets (tenant placeholders)
+# Brand assets — Valorar Inmuebles
 
-Colocá los archivos de marca del tenant en esta carpeta. **No commitear assets reales de clientes** salvo acuerdo explícito.
+Archivos de marca del tenant en esta carpeta.
 
-## Archivos esperados
+| Archivo | Uso |
+| ------- | --- |
+| `logo.png` | Header y Footer |
+| `logo-48.png` | Icono compacto |
+| `logo-180.png` | Apple touch icon |
+| `logo-192.png` | PWA icon |
+| `logo-512.png` | Open Graph / metadata |
+| `favicon.ico` | Favicon principal |
+| `favicon-16x16.png` | Favicon 16px |
+| `favicon-32x32.png` | Favicon 32px |
+| `valorar-inmuebles-hero.jpg` | Hero de la Home |
 
-| Archivo | Uso | Referencia en código |
-| ------- | --- | -------------------- |
-| `logo.svg` | Header y Footer | `components/layout/header-logo.tsx` — reemplazar texto por `<Image src="/brand/logo.svg" />` |
-| `favicon.ico` | Icono del sitio | Copiar a `apps/web/app/favicon.ico` o `apps/web/public/favicon.ico` |
-| `og-image.jpg` | Open Graph / redes (1200×630) | `config/site.ts` → `openGraph.images` |
-
-## Notas
-
-* Formatos alternativos para logo: `logo.png` (actualizar rutas en componentes).
-* `og-image.jpg` debe existir antes de producción para previews correctas en WhatsApp/Facebook.
-* Los colores de marca se configuran vía variables de entorno (`PUBLIC_PRIMARY_COLOR`, `PUBLIC_SECONDARY_COLOR`) hasta existir Public Tenant API.
+Referencia en código: `lib/constants/brand.ts`.

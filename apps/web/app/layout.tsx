@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { SiteProviders } from "@/components/providers/site-providers";
+import { BRAND_ASSETS } from "@/lib/constants/brand";
 import { createSiteMetadata } from "@/config/site";
 import "./globals.css";
 
@@ -18,9 +19,13 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = createSiteMetadata({
-  // Placeholder: add /brand/favicon.ico or app/favicon.ico when the tenant asset is available.
   icons: {
-    icon: "/favicon.ico",
+    icon: [
+      { url: BRAND_ASSETS.favicon },
+      { url: BRAND_ASSETS.favicon16, sizes: "16x16", type: "image/png" },
+      { url: BRAND_ASSETS.favicon32, sizes: "32x32", type: "image/png" },
+    ],
+    apple: BRAND_ASSETS.logo180,
   },
 });
 

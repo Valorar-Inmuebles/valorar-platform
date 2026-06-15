@@ -23,7 +23,7 @@ Dependencias externas identificadas:
 | ----------- | ------ | ------- |
 | Public Property API | ✅ Implementada | Fases 2–4 |
 | TailwindCSS en web | ✅ Configurado | Fase 1 |
-| `packages/shared-types` DTOs públicos | ⏳ Pendiente | Fase 2+ |
+| `packages/shared-types` DTOs públicos | ✅ Implementado | Fase 2+ |
 | Public Tenant / branding API | ⏳ Pendiente | Branding dinámico; MVP usa env |
 | Extensión DTO detalle (coords, dirección) | ⏳ Pendiente | Mapa en detalle |
 | Public Development API | ⏳ Pendiente | Fase 5 completa |
@@ -88,7 +88,9 @@ Establecer la estructura base del sitio: App Router, route group `(site)`, layou
 
 ---
 
-## Fase 2 — Home
+## Fase 2 — Home ✅
+
+Estado: **Completada** (2026-06-15).
 
 ### Objetivo
 
@@ -128,17 +130,17 @@ Implementar la página de inicio completa: hero, buscador con tabs, propiedades 
 
 ### Criterios de aceptación
 
-- [ ] Hero visible con buscador funcional en mobile y desktop
-- [ ] Tab Alquiler navega a `/propiedades?listingType=RENT` (con filtros del form si aplica)
-- [ ] Tab Comprar navega a `/propiedades?listingType=SALE`
-- [ ] Tab Emprendimientos navega a `/emprendimientos`
-- [ ] Destacadas renderizan datos de `/public/properties/featured`
-- [ ] Recientes renderizan datos de `/public/properties?limit=8`
-- [ ] Cards muestran imagen, precio, título, ubicación y métricas
-- [ ] Links «Ver todas» llevan a `/propiedades`
-- [ ] Categorías enlazan con query params correctos
-- [ ] Página funciona con API vacía (empty states, sin crash)
-- [ ] Precios formateados correctamente ARS y USD
+- [x] Hero visible con buscador funcional en mobile y desktop
+- [x] Tab Alquilar navega a `/propiedades?listingType=RENT` (con filtros del form si aplica)
+- [x] Tab Comprar navega a `/propiedades?listingType=SALE`
+- [x] Tab Emprendimientos navega a `/emprendimientos`
+- [x] Destacadas renderizan datos de `/public/properties/featured` (máx. 3)
+- [x] Recientes renderizan datos de `/public/properties?limit=8`
+- [x] Cards muestran imagen, precio, título, ubicación y métricas
+- [x] Links «Ver todas» / «Ver más propiedades» llevan a `/propiedades`
+- [x] Categorías enlazan con query params correctos
+- [x] Página funciona con API vacía (empty states, sin crash)
+- [x] Precios formateados correctamente ARS y USD
 
 ---
 
@@ -426,7 +428,7 @@ Al completar cada fase, actualizar:
 | Fase | Complejidad | Notas |
 | ---- | ----------- | ----- |
 | 1 | Baja | Fundación ✅ |
-| 2 | Media | Integración API + card |
+| 2 | Media | Home + API ✅ |
 | 3 | Alta | Filtros + URL sync |
 | 4 | Alta | Galería + detalle |
 | 5a | Baja | Placeholder |

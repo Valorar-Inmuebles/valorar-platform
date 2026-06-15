@@ -1,3 +1,5 @@
+import Image from "next/image";
+import Link from "next/link";
 import {
   FOOTER_CONTACT,
   FOOTER_DESCRIPTION,
@@ -5,6 +7,7 @@ import {
   FOOTER_SERVICE_ITEMS,
   FOOTER_SOCIAL_LINKS,
 } from "@/lib/constants/navigation";
+import { BRAND_ASSETS } from "@/lib/constants/brand";
 import { getPublicSiteConfig } from "@/lib/tenant/site-config";
 import { FooterCopyright } from "./footer-copyright";
 import { FooterNav } from "./footer-nav";
@@ -40,8 +43,16 @@ export function Footer() {
       <SiteContainer className="py-12 lg:py-16">
         <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-4">
           <div className="sm:col-span-2 lg:col-span-1">
-            <p className="text-lg font-semibold">{site.companyName}</p>
-            <p className="mt-3 max-w-sm text-sm leading-relaxed text-white/70">
+            <Link href="/" className="inline-flex">
+              <Image
+                src={BRAND_ASSETS.logo}
+                alt={site.companyName}
+                width={160}
+                height={48}
+                className="h-10 w-auto brightness-0 invert"
+              />
+            </Link>
+            <p className="mt-4 max-w-sm text-sm leading-relaxed text-white/70">
               {FOOTER_DESCRIPTION}
             </p>
           </div>
