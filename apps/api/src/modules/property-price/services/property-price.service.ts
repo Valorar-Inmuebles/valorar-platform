@@ -10,6 +10,12 @@ import { PropertyPriceResponseDto } from '../dto/property-price-response.dto';
 import { UpdatePropertyPriceDto } from '../dto/update-property-price.dto';
 import { PropertyPriceRepository } from '../repositories/property-price.repository';
 
+const PUBLISHABLE_LISTING_STATUSES: PropertyListingStatus[] = [
+  PropertyListingStatus.ACTIVE,
+  PropertyListingStatus.PAUSED,
+  PropertyListingStatus.RESERVED,
+];
+
 @Injectable()
 export class PropertyPriceService {
   constructor(
@@ -89,6 +95,32 @@ export class PropertyPriceService {
       return PropertyPriceResponseDto.fromEntity(existing);
     }
 
+    if (dto.isPrimary === false && existing.isPrimary) {
+      const priceCount = await this.propertyPriceRepository.countByListing(
+        existing.listingId,
+        tenantId,
+      );
+
+      if (priceCount === 1) {
+        throw new BadRequestException(
+          'Cannot demote the only price of a listing; exactly one primary price is required when prices exist',
+        );
+      }
+
+      const price = await this.propertyPriceRepository.updateWithPrimaryDemotion(
+        id,
+        tenantId,
+        existing.listingId,
+        updateData,
+      );
+
+      if (!price) {
+        throw new NotFoundException(`Property price with id "${id}" not found`);
+      }
+
+      return PropertyPriceResponseDto.fromEntity(price);
+    }
+
     const demoteOthers = dto.isPrimary === true;
 
     const price = await this.propertyPriceRepository.updateWithPrimaryHandling(
@@ -132,10 +164,10 @@ export class PropertyPriceService {
 
     if (
       priceCount === 1 &&
-      listing.status === PropertyListingStatus.ACTIVE
+      PUBLISHABLE_LISTING_STATUSES.includes(listing.status)
     ) {
       throw new BadRequestException(
-        'Cannot delete the only price of an active property listing',
+        'Cannot delete the only price of a publishable property listing (ACTIVE, PAUSED, or RESERVED)',
       );
     }
 

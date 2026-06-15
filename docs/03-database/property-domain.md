@@ -117,7 +117,7 @@ Publicación comercial de una propiedad.
 Estados (`PropertyListingStatus`):
 
 ```txt
-DRAFT → ACTIVE → PAUSED / RESERVED → CLOSED
+DRAFT → ACTIVE → PAUSED / RESERVED → CLOSED → ACTIVE
 ```
 
 Información comercial por publicación:
@@ -126,7 +126,25 @@ Información comercial por publicación:
 * Destacado (`isFeatured`)
 * Fechas de publicación y cierre
 
-Una propiedad puede tener varias publicaciones, pero solo una por `listingType`.
+Una propiedad puede tener varias publicaciones, pero solo una por `listingType` (`@@unique([propertyId, listingType])`).
+
+### Ciclo de vida y fechas
+
+| Evento | Efecto |
+| ------ | ------ |
+| Primera activación (`→ ACTIVE`) | `publishedAt` se asigna si es `null`; si ya existe, se conserva |
+| Cierre (`→ CLOSED`) | `closedAt` se asigna; no hay borrado físico |
+| Reactivación (`CLOSED → ACTIVE`) | `closedAt` vuelve a `null`; `publishedAt` se conserva si ya existía |
+
+### Reutilización de listings cerrados
+
+No se crea un nuevo `PropertyListing` cuando ya existe uno `CLOSED` para el mismo `listingType`. La restricción única por propiedad obliga a **reactivar** el registro existente (`PATCH` con `status: ACTIVE`).
+
+### Property archivada
+
+No se puede crear ni activar un `PropertyListing` si la `Property` asociada tiene `isActive = false`. Restaurar la propiedad antes de crear o reactivar publicaciones.
+
+No se puede activar un `PropertyListing` (`→ ACTIVE`) sin al menos un `PropertyPrice` asociado.
 
 ---
 
@@ -136,14 +154,28 @@ Múltiples precios por publicación. Monedas: `ARS`, `USD`.
 
 ```txt
 SALE
-└── USD 200.000 (isPrimary)
+├── USD 200.000 (isPrimary, label: "contado")
+└── USD 220.000 (label: "financiado")
 
 TEMPORARY_RENT
 ├── ARS 1.400.000 (isPrimary)
 └── USD 1.000
 ```
 
-Un precio `isPrimary` por publicación para visualización en web.
+Un precio `isPrimary` por publicación para visualización en web. Cuando existen precios, debe haber **exactamente uno** con `isPrimary = true`.
+
+Múltiples precios en la **misma moneda** son válidos si se distinguen por `label` (ej. contado vs financiado).
+
+### Reglas operativas
+
+* Primer precio del listing: `isPrimary = true` automáticamente.
+* Al promover un precio (`isPrimary: true`), los demás pasan a `isPrimary = false` (transacción).
+* Al desmarcar el principal (`isPrimary: false`): si hay otros precios, se promueve automáticamente el más antiguo; si es el único precio, se rechaza.
+* Al eliminar el precio principal: se promueve automáticamente otro (transacción).
+* No eliminar el único precio si el listing está `ACTIVE`, `PAUSED` o `RESERVED`.
+* Permitido eliminar el único precio si el listing está `DRAFT` o `CLOSED`.
+* Borrado físico en Foundation.
+* `amount > 0`; `currency` obligatorio.
 
 ---
 
@@ -197,7 +229,9 @@ Compartición entre agentes del mismo tenant.
 | Regla | Responsable |
 | ----- | ----------- |
 | `tenantId` consistente Property → Listing → Price | Aplicación |
-| Un solo `isPrimary` por publicación | Aplicación |
+| Exactamente un `isPrimary` por publicación (si hay precios) | Aplicación |
+| Listing `ACTIVE` requiere al menos un precio | Aplicación |
+| Múltiples precios misma moneda con `label` distinto | Aplicación (permitido) |
 | Una sola `isCover` por propiedad | Aplicación |
 | Solo features `isActive = true` asignables | Aplicación |
 | Slug generado al crear; estable tras publicación | Aplicación |

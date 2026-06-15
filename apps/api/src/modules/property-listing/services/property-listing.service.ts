@@ -5,6 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PropertyListingStatus } from '../../../../generated/prisma/client';
+import { PropertyPriceRepository } from '../../property-price/repositories/property-price.repository';
 import { PropertyRepository } from '../../property/repositories/property.repository';
 import { CreatePropertyListingDto } from '../dto/create-property-listing.dto';
 import { PropertyListingResponseDto } from '../dto/property-listing-response.dto';
@@ -27,6 +28,7 @@ export class PropertyListingService {
   constructor(
     private readonly propertyListingRepository: PropertyListingRepository,
     private readonly propertyRepository: PropertyRepository,
+    private readonly propertyPriceRepository: PropertyPriceRepository,
   ) {}
 
   async create(
@@ -107,6 +109,7 @@ export class PropertyListingService {
         tenantId,
         'activate',
       );
+      await this.assertListingHasAtLeastOnePrice(id, tenantId);
     }
 
     const updateData = this.toUpdateData(existing, dto);
@@ -196,6 +199,22 @@ export class PropertyListingService {
 
       throw new ConflictException(
         `A listing with type "${listingType}" already exists for this property`,
+      );
+    }
+  }
+
+  private async assertListingHasAtLeastOnePrice(
+    listingId: string,
+    tenantId: string,
+  ): Promise<void> {
+    const priceCount = await this.propertyPriceRepository.countByListing(
+      listingId,
+      tenantId,
+    );
+
+    if (priceCount === 0) {
+      throw new BadRequestException(
+        'Cannot activate a property listing without at least one price. Add a price before activating.',
       );
     }
   }

@@ -399,15 +399,31 @@ Representa una publicación comercial.
 | expensesAmount   | Decimal?              | Expensas                   |
 | expensesCurrency | Currency?             | Moneda de expensas         |
 | isFeatured       | Boolean               | Destacado                  |
-| publishedAt      | DateTime?             |                            |
-| closedAt         | DateTime?             |                            |
+| publishedAt      | DateTime?             | Primera activación (`→ ACTIVE`) |
+| closedAt         | DateTime?             | Cierre (`→ CLOSED`); `null` al reactivar |
 | createdAt        | DateTime              |                            |
 | updatedAt        | DateTime              |                            |
 
+## Ciclo de estados
+
+```txt
+DRAFT → ACTIVE → PAUSED / RESERVED → CLOSED → ACTIVE
+```
+
+| Transición | `publishedAt` | `closedAt` |
+| ---------- | ------------- | ---------- |
+| Primera `→ ACTIVE` | Se asigna si es `null` | Sin cambio |
+| `→ CLOSED` | Sin cambio | Se asigna |
+| `CLOSED → ACTIVE` | Se conserva si ya existía | `null` |
+
+Soft delete: el cierre usa `status = CLOSED`, sin borrado físico.
+
 ## Reglas
 
-* Una propiedad puede tener múltiples publicaciones simultáneas.
-* Solo una por tipo: `@@unique([propertyId, listingType])`
+* Una propiedad puede tener múltiples publicaciones simultáneas (una por `listingType`).
+* Solo una por tipo: `@@unique([propertyId, listingType])` — incluye listings `CLOSED`.
+* Listings `CLOSED` se **reactivan** (`PATCH` `status: ACTIVE`); no se crea un registro nuevo para el mismo `listingType`.
+* No crear ni activar listings si `Property.isActive = false`.
 
 ## Relaciones
 
@@ -451,8 +467,13 @@ Property "Casa Palermo"
 
 ## Reglas
 
-* Múltiples precios por publicación en distintas monedas.
-* Solo un `isPrimary = true` por publicación (validación en aplicación).
+* Múltiples precios por publicación; se permiten varias entradas en la misma moneda si tienen `label` distinto (ej. contado / financiado).
+* Exactamente un `isPrimary = true` por publicación cuando existen precios (validación en aplicación).
+* Primer precio auto `isPrimary = true`.
+* Promoción automática al eliminar o desmarcar el principal (si hay otros precios).
+* No eliminar el único precio si el listing está `ACTIVE`, `PAUSED` o `RESERVED`.
+* Borrado físico en Foundation; `amount > 0`.
+* Activar listing (`→ ACTIVE`) requiere al menos un precio (validación en `PropertyListingService`).
 
 ---
 
@@ -482,6 +503,11 @@ Compatible con Cloudflare R2, Supabase Storage y AWS S3.
 ## Reglas
 
 * Solo una imagen `isCover = true` por propiedad (validación en aplicación).
+* Primera imagen auto `isCover = true`.
+* Promoción automática al eliminar la portada (si hay imágenes restantes).
+* No crear imágenes si `Property.isActive = false`.
+* Borrado físico en Foundation; `storageKey` obligatorio al crear.
+* `sortOrder` persistido; reordenamiento UI pendiente.
 
 ---
 

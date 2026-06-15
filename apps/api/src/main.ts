@@ -24,6 +24,8 @@ async function bootstrap() {
     .addTag('Properties')
     .addTag('Property Listings')
     .addTag('Property Prices')
+    .addTag('Property Images')
+    .addTag('Public Properties')
     .build();
 
   const document = SwaggerModule.createDocument(app, swaggerConfig);

@@ -2,7 +2,58 @@
 
 Versión: v1
 
-Estado: planificado. Sin implementación de código.
+Estado: Fase 1 parcialmente completada. `Property`, `PropertyListing`, `PropertyPrice`, `PropertyImage` y Public API Foundation implementados en `apps/api`.
+
+Implementado:
+
+* `PrismaService` + `PrismaModule` global.
+* `PropertyModule` en `apps/api/src/modules/property`.
+* `PropertyListingModule` en `apps/api/src/modules/property-listing`.
+* `PropertyPriceModule` en `apps/api/src/modules/property-price`.
+* `PropertyImageModule` en `apps/api/src/modules/property-image`.
+* `PublicPropertyModule` en `apps/api/src/modules/public-property`.
+* `PropertyController`, `PropertyService`, `PropertyRepository`.
+* `PropertyListingController`, `PropertyListingService`, `PropertyListingRepository`.
+* `PropertyPriceController`, `PropertyPriceService`, `PropertyPriceRepository`.
+* `PropertyImageController`, `PropertyImageService`, `PropertyImageRepository`.
+* `PublicPropertyController`, `PublicPropertyService`, `PublicPropertyRepository`.
+* DTOs Property: `CreatePropertyDto`, `UpdatePropertyDto`, `PropertyResponseDto`, `PropertyTenantQueryDto`, `ListPropertiesQueryDto`.
+* DTOs PropertyListing: `CreatePropertyListingDto`, `UpdatePropertyListingDto`, `PropertyListingResponseDto`, `PropertyListingTenantQueryDto`, `ListPropertyListingsQueryDto`.
+* DTOs PropertyPrice: `CreatePropertyPriceDto`, `UpdatePropertyPriceDto`, `PropertyPriceResponseDto`, `PropertyPriceTenantQueryDto`, `ListPropertyPricesQueryDto`.
+* DTOs PropertyImage: `CreatePropertyImageDto`, `UpdatePropertyImageDto`, `PropertyImageResponseDto`, `PropertyImageTenantQueryDto`, `ListPropertyImagesQueryDto`.
+* DTOs Public API: `ListPublicPropertiesQueryDto`, `PublicPropertySlugQueryDto`, `FeaturedPublicPropertiesQueryDto`, `PublicPropertyCardDto`, `PublicPropertyDetailDto`, `PublicPropertyListResponseDto`.
+* `ValidationPipe` global.
+* `PrismaExceptionFilter` global (`P2002` → 409, `P2003` → 400, `P2025` → 404).
+* Swagger en `/api/docs` con request/response DTOs y errores principales.
+* Escrituras multi-tenant safe en repository (`updateMany` + `tenantId`).
+* Validación de unicidad: `slug`, `internalCode` (por tenant); `listingType` (por property).
+* Validación de existencia de `tenantId` al crear.
+* Validación Property → Listing: property existe, pertenece al tenant y `isActive = true` al crear/activar.
+* Soft delete Listing vía `status = CLOSED`; reactivación `CLOSED → ACTIVE` (reutilizar registro).
+* PropertyPrice CRUD en `/property-prices` (borrado físico Foundation).
+* Reglas `isPrimary`: primer precio auto-principal; exactamente uno cuando hay precios; democión/promoción atómica al crear/actualizar/eliminar principal.
+* Bloqueo: no eliminar único precio de listing `ACTIVE`, `PAUSED` o `RESERVED`.
+* Activación listing (`→ ACTIVE`): requiere al menos un precio.
+* Validación Listing → Price: listing existe y pertenece al tenant.
+* Swagger PropertyPrice: `@ApiQuery` en endpoints GET/PATCH/DELETE; errores de negocio documentados.
+* PropertyImage CRUD en `/property-images` (metadata only; borrado físico Foundation).
+* Reglas `isCover`: primera imagen auto-portada; democión atómica al crear/actualizar portada; promoción atómica al eliminar portada.
+* Validación Property → Image: property existe, pertenece al tenant y `isActive = true` al crear.
+* Swagger PropertyImage: `@ApiQuery` en endpoints GET/PATCH/DELETE.
+* Public API en `/public/properties` (solo lectura, sin JWT).
+* Regla de publicación: `isActive` + listing `ACTIVE` + precio `isPrimary` + imagen `isCover`.
+* Endpoints: listado paginado con filtros, detalle por `slug`, destacadas por `isFeatured`.
+* DTOs públicos sin datos internos (`createdById`, `internalCode`, `tenantId`).
+
+Pendiente (Fase 1 restante / Fases 2–5):
+
+* Guards: `AuthGuard`, `TenantGuard`, `RolesGuard`.
+* Slug autogenerado (regla documentada en dominio).
+* Paginación y filtros avanzados en listados admin.
+* Entidades relacionadas: features admin, agent access.
+* Storage abstraction y upload físico.
+* Resolución de tenant por dominio/header en Public API.
+* Sitemap y SEO metadata endpoints.
 
 ---
 
@@ -156,11 +207,13 @@ Reglas de negocio a implementar:
 
 | Responsabilidad | Detalle |
 | --------------- | ------- |
-| Crear publicación | Una por `listingType` por propiedad |
-| Cambiar estado | Flujo `DRAFT → ACTIVE → PAUSED / RESERVED → CLOSED` |
+| Crear publicación | Una por `listingType` por propiedad; bloqueado si `Property.isActive = false` |
+| Cambiar estado | Flujo `DRAFT → ACTIVE → PAUSED / RESERVED → CLOSED → ACTIVE` |
+| Reactivar cerrado | `CLOSED → ACTIVE`: reutilizar registro; `closedAt = null`; conservar `publishedAt` |
 | Precios | Múltiples monedas; un solo `isPrimary` por listing |
-| Publicar | Setear `publishedAt` al pasar a `ACTIVE` |
+| Publicar | Setear `publishedAt` al pasar a `ACTIVE` (solo si es `null`) |
 | Cerrar | Setear `closedAt` al pasar a `CLOSED` |
+| Property archivada | Bloquear create y activación (`→ ACTIVE`) si `Property.isActive = false` |
 | Consistencia tenant | `listing.tenantId === property.tenantId` |
 
 ### PropertyImageService
@@ -205,7 +258,27 @@ PATCH  /properties/:id/images/:imageId
 DELETE /properties/:id/images/:imageId
 ```
 
-**PropertyListing**
+**PropertyListing** (implementado — ruta plana `/property-listings`)
+
+```txt
+POST   /property-listings
+GET    /property-listings
+GET    /property-listings/:id
+PATCH  /property-listings/:id
+DELETE /property-listings/:id
+```
+
+**PropertyPrice** (implementado — ruta plana `/property-prices`)
+
+```txt
+POST   /property-prices
+GET    /property-prices?tenantId=&listingId=
+GET    /property-prices/:id?tenantId=
+PATCH  /property-prices/:id?tenantId=
+DELETE /property-prices/:id?tenantId=
+```
+
+**PropertyListing** (anidado — alternativa futura)
 
 ```txt
 POST   /properties/:propertyId/listings
@@ -449,15 +522,25 @@ PropertyAccessGuard → ownership + PropertyAgentAccess
 
 Entregables:
 
-* `PrismaService` global.
-* `PropertyModule` registrado en `AppModule`.
-* Repositories base (CRUD mínimo).
-* Guards: `AuthGuard`, `TenantGuard`, `RolesGuard`.
-* DTOs base y validación global (`ValidationPipe`).
-* Swagger configurado.
-* Tests unitarios de repositories.
+| Entregable | Estado |
+| ---------- | ------ |
+| `PrismaService` global | ✅ |
+| `PropertyModule` registrado en `AppModule` | ✅ |
+| Repositories base (CRUD mínimo) | ✅ |
+| Escrituras multi-tenant safe (`updateMany` + `tenantId`) | ✅ |
+| `PrismaExceptionFilter` (P2002, P2003, P2025) | ✅ |
+| DTOs base + query DTOs + response DTOs | ✅ |
+| Validación global (`ValidationPipe`) | ✅ |
+| Swagger configurado (request/response/errores) | ✅ |
+| Validación `tenantId` existente al crear | ✅ |
+| Unicidad `slug` e `internalCode` por tenant | ✅ |
+| Guards: `AuthGuard`, `TenantGuard`, `RolesGuard` | ⏳ Pendiente |
+| Tests unitarios de repositories | ⏳ Pendiente |
+| Slug autogenerado | ⏳ Pendiente |
 
 Dependencias: ninguna.
+
+**Foundation Hardening** (sin JWT): ver entregables marcados ✅ arriba.
 
 ---
 
@@ -467,12 +550,12 @@ Dependencias: ninguna.
 
 Entregables:
 
-* `PropertyController` + `PropertyService` completos.
-* `PropertyListingController` + `PropertyListingService` completos.
-* `PropertyFeatureController` (lectura para todos, escritura SUPER_ADMIN).
-* Reglas de negocio: slug, precios, estados, features.
-* Paginación y filtros admin.
-* Swagger documentado.
+* `PropertyController` + `PropertyService` completos. ✅
+* `PropertyListingController` + `PropertyListingService` completos (sin precios). ✅
+* `PropertyFeatureController` (lectura para todos, escritura SUPER_ADMIN). ⏳
+* Reglas de negocio: slug, precios, estados, features. ⏳ (estados listing ✅; precios y slug ⏳)
+* Paginación y filtros admin. ⏳
+* Swagger documentado. ✅ (Property + PropertyListing)
 
 Dependencias: Fase 1.
 

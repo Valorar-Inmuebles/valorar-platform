@@ -118,6 +118,51 @@ export class PropertyPriceRepository {
     });
   }
 
+  updateWithPrimaryDemotion(
+    id: string,
+    tenantId: string,
+    listingId: string,
+    data: UpdatePropertyPriceData,
+  ): Promise<PropertyPrice | null> {
+    return this.prisma.$transaction(async (tx) => {
+      const nextPrimary = await tx.propertyPrice.findFirst({
+        where: {
+          listingId,
+          tenantId,
+          NOT: { id },
+        },
+        orderBy: { createdAt: 'asc' },
+      });
+
+      if (!nextPrimary) {
+        return null;
+      }
+
+      await tx.propertyPrice.updateMany({
+        where: { listingId, tenantId },
+        data: { isPrimary: false },
+      });
+
+      const result = await tx.propertyPrice.updateMany({
+        where: { id, tenantId },
+        data,
+      });
+
+      if (result.count === 0) {
+        return null;
+      }
+
+      await tx.propertyPrice.updateMany({
+        where: { id: nextPrimary.id, tenantId },
+        data: { isPrimary: true },
+      });
+
+      return tx.propertyPrice.findFirst({
+        where: { id, tenantId },
+      });
+    });
+  }
+
   async deleteWithPromotion(
     id: string,
     tenantId: string,
@@ -141,8 +186,8 @@ export class PropertyPriceRepository {
             data: { isPrimary: false },
           });
 
-          await tx.propertyPrice.update({
-            where: { id: nextPrimary.id },
+          await tx.propertyPrice.updateMany({
+            where: { id: nextPrimary.id, tenantId },
             data: { isPrimary: true },
           });
         }
