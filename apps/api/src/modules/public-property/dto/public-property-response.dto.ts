@@ -192,6 +192,9 @@ export class PublicPropertyDetailDto {
 
   @ApiProperty({ type: PublicPropertyFeatureDto, isArray: true })
   features: PublicPropertyFeatureDto[];
+
+  @ApiProperty({ enum: PropertyListingType, isArray: true })
+  availableListingTypes: PropertyListingType[];
 }
 
 export class PublicPropertyListMetaDto {

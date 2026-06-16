@@ -16,6 +16,11 @@
     "PUBLIC_INSTAGRAM_URL",
     "PUBLIC_LINKEDIN_URL",
     "API_URL",
+    "PUBLIC_WEB_URL",
+    "PORT",
+    "DATABASE_URL",
+    "ADMIN_DEV_TENANT_ID",
+    "ADMIN_DEV_USER_ID",
     "NODE_ENV"
   ],
   "tasks": {
