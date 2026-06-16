@@ -18,15 +18,19 @@ import {
   ApiOperation,
   ApiParam,
   ApiQuery,
+  ApiServiceUnavailableResponse,
   ApiTags,
 } from '@nestjs/swagger';
 import { CurrentTenant } from '../../../common/decorators/current-tenant.decorator';
 import { RequireTenant } from '../../../common/decorators/require-tenant.decorator';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { TenantGuard } from '../../auth/guards/tenant.guard';
+import { StorageUploadUrlResponseDto } from '../../storage/dto/storage-upload-url-response.dto';
 import { CreatePropertyImageDto } from '../dto/create-property-image.dto';
+import { CreatePropertyImageUploadUrlDto } from '../dto/create-property-image-upload-url.dto';
 import { ListPropertyImagesQueryDto } from '../dto/property-image-query.dto';
 import { PropertyImageResponseDto } from '../dto/property-image-response.dto';
+import { ReorderPropertyImagesDto } from '../dto/reorder-property-images.dto';
 import { UpdatePropertyImageDto } from '../dto/update-property-image.dto';
 import { PropertyImageService } from '../services/property-image.service';
 
@@ -37,8 +41,45 @@ import { PropertyImageService } from '../services/property-image.service';
 export class PropertyImageController {
   constructor(private readonly propertyImageService: PropertyImageService) {}
 
+  @Post('upload-url')
+  @ApiOperation({ summary: 'Create a signed upload URL for a property image' })
+  @ApiBody({ type: CreatePropertyImageUploadUrlDto })
+  @ApiCreatedResponse({
+    description: 'Signed upload URL generated',
+    type: StorageUploadUrlResponseDto,
+  })
+  @ApiBadRequestResponse({
+    description: 'Validation error, property archived, or image limit reached',
+  })
+  @ApiServiceUnavailableResponse({ description: 'Storage not configured' })
+  createUploadUrl(
+    @CurrentTenant() tenantId: string,
+    @Body() dto: CreatePropertyImageUploadUrlDto,
+  ) {
+    return this.propertyImageService.createUploadUrl(dto, tenantId);
+  }
+
+  @Patch('reorder')
+  @ApiOperation({ summary: 'Batch reorder property images' })
+  @ApiBody({ type: ReorderPropertyImagesDto })
+  @ApiOkResponse({
+    description: 'Property images reordered successfully',
+    type: PropertyImageResponseDto,
+    isArray: true,
+  })
+  @ApiBadRequestResponse({
+    description: 'Invalid items or image does not belong to property',
+  })
+  @ApiNotFoundResponse({ description: 'Property or images not found' })
+  reorder(
+    @CurrentTenant() tenantId: string,
+    @Body() dto: ReorderPropertyImagesDto,
+  ) {
+    return this.propertyImageService.reorder(dto, tenantId);
+  }
+
   @Post()
-  @ApiOperation({ summary: 'Create a property image (metadata only)' })
+  @ApiOperation({ summary: 'Create a property image record after upload' })
   @ApiBody({ type: CreatePropertyImageDto })
   @ApiCreatedResponse({
     description: 'Property image created successfully',
@@ -106,7 +147,9 @@ export class PropertyImageController {
   }
 
   @Delete(':id')
-  @ApiOperation({ summary: 'Delete a property image (physical delete)' })
+  @ApiOperation({
+    summary: 'Delete a property image and remove the file from storage',
+  })
   @ApiParam({ name: 'id', type: String })
   @ApiOkResponse({
     description:

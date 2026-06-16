@@ -9,12 +9,14 @@ import { PropertyImageModule } from './modules/property-image/property-image.mod
 import { PropertyListingModule } from './modules/property-listing/property-listing.module';
 import { PropertyModule } from './modules/property/property.module';
 import { PropertyPriceModule } from './modules/property-price/property-price.module';
+import { StorageModule } from './modules/storage/storage.module';
 import { PrismaModule } from './prisma/prisma.module';
 
 @Module({
   imports: [
     PrismaModule,
     AuthModule,
+    StorageModule,
     PropertyModule,
     PropertyListingModule,
     PropertyPriceModule,

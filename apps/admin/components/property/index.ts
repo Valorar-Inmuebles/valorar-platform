@@ -5,6 +5,7 @@ export { PropertyForm } from "./property-form";
 export { PropertyImageForm } from "./property-image-form";
 export { PropertyImageGrid } from "./property-image-grid";
 export { PropertyImageManager } from "./property-image-manager";
+export { PropertyImageUploader } from "./property-image-uploader";
 export { PropertyListingForm } from "./property-listing-form";
 export { PropertyListingStatusBadge } from "./property-listing-status-badge";
 export { PropertyListingTable } from "./property-listing-table";

@@ -2,7 +2,6 @@
 
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { Button } from "@repo/ui/button";
 import {
   SidePanel,
   SidePanelContent,
@@ -13,9 +12,13 @@ import {
 import { PropertyEmptyState } from "@/components/property/property-empty-state";
 import { PropertyImageForm } from "@/components/property/property-image-form";
 import { PropertyImageGrid } from "@/components/property/property-image-grid";
+import { PropertyImageUploader } from "@/components/property/property-image-uploader";
+import {
+  createPropertyImageAction,
+  getPropertyImageUploadUrlAction,
+} from "@/lib/api/property-image-actions";
 import type { AdminPropertyImage } from "@/lib/api/types/property-image";
-
-type PanelMode = "create" | "edit" | null;
+import { putFileToSignedUrl } from "@/lib/property/image-upload";
 
 type PropertyImageManagerProps = {
   propertyId: string;
@@ -29,34 +32,63 @@ export function PropertyImageManager({
   images,
 }: PropertyImageManagerProps) {
   const router = useRouter();
-  const [panelMode, setPanelMode] = useState<PanelMode>(null);
   const [editingImage, setEditingImage] = useState<AdminPropertyImage | null>(
     null,
   );
   const [pendingActionId, setPendingActionId] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const [isUploading, setIsUploading] = useState(false);
 
   const canCreate = propertyIsActive;
 
   const closePanel = () => {
-    setPanelMode(null);
     setEditingImage(null);
   };
 
-  const openCreate = () => {
-    if (!canCreate) return;
-    setEditingImage(null);
-    setPanelMode("create");
-  };
+  const handleUploadFiles = async (files: File[]) => {
+    if (!canCreate) {
+      throw new Error("No podés subir imágenes en una propiedad archivada.");
+    }
 
-  const openEdit = (image: AdminPropertyImage) => {
-    setEditingImage(image);
-    setPanelMode("edit");
-  };
+    setIsUploading(true);
 
-  const handleFormSuccess = () => {
-    closePanel();
-    router.refresh();
+    try {
+      let nextSortOrder = images.length;
+
+      for (const file of files) {
+        const uploadUrlResult = await getPropertyImageUploadUrlAction(
+          propertyId,
+          {
+            mimeType: file.type,
+            filename: file.name,
+          },
+        );
+
+        if (!uploadUrlResult.ok) {
+          throw new Error(uploadUrlResult.error);
+        }
+
+        await putFileToSignedUrl(uploadUrlResult.data.uploadUrl, file);
+
+        const createResult = await createPropertyImageAction(propertyId, {
+          storageKey: uploadUrlResult.data.storageKey,
+          url: uploadUrlResult.data.publicUrl,
+          mimeType: file.type,
+          fileSize: file.size,
+          sortOrder: nextSortOrder,
+        });
+
+        if (!createResult.ok) {
+          throw new Error(createResult.error);
+        }
+
+        nextSortOrder += 1;
+      }
+
+      router.refresh();
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   return (
@@ -67,31 +99,30 @@ export function PropertyImageManager({
         </p>
       ) : null}
 
-      <div className="mb-4 flex justify-end">
-        <Button onClick={openCreate} disabled={!canCreate}>
-          Agregar imagen
-        </Button>
-      </div>
+      {canCreate ? (
+        <div className="mb-6">
+          <PropertyImageUploader
+            disabled={!canCreate}
+            isUploading={isUploading}
+            onUploadFiles={handleUploadFiles}
+          />
+        </div>
+      ) : null}
 
       {images.length === 0 ? (
         <PropertyEmptyState
           title="Sin imágenes"
           description={
             canCreate
-              ? "Agregá metadata de imágenes para definir la portada y la galería de la propiedad."
+              ? "Subí imágenes para definir la portada y la galería de la propiedad."
               : "Esta propiedad archivada no tiene imágenes registradas."
-          }
-          action={
-            canCreate ? (
-              <Button onClick={openCreate}>Agregar imagen</Button>
-            ) : undefined
           }
         />
       ) : (
         <PropertyImageGrid
           propertyId={propertyId}
           images={images}
-          onEdit={openEdit}
+          onEdit={setEditingImage}
           pendingActionId={pendingActionId}
           setPendingActionId={setPendingActionId}
           isPending={isPending}
@@ -99,26 +130,23 @@ export function PropertyImageManager({
         />
       )}
 
-      <SidePanel open={panelMode != null} onClose={closePanel} width="md">
+      <SidePanel open={editingImage != null} onClose={closePanel} width="md">
         <SidePanelHeader>
-          <SidePanelTitle>
-            {panelMode === "create" ? "Nueva imagen" : "Editar imagen"}
-          </SidePanelTitle>
+          <SidePanelTitle>Editar imagen</SidePanelTitle>
           <SidePanelDescription>
-            {panelMode === "create"
-              ? "Ingresá la metadata de la imagen. El upload físico se implementará en una fase posterior."
-              : "Modificá la metadata de la imagen seleccionada."}
+            Actualizá el texto alternativo de la imagen seleccionada.
           </SidePanelDescription>
         </SidePanelHeader>
 
         <SidePanelContent>
-          {panelMode ? (
+          {editingImage ? (
             <PropertyImageForm
               propertyId={propertyId}
-              mode={panelMode}
-              image={editingImage ?? undefined}
-              isFirstImage={images.length === 0}
-              onSuccess={handleFormSuccess}
+              image={editingImage}
+              onSuccess={() => {
+                closePanel();
+                router.refresh();
+              }}
               onCancel={closePanel}
             />
           ) : null}

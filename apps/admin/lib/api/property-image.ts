@@ -2,6 +2,8 @@ import { apiFetch } from "@/lib/api/client";
 import type {
   AdminPropertyImage,
   CreatePropertyImagePayload,
+  PropertyImageUploadUrlResponse,
+  ReorderPropertyImageItem,
   UpdatePropertyImagePayload,
 } from "@/lib/api/types/property-image";
 
@@ -18,10 +20,16 @@ export async function listPropertyImages(
   );
 }
 
-export async function getPropertyImage(
-  id: string,
-): Promise<AdminPropertyImage> {
-  return apiFetch<AdminPropertyImage>(`/property-images/${id}`, {
+export async function getPropertyImageUploadUrl(
+  propertyId: string,
+  payload: { mimeType: string; filename?: string },
+): Promise<PropertyImageUploadUrlResponse> {
+  return apiFetch<PropertyImageUploadUrlResponse>("/property-images/upload-url", {
+    method: "POST",
+    body: JSON.stringify({
+      propertyId,
+      ...payload,
+    }),
     cache: "no-store",
   });
 }
@@ -47,6 +55,16 @@ export async function updatePropertyImage(
   return apiFetch<AdminPropertyImage>(`/property-images/${id}`, {
     method: "PATCH",
     body: JSON.stringify(payload),
+    cache: "no-store",
+  });
+}
+
+export async function reorderPropertyImages(
+  items: ReorderPropertyImageItem[],
+): Promise<AdminPropertyImage[]> {
+  return apiFetch<AdminPropertyImage[]>("/property-images/reorder", {
+    method: "PATCH",
+    body: JSON.stringify({ items }),
     cache: "no-store",
   });
 }

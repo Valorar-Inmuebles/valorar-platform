@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Badge } from "@repo/ui/badge";
 import { Button } from "@repo/ui/button";
 import { Card, CardContent } from "@repo/ui/card";
@@ -10,8 +10,13 @@ import { useToast } from "@repo/ui/toast";
 import {
   deletePropertyImageAction,
   markPropertyImageCoverAction,
+  reorderPropertyImagesAction,
 } from "@/lib/api/property-image-actions";
 import type { AdminPropertyImage } from "@/lib/api/types/property-image";
+import {
+  buildReorderItems,
+  sortImagesByOrder,
+} from "@/lib/property/image-upload";
 
 type PropertyImageGridProps = {
   propertyId: string;
@@ -27,11 +32,6 @@ type DeleteTarget = {
   image: AdminPropertyImage;
   willPromoteOther: boolean;
 };
-
-function truncateStorageKey(key: string, max = 40): string {
-  if (key.length <= max) return key;
-  return `${key.slice(0, max)}…`;
-}
 
 function ImagePreview({ image }: { image: AdminPropertyImage }) {
   if (image.url) {
@@ -63,7 +63,15 @@ export function PropertyImageGrid({
 }: PropertyImageGridProps) {
   const router = useRouter();
   const { toast } = useToast();
+  const [orderedImages, setOrderedImages] = useState(() =>
+    sortImagesByOrder(images),
+  );
+  const [draggedId, setDraggedId] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null);
+
+  useEffect(() => {
+    setOrderedImages(sortImagesByOrder(images));
+  }, [images]);
 
   const handleMarkCover = (image: AdminPropertyImage) => {
     if (image.isCover) return;
@@ -105,14 +113,83 @@ export function PropertyImageGrid({
     });
   };
 
+  const persistReorder = (nextImages: AdminPropertyImage[]) => {
+    setPendingActionId("reorder");
+    startTransition(async () => {
+      const result = await reorderPropertyImagesAction(
+        propertyId,
+        buildReorderItems(nextImages),
+      );
+      setPendingActionId(null);
+
+      if (!result.ok) {
+        toast.error(result.error);
+        setOrderedImages(sortImagesByOrder(images));
+        return;
+      }
+
+      toast.success("Orden de la galería actualizado.");
+      router.refresh();
+    });
+  };
+
+  const handleDrop = (targetId: string) => {
+    if (!draggedId || draggedId === targetId) {
+      setDraggedId(null);
+      return;
+    }
+
+    const current = [...orderedImages];
+    const draggedIndex = current.findIndex((image) => image.id === draggedId);
+    const targetIndex = current.findIndex((image) => image.id === targetId);
+
+    if (draggedIndex < 0 || targetIndex < 0) {
+      setDraggedId(null);
+      return;
+    }
+
+    const [moved] = current.splice(draggedIndex, 1);
+    if (!moved) {
+      setDraggedId(null);
+      return;
+    }
+
+    current.splice(targetIndex, 0, moved);
+
+    setOrderedImages(current);
+    setDraggedId(null);
+    persistReorder(current);
+  };
+
   return (
     <>
+      <p className="mb-3 text-sm text-muted">
+        Arrastrá las tarjetas para reordenar la galería.
+      </p>
+
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {images.map((image) => {
-          const rowPending = isPending && pendingActionId === image.id;
+        {orderedImages.map((image) => {
+          const rowPending =
+            isPending &&
+            (pendingActionId === image.id || pendingActionId === "reorder");
 
           return (
-            <Card key={image.id} className="overflow-hidden">
+            <Card
+              key={image.id}
+              draggable={!rowPending}
+              onDragStart={() => setDraggedId(image.id)}
+              onDragEnd={() => setDraggedId(null)}
+              onDragOver={(event) => event.preventDefault()}
+              onDrop={(event) => {
+                event.preventDefault();
+                handleDrop(image.id);
+              }}
+              className={[
+                "overflow-hidden transition-opacity",
+                draggedId === image.id ? "opacity-50" : "",
+                rowPending ? "pointer-events-none opacity-70" : "cursor-grab active:cursor-grabbing",
+              ].join(" ")}
+            >
               <div className="relative aspect-[4/3] w-full overflow-hidden bg-zinc-50">
                 <ImagePreview image={image} />
                 {image.isCover ? (
@@ -123,20 +200,15 @@ export function PropertyImageGrid({
               </div>
               <CardContent className="space-y-3 p-4">
                 <div className="min-w-0">
-                  <p
-                    className="truncate text-sm font-medium text-foreground"
-                    title={image.storageKey}
-                  >
-                    {truncateStorageKey(image.storageKey)}
-                  </p>
                   {image.altText ? (
-                    <p className="mt-0.5 truncate text-xs text-muted">
+                    <p className="truncate text-sm font-medium text-foreground">
                       {image.altText}
                     </p>
-                  ) : null}
-                  <p className="mt-1 text-xs text-muted">
-                    Orden: {image.sortOrder}
-                  </p>
+                  ) : (
+                    <p className="truncate text-sm text-muted">
+                      Sin texto alternativo
+                    </p>
+                  )}
                 </div>
                 <div className="flex flex-wrap gap-2">
                   <Button
@@ -164,7 +236,7 @@ export function PropertyImageGrid({
                     onClick={() =>
                       setDeleteTarget({
                         image,
-                        willPromoteOther: image.isCover && images.length > 1,
+                        willPromoteOther: image.isCover && orderedImages.length > 1,
                       })
                     }
                   >
@@ -185,16 +257,9 @@ export function PropertyImageGrid({
         description={
           deleteTarget ? (
             <>
-              ¿Eliminar la imagen{" "}
-              <strong>
-                {truncateStorageKey(deleteTarget.image.storageKey, 32)}
-              </strong>
-              ?
+              ¿Eliminar esta imagen de la galería?
               {deleteTarget.willPromoteOther ? (
-                <>
-                  {" "}
-                  Se promoverá automáticamente otra imagen como portada.
-                </>
+                <> Se promoverá automáticamente otra imagen como portada.</>
               ) : null}
             </>
           ) : null

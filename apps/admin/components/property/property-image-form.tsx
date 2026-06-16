@@ -10,93 +10,46 @@ import {
 } from "@repo/ui/form-field";
 import { Input } from "@repo/ui/input";
 import { useToast } from "@repo/ui/toast";
-import {
-  createPropertyImageAction,
-  updatePropertyImageAction,
-} from "@/lib/api/property-image-actions";
+import { updatePropertyImageAction } from "@/lib/api/property-image-actions";
 import type {
   AdminPropertyImage,
-  PropertyImageFormValues,
+  PropertyImageEditFormValues,
 } from "@/lib/api/types/property-image";
 import {
-  emptyImageFormValues,
-  formValuesToCreatePayload,
   formValuesToUpdatePayload,
-  imageToFormValues,
-  validateImageCreateValues,
-  validateImageEditValues,
+  imageToEditFormValues,
 } from "@/lib/property/image-form";
 
 type PropertyImageFormProps = {
   propertyId: string;
-  mode: "create" | "edit";
-  image?: AdminPropertyImage;
-  isFirstImage: boolean;
+  image: AdminPropertyImage;
   onSuccess: () => void;
   onCancel: () => void;
 };
 
 export function PropertyImageForm({
   propertyId,
-  mode,
   image,
-  isFirstImage,
   onSuccess,
   onCancel,
 }: PropertyImageFormProps) {
   const { toast } = useToast();
-  const [values, setValues] = useState<PropertyImageFormValues>(() =>
-    image ? imageToFormValues(image) : emptyImageFormValues(),
+  const [values, setValues] = useState<PropertyImageEditFormValues>(() =>
+    imageToEditFormValues(image),
   );
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
   useEffect(() => {
-    setValues(image ? imageToFormValues(image) : emptyImageFormValues());
+    setValues(imageToEditFormValues(image));
     setError(null);
-  }, [image, mode]);
-
-  const updateField = <K extends keyof PropertyImageFormValues>(
-    key: K,
-    value: PropertyImageFormValues[K],
-  ) => {
-    setValues((current) => ({ ...current, [key]: value }));
-  };
+  }, [image]);
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError(null);
 
-    const validationError =
-      mode === "create"
-        ? validateImageCreateValues(values)
-        : validateImageEditValues(values);
-
-    if (validationError) {
-      setError(validationError);
-      return;
-    }
-
     startTransition(async () => {
-      if (mode === "create") {
-        const result = await createPropertyImageAction(
-          propertyId,
-          formValuesToCreatePayload(values),
-        );
-
-        if (!result.ok) {
-          setError(result.error);
-          toast.error(result.error);
-          return;
-        }
-
-        toast.success("Imagen agregada correctamente.");
-        onSuccess();
-        return;
-      }
-
-      if (!image) return;
-
       const result = await updatePropertyImageAction(
         propertyId,
         image.id,
@@ -116,71 +69,34 @@ export function PropertyImageForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      {mode === "create" ? (
-        <FormField>
-          <Label required>Clave de almacenamiento</Label>
-          <Input
-            value={values.storageKey}
-            onChange={(event) => updateField("storageKey", event.target.value)}
-            disabled={isPending}
-            placeholder="tenant/property/uuid.jpg"
-          />
-          <HelperText>
-            Identificador del archivo en storage (R2/S3/Supabase). Ingreso manual
-            temporal hasta existir upload.
-          </HelperText>
-        </FormField>
-      ) : image ? (
-        <FormField>
-          <Label>Clave de almacenamiento</Label>
-          <p className="break-all text-sm font-medium text-foreground">
-            {image.storageKey}
-          </p>
-          <HelperText>No editable después de crear la imagen.</HelperText>
-        </FormField>
-      ) : null}
-
       <FormField>
-        <Label>URL de preview</Label>
-        <Input
-          value={values.url}
-          onChange={(event) => updateField("url", event.target.value)}
-          disabled={isPending}
-          placeholder="https://..."
-        />
-        <HelperText>Opcional. Permite previsualizar la imagen en la galería.</HelperText>
+        <Label>Vista previa</Label>
+        {image.url ? (
+          <div className="overflow-hidden rounded-lg border border-border">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={image.url}
+              alt={image.altText ?? image.storageKey}
+              className="aspect-[4/3] w-full object-cover"
+            />
+          </div>
+        ) : (
+          <p className="text-sm text-muted">Sin preview disponible.</p>
+        )}
       </FormField>
 
       <FormField>
         <Label>Texto alternativo</Label>
         <Input
           value={values.altText}
-          onChange={(event) => updateField("altText", event.target.value)}
+          onChange={(event) =>
+            setValues((current) => ({ ...current, altText: event.target.value }))
+          }
           disabled={isPending}
           placeholder="Descripción de la imagen"
         />
         <HelperText>Opcional. Recomendado para accesibilidad y SEO.</HelperText>
       </FormField>
-
-      <FormField>
-        <Label>Orden</Label>
-        <Input
-          type="number"
-          min={0}
-          step={1}
-          value={values.sortOrder}
-          onChange={(event) => updateField("sortOrder", event.target.value)}
-          disabled={isPending}
-        />
-        <HelperText>Entero ≥ 0. Define el orden en la galería.</HelperText>
-      </FormField>
-
-      {mode === "create" && isFirstImage ? (
-        <p className="text-xs text-muted">
-          La primera imagen de la propiedad se marcará como portada
-          automáticamente.
-        </p>
-      ) : null}
 
       {error ? (
         <FormField state="error">
@@ -198,7 +114,7 @@ export function PropertyImageForm({
           Cancelar
         </Button>
         <Button type="submit" loading={isPending}>
-          {mode === "create" ? "Agregar imagen" : "Guardar cambios"}
+          Guardar cambios
         </Button>
       </div>
     </form>
