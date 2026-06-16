@@ -2,9 +2,28 @@
 
 Versión: v1
 
-Estado: **pendiente aprobación — no implementar hasta confirmación explícita**
+Estado: **implementado — Auth Foundation v1 cerrado (2026-06-16)**
 
-Especificación funcional: `docs/04-modules/auth.md` (aprobada)
+Especificación funcional: `docs/04-modules/auth.md`
+
+---
+
+## Cierre v1 — resumen
+
+Todas las fases 1–6 completadas en branch `feature/auth-foundation`.
+
+| Fase | Estado |
+| ---- | ------ |
+| 1 — Migración Prisma | ✅ |
+| 2 — AuthModule API | ✅ |
+| 3 — Guards (JwtAuth, Tenant) | ✅ |
+| 4 — Refactor endpoints admin | ✅ |
+| 5 — Admin login/middleware/BFF | ✅ |
+| 6 — Seeds (3 roles) | ✅ |
+
+**Diferido v1.1:** aplicar `RolesGuard` + `@Roles()` en endpoints API (código existe, sin uso en controllers).
+
+**Decisión de producto:** Auth Foundation v1 = authentication + JWT + tenant isolation + admin auth. RBAC API no bloqueante para merge.
 
 ---
 
@@ -647,9 +666,9 @@ Referencia: `docs/04-modules/auth.md` § Criterios de aceptación.
 
 ## Próximo paso
 
-**Esperar aprobación explícita de este plan.**
+**Auth Foundation v1 cerrado.** Abrir PR a `main`.
 
-Tras aprobación, implementar en orden Fase 1 → 6. Se recomienda **una PR por fase** o **PR combinada Fase 4+5** para evitar estado roto intermedio.
+**Auth Foundation v1.1 (futuro):** RBAC API — aplicar `@Roles()` + `RolesGuard` en endpoints según matriz de `auth.md`.
 
 ---
 
@@ -658,3 +677,4 @@ Tras aprobación, implementar en orden Fase 1 → 6. Se recomienda **una PR por 
 | Versión | Fecha | Cambio |
 | ------- | ----- | ------ |
 | v1 | 2026-06-16 | Plan inicial post-aprobación auth.md |
+| v1 cierre | 2026-06-16 | Fases 1–6 implementadas; RBAC API diferido v1.1 |

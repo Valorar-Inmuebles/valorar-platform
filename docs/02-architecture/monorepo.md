@@ -138,9 +138,18 @@ cp apps/api/.env.example apps/api/.env
 
 Completar al menos:
 
-* `apps/api/.env` → `DATABASE_URL` (**obligatorio**; la API no arranca sin conexión PostgreSQL)
+* `apps/api/.env` → `DATABASE_URL`, `JWT_SECRET`, `SEED_DEFAULT_PASSWORD` (**obligatorios** para API + seed)
 * `apps/web/.env` → `TENANT_ID`
-* `apps/admin/.env` → `ADMIN_DEV_TENANT_ID`, `ADMIN_DEV_USER_ID`
+* `apps/admin/.env` → `API_URL` (default `http://localhost:3002`)
+
+Seed de usuarios demo (desarrollo):
+
+```bash
+cd apps/api
+npx prisma db seed
+```
+
+Ver credenciales en `apps/api/README.md`.
 
 ```bash
 npm run dev

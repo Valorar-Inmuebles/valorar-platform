@@ -17,7 +17,7 @@ Plataforma SaaS inmobiliaria multi-tenant orientada a:
 
 ## Estado Actual
 
-Fase: Foundation + Auth Foundation Fase 1 (schema) + Property API Foundation + Public API Foundation + Public Web Foundation (Fase 1–6) + Admin UI Foundation (Property Domain v1)
+Fase: Foundation + **Auth Foundation v1** ✅ + Property API Foundation + Public API Foundation + Public Web Foundation (Fase 1–6) + Admin UI Foundation (Property Domain v1 + Auth v1)
 
 Infraestructura inicial:
 
@@ -28,7 +28,7 @@ Infraestructura inicial:
 
 Dominio Property v1: migrado (`202606150001_property_foundation`, `202606150002_property_location_v1_1`).
 
-Auth Foundation v1: schema migrado (`20260616125024_auth_foundation`). Documentación: `docs/04-modules/auth.md`. Plan: `docs/09-roadmap/auth-implementation-plan.md`. Pendiente: Fase 2 AuthModule API.
+Auth Foundation v1: ✅ implementado (migración `20260616125024_auth_foundation`, AuthModule, JWT cookie, TenantGuard, admin login/middleware, seeds). Documentación: `docs/04-modules/auth.md`. RBAC API (`@Roles`) diferido v1.1.
 
 Roadmap Property API: `docs/09-roadmap/property-api-roadmap.md`
 
@@ -99,10 +99,22 @@ Migración auth: `20260616125024_auth_foundation`.
 
 Documentación: `docs/03-database/current-schema.md`, `docs/04-modules/auth.md`
 
+### Auth Foundation v1 (API + Admin) ✅
+
+* `AuthModule` — `POST /auth/login`, `POST /auth/logout`, `GET /auth/me`
+* JWT stateless en cookie httpOnly `access_token` (bcrypt, Passport JWT)
+* `JwtAuthGuard`, `TenantGuard` en Property admin API (4 módulos)
+* `RolesGuard` + `@Roles()` implementados en código — **no aplicados** (v1.1)
+* Admin: login UI, middleware, BFF cookie cross-port, `TenantSwitcher` (SUPER_ADMIN)
+* Nav admin filtra por rol (UI); sesión vía `GET /auth/me`
+* Seed dev: tenant `demo` + 3 usuarios (`super@valorar.dev`, `admin@demo.valorar.dev`, `agent@demo.valorar.dev`)
+
+Documentación: `docs/04-modules/auth.md`, `docs/09-roadmap/auth-implementation-plan.md`
+
 ### Property Domain v1 (API — Property entity)
 
 * `PropertyModule` en `apps/api/src/modules/property`
-* CRUD admin: `POST/GET/PATCH/DELETE /properties`
+* CRUD admin protegido con `JwtAuthGuard` + `TenantGuard`; `tenantId` / `createdById` inferidos del JWT
 * Arquitectura: Controller → Service → Repository → Prisma
 * `PrismaService` global
 * `PrismaExceptionFilter` global (P2002, P2003, P2025)
@@ -111,7 +123,7 @@ Documentación: `docs/03-database/current-schema.md`, `docs/04-modules/auth.md`
 * Slug e `internalCode` únicos por tenant
 * Validación de existencia de tenant al crear
 * Escrituras multi-tenant safe (`updateMany` con `tenantId`)
-* Query DTOs con `class-validator` (`PropertyTenantQueryDto`, `ListPropertiesQueryDto`)
+* Query DTOs con `class-validator` (`ListPropertiesQueryDto`; `tenantId` removido — resuelto por TenantGuard)
 
 ### Property Domain v1 (API — PropertyListing entity)
 
@@ -170,7 +182,7 @@ Documentación: `docs/03-database/current-schema.md`, `docs/04-modules/auth.md`
 * DTOs públicos sin datos internos (`tenantId`, `createdById`, `internalCode`)
 * Swagger tag `Public Properties` con `@ApiQuery`
 
-Pendiente en Property API: features admin, storage upload, resolución tenant por dominio, sitemap, guards JWT.
+Pendiente en Property API: features admin, storage upload, resolución tenant por dominio, sitemap.
 
 ### Property Domain v1 (schema + migración)
 
@@ -205,8 +217,8 @@ Modelo: cada lead es una consulta individual; no representa un contacto único.
 Documentación: `docs/07-admin/admin-modules.md`, `docs/07-admin/admin-nav.md`
 
 * Shell: `(auth)` / `(dashboard)`, `MainLayout`, sidebar colapsable, `nav-config.ts`, `PageShell`, `PropertyPageShell`, `PropertySubNav`, `ToastProvider`
-* Tenant dev: `ADMIN_DEV_TENANT_ID`, `ADMIN_DEV_USER_ID` (sin auth JWT)
-* Toda operación vía NestJS API — sin acceso directo a Prisma
+* Auth v1: login `/login`, middleware, sesión JWT, logout, `TenantSwitcher`
+* Toda operación vía NestJS API con cookie reenviada — sin acceso directo a Prisma
 
 **Property CRUD** ✅
 
@@ -235,22 +247,16 @@ Documentación: `docs/07-admin/admin-modules.md`, `docs/07-admin/admin-nav.md`
 * Badges derivados: Publicada / Borrador comercial / Archivada
 * Columna Web en publicaciones + enlaces «Ver en web» por operación
 
-Pendiente admin: auth, RBAC, TenantSwitcher, configuración (usuarios/inmobiliaria/tenants), dashboard operativo, upload storage.
+Pendiente admin: RBAC API (v1.1), configuración (usuarios/inmobiliaria/tenants), dashboard operativo, upload storage.
 
 ---
 
 ## Módulos Pendientes
 
-### Auth Foundation v1 (API + Admin — pendiente)
+### Auth Foundation v1.1 (RBAC API)
 
-* Fase 1 schema ✅ (`20260616125024_auth_foundation`)
-* Fase 2 AuthModule API (login, logout, me, JWT, bcrypt) — pendiente
-* Fase 3 Guards — pendiente
-* Fase 4 Refactor endpoints admin — pendiente
-* Fase 5 Admin login/middleware — pendiente
-* Fase 6 Seeds — pendiente
-
-Plan: `docs/09-roadmap/auth-implementation-plan.md`
+* Aplicar `RolesGuard` + `@Roles()` en endpoints admin según matriz RBAC
+* `PropertyAccessGuard` (dominio Property) — futuro
 
 ### Foundation (campos futuros)
 
@@ -276,8 +282,8 @@ Roadmap frontend: `docs/06-web/frontend-roadmap.md`
 * PropertyPrice API Foundation — implementado
 * PropertyImage API Foundation — implementado
 * PropertyFeature — pendiente
-* UI admin Property Domain v1 — implementado (shell + CRUD + publicabilidad + multi-operación)
-* UI admin (auth, RBAC, configuración, dashboard, upload) — pendiente
+* UI admin Property Domain v1 — implementado (shell + CRUD + publicabilidad + multi-operación + auth v1)
+* UI admin (RBAC API, configuración, dashboard, upload) — pendiente
 
 Roadmap: `docs/09-roadmap/property-api-roadmap.md`
 

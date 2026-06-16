@@ -20,14 +20,15 @@ Convención de puertos del monorepo:
 | admin | http://localhost:3001 |
 | api | http://localhost:3002 (Swagger: `/api/docs`) |
 
-Desde la raíz del monorepo (levanta web + admin + api):
+Desde la raíz del monorepo:
 
 ```bash
 npm install
 cp apps/web/.env.example apps/web/.env
 cp apps/admin/.env.example apps/admin/.env
 cp apps/api/.env.example apps/api/.env
-# Completar DATABASE_URL en apps/api/.env, ADMIN_DEV_* en apps/admin/.env
+# Completar DATABASE_URL, JWT_SECRET y SEED_DEFAULT_PASSWORD en apps/api/.env
+npx prisma db seed --schema apps/api/prisma/schema.prisma
 npm run dev
 ```
 
@@ -44,73 +45,89 @@ Comandos desde `apps/admin`:
 ```bash
 npm run dev
 npm run build
-npm run lint
 npm run check-types
+npm run lint
 ```
+
+## Autenticación (Auth Foundation v1)
+
+- Login en `/login` — formulario real vía BFF (`POST /api/auth/login` → API NestJS)
+- Cookie `access_token` httpOnly en dominio admin
+- Middleware protege rutas `(dashboard)/*` (redirect a `/login` sin cookie)
+- Layout dashboard valida sesión con `GET /auth/me`
+- Logout desde sidebar → `POST /api/auth/logout`
+- Nav filtra ítems por rol del usuario (`sessionToNavContext`)
+- `SUPER_ADMIN`: selector de tenant en header (`TenantSwitcher` + cookie `active_tenant_id`)
+
+### Credenciales dev
+
+Tras ejecutar el seed de API (ver `apps/api/README.md`):
+
+| Rol | Email | Contraseña |
+| --- | ----- | ---------- |
+| `TENANT_ADMIN` | `admin@demo.valorar.dev` | `SEED_DEFAULT_PASSWORD` del `.env` de API |
+| `AGENT` | `agent@demo.valorar.dev` | idem |
+| `SUPER_ADMIN` | `super@valorar.dev` | idem |
+
+Sugerencia dev: `SEED_DEFAULT_PASSWORD=ValorarDev2026!` en `apps/api/.env`.
+
+**RBAC API:** no aplicado en v1 — todos los roles autenticados acceden a Property admin API. Diferido a Auth Foundation v1.1.
 
 ## Estructura
 
 ```txt
 apps/admin/
 ├── app/
-│   ├── (auth)/              # Login placeholder
-│   └── (dashboard)/         # Shell + módulos operativos
+│   ├── (auth)/              # Login
+│   ├── (dashboard)/         # Shell + módulos operativos
+│   └── api/auth/            # BFF login, logout, active-tenant
 ├── components/
-│   ├── layout/              # Sidebar, header, nav-config, PageHeader
-│   ├── property/            # CRUD Property Domain v1 + publicabilidad
-│   └── shared/              # PageShell, ApiErrorPanel, placeholders
+│   ├── auth/                # LoginForm
+│   ├── layout/              # Sidebar, header, nav-config, TenantSwitcher
+│   ├── property/            # CRUD Property Domain v1
+│   └── shared/
 ├── lib/
-│   ├── api/                 # Client, fetchers y server actions
-│   ├── property/            # Breadcrumbs, form helpers, publishability
-│   ├── format/              # Labels y formato
-│   └── tenant/              # Contexto tenant dev
-└── providers/               # ToastProvider
+│   ├── api/                 # Client con cookie JWT + X-Tenant-Id
+│   ├── auth/                # Sesión, nav context, active tenant
+│   └── property/
+└── middleware.ts            # Protección dashboard
 ```
 
 ## Módulos implementados
 
 | Módulo | Rutas | Estado |
 | ------ | ----- | ------ |
-| Admin Shell | `(dashboard)/layout`, sidebar, nav | ✅ |
+| Auth + Shell | `/login`, middleware, sesión | ✅ |
 | Property | `/propiedades`, `/crear`, `/[id]` | ✅ |
 | PropertyListing | `/propiedades/[id]/publicaciones/**` | ✅ |
 | PropertyPrice | `/…/publicaciones/[listingId]/precios` | ✅ |
 | PropertyImage | `/propiedades/[id]/imagenes` | ✅ |
-| Publicabilidad web | Panel en ficha + columna Web en publicaciones | ✅ |
+| Publicabilidad web | Panel en ficha + columna Web | ✅ |
 
-Patrón: Server Components para lecturas → `lib/api/*.ts` → NestJS; mutaciones vía Server Actions en `lib/api/*-actions.ts`.
+Patrón: Server Components → `lib/api/*.ts` → NestJS; mutaciones vía Server Actions.
 
 ## Pendiente
 
-- Auth, RBAC, middleware, TenantSwitcher
-- Configuración (`/configuracion/**`) — placeholders
+- RBAC API (`@Roles` en endpoints) — Auth Foundation v1.1
+- Configuración (`/configuracion/**`) — placeholders UI
 - Dashboard operativo (`/`)
-- Upload físico de imágenes (metadata manual v1)
+- Upload físico de imágenes
 
 ## Variables de entorno
 
-Requeridas en desarrollo local (copiar desde `apps/admin/.env.example`):
+Copiar desde `apps/admin/.env.example`:
 
 | Variable | Uso |
 | -------- | --- |
 | `API_URL` | Base URL de `apps/api` (default `http://localhost:3002`) |
-| `ADMIN_DEV_TENANT_ID` | Tenant para queries admin (alternativa: `TENANT_ID`) |
-| `ADMIN_DEV_USER_ID` | `createdById` al crear propiedades |
-| `PUBLIC_WEB_URL` | Base del sitio público para enlaces «Ver en web» (default sugerido: `http://localhost:3000`) |
+| `PUBLIC_WEB_URL` | Sitio público para enlaces «Ver en web» (default `http://localhost:3000`) |
 
-Futuro (auth):
-
-| Variable | Uso |
-| -------- | --- |
-| `ADMIN_DEV_ROLE` | Rol mock — nav aún no filtra por rol real |
+Las variables `ADMIN_DEV_*` están **deprecated** — el flujo principal usa login + JWT.
 
 ## Documentación
 
-- `docs/07-admin/admin-modules.md` — funcionalidad Property Domain admin
-- `docs/07-admin/admin-nav.md` — navegación, rutas y RBAC objetivo
+- `docs/04-modules/auth.md` — Auth Foundation v1
+- `docs/07-admin/admin-modules.md` — Property Domain admin
+- `docs/07-admin/admin-nav.md` — navegación y RBAC UI
 - `docs/02-architecture/monorepo.md` — puertos y stack local
-- `PROJECT_STATE.md` — estado global del proyecto
-
-## Referencia UI
-
-El directorio `proyecto-ejemplo/` (temporal) sirve solo como referencia visual para layout, tablas y formularios. No copiar módulos de negocio ni código legal.
+- `PROJECT_STATE.md` — estado global

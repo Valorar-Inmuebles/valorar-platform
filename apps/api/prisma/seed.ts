@@ -1,20 +1,34 @@
 import 'dotenv/config';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { Pool } from 'pg';
-import { PrismaClient, UserRole } from '../generated/prisma/client';
+import { PrismaClient } from '../generated/prisma/client';
 import { hashPassword } from '../src/modules/auth/utils/password.util';
+import {
+  DEMO_TENANT_NAME,
+  DEMO_TENANT_SLUG,
+  DOCUMENTED_DEV_PASSWORD_HINT,
+  SEED_USERS,
+} from './seed-data';
 
-const DEMO_TENANT_SLUG = 'demo';
-const DEMO_ADMIN_EMAIL = 'admin@demo.valorar.dev';
-const DEFAULT_DEV_PASSWORD = 'ValorarDev2026!';
+function resolveSeedPassword(): string {
+  const password = process.env.SEED_DEFAULT_PASSWORD?.trim();
+
+  if (!password) {
+    throw new Error(
+      `SEED_DEFAULT_PASSWORD is required. Set it in apps/api/.env (dev suggestion: ${DOCUMENTED_DEV_PASSWORD_HINT}). See apps/api/README.md.`,
+    );
+  }
+
+  return password;
+}
 
 async function main(): Promise<void> {
   if (process.env.NODE_ENV === 'production') {
     throw new Error('Refusing to run auth dev seed in production.');
   }
 
-  const password =
-    process.env.SEED_DEFAULT_PASSWORD?.trim() || DEFAULT_DEV_PASSWORD;
+  const password = resolveSeedPassword();
+  const passwordHash = await hashPassword(password);
 
   const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
@@ -23,42 +37,47 @@ async function main(): Promise<void> {
   const prisma = new PrismaClient({ adapter });
 
   try {
-    const passwordHash = await hashPassword(password);
-
     const tenant = await prisma.tenant.upsert({
       where: { slug: DEMO_TENANT_SLUG },
-      update: { name: 'Demo Inmobiliaria' },
+      update: { name: DEMO_TENANT_NAME },
       create: {
-        name: 'Demo Inmobiliaria',
+        name: DEMO_TENANT_NAME,
         slug: DEMO_TENANT_SLUG,
       },
     });
 
-    await prisma.user.upsert({
-      where: { email: DEMO_ADMIN_EMAIL },
-      update: {
-        name: 'Admin Demo',
-        role: UserRole.TENANT_ADMIN,
-        tenantId: tenant.id,
-        passwordHash,
-        isActive: true,
-      },
-      create: {
-        email: DEMO_ADMIN_EMAIL,
-        name: 'Admin Demo',
-        role: UserRole.TENANT_ADMIN,
-        tenantId: tenant.id,
-        passwordHash,
-        isActive: true,
-      },
-    });
+    for (const spec of SEED_USERS) {
+      const tenantId =
+        spec.tenantSlug === DEMO_TENANT_SLUG ? tenant.id : null;
+
+      await prisma.user.upsert({
+        where: { email: spec.email },
+        update: {
+          name: spec.name,
+          role: spec.role,
+          tenantId,
+          passwordHash,
+          isActive: true,
+        },
+        create: {
+          email: spec.email,
+          name: spec.name,
+          role: spec.role,
+          tenantId,
+          passwordHash,
+          isActive: true,
+        },
+      });
+    }
 
     console.log('Auth dev seed completed.');
-    console.log(`Tenant slug: ${DEMO_TENANT_SLUG}`);
-    console.log(`Admin email: ${DEMO_ADMIN_EMAIL}`);
-    console.log(
-      'Admin password: value of SEED_DEFAULT_PASSWORD or default dev password documented in README.',
-    );
+    console.log(`Tenant: ${DEMO_TENANT_NAME} (slug: ${DEMO_TENANT_SLUG}, id: ${tenant.id})`);
+    console.log('Users (password = SEED_DEFAULT_PASSWORD from .env):');
+    for (const spec of SEED_USERS) {
+      const tenantLabel =
+        spec.tenantSlug === null ? 'null (platform)' : `${DEMO_TENANT_SLUG} (${tenant.id})`;
+      console.log(`  - ${spec.role}: ${spec.email} → tenant ${tenantLabel}`);
+    }
   } finally {
     await prisma.$disconnect();
     await pool.end();

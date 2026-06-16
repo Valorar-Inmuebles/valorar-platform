@@ -2,7 +2,7 @@
 
 Versión: v1 (Auth Foundation)
 
-Estado: **documentado — pendiente implementación**
+Estado: **implementado (Auth Foundation v1 — 2026-06-16)**
 
 Referencias:
 
@@ -32,6 +32,36 @@ Auth Foundation v1 habilita:
 
 ---
 
+## Estado de implementación (v1)
+
+| Entregable | Estado |
+| ---------- | ------ |
+| Migración Prisma (`20260616125024_auth_foundation`) | ✅ |
+| `AuthModule` — login, logout, me, JWT, bcrypt | ✅ |
+| Cookie httpOnly `access_token` | ✅ |
+| `JwtAuthGuard`, `TenantGuard` | ✅ |
+| Property admin API protegida (4 módulos) | ✅ |
+| Admin login + middleware + BFF cookie | ✅ |
+| TenantSwitcher (SUPER_ADMIN) | ✅ |
+| Nav admin filtrado por rol (UI) | ✅ |
+| Seed dev (3 roles + tenant demo) | ✅ |
+| **`RolesGuard` + `@Roles()` en endpoints API** | ⏸️ **Diferido v1.1** |
+
+### Decisión de producto — RBAC API (v1.1)
+
+Auth Foundation **v1** cierra:
+
+* Autenticación (login / logout / sesión JWT)
+* Cookie httpOnly
+* Aislamiento tenant (`TenantGuard`)
+* Admin autenticado (middleware + BFF)
+
+**No incluye** enforcement RBAC en endpoints API. `RolesGuard` y el decorador `@Roles()` están implementados en código pero **no aplicados** a controllers. Un usuario autenticado de cualquier rol puede invocar los endpoints Property admin.
+
+RBAC API detallado queda para **Auth Foundation v1.1** (o fase de permisos posterior). La nav admin sí filtra ítems por rol (UI only).
+
+---
+
 ## Alcance v1
 
 | Incluido | Descripción |
@@ -43,10 +73,11 @@ Auth Foundation v1 habilita:
 | Guards API | `JwtAuthGuard`, `RolesGuard`, `TenantGuard` |
 | Admin login UI | `/login` en `(auth)` route group |
 | Admin middleware | Protección de `(dashboard)/*` |
-| RBAC | Enum `UserRole`: `SUPER_ADMIN`, `TENANT_ADMIN`, `AGENT` |
+| RBAC UI | Nav admin filtra por `UserRole`; enum existente |
+| RBAC API | **Fuera de v1** — `@Roles()` / `RolesGuard` diferidos a v1.1 |
 | Contexto tenant | `User.tenantId` en JWT; header `X-Tenant-Id` solo para `SUPER_ADMIN` |
-| Hash de contraseña | bcrypt en columna `User.passwordHash` (migración futura) |
-| Desactivación usuario | `User.isActive` (migración futura) |
+| Hash de contraseña | bcrypt en columna `User.passwordHash` |
+| Desactivación usuario | `User.isActive` |
 
 | Excluido v1 | Motivo |
 | ----------- | ------ |
@@ -65,7 +96,7 @@ Auth Foundation v1 habilita:
 
 ## Auditoría Prisma (reconfirmación)
 
-Auditoría aprobada sobre `apps/api/prisma/schema.prisma`. **Este documento no modifica Prisma.** Los cambios de schema se ejecutarán en una migración posterior, tras aprobación de este documento.
+Migración aplicada: `20260616125024_auth_foundation`. Schema alineado con `apps/api/prisma/schema.prisma` y `docs/03-database/current-schema.md`.
 
 ### Entidades existentes relevantes para auth
 
@@ -79,7 +110,9 @@ Auditoría aprobada sobre `apps/api/prisma/schema.prisma`. **Este documento no m
 ### Campos actuales de `User`
 
 ```txt
-id, tenantId?, name, email (@unique), role (default AGENT), createdAt, updatedAt
+id, tenantId?, name, email (@unique), passwordHash, isActive, lastLoginAt?,
+role (default AGENT), createdAt, updatedAt
+@@index([tenantId])
 ```
 
 ### Campos actuales de `Tenant`
@@ -107,14 +140,14 @@ ApiKey
 AuditLog
 ```
 
-### Brechas identificadas (resueltas en migración futura, no ahora)
+### Brechas resueltas (migración auth_foundation)
 
-| Brecha | Solución aprobada | ¿Nueva tabla? |
-| ------ | ----------------- | ------------- |
-| No hay credencial | `User.passwordHash` | No |
-| No hay desactivación de usuario | `User.isActive` (default `true`) | No |
-| No hay trazabilidad de login | `User.lastLoginAt` (opcional v1) | No |
-| No hay desactivación de tenant | `Tenant.isActive` (opcional v1, recomendado) | No |
+| Brecha | Solución | Estado |
+| ------ | -------- | ------ |
+| No hay credencial | `User.passwordHash` | ✅ Migrado |
+| No hay desactivación de usuario | `User.isActive` | ✅ Migrado |
+| No hay trazabilidad de login | `User.lastLoginAt` | ✅ Migrado |
+| No hay desactivación de tenant | `Tenant.isActive` | ⏸️ Diferido |
 
 ### Invariantes de datos (validación en aplicación)
 
@@ -141,7 +174,7 @@ Un usuario pertenece a **un único** tenant (`docs/03-database/multi-tenant.md`)
 | SUPER_ADMIN cross-tenant | Header `X-Tenant-Id` validado en API | JWT con `activeTenantId` rotativo |
 | Logout | Borrar cookie; sin invalidación server-side | Token blacklist / revocación en DB |
 | Public API | Sin cambios; sin JWT | — |
-| Admin dev sin auth | `ADMIN_DEV_*` solo en desarrollo local explícito | — |
+| Admin dev sin auth | `ADMIN_DEV_*` deprecated; login + JWT es el flujo principal | — |
 
 ---
 
@@ -156,25 +189,18 @@ Tenant
        tenantId?: String   → null si SUPER_ADMIN
 ```
 
-### Estado objetivo post-migración (documentado, no aplicado)
-
-Cambios planificados en entidades existentes — **sin tablas nuevas**:
+### Estado post-migración (aplicado)
 
 ```prisma
-model Tenant {
-  // campos existentes...
-  isActive Boolean @default(true)   // recomendado v1
-}
-
 model User {
   // campos existentes...
   passwordHash String
   isActive     Boolean   @default(true)
-  lastLoginAt  DateTime?             // opcional v1
+  lastLoginAt  DateTime?
 }
 ```
 
-Documentación de schema a actualizar en la misma migración: `docs/03-database/current-schema.md`.
+`Tenant.isActive` sigue diferido. Schema documentado en `docs/03-database/current-schema.md`.
 
 ---
 
@@ -206,7 +232,7 @@ Fuente: `docs/07-admin/admin-nav.md` §5.
 
 Comportamiento UI: ítems no permitidos **no se renderizan** en sidebar (no deshabilitar).
 
-Comportamiento API: rol insuficiente → `403 Forbidden`.
+Comportamiento API: rol insuficiente → `403 Forbidden` (**v1.1** cuando `@Roles()` esté aplicado en endpoints).
 
 ### Matriz RBAC — operaciones Property (referencia)
 
@@ -218,16 +244,18 @@ Fuente: `docs/07-admin/admin-modules.md`. Auth v1 protege endpoints; el scoping 
 | `TENANT_ADMIN` | CRUD todas del tenant |
 | `SUPER_ADMIN` | CRUD del tenant activo seleccionado |
 
-Auth Foundation v1 implementa **autenticación + rol + tenant**. El guard de acceso por propiedad es entregable separado del roadmap Property.
+Auth Foundation v1 implementa **autenticación + tenant**. RBAC API (`@Roles` en controllers) y el guard de acceso por propiedad (`PropertyAccessGuard`) son entregables de fases posteriores (v1.1 / Property security).
 
-### Decorador de roles (API)
+### Decorador de roles (API) — v1.1
+
+Implementado en código (`@Roles`, `RolesGuard`) pero **no aplicado** en v1:
 
 ```ts
 @Roles(UserRole.TENANT_ADMIN, UserRole.SUPER_ADMIN)
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, TenantGuard, RolesGuard)
 ```
 
-Orden de guards: `JwtAuthGuard` → `TenantGuard` → `RolesGuard`.
+Orden de guards cuando se active RBAC API: `JwtAuthGuard` → `TenantGuard` → `RolesGuard`.
 
 ---
 
@@ -272,7 +300,7 @@ Comportamiento admin documentado en `admin-nav.md` §6.4: sin tenant seleccionad
 
 ## API (NestJS)
 
-Módulo: `AuthModule` en `apps/api/src/modules/auth` (pendiente implementación).
+Módulo: `AuthModule` en `apps/api/src/modules/auth` ✅ implementado.
 
 Dependencias previstas:
 
@@ -418,9 +446,9 @@ En desarrollo local (HTTP): `Secure=false` permitido vía env `COOKIE_SECURE=fal
 
 ## Guards
 
-Ubicación prevista: `apps/api/src/modules/auth/guards/`.
+Ubicación: `apps/api/src/modules/auth/guards/`.
 
-### JwtAuthGuard
+### JwtAuthGuard ✅
 
 * Valida firma y expiración del JWT.
 * Carga `User` desde DB por `sub`.
@@ -437,14 +465,14 @@ Ubicación prevista: `apps/api/src/modules/auth/guards/`.
 }
 ```
 
-### TenantGuard
+### TenantGuard ✅
 
 Resuelve `request.tenantId` efectivo:
 
 ```ts
 if (user.role === 'SUPER_ADMIN') {
   tenantId = request.headers['x-tenant-id'];
-  // validar existencia + isActive
+  // validar existencia
 } else {
   tenantId = user.tenantId;
 }
@@ -457,38 +485,34 @@ Rechaza:
 
 Decorador `@RequireTenant()` para marcar controllers que necesitan tenant resuelto.
 
-### RolesGuard
+### RolesGuard — implementado, no aplicado (v1.1)
 
-* Lee metadata `@Roles(...)` del handler/controller.
-* Compara con `request.user.role`.
-* Sin metadata → permite cualquier rol autenticado.
+* Código en `roles.guard.ts` + decorador `@Roles()`.
+* **No usado en controllers v1.** Diferido a Auth Foundation v1.1.
+* Sin metadata `@Roles(...)` → permite cualquier rol autenticado (comportamiento actual).
 
 ### Aplicación en módulos existentes
 
 | Módulo | Protección v1 |
 | ------ | ------------- |
-| `PropertyModule` | JwtAuthGuard + TenantGuard |
-| `PropertyListingModule` | Idem |
-| `PropertyPriceModule` | Idem |
-| `PropertyImageModule` | Idem |
-| `PublicPropertyModule` | **Sin guards** (público) |
-| `AuthModule` | Login/logout públicos; `/auth/me` protegido |
+| `PropertyModule` | JwtAuthGuard + TenantGuard ✅ |
+| `PropertyListingModule` | Idem ✅ |
+| `PropertyPriceModule` | Idem ✅ |
+| `PropertyImageModule` | Idem ✅ |
+| `PublicPropertyModule` | **Sin guards** (público) ✅ |
+| `AuthModule` | Login/logout públicos; `/auth/me` protegido ✅ |
 
-### Refactor de endpoints admin existentes
+### Refactor endpoints admin — completado
 
-Estado actual: `tenantId` en query DTOs (`PropertyTenantQueryDto`).
-
-Estado objetivo auth v1:
+Estado actual auth v1:
 
 | Antes | Después |
 | ----- | ------- |
 | `GET /properties?tenantId=xxx` | `GET /properties` + header `X-Tenant-Id` si SUPER_ADMIN |
-| `POST /properties` body `{ tenantId, ... }` | `tenantId` inferido del guard; remover del DTO de entrada |
+| `POST /properties` body `{ tenantId, ... }` | `tenantId` inferido del guard; removido del DTO |
 | `createdById` en body | Inferido de `request.user.id` en create |
 
-El `tenantId` en respuestas DTO se mantiene (dato de salida).
-
-Compatibilidad dev: durante transición, puede aceptarse `tenantId` en query **solo si coincide** con tenant resuelto — eliminar en fase de limpieza post-auth.
+Query/body con `tenantId` o `createdById` legacy → `400` (`forbidNonWhitelisted`).
 
 ---
 
@@ -554,12 +578,12 @@ Server-side fetch hacia `API_URL`:
 * Reenviar cookie `access_token` en requests a API.
 * Si `SUPER_ADMIN`: incluir `X-Tenant-Id` desde cookie/contexto de tenant activo.
 
-Reemplazar `getAdminTenantId()` / `getAdminUserId()` basados en env cuando exista sesión:
+Reemplazar `getAdminTenantId()` / `getAdminUserId()` — **completado**: sesión JWT es la fuente principal.
 
 | Prioridad | Fuente tenantId | Fuente userId |
 | --------- | --------------- | ------------- |
 | 1 | Sesión JWT (+ tenant activo SUPER_ADMIN) | Sesión JWT |
-| 2 (solo dev) | `ADMIN_DEV_TENANT_ID` / `TENANT_ID` | `ADMIN_DEV_USER_ID` |
+| — | `ADMIN_DEV_*` deprecated | deprecated |
 
 En producción, `ADMIN_DEV_*` no deben estar definidos.
 
@@ -629,17 +653,23 @@ Actualizar `.env.example` de ambas apps en fase de implementación.
 
 ---
 
-## Seed de desarrollo
+## Seed de desarrollo ✅
 
-Script seed (fase implementación) — datos mínimos:
+Script: `apps/api/prisma/seed.ts` + constantes en `seed-data.ts`.
 
 | Entidad | Datos |
 | ------- | ----- |
-| `Tenant` | 1 tenant demo (`slug: demo`) |
-| `User` | 3 usuarios, uno por rol, password conocido documentado en README dev |
-| `TenantSetting` | Opcional, branding mínimo |
+| `Tenant` | Demo Inmobiliaria (`slug: demo`) |
+| `User` SUPER_ADMIN | `super@valorar.dev`, `tenantId: null` |
+| `User` TENANT_ADMIN | `admin@demo.valorar.dev`, tenant demo |
+| `User` AGENT | `agent@demo.valorar.dev`, tenant demo |
 
-Password dev sugerido: documentar en README, nunca commitear en código.
+Password: variable de entorno `SEED_DEFAULT_PASSWORD` (documentada en `apps/api/README.md`; sugerencia dev `ValorarDev2026!`).
+
+```bash
+cd apps/api
+npx prisma db seed
+```
 
 ---
 
@@ -680,36 +710,32 @@ Respuesta error (formato existente NestJS + filter global):
 
 ## Criterios de aceptación (Auth Foundation v1)
 
-1. Usuario con credenciales válidas accede a `/login` y llega al dashboard.
-2. Usuario sin sesión en `(dashboard)/*` es redirigido a `/login`.
-3. `POST /auth/logout` cierra sesión; dashboard queda inaccesible.
-4. Endpoints admin (`/properties`, etc.) rechazan requests sin JWT → `401`.
-5. Usuario `AGENT` no puede acceder a endpoints reservados a `TENANT_ADMIN` → `403`.
-6. `tenantId` en operaciones admin proviene del JWT, no manipulable por el cliente.
-7. `SUPER_ADMIN` opera sobre tenant seleccionado vía `X-Tenant-Id`.
-8. Public API `/public/*` sigue funcionando sin JWT.
-9. No existen tablas nuevas de auth en PostgreSQL.
-10. Documentación `current-schema.md` actualizada tras migración (entregable de fase schema).
+1. Usuario con credenciales válidas accede a `/login` y llega al dashboard. ✅
+2. Usuario sin sesión en `(dashboard)/*` es redirigido a `/login`. ✅
+3. `POST /auth/logout` cierra sesión; dashboard queda inaccesible. ✅
+4. Endpoints admin (`/properties`, etc.) rechazan requests sin JWT → `401`. ✅
+5. ~~Usuario `AGENT` no puede acceder a endpoints reservados a `TENANT_ADMIN` → `403`.~~ **Diferido v1.1** (RBAC API)
+6. `tenantId` en operaciones admin proviene del JWT, no manipulable por el cliente. ✅
+7. `SUPER_ADMIN` opera sobre tenant seleccionado vía `X-Tenant-Id`. ✅
+8. Public API `/public/*` sigue funcionando sin JWT. ✅
+9. No existen tablas nuevas de auth en PostgreSQL. ✅
+10. Documentación `current-schema.md` actualizada tras migración. ✅
 
 ---
 
-## Orden de implementación (post-aprobación)
-
-Este documento es prerrequisito. **No implementar hasta aprobación explícita.**
-
-Secuencia acordada:
+## Orden de implementación — completado (v1)
 
 ```txt
-1. Aprobación de docs/04-modules/auth.md
-2. Plan de implementación detallado (tareas por app)
-3. Migración Prisma (columnas User + opcional Tenant)
-4. AuthModule en apps/api (login, logout, me, guards)
-5. Protección endpoints admin existentes
-6. Admin login + middleware + integración sesión
-7. Retirada progresiva de ADMIN_DEV_* en flujos con sesión
+1. ✅ Aprobación de docs/04-modules/auth.md
+2. ✅ Plan de implementación (docs/09-roadmap/auth-implementation-plan.md)
+3. ✅ Migración Prisma (20260616125024_auth_foundation)
+4. ✅ AuthModule en apps/api
+5. ✅ Protección endpoints admin existentes
+6. ✅ Admin login + middleware + integración sesión
+7. ✅ Seeds dev (3 roles)
 ```
 
-Cada fase estructural incluye actualización de `docs/03-database/current-schema.md` y `PROJECT_STATE.md` según convenciones del repositorio.
+**Pendiente v1.1:** RBAC API (`RolesGuard` + `@Roles()` en endpoints).
 
 ---
 
@@ -718,3 +744,4 @@ Cada fase estructural incluye actualización de `docs/03-database/current-schema
 | Versión | Fecha | Cambio |
 | ------- | ----- | ------ |
 | v1 | 2026-06-16 | Especificación Auth Foundation — documento inicial |
+| v1 cierre | 2026-06-16 | Implementación completada; RBAC API diferido a v1.1 |
