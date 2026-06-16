@@ -9,6 +9,7 @@ import {
   DOCUMENTED_DEV_PASSWORD_HINT,
   SEED_USERS,
 } from './seed-data';
+import { seedPropertyFeatures } from './seed-features';
 
 function resolveSeedPassword(): string {
   const password = process.env.SEED_DEFAULT_PASSWORD?.trim();
@@ -70,7 +71,10 @@ async function main(): Promise<void> {
       });
     }
 
+    const featureCount = await seedPropertyFeatures(prisma);
+
     console.log('Auth dev seed completed.');
+    console.log(`Property features seeded: ${featureCount}`);
     console.log(`Tenant: ${DEMO_TENANT_NAME} (slug: ${DEMO_TENANT_SLUG}, id: ${tenant.id})`);
     console.log('Users (password = SEED_DEFAULT_PASSWORD from .env):');
     for (const spec of SEED_USERS) {

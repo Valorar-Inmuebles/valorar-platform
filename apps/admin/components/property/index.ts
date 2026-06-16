@@ -1,3 +1,4 @@
+export { PropertyFeatureManager } from "./property-feature-manager";
 export { PropertyEmptyState } from "./property-empty-state";
 export type { PropertyEmptyStateProps } from "./property-empty-state";
 export { PropertyForm } from "./property-form";

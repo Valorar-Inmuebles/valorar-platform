@@ -15,9 +15,23 @@ Plataforma SaaS inmobiliaria multi-tenant orientada a:
 
 ---
 
+## Foco actual del producto
+
+**Property Complete MVP** — cerrar el flujo de negocio end-to-end de propiedades para operación inmobiliaria real.
+
+Documentación: `docs/04-modules/property-complete-mvp.md`
+
+Branch: `feature/property-complete-mvp`
+
+Roadmap: Fase A (Features) → Fase B (Ficha técnica) → Fase C (Storage + galería) → Fase D (Publicación) → Fase E (Buscador avanzado, P2).
+
+Sin migraciones Prisma nuevas salvo necesidad estricta documentada.
+
+---
+
 ## Estado Actual
 
-Fase: Foundation + **Auth Foundation v1** ✅ + Property API Foundation + Public API Foundation + Public Web Foundation (Fase 1–6) + Admin UI Foundation (Property Domain v1 + Auth v1)
+Fase: Foundation + **Auth Foundation v1** ✅ + Property API Foundation + Public API Foundation + Public Web Foundation (Fase 1–6) + Admin UI Foundation (Property Domain v1 + Auth v1) → **Property Complete MVP en implementación**
 
 Infraestructura inicial:
 
@@ -31,6 +45,8 @@ Dominio Property v1: migrado (`202606150001_property_foundation`, `202606150002_
 Auth Foundation v1: ✅ implementado (migración `20260616125024_auth_foundation`, AuthModule, JWT cookie, TenantGuard, admin login/middleware, seeds). Documentación: `docs/04-modules/auth.md`. RBAC API (`@Roles`) diferido v1.1.
 
 Roadmap Property API: `docs/09-roadmap/property-api-roadmap.md`
+
+Property Complete MVP: `docs/04-modules/property-complete-mvp.md`
 
 Lead Domain v1: documentado y congelado (inquiry-centric). `docs/03-database/lead-domain.md`
 
@@ -182,7 +198,7 @@ Documentación: `docs/04-modules/auth.md`, `docs/09-roadmap/auth-implementation-
 * DTOs públicos sin datos internos (`tenantId`, `createdById`, `internalCode`)
 * Swagger tag `Public Properties` con `@ApiQuery`
 
-Pendiente en Property API: features admin, storage upload, resolución tenant por dominio, sitemap.
+Pendiente en Property API (Property Complete MVP): features admin, storage upload, resolución tenant por dominio. Ver `docs/04-modules/property-complete-mvp.md`.
 
 ### Property Domain v1 (schema + migración)
 
@@ -275,17 +291,32 @@ Pendiente admin: RBAC API (v1.1), configuración (usuarios/inmobiliaria/tenants)
 
 Roadmap frontend: `docs/06-web/frontend-roadmap.md`
 
-### Property Domain v1 (lógica de negocio)
+### Property Complete MVP (foco actual)
 
-* Property API Foundation (entidad `Property`) — implementado
-* PropertyListing API Foundation — implementado
-* PropertyPrice API Foundation — implementado
-* PropertyImage API Foundation — implementado
-* PropertyFeature — pendiente
-* UI admin Property Domain v1 — implementado (shell + CRUD + publicabilidad + multi-operación + auth v1)
-* UI admin (RBAC API, configuración, dashboard, upload) — pendiente
+Documentación: `docs/04-modules/property-complete-mvp.md`
 
-Roadmap: `docs/09-roadmap/property-api-roadmap.md`
+| Fase | Alcance | Prioridad | Estado |
+| ---- | ------- | --------- | ------ |
+| A | Features end-to-end (seed, CRUD, assignment, admin tab, web) | P0 | ⏳ |
+| B | Ficha técnica completa (admin + public DTO + web) | P0 | ⏳ |
+| C | Storage + galería (upload, portada, reorder, delete) | P0 | ⏳ |
+| D | Publicación (checklist, validaciones soft, slug server-side) | P1 | ⏳ |
+| E | Buscador avanzado (features, condition, más filtros) | P2 | ⏳ |
+
+Foundation ya implementado: Property, PropertyListing, PropertyPrice, PropertyImage API; Public API; admin CRUD + publicabilidad; web Fases 1–6.
+
+### Property Domain v1 (Foundation — completado)
+
+* Property API Foundation — ✅
+* PropertyListing API Foundation — ✅
+* PropertyPrice API Foundation — ✅
+* PropertyImage API Foundation (metadata) — ✅
+* Public Property API — ✅
+* UI admin Property Domain v1 — ✅ (shell + CRUD + publicabilidad + multi-operación + auth v1)
+
+Pendiente post-MVP: RBAC API, configuración admin, dashboard, `PropertyAgentAccess`.
+
+Roadmap técnico API: `docs/09-roadmap/property-api-roadmap.md`
 
 ### Lead Domain v1 (lógica de negocio)
 

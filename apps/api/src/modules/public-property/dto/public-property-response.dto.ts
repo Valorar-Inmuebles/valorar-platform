@@ -1,7 +1,11 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   Currency,
+  Orientation,
+  PropertyBrightness,
+  PropertyCondition,
   PropertyFeatureCategory,
+  PropertyLayout,
   PropertyListingType,
   PropertyType,
 } from '../../../../generated/prisma/client';
@@ -166,6 +170,12 @@ export class PublicPropertyDetailDto {
   @ApiPropertyOptional()
   longitude: number | null;
 
+  @ApiPropertyOptional({ enum: PropertyCondition })
+  condition: PropertyCondition | null;
+
+  @ApiPropertyOptional()
+  rooms: number | null;
+
   @ApiPropertyOptional()
   bedrooms: number | null;
 
@@ -173,7 +183,37 @@ export class PublicPropertyDetailDto {
   bathrooms: number | null;
 
   @ApiPropertyOptional()
+  halfBathrooms: number | null;
+
+  @ApiPropertyOptional()
+  parkingSpaces: number | null;
+
+  @ApiPropertyOptional()
   totalArea: number | null;
+
+  @ApiPropertyOptional()
+  coveredArea: number | null;
+
+  @ApiPropertyOptional()
+  uncoveredArea: number | null;
+
+  @ApiPropertyOptional()
+  lotFront: number | null;
+
+  @ApiPropertyOptional()
+  lotDepth: number | null;
+
+  @ApiPropertyOptional()
+  yearBuilt: number | null;
+
+  @ApiPropertyOptional({ enum: Orientation })
+  orientation: Orientation | null;
+
+  @ApiPropertyOptional({ enum: PropertyLayout })
+  layout: PropertyLayout | null;
+
+  @ApiPropertyOptional({ enum: PropertyBrightness })
+  brightness: PropertyBrightness | null;
 
   @ApiProperty({ type: PublicCoverImageDto })
   coverImage: PublicCoverImageDto;

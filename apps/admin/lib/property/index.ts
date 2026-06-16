@@ -6,6 +6,7 @@ export {
   propertyDetailBreadcrumbs,
   propertyGeneralBreadcrumbs,
   propertyImagenesBreadcrumbs,
+  propertyCaracteristicasBreadcrumbs,
   propertyListBreadcrumbs,
   propertyPreciosBreadcrumbs,
   propertyPublicacionesBreadcrumbs,

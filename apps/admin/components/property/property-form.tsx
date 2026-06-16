@@ -26,7 +26,10 @@ import {
 } from "@/lib/api/property-actions";
 import type { AdminProperty } from "@/lib/api/types/property";
 import {
+  ORIENTATION_OPTIONS,
+  PROPERTY_BRIGHTNESS_OPTIONS,
   PROPERTY_CONDITION_OPTIONS,
+  PROPERTY_LAYOUT_OPTIONS,
   PROPERTY_TYPE_OPTIONS,
 } from "@/lib/format/property-labels";
 import {
@@ -196,10 +199,37 @@ export function PropertyForm({ mode, property }: PropertyFormProps) {
         </CardHeader>
         <CardContent className="grid gap-4 md:grid-cols-2">
           <FormField>
-            <Label required>Ciudad</Label>
+            <Label>Calle</Label>
             <Input
-              value={values.city}
-              onChange={(event) => updateField("city", event.target.value)}
+              value={values.street}
+              onChange={(event) => updateField("street", event.target.value)}
+              disabled={isPending}
+            />
+          </FormField>
+
+          <FormField>
+            <Label>Número</Label>
+            <Input
+              value={values.streetNumber}
+              onChange={(event) => updateField("streetNumber", event.target.value)}
+              disabled={isPending}
+            />
+          </FormField>
+
+          <FormField>
+            <Label>Piso</Label>
+            <Input
+              value={values.floor}
+              onChange={(event) => updateField("floor", event.target.value)}
+              disabled={isPending}
+            />
+          </FormField>
+
+          <FormField>
+            <Label>Departamento</Label>
+            <Input
+              value={values.apartment}
+              onChange={(event) => updateField("apartment", event.target.value)}
               disabled={isPending}
             />
           </FormField>
@@ -214,19 +244,10 @@ export function PropertyForm({ mode, property }: PropertyFormProps) {
           </FormField>
 
           <FormField>
-            <Label>Calle</Label>
+            <Label required>Ciudad</Label>
             <Input
-              value={values.street}
-              onChange={(event) => updateField("street", event.target.value)}
-              disabled={isPending}
-            />
-          </FormField>
-
-          <FormField>
-            <Label>Número</Label>
-            <Input
-              value={values.streetNumber}
-              onChange={(event) => updateField("streetNumber", event.target.value)}
+              value={values.city}
+              onChange={(event) => updateField("city", event.target.value)}
               disabled={isPending}
             />
           </FormField>
@@ -248,14 +269,53 @@ export function PropertyForm({ mode, property }: PropertyFormProps) {
               disabled={isPending}
             />
           </FormField>
+
+          <FormField>
+            <Label>Latitud</Label>
+            <Input
+              type="number"
+              step="any"
+              min={-90}
+              max={90}
+              value={values.latitude}
+              onChange={(event) => updateField("latitude", event.target.value)}
+              placeholder="-34.6037"
+              disabled={isPending}
+            />
+          </FormField>
+
+          <FormField>
+            <Label>Longitud</Label>
+            <Input
+              type="number"
+              step="any"
+              min={-180}
+              max={180}
+              value={values.longitude}
+              onChange={(event) => updateField("longitude", event.target.value)}
+              placeholder="-58.3816"
+              disabled={isPending}
+            />
+          </FormField>
         </CardContent>
       </Card>
 
       <Card>
         <CardHeader>
-          <CardTitle>Características</CardTitle>
+          <CardTitle>Distribución</CardTitle>
         </CardHeader>
-        <CardContent className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <CardContent className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+          <FormField>
+            <Label>Ambientes</Label>
+            <Input
+              type="number"
+              min={0}
+              value={values.rooms}
+              onChange={(event) => updateField("rooms", event.target.value)}
+              disabled={isPending}
+            />
+          </FormField>
+
           <FormField>
             <Label>Dormitorios</Label>
             <Input
@@ -279,6 +339,59 @@ export function PropertyForm({ mode, property }: PropertyFormProps) {
           </FormField>
 
           <FormField>
+            <Label>Toilettes</Label>
+            <Input
+              type="number"
+              min={0}
+              value={values.halfBathrooms}
+              onChange={(event) => updateField("halfBathrooms", event.target.value)}
+              disabled={isPending}
+            />
+          </FormField>
+
+          <FormField>
+            <Label>Cocheras</Label>
+            <Input
+              type="number"
+              min={0}
+              value={values.parkingSpaces}
+              onChange={(event) => updateField("parkingSpaces", event.target.value)}
+              disabled={isPending}
+            />
+          </FormField>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Superficies y características</CardTitle>
+        </CardHeader>
+        <CardContent className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          <FormField>
+            <Label>Superficie cubierta (m²)</Label>
+            <Input
+              type="number"
+              min={0}
+              step="0.01"
+              value={values.coveredArea}
+              onChange={(event) => updateField("coveredArea", event.target.value)}
+              disabled={isPending}
+            />
+          </FormField>
+
+          <FormField>
+            <Label>Superficie descubierta (m²)</Label>
+            <Input
+              type="number"
+              min={0}
+              step="0.01"
+              value={values.uncoveredArea}
+              onChange={(event) => updateField("uncoveredArea", event.target.value)}
+              disabled={isPending}
+            />
+          </FormField>
+
+          <FormField>
             <Label>Superficie total (m²)</Label>
             <Input
               type="number"
@@ -291,14 +404,77 @@ export function PropertyForm({ mode, property }: PropertyFormProps) {
           </FormField>
 
           <FormField>
-            <Label>Superficie cubierta (m²)</Label>
+            <Label>Frente (m)</Label>
             <Input
               type="number"
               min={0}
               step="0.01"
-              value={values.coveredArea}
-              onChange={(event) => updateField("coveredArea", event.target.value)}
+              value={values.lotFront}
+              onChange={(event) => updateField("lotFront", event.target.value)}
               disabled={isPending}
+            />
+          </FormField>
+
+          <FormField>
+            <Label>Fondo (m)</Label>
+            <Input
+              type="number"
+              min={0}
+              step="0.01"
+              value={values.lotDepth}
+              onChange={(event) => updateField("lotDepth", event.target.value)}
+              disabled={isPending}
+            />
+          </FormField>
+
+          <FormField>
+            <Label>Año de construcción</Label>
+            <Input
+              type="number"
+              min={1800}
+              max={2100}
+              value={values.yearBuilt}
+              onChange={(event) => updateField("yearBuilt", event.target.value)}
+              disabled={isPending}
+            />
+          </FormField>
+
+          <FormField>
+            <Label>Orientación</Label>
+            <Select
+              value={values.orientation || undefined}
+              onChange={(value) =>
+                updateField("orientation", value as PropertyFormValues["orientation"])
+              }
+              placeholder="Seleccionar orientación"
+              disabled={isPending}
+              options={ORIENTATION_OPTIONS}
+            />
+          </FormField>
+
+          <FormField>
+            <Label>Disposición</Label>
+            <Select
+              value={values.layout || undefined}
+              onChange={(value) =>
+                updateField("layout", value as PropertyFormValues["layout"])
+              }
+              placeholder="Seleccionar disposición"
+              disabled={isPending}
+              options={PROPERTY_LAYOUT_OPTIONS}
+            />
+          </FormField>
+
+          <FormField>
+            <Label>Luminosidad</Label>
+            <Select
+              value={values.brightness || undefined}
+              onChange={(value) =>
+                updateField("brightness", value as PropertyFormValues["brightness"])
+              }
+              placeholder="Seleccionar luminosidad"
+              disabled={isPending}
+              options={PROPERTY_BRIGHTNESS_OPTIONS}
             />
           </FormField>
         </CardContent>

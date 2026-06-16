@@ -11,7 +11,11 @@ export const PROPERTY_STATUS_LABELS: Record<PropertyStatusVariant, string> = {
   "commercial-draft": "Borrador comercial",
 };
 
-export type PropertySubNavTab = "general" | "publicaciones" | "imagenes";
+export type PropertySubNavTab =
+  | "general"
+  | "publicaciones"
+  | "caracteristicas"
+  | "imagenes";
 
 export function resolvePropertySubNavTab(
   pathname: string,
@@ -19,6 +23,9 @@ export function resolvePropertySubNavTab(
 ): PropertySubNavTab {
   if (pathname.includes("/publicaciones")) {
     return "publicaciones";
+  }
+  if (pathname.includes("/caracteristicas")) {
+    return "caracteristicas";
   }
   if (pathname.includes("/imagenes")) {
     return "imagenes";
@@ -41,6 +48,8 @@ export function propertySubNavHref(
       return `/propiedades/${propertyId}`;
     case "publicaciones":
       return `/propiedades/${propertyId}/publicaciones`;
+    case "caracteristicas":
+      return `/propiedades/${propertyId}/caracteristicas`;
     case "imagenes":
       return `/propiedades/${propertyId}/imagenes`;
   }
