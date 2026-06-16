@@ -53,7 +53,7 @@ export function visibleNavChildren(
   return item.children.filter((child) => isNavItemVisible(child, ctx));
 }
 
-/** Dev placeholder — RBAC se aplicará en fase auth. */
+/** @deprecated Usar sessionToNavContext() con la sesión real. */
 export const DEV_NAV_CONTEXT: NavViewerContext = {
   isSuperAdmin: true,
   roles: ["SUPER_ADMIN", "TENANT_ADMIN", "AGENT"],

@@ -7,6 +7,7 @@ import {
   Patch,
   Post,
   Query,
+  UseGuards,
 } from '@nestjs/common';
 import {
   ApiBadRequestResponse,
@@ -19,16 +20,21 @@ import {
   ApiParam,
   ApiTags,
 } from '@nestjs/swagger';
+import { CurrentTenant } from '../../../common/decorators/current-tenant.decorator';
+import { CurrentUser } from '../../../common/decorators/current-user.decorator';
+import { RequireTenant } from '../../../common/decorators/require-tenant.decorator';
+import type { AuthenticatedUser } from '../../../common/types/authenticated-user.type';
+import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { TenantGuard } from '../../auth/guards/tenant.guard';
 import { CreatePropertyDto } from '../dto/create-property.dto';
-import {
-  ListPropertiesQueryDto,
-  PropertyTenantQueryDto,
-} from '../dto/property-query.dto';
+import { ListPropertiesQueryDto } from '../dto/property-query.dto';
 import { PropertyResponseDto } from '../dto/property-response.dto';
 import { UpdatePropertyDto } from '../dto/update-property.dto';
 import { PropertyService } from '../services/property.service';
 
 @ApiTags('Properties')
+@UseGuards(JwtAuthGuard, TenantGuard)
+@RequireTenant()
 @Controller('properties')
 export class PropertyController {
   constructor(private readonly propertyService: PropertyService) {}
@@ -46,8 +52,12 @@ export class PropertyController {
   @ApiConflictResponse({
     description: 'Slug or internalCode already exists for tenant',
   })
-  create(@Body() dto: CreatePropertyDto) {
-    return this.propertyService.create(dto);
+  create(
+    @CurrentTenant() tenantId: string,
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: CreatePropertyDto,
+  ) {
+    return this.propertyService.create(dto, tenantId, user.id);
   }
 
   @Get()
@@ -58,18 +68,20 @@ export class PropertyController {
     isArray: true,
   })
   @ApiBadRequestResponse({ description: 'Invalid query parameters' })
-  findAll(@Query() query: ListPropertiesQueryDto) {
-    return this.propertyService.findAll(query.tenantId, query.isActive);
+  findAll(
+    @CurrentTenant() tenantId: string,
+    @Query() query: ListPropertiesQueryDto,
+  ) {
+    return this.propertyService.findAll(tenantId, query.isActive);
   }
 
   @Get(':id')
   @ApiOperation({ summary: 'Get a property by id' })
   @ApiParam({ name: 'id', type: String })
   @ApiOkResponse({ description: 'Property details', type: PropertyResponseDto })
-  @ApiBadRequestResponse({ description: 'Invalid query parameters' })
   @ApiNotFoundResponse({ description: 'Property not found' })
-  findOne(@Param('id') id: string, @Query() query: PropertyTenantQueryDto) {
-    return this.propertyService.findOne(id, query.tenantId);
+  findOne(@Param('id') id: string, @CurrentTenant() tenantId: string) {
+    return this.propertyService.findOne(id, tenantId);
   }
 
   @Patch(':id')
@@ -80,17 +92,17 @@ export class PropertyController {
     description: 'Property updated successfully',
     type: PropertyResponseDto,
   })
-  @ApiBadRequestResponse({ description: 'Validation error or invalid query' })
+  @ApiBadRequestResponse({ description: 'Validation error' })
   @ApiNotFoundResponse({ description: 'Property not found' })
   @ApiConflictResponse({
     description: 'Slug or internalCode already exists for tenant',
   })
   update(
     @Param('id') id: string,
-    @Query() query: PropertyTenantQueryDto,
+    @CurrentTenant() tenantId: string,
     @Body() dto: UpdatePropertyDto,
   ) {
-    return this.propertyService.update(id, query.tenantId, dto);
+    return this.propertyService.update(id, tenantId, dto);
   }
 
   @Delete(':id')
@@ -100,9 +112,8 @@ export class PropertyController {
     description: 'Property archived successfully',
     type: PropertyResponseDto,
   })
-  @ApiBadRequestResponse({ description: 'Invalid query parameters' })
   @ApiNotFoundResponse({ description: 'Property not found' })
-  remove(@Param('id') id: string, @Query() query: PropertyTenantQueryDto) {
-    return this.propertyService.remove(id, query.tenantId);
+  remove(@Param('id') id: string, @CurrentTenant() tenantId: string) {
+    return this.propertyService.remove(id, tenantId);
   }
 }

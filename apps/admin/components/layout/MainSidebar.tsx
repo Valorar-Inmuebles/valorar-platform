@@ -1,15 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useToast } from "@repo/ui/toast";
 import { NavIcon } from "@/components/layout/icons";
 import {
-  DEV_NAV_CONTEXT,
   isNavItemVisible,
   matchNavPath,
   navigation,
   type NavItem,
+  type NavViewerContext,
 } from "@/components/layout/nav-config";
 import { useSidebar } from "@/components/layout/sidebar-context";
 import { cn } from "@/lib/cn";
@@ -140,19 +140,29 @@ function CollapsedItem({
   );
 }
 
-export function MainSidebar() {
+type MainSidebarProps = {
+  navContext: NavViewerContext;
+};
+
+export function MainSidebar({ navContext }: MainSidebarProps) {
   const pathname = usePathname() ?? "/";
+  const router = useRouter();
   const { collapsed, mobileOpen, isMobile, closeMobile } = useSidebar();
   const { toast } = useToast();
-  const navCtx = DEV_NAV_CONTEXT;
   const isCollapsed = isMobile ? false : collapsed;
 
   const handleNavigate = () => {
     if (isMobile) closeMobile();
   };
 
-  const handleSignOut = () => {
-    toast.info("Autenticación pendiente — cerrar sesión estará disponible próximamente.");
+  const handleSignOut = async () => {
+    try {
+      await fetch("/api/auth/logout", { method: "POST" });
+      router.replace("/login");
+      router.refresh();
+    } catch {
+      toast.error("No se pudo cerrar sesión.");
+    }
   };
 
   return (
@@ -209,7 +219,7 @@ export function MainSidebar() {
 
               <ul className="space-y-0.5">
                 {section.items.map((item) => {
-                  if (!isNavItemVisible(item, navCtx)) return null;
+                  if (!isNavItemVisible(item, navContext)) return null;
 
                   return isCollapsed ? (
                     <CollapsedItem

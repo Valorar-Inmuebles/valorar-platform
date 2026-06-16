@@ -7,6 +7,7 @@ import {
   Patch,
   Post,
   Query,
+  UseGuards,
 } from '@nestjs/common';
 import {
   ApiBadRequestResponse,
@@ -19,16 +20,19 @@ import {
   ApiQuery,
   ApiTags,
 } from '@nestjs/swagger';
+import { CurrentTenant } from '../../../common/decorators/current-tenant.decorator';
+import { RequireTenant } from '../../../common/decorators/require-tenant.decorator';
+import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { TenantGuard } from '../../auth/guards/tenant.guard';
 import { CreatePropertyPriceDto } from '../dto/create-property-price.dto';
-import {
-  ListPropertyPricesQueryDto,
-  PropertyPriceTenantQueryDto,
-} from '../dto/property-price-query.dto';
+import { ListPropertyPricesQueryDto } from '../dto/property-price-query.dto';
 import { PropertyPriceResponseDto } from '../dto/property-price-response.dto';
 import { UpdatePropertyPriceDto } from '../dto/update-property-price.dto';
 import { PropertyPriceService } from '../services/property-price.service';
 
 @ApiTags('Property Prices')
+@UseGuards(JwtAuthGuard, TenantGuard)
+@RequireTenant()
 @Controller('property-prices')
 export class PropertyPriceController {
   constructor(private readonly propertyPriceService: PropertyPriceService) {}
@@ -44,13 +48,15 @@ export class PropertyPriceController {
     description:
       'Validation error, tenant not found, or property listing not found',
   })
-  create(@Body() dto: CreatePropertyPriceDto) {
-    return this.propertyPriceService.create(dto);
+  create(
+    @CurrentTenant() tenantId: string,
+    @Body() dto: CreatePropertyPriceDto,
+  ) {
+    return this.propertyPriceService.create(dto, tenantId);
   }
 
   @Get()
   @ApiOperation({ summary: 'List property prices by tenant and listing' })
-  @ApiQuery({ name: 'tenantId', required: true, type: String })
   @ApiQuery({ name: 'listingId', required: true, type: String })
   @ApiOkResponse({
     description: 'List of property prices',
@@ -60,31 +66,28 @@ export class PropertyPriceController {
   @ApiBadRequestResponse({
     description: 'Invalid query parameters or property listing not found',
   })
-  findAll(@Query() query: ListPropertyPricesQueryDto) {
-    return this.propertyPriceService.findAll(query.tenantId, query.listingId);
+  findAll(
+    @CurrentTenant() tenantId: string,
+    @Query() query: ListPropertyPricesQueryDto,
+  ) {
+    return this.propertyPriceService.findAll(tenantId, query.listingId);
   }
 
   @Get(':id')
   @ApiOperation({ summary: 'Get a property price by id' })
   @ApiParam({ name: 'id', type: String })
-  @ApiQuery({ name: 'tenantId', required: true, type: String })
   @ApiOkResponse({
     description: 'Property price details',
     type: PropertyPriceResponseDto,
   })
-  @ApiBadRequestResponse({ description: 'Invalid query parameters' })
   @ApiNotFoundResponse({ description: 'Property price not found' })
-  findOne(
-    @Param('id') id: string,
-    @Query() query: PropertyPriceTenantQueryDto,
-  ) {
-    return this.propertyPriceService.findOne(id, query.tenantId);
+  findOne(@Param('id') id: string, @CurrentTenant() tenantId: string) {
+    return this.propertyPriceService.findOne(id, tenantId);
   }
 
   @Patch(':id')
   @ApiOperation({ summary: 'Update a property price' })
   @ApiParam({ name: 'id', type: String })
-  @ApiQuery({ name: 'tenantId', required: true, type: String })
   @ApiBody({ type: UpdatePropertyPriceDto })
   @ApiOkResponse({
     description: 'Property price updated successfully',
@@ -92,21 +95,20 @@ export class PropertyPriceController {
   })
   @ApiBadRequestResponse({
     description:
-      'Validation error, invalid query, or cannot demote the only primary price when no other prices exist',
+      'Validation error or cannot demote the only primary price when no other prices exist',
   })
   @ApiNotFoundResponse({ description: 'Property price not found' })
   update(
     @Param('id') id: string,
-    @Query() query: PropertyPriceTenantQueryDto,
+    @CurrentTenant() tenantId: string,
     @Body() dto: UpdatePropertyPriceDto,
   ) {
-    return this.propertyPriceService.update(id, query.tenantId, dto);
+    return this.propertyPriceService.update(id, tenantId, dto);
   }
 
   @Delete(':id')
   @ApiOperation({ summary: 'Delete a property price (physical delete)' })
   @ApiParam({ name: 'id', type: String })
-  @ApiQuery({ name: 'tenantId', required: true, type: String })
   @ApiOkResponse({
     description:
       'Property price deleted successfully. Returns a snapshot of the deleted price (pre-delete state).',
@@ -117,7 +119,7 @@ export class PropertyPriceController {
       'Invalid query parameters or cannot delete the only price of a publishable listing (ACTIVE, PAUSED, or RESERVED)',
   })
   @ApiNotFoundResponse({ description: 'Property price not found' })
-  remove(@Param('id') id: string, @Query() query: PropertyPriceTenantQueryDto) {
-    return this.propertyPriceService.remove(id, query.tenantId);
+  remove(@Param('id') id: string, @CurrentTenant() tenantId: string) {
+    return this.propertyPriceService.remove(id, tenantId);
   }
 }

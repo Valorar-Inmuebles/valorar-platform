@@ -23,20 +23,23 @@ export class PropertyPriceService {
     private readonly propertyListingRepository: PropertyListingRepository,
   ) {}
 
-  async create(dto: CreatePropertyPriceDto): Promise<PropertyPriceResponseDto> {
-    await this.assertTenantExists(dto.tenantId);
-    await this.assertListingBelongsToTenant(dto.listingId, dto.tenantId);
+  async create(
+    dto: CreatePropertyPriceDto,
+    tenantId: string,
+  ): Promise<PropertyPriceResponseDto> {
+    await this.assertTenantExists(tenantId);
+    await this.assertListingBelongsToTenant(dto.listingId, tenantId);
 
     const existingCount = await this.propertyPriceRepository.countByListing(
       dto.listingId,
-      dto.tenantId,
+      tenantId,
     );
 
     const isPrimary = existingCount === 0 ? true : (dto.isPrimary ?? false);
 
     const price = await this.propertyPriceRepository.createWithPrimaryHandling(
       {
-        tenantId: dto.tenantId,
+        tenantId,
         listingId: dto.listingId,
         amount: dto.amount,
         currency: dto.currency,

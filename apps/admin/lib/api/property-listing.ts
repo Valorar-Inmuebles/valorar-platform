@@ -4,7 +4,6 @@ import type {
   CreatePropertyListingPayload,
   UpdatePropertyListingPayload,
 } from "@/lib/api/types/property-listing";
-import { requireAdminTenantId } from "@/lib/tenant/get-admin-context";
 
 type ListPropertyListingsOptions = {
   propertyId?: string;
@@ -12,15 +11,17 @@ type ListPropertyListingsOptions = {
   status?: string;
 };
 
-function buildTenantQuery(tenantId: string, extra?: Record<string, string>) {
-  const params = new URLSearchParams({ tenantId, ...extra });
-  return params.toString();
+function buildQuery(extra?: Record<string, string>) {
+  if (!extra || Object.keys(extra).length === 0) {
+    return "";
+  }
+
+  return `?${new URLSearchParams(extra).toString()}`;
 }
 
 export async function listPropertyListings(
   options: ListPropertyListingsOptions = {},
 ): Promise<AdminPropertyListing[]> {
-  const tenantId = requireAdminTenantId();
   const extra: Record<string, string> = {};
 
   if (options.propertyId) extra.propertyId = options.propertyId;
@@ -28,7 +29,7 @@ export async function listPropertyListings(
   if (options.status) extra.status = options.status;
 
   return apiFetch<AdminPropertyListing[]>(
-    `/property-listings?${buildTenantQuery(tenantId, extra)}`,
+    `/property-listings${buildQuery(extra)}`,
     { cache: "no-store" },
   );
 }
@@ -36,23 +37,18 @@ export async function listPropertyListings(
 export async function getPropertyListing(
   id: string,
 ): Promise<AdminPropertyListing> {
-  const tenantId = requireAdminTenantId();
-  return apiFetch<AdminPropertyListing>(
-    `/property-listings/${id}?${buildTenantQuery(tenantId)}`,
-    { cache: "no-store" },
-  );
+  return apiFetch<AdminPropertyListing>(`/property-listings/${id}`, {
+    cache: "no-store",
+  });
 }
 
 export async function createPropertyListing(
   propertyId: string,
   payload: CreatePropertyListingPayload,
 ): Promise<AdminPropertyListing> {
-  const tenantId = requireAdminTenantId();
-
   return apiFetch<AdminPropertyListing>("/property-listings", {
     method: "POST",
     body: JSON.stringify({
-      tenantId,
       propertyId,
       ...payload,
     }),
@@ -64,28 +60,18 @@ export async function updatePropertyListing(
   id: string,
   payload: UpdatePropertyListingPayload,
 ): Promise<AdminPropertyListing> {
-  const tenantId = requireAdminTenantId();
-
-  return apiFetch<AdminPropertyListing>(
-    `/property-listings/${id}?${buildTenantQuery(tenantId)}`,
-    {
-      method: "PATCH",
-      body: JSON.stringify(payload),
-      cache: "no-store",
-    },
-  );
+  return apiFetch<AdminPropertyListing>(`/property-listings/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+    cache: "no-store",
+  });
 }
 
 export async function closePropertyListing(
   id: string,
 ): Promise<AdminPropertyListing> {
-  const tenantId = requireAdminTenantId();
-
-  return apiFetch<AdminPropertyListing>(
-    `/property-listings/${id}?${buildTenantQuery(tenantId)}`,
-    {
-      method: "DELETE",
-      cache: "no-store",
-    },
-  );
+  return apiFetch<AdminPropertyListing>(`/property-listings/${id}`, {
+    method: "DELETE",
+    cache: "no-store",
+  });
 }

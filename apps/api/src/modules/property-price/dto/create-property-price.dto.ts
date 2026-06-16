@@ -11,11 +11,6 @@ import {
 } from 'class-validator';
 
 export class CreatePropertyPriceDto {
-  @ApiProperty({ description: 'Tenant identifier' })
-  @IsString()
-  @IsNotEmpty()
-  tenantId: string;
-
   @ApiProperty({ description: 'Property listing identifier' })
   @IsString()
   @IsNotEmpty()

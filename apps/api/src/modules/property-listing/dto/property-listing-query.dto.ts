@@ -1,18 +1,11 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiPropertyOptional } from '@nestjs/swagger';
 import {
   PropertyListingStatus,
   PropertyListingType,
 } from '../../../../generated/prisma/client';
-import { IsEnum, IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { IsEnum, IsOptional, IsString } from 'class-validator';
 
-export class PropertyListingTenantQueryDto {
-  @ApiProperty({ description: 'Tenant identifier' })
-  @IsString()
-  @IsNotEmpty()
-  tenantId: string;
-}
-
-export class ListPropertyListingsQueryDto extends PropertyListingTenantQueryDto {
+export class ListPropertyListingsQueryDto {
   @ApiPropertyOptional({ description: 'Filter by property' })
   @IsOptional()
   @IsString()

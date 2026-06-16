@@ -1,21 +1,14 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
-import { IsBoolean, IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { IsBoolean, IsOptional } from 'class-validator';
 
-export class PropertyTenantQueryDto {
-  @ApiProperty({ description: 'Tenant identifier' })
-  @IsString()
-  @IsNotEmpty()
-  tenantId: string;
-}
-
-export class ListPropertiesQueryDto extends PropertyTenantQueryDto {
+export class ListPropertiesQueryDto {
   @ApiPropertyOptional({
     description: 'Filter by active status',
     type: Boolean,
   })
   @IsOptional()
-  @Transform(({ value }) => {
+  @Transform(({ value }: { value: unknown }) => {
     if (value === undefined || value === null || value === '') {
       return undefined;
     }
@@ -25,7 +18,7 @@ export class ListPropertiesQueryDto extends PropertyTenantQueryDto {
     if (value === 'false' || value === false) {
       return false;
     }
-    return value;
+    return undefined;
   })
   @IsBoolean()
   isActive?: boolean;

@@ -25,16 +25,6 @@ import {
 const SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
 export class CreatePropertyDto {
-  @ApiProperty({ description: 'Tenant identifier' })
-  @IsString()
-  @IsNotEmpty()
-  tenantId: string;
-
-  @ApiProperty({ description: 'User identifier of the property creator' })
-  @IsString()
-  @IsNotEmpty()
-  createdById: string;
-
   @ApiProperty({
     description: 'URL-friendly slug unique within the tenant',
     example: 'casa-centro-belgrano',
