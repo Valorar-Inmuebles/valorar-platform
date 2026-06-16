@@ -1,12 +1,22 @@
+import 'reflect-metadata';
 import 'dotenv/config';
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import cookieParser from 'cookie-parser';
 import { AppModule } from './app.module';
 import { PrismaExceptionFilter } from './common/filters/prisma-exception.filter';
+import { getCorsOrigin } from './modules/auth/constants/auth.constants';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+
+  app.use(cookieParser());
+
+  app.enableCors({
+    origin: getCorsOrigin(),
+    credentials: true,
+  });
 
   app.useGlobalPipes(
     new ValidationPipe({
@@ -18,20 +28,27 @@ async function bootstrap() {
 
   app.useGlobalFilters(new PrismaExceptionFilter());
 
-  const swaggerConfig = new DocumentBuilder()
-    .setTitle('Valorar Platform API')
-    .setDescription('Real estate SaaS platform API')
-    .setVersion('1.0')
-    .addTag('Properties')
-    .addTag('Property Listings')
-    .addTag('Property Prices')
-    .addTag('Property Images')
-    .addTag('Public Properties')
-    .build();
+  if (process.env.SWAGGER_ENABLED !== 'false') {
+    try {
+      const swaggerConfig = new DocumentBuilder()
+        .setTitle('Valorar Platform API')
+        .setDescription('Real estate SaaS platform API')
+        .setVersion('1.0')
+        .addTag('Auth')
+        .addTag('Properties')
+        .addTag('Property Listings')
+        .addTag('Property Prices')
+        .addTag('Property Images')
+        .addTag('Public Properties')
+        .build();
 
-  const document = SwaggerModule.createDocument(app, swaggerConfig);
-  SwaggerModule.setup('api/docs', app, document);
+      const document = SwaggerModule.createDocument(app, swaggerConfig);
+      SwaggerModule.setup('api/docs', app, document);
+    } catch (error) {
+      console.warn('Swagger setup skipped:', error);
+    }
+  }
 
   await app.listen(process.env.PORT ?? 3002);
 }
-bootstrap();
+void bootstrap();

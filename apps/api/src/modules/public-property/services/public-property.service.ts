@@ -236,8 +236,7 @@ export class PublicPropertyService {
 
     for (const listingType of LISTING_TYPE_PRIORITY) {
       const listing = property.listings.find(
-        (entry) =>
-          entry.listingType === listingType && entry.prices.length > 0,
+        (entry) => entry.listingType === listingType && entry.prices.length > 0,
       );
 
       if (listing) {

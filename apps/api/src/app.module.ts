@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
+import { AuthModule } from './modules/auth/auth.module';
 import { PublicPropertyModule } from './modules/public-property/public-property.module';
 import { PropertyImageModule } from './modules/property-image/property-image.module';
 import { PropertyListingModule } from './modules/property-listing/property-listing.module';
@@ -11,6 +12,7 @@ import { PrismaModule } from './prisma/prisma.module';
 @Module({
   imports: [
     PrismaModule,
+    AuthModule,
     PropertyModule,
     PropertyListingModule,
     PropertyPriceModule,
