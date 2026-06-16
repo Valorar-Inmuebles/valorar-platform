@@ -1,4 +1,4 @@
-const DEFAULT_API_URL = "http://localhost:3001";
+const DEFAULT_API_URL = "http://localhost:3002";
 const DEFAULT_REVALIDATE_SECONDS = 300;
 
 export function getApiBaseUrl(): string {

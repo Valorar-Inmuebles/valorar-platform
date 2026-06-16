@@ -145,11 +145,14 @@ Cada deploy de `apps/web` en Vercel corresponde a **un tenant**. Configuración 
 
 ```txt
 TENANT_ID=<cuid>
-NEXT_PUBLIC_API_URL=https://api.example.com
+API_URL=http://localhost:3002
+NEXT_PUBLIC_SITE_URL=http://localhost:3000
 PUBLIC_WHATSAPP=54911...
 PUBLIC_COMPANY_NAME=...
 PUBLIC_PRIMARY_COLOR=#...
 ```
+
+En local, `API_URL` apunta a `apps/api` (puerto **3002**). No usar `NEXT_PUBLIC_*` para la URL de la API: las llamadas son server-side vía `API_URL` en `lib/api/client.ts`.
 
 El cliente **nunca** envía `tenantId`; lo inyecta el server en las llamadas a la API.
 
@@ -466,11 +469,13 @@ apps/web/
 | Variable | Scope | Descripción |
 | -------- | ----- | ----------- |
 | `TENANT_ID` | Server | ID del tenant del deploy |
-| `API_URL` | Server | Base URL de `apps/api` |
-| `NEXT_PUBLIC_SITE_URL` | Client | URL canónica del sitio (OG, sitemap) |
+| `API_URL` | Server | Base URL de `apps/api` (local: `http://localhost:3002`) |
+| `NEXT_PUBLIC_SITE_URL` | Client | URL canónica del sitio (OG, sitemap); local: `http://localhost:3000` |
 | `PUBLIC_WHATSAPP` | Server → props | Número WhatsApp CTA |
 | `PUBLIC_COMPANY_NAME` | Server → metadata | Nombre comercial |
 | `REVALIDATE_SECRET` | Server | Token para on-demand revalidation |
+
+Ver también `docs/02-architecture/monorepo.md` (puertos locales) y `apps/web/.env.example`.
 
 ---
 

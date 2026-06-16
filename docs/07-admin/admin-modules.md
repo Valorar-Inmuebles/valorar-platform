@@ -2,12 +2,12 @@
 
 Versión: v1
 
-Estado: Especificación funcional — sin implementación en `apps/admin`.
+Estado: Especificación funcional — implementación parcial en `apps/admin` (Property Domain v1 ✅).
 
 Referencias:
 
-* `docs/07-admin/admin-ui-audit.md`
-* `docs/07-admin/admin-architecture.md`
+* `docs/07-admin/admin-architecture.md` *(pendiente de crear)*
+* `docs/07-admin/admin-ui-audit.md` *(pendiente de crear)*
 * `docs/04-modules/properties.md`
 * `docs/03-database/property-domain.md`
 * `docs/03-database/multi-tenant.md`
@@ -26,6 +26,25 @@ Este documento define la funcionalidad del panel administrativo para los cuatro 
 4. **PropertyImages** — imágenes de una propiedad
 
 Fuera de alcance v1 (documentados aparte): `PropertyFeature`, `PropertyFeatureAssignment`, `PropertyAgentAccess`, upload físico de archivos, auth JWT (pendiente en API).
+
+---
+
+## Estado de implementación (`apps/admin`)
+
+| Módulo | Admin UI | Notas |
+| ------ | -------- | ----- |
+| Admin Shell | ✅ | Layout, sidebar, nav, breadcrumbs, PropertySubNav, toast |
+| Properties | ✅ | CRUD + archivar |
+| PropertyListings | ✅ | CRUD estados + tipos |
+| PropertyPrices | ✅ | Tabla + SidePanel; «Marcar principal» |
+| PropertyImages | ✅ | Grid + SidePanel; «Usar como portada»; metadata manual |
+| Indicador publicabilidad (§5) | ⏳ | Checklist cross-module pendiente |
+| Auth / RBAC / TenantSwitcher | ⏳ | Tenant dev vía env |
+| Configuración (usuarios, inmobiliaria, tenants) | ⏳ | Rutas placeholder |
+| Dashboard operativo (`/`) | ⏳ | Placeholder |
+| Upload storage | ⏳ | Fuera v1 Foundation |
+
+Orden de entrega real: Properties → PropertyListings → PropertyPrices → PropertyImages.
 
 ---
 
@@ -421,7 +440,7 @@ El admin debe hacer explícitas las reglas de promoción automática al cambiar 
 | Ruta admin | Nombre UI | Descripción |
 | ---------- | --------- | ----------- |
 | `/propiedades/[id]/publicaciones/[listingId]/precios` | Precios | Tabla de precios del listing |
-| Side panel «Nuevo precio» | Agregar precio | Form: monto, moneda, label, es principal |
+| Side panel «Nuevo precio» | Agregar precio | Form: monto, moneda, label |
 | Side panel «Editar precio» | Editar precio | Mismos campos; restricciones según estado listing |
 
 ## Acciones
@@ -430,9 +449,9 @@ El admin debe hacer explícitas las reglas de promoción automática al cambiar 
 | --------- | --- | ------ |
 | Listar | `GET /property-prices?tenantId=&listingId=` | Precios del listing |
 | Crear | `POST /property-prices` | Nuevo precio; primer precio → auto `isPrimary` |
-| Editar | `PATCH /property-prices/:id?tenantId=` | Monto, moneda, label, `isPrimary` |
-| Marcar principal | `PATCH` `isPrimary: true` | Demota los demás (transacción) |
-| Quitar principal | `PATCH` `isPrimary: false` | Promueve otro si existe; error si es único |
+| Editar | `PATCH /property-prices/:id?tenantId=` | Monto, moneda, label |
+| Marcar principal | `PATCH` `isPrimary: true` | Demota los demás (transacción); acción UI dedicada |
+| Quitar principal | `PATCH` `isPrimary: false` | Promueve otro si existe; error si es único — **no expuesto en UI v1** |
 | Eliminar | `DELETE /property-prices/:id?tenantId=` | Borrado físico; promueve otro si era primary |
 
 ## Permisos
@@ -471,10 +490,10 @@ Hereda acceso al PropertyListing padre (y por extensión a Property).
 
 | Campo UI | Entrada |
 | -------- | ------- |
-| Precio | `CurrencyInput` — ARS con separador local |
+| Precio | `Input type="number"` (v1); `CurrencyInput` en `@repo/ui` — futuro |
 | Moneda | Select ARS / USD |
 | Etiqueta | Texto libre — ej. «Contado», «Financiado» |
-| Principal | Switch o radio — máximo uno activo |
+| Principal | Badge «Principal» + acción «Marcar principal» — sin checkbox en form |
 
 ## Estados
 
@@ -515,7 +534,7 @@ Atajo desde detalle de listing: badge del precio principal con link a gestión d
 | Property | Abuelo | Contexto navegación |
 | Listing status | Regla negocio | Restringe delete del único precio |
 | Public API | Downstream | Expone solo `isPrimary` del listing activo |
-| CurrencyInput (`packages/ui`) | UI | Fase D del design system |
+| `@repo/ui` SidePanel | UI | Form create/edit en panel lateral |
 
 ---
 
@@ -555,8 +574,8 @@ Foundation v1 administra solo metadata (`storageKey`, `url`, `altText`, etc.); e
 | --------- | --- | ------ |
 | Listar | `GET /property-images?tenantId=&propertyId=` | Imágenes de la property |
 | Crear metadata | `POST /property-images` | Registro con `storageKey`; primera → auto `isCover` |
-| Editar | `PATCH /property-images/:id?tenantId=` | altText, sortOrder, `isCover`, url |
-| Marcar portada | `PATCH` `isCover: true` | Demota las demás |
+| Editar | `PATCH /property-images/:id?tenantId=` | altText, sortOrder, url |
+| Marcar portada | `PATCH` `isCover: true` | Demota las demás; acción UI «Usar como portada» |
 | Cambiar orden | `PATCH` `sortOrder` | Manual v1 (input numérico); drag v2 |
 | Eliminar | `DELETE /property-images/:id?tenantId=` | Borrado físico; promueve portada si aplica |
 | Previsualizar | UI | Render `url` si existe; placeholder si no |
@@ -581,9 +600,28 @@ Hereda acceso a la Property padre.
 | `storageKey` | Obligatorio — identificador agnóstico de storage |
 | `url` | Opcional — preview si disponible |
 | `altText` | Opcional — recomendado para accesibilidad |
-| `mimeType`, `fileSize` | Opcionales |
+| `mimeType`, `fileSize` | Opcionales en API — **no expuestos en admin v1** |
 | `sortOrder` | ≥ 0; default 0 |
 | `isCover` | Una sola portada por property |
+
+### Campos visibles en admin v1 (SidePanel)
+
+| Campo | Crear | Editar |
+| ----- | ----- | ------ |
+| `storageKey` | ✅ obligatorio | Solo lectura |
+| `url` | ✅ opcional | ✅ |
+| `altText` | ✅ opcional | ✅ |
+| `sortOrder` | ✅ opcional | ✅ |
+| `mimeType`, `fileSize` | — | — (API only) |
+
+### Formato UI
+
+| Elemento | Comportamiento v1 |
+| -------- | ----------------- |
+| Portada | Badge «Portada» en grid + acción «Usar como portada» — sin checkbox en form |
+| Preview | `<img>` si hay `url`; placeholder si no |
+| Galería | Grid de cards (`PropertyImageGrid`) |
+| Alta/edición | SidePanel (`PropertyImageForm`) |
 
 ### Reglas de negocio
 
@@ -636,6 +674,8 @@ Inicio > Propiedades > {título} > Imágenes
 
 # 5. Regla de publicación web (cross-module)
 
+> **Estado UI:** ⏳ pendiente — especificación funcional; no implementado en `/propiedades/[id]`.
+
 El admin debe mostrar un **indicador de publicabilidad** en la ficha de Property y/o listing, derivado de la regla ya implementada en Public API:
 
 | Requisito | Módulo responsable |
@@ -673,11 +713,13 @@ Checklist UI sugerido en `/propiedades/[id]`:
    │ PropertyPrices│
    └───────────────┘
 
-Orden de implementación admin recomendado:
+Orden de implementación admin recomendado (dependencias):
 1. Properties
 2. PropertyImages (portada — requisito publicación)
 3. PropertyListings
 4. PropertyPrices (requisito activación listing)
+
+Orden de entrega en `apps/admin`: Properties → PropertyListings → PropertyPrices → PropertyImages.
 ```
 
 | Módulo | Depende de | Bloquea a |
@@ -693,7 +735,7 @@ Orden de implementación admin recomendado:
 
 | Fase | Properties | Listings | Prices | Images |
 | ---- | ---------- | -------- | ------ | ------ |
-| v1 Foundation | CRUD + archivar + listado | CRUD estados + tipos | CRUD + primary rules | CRUD metadata manual |
+| v1 Foundation | ✅ CRUD + archivar + listado | ✅ CRUD estados + tipos | ✅ CRUD + primary rules | ✅ CRUD metadata manual |
 | v1.1 | Slug autogenerado | — | — | sortOrder drag |
 | v2 | Features assignment | — | — | Upload storage |
 | v2 | Agent access / compartir | — | — | — |
@@ -715,4 +757,4 @@ Documentación detallada de endpoints y DTOs: `docs/04-modules/properties.md` y 
 
 ---
 
-**Próximo documento sugerido:** `docs/07-admin/admin-nav.md` — árbol de navegación definitivo y matriz rol × ruta.
+**Documentos relacionados:** `docs/07-admin/admin-nav.md` — navegación y matriz rol × ruta.

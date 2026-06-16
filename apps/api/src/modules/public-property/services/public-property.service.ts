@@ -194,6 +194,7 @@ export class PublicPropertyService {
     }
 
     const primaryPriceDto = this.toPrimaryPriceDto(primaryPrice);
+    const availableListingTypes = this.resolveAvailableListingTypes(property);
 
     return {
       id: property.id,
@@ -218,7 +219,33 @@ export class PublicPropertyService {
       features: property.featureAssignments
         .filter((assignment) => assignment.feature.isActive)
         .map(this.toFeatureDto),
+      availableListingTypes,
     };
+  }
+
+  private resolveAvailableListingTypes(
+    property: PublicPropertyDetailRecord,
+  ): PropertyListingType[] {
+    const hasCover = property.images.some((image) => image.isCover);
+
+    if (!property.isActive || !hasCover) {
+      return [];
+    }
+
+    const availableListingTypes: PropertyListingType[] = [];
+
+    for (const listingType of LISTING_TYPE_PRIORITY) {
+      const listing = property.listings.find(
+        (entry) =>
+          entry.listingType === listingType && entry.prices.length > 0,
+      );
+
+      if (listing) {
+        availableListingTypes.push(listingType);
+      }
+    }
+
+    return availableListingTypes;
   }
 
   private selectPublishableListing(

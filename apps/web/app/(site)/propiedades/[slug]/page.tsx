@@ -5,6 +5,7 @@ import { PropertyDescription } from "@/components/property/property-description"
 import { PropertyFeatures } from "@/components/property/property-features";
 import { PropertyGallery } from "@/components/property/property-gallery";
 import { PropertyHeader } from "@/components/property/property-header";
+import { ListingTypeSwitcher } from "@/components/property/listing-type-switcher";
 import { PropertyMapPlaceholder } from "@/components/property/property-map-placeholder";
 import { PropertyPriceCard } from "@/components/property/property-price-card";
 import { RelatedPropertiesSection } from "@/components/property/related-properties-section";
@@ -113,6 +114,14 @@ export default async function PropertyDetailPage({
 
         <div className="mt-8 grid gap-8 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start">
           <div className="min-w-0">
+            <ListingTypeSwitcher
+              slug={property.slug}
+              currentListingType={property.listingType}
+              availableListingTypes={
+                property.availableListingTypes ?? [property.listingType]
+              }
+              className="mb-4"
+            />
             <PropertyHeader property={property} />
 
             <div className="mt-8 lg:hidden">

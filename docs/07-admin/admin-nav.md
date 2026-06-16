@@ -2,12 +2,12 @@
 
 Versión: v1
 
-Estado: Especificación funcional — sin implementación en `apps/admin`.
+Estado: Especificación funcional — implementación parcial en `apps/admin` (shell + Property Domain v1 CRUD ✅).
 
 Referencias:
 
-* `docs/07-admin/admin-ui-audit.md`
-* `docs/07-admin/admin-architecture.md`
+* `docs/07-admin/admin-ui-audit.md` *(pendiente de crear)*
+* `docs/07-admin/admin-architecture.md` *(pendiente de crear)*
 * `docs/07-admin/admin-modules.md`
 * `docs/03-database/multi-tenant.md`
 * `docs/02-architecture/monorepo.md`
@@ -483,21 +483,16 @@ apps/admin/app/
     │           └── page.tsx           # Gestión images
     │
     └── configuracion/
+        ├── page.tsx                       # Índice placeholder
         ├── usuarios/
-        │   ├── page.tsx
-        │   ├── crear/
-        │   │   └── page.tsx
-        │   └── [id]/
-        │       └── page.tsx
+        │   └── page.tsx                   # Placeholder (crear/[id] planificados)
         ├── inmobiliaria/
-        │   └── page.tsx
-        └── tenants/                   # SUPER_ADMIN only
-            ├── page.tsx
-            ├── crear/
-            │   └── page.tsx
-            └── [id]/
-                └── page.tsx
+        │   └── page.tsx                   # Placeholder
+        └── tenants/                       # SUPER_ADMIN only — placeholder
+            └── page.tsx
 ```
+
+Rutas planificadas aún **no implementadas**: `/configuracion/usuarios/crear`, `/configuracion/usuarios/[id]`, `/configuracion/tenants/crear`, `/configuracion/tenants/[id]`.
 
 ### 8.2 Layouts anidados
 
@@ -505,7 +500,7 @@ apps/admin/app/
 | ------ | --------------- |
 | `app/layout.tsx` | HTML, fuentes Geist, `AdminProviders` (Toast) |
 | `app/(auth)/layout.tsx` | Fondo neutro, logo, sin sidebar |
-| `app/(dashboard)/layout.tsx` | `requireAuth()`, `MainLayout`, sidebar + header |
+| `app/(dashboard)/layout.tsx` | `MainLayout`, sidebar + header — **auth guard pendiente** |
 
 No se crea `layout.tsx` intermedio en `propiedades/[id]/` en v1; los tabs se resuelven por componente `PropertySubNav` en cada page.
 
@@ -570,16 +565,18 @@ apps/admin/middleware.ts       # Protección (dashboard)/* — fase auth
 
 ---
 
-## 10. Orden de implementación (solo navegación)
+## 10. Orden de implementación (navegación y shell)
 
-Alineado con Foundation sin CRUD ni auth:
+Estado al cierre de Property Domain v1 admin:
 
-1. [ ] Crear estructura carpetas `app/(dashboard)/` vacías con `page.tsx` placeholder
-2. [ ] Implementar `nav-config.ts` según §1.2
-3. [ ] `MainSidebar` + matching activo §6.1
-4. [ ] `PropertySubNav` tabs §4.2
-5. [ ] `PageHeader` + breadcrumbs §3.3 en cada placeholder
-6. [ ] Placeholder «Próximamente» en hojas de ruta sin CRUD
+1. [x] Crear estructura carpetas `app/(dashboard)/` con `page.tsx`
+2. [x] Implementar `nav-config.ts` según §1.2
+3. [x] `MainSidebar` + matching activo §6.1
+4. [x] `PropertySubNav` tabs §4.2
+5. [x] `PageHeader` + breadcrumbs §3.3 en rutas Property
+6. [x] CRUD Property Domain v1 (Properties, Listings, Prices, Images)
+
+Pendiente: auth guard, middleware, TenantSwitcher, dashboard operativo, CRUD configuración.
 
 ---
 
@@ -650,4 +647,4 @@ export const navigation: NavSection[] = [
 
 ---
 
-**Documento relacionado siguiente:** implementación del shell en `apps/admin` según §8 y §10, sin CRUD ni auth hasta fases posteriores.
+**Estado:** shell y CRUD Property Domain v1 implementados en `apps/admin`. Pendiente: auth, RBAC, TenantSwitcher, configuración y dashboard operativo.

@@ -1,36 +1,55 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/create-next-app).
+# Valorar Web (`apps/web`)
 
-## Getting Started
+Sitio público white-label de Valorar Platform. Consume la Public Property API en `apps/api` vía Server Components (sin acceso directo a Prisma).
 
-First, run the development server:
+## Stack
+
+- Next.js 16 (App Router, Server First)
+- TypeScript
+- Tailwind CSS v4
+- `@repo/ui`, `@repo/shared-types`
+
+## Desarrollo local
+
+Convención de puertos del monorepo:
+
+| App | URL |
+| --- | --- |
+| web | http://localhost:3000 |
+| admin | http://localhost:3001 |
+| api | http://localhost:3002 |
+
+Desde la raíz del monorepo (levanta web + admin + api):
 
 ```bash
+npm install
+cp apps/web/.env.example apps/web/.env
+cp apps/admin/.env.example apps/admin/.env
+cp apps/api/.env.example apps/api/.env
+# Completar DATABASE_URL en apps/api/.env y TENANT_ID en apps/web/.env
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Solo web:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+npm run dev -- --filter=web
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load Inter, a custom Google Font.
+La app corre en [http://localhost:3000](http://localhost:3000).
 
-## Learn More
+## Variables de entorno
 
-To learn more about Next.js, take a look at the following resources:
+Copiar desde `apps/web/.env.example`:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+| Variable | Requerida | Default en código | Uso |
+| -------- | --------- | ----------------- | --- |
+| `TENANT_ID` | Sí | — | Tenant para llamadas a `/public/properties*` |
+| `API_URL` | No | `http://localhost:3002` | Base URL de `apps/api` (server-side) |
+| `NEXT_PUBLIC_SITE_URL` | No | `http://localhost:3000` | URL canónica (OG, sitemap) |
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Documentación
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- `docs/06-web/public-web-architecture.md`
+- `docs/06-web/frontend-roadmap.md`
+- `PROJECT_STATE.md`

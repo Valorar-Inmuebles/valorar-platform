@@ -17,7 +17,7 @@ Plataforma SaaS inmobiliaria multi-tenant orientada a:
 
 ## Estado Actual
 
-Fase: Foundation + Property API Foundation + Public API Foundation + Public Web Foundation (Fase 1–6)
+Fase: Foundation + Property API Foundation + Public API Foundation + Public Web Foundation (Fase 1–6) + Admin UI Foundation (Property Domain v1)
 
 Infraestructura inicial:
 
@@ -33,6 +33,10 @@ Roadmap Property API: `docs/09-roadmap/property-api-roadmap.md`
 Lead Domain v1: documentado y congelado (inquiry-centric). `docs/03-database/lead-domain.md`
 
 Public Web: documentación en `docs/06-web/*`. Fases 1–6 ✅ (layout, home, listado, detalle, SEO & production hardening).
+
+Admin UI: documentación en `docs/07-admin/*`. Property Domain v1 ✅ (shell, CRUD, publicabilidad, multi-operación).
+
+Desarrollo local: convención de puertos web **3000** / admin **3001** / api **3002**; `npm run dev` levanta las tres apps. Ver `docs/02-architecture/monorepo.md`.
 
 ---
 
@@ -158,7 +162,7 @@ Documentación: `docs/03-database/current-schema.md`
 * Regla de publicación: `Property.isActive = true` + listing `ACTIVE` + precio `isPrimary` + imagen `isCover`
 * Listado paginado con filtros: `listingType`, `propertyType`, `city`, `neighborhood`, precio, `currency`, `bedrooms`, `bathrooms`
 * Destacadas: `PropertyListing.isFeatured = true`, orden `publishedAt desc`
-* Detalle por `slug` con galería, listing activo, precio principal y features activas
+* Detalle por `slug` con galería, listing activo, precio principal, features activas y `availableListingTypes` (multi-operación)
 * DTOs públicos sin datos internos (`tenantId`, `createdById`, `internalCode`)
 * Swagger tag `Public Properties` con `@ApiQuery`
 
@@ -192,6 +196,43 @@ Documentación: `docs/03-database/lead-domain.md`
 
 Modelo: cada lead es una consulta individual; no representa un contacto único.
 
+### Admin UI (`apps/admin`) — Property Domain v1
+
+Documentación: `docs/07-admin/admin-modules.md`, `docs/07-admin/admin-nav.md`
+
+* Shell: `(auth)` / `(dashboard)`, `MainLayout`, sidebar colapsable, `nav-config.ts`, `PageShell`, `PropertyPageShell`, `PropertySubNav`, `ToastProvider`
+* Tenant dev: `ADMIN_DEV_TENANT_ID`, `ADMIN_DEV_USER_ID` (sin auth JWT)
+* Toda operación vía NestJS API — sin acceso directo a Prisma
+
+**Property CRUD** ✅
+
+* Rutas: `/propiedades`, `/propiedades/crear`, `/propiedades/[id]`
+* Server Actions + revalidación; archivar vía `isActive = false`
+
+**PropertyListing CRUD** ✅
+
+* Rutas: `/propiedades/[id]/publicaciones`, `/crear`, `/[listingId]`
+* Transiciones de estado; cierre lógico (`CLOSED`)
+
+**PropertyPrice CRUD** ✅
+
+* Ruta: `/propiedades/[id]/publicaciones/[listingId]/precios`
+* Tabla + SidePanel; badge «Principal» + acción «Marcar principal»
+
+**PropertyImage CRUD** ✅
+
+* Ruta: `/propiedades/[id]/imagenes`
+* Grid + SidePanel; badge «Portada» + acción «Usar como portada»
+* Metadata manual (`storageKey`, `url`, `altText`, `sortOrder`) — sin upload físico
+
+**Publicabilidad web** ✅
+
+* Panel checklist en `/propiedades/[id]` (regla espejo de Public API)
+* Badges derivados: Publicada / Borrador comercial / Archivada
+* Columna Web en publicaciones + enlaces «Ver en web» por operación
+
+Pendiente admin: auth, RBAC, TenantSwitcher, configuración (usuarios/inmobiliaria/tenants), dashboard operativo, upload storage.
+
 ---
 
 ## Módulos Pendientes
@@ -208,7 +249,7 @@ Modelo: cada lead es una consulta individual; no representa un contacto único.
 * Fase 1 ✅: App Router `(site)`, Header (7 ítems + menú hamburguesa), Footer, TailwindCSS v4, Geist, metadata/OG/robots, branding vía env, placeholders de rutas
 * Fase 2 ✅: Home (hero, buscador UI, destacadas/recientes vía Public Property API, categorías), `PublicPropertyCard`, branding real (`public/brand/`), `@repo/shared-types`
 * Fase 3 ✅: Listado `/propiedades` (filtros sidebar/drawer, URL sync, paginación, empty/loading states, SEO dinámico)
-* Fase 4 ✅: Detalle `/propiedades/[slug]` (galería, precio, features, descripción, mapa placeholder, relacionadas, metadata dinámica)
+* Fase 4 ✅: Detalle `/propiedades/[slug]` (galería, precio, features, descripción, mapa placeholder, relacionadas, `ListingTypeSwitcher`, metadata dinámica)
 * Fase 6 ✅: SEO & production hardening (sitemap dinámico, robots, JSON-LD Organization/RealEstateListing/BreadcrumbList, metadata OG/canonical por página, manifest, security headers, error boundary global)
 * Pendiente Fase 5+: Emprendimientos completos, performance (Fase 7)
 
@@ -221,7 +262,8 @@ Roadmap frontend: `docs/06-web/frontend-roadmap.md`
 * PropertyPrice API Foundation — implementado
 * PropertyImage API Foundation — implementado
 * PropertyFeature — pendiente
-* UI admin — pendiente
+* UI admin Property Domain v1 — implementado (shell + CRUD + publicabilidad + multi-operación)
+* UI admin (auth, RBAC, configuración, dashboard, upload) — pendiente
 
 Roadmap: `docs/09-roadmap/property-api-roadmap.md`
 
@@ -235,6 +277,16 @@ Roadmap: `docs/09-roadmap/property-api-roadmap.md`
 
 * Development
 * DevelopmentUnit
+
+### Infraestructura de desarrollo local ✅
+
+* Puertos: web **3000**, admin **3001**, api **3002**
+* `npm run dev` (Turbo) levanta web + admin + api
+* Frontends: default `API_URL=http://localhost:3002`
+* API: `DATABASE_URL` obligatorio; `import "dotenv/config"` en bootstrap; Swagger en `/api/docs`
+* Plantillas: `apps/*/.env.example`
+
+Documentación: `docs/02-architecture/monorepo.md`, READMEs de cada app.
 
 ---
 

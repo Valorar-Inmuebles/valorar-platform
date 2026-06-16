@@ -111,6 +111,7 @@ export type PublicPropertyDetail = {
   listing: PublicPropertyListing;
   gallery: PublicPropertyImage[];
   features: PublicPropertyFeature[];
+  availableListingTypes: PropertyListingType[];
 };
 
 export type GeocodeSource = "MANUAL" | "GOOGLE_PLACES" | "IMPORT";
