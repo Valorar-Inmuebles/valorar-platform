@@ -2,14 +2,16 @@
 
 ## Estado
 
-Versión: Foundation v1 + Property Domain v1
+Versión: Foundation v1 + Auth Foundation Fase 1 + Property Domain v1
 
 Base de datos:
 
 * PostgreSQL
 * Prisma ORM
 
-Dominio Property: migrado (`202606150001_property_foundation`).
+Auth Foundation Fase 1: migrado (`20260616125024_auth_foundation`).
+
+Dominio Property: migrado (`202606150001_property_foundation`, `202606150002_property_location_v1_1`).
 
 ---
 
@@ -62,20 +64,29 @@ Representa una persona que utiliza el sistema.
 
 ## Campos
 
-| Campo     | Tipo      | Descripción                              |
-| --------- | --------- | ---------------------------------------- |
-| id        | String    | Identificador (`cuid`)                   |
-| tenantId  | String?   | Tenant al que pertenece (`null` en SUPER_ADMIN) |
-| name      | String    | Nombre                                   |
-| email     | String    | Email único                              |
-| role      | UserRole  | Rol del usuario (default: `AGENT`)       |
-| createdAt | DateTime  |                                          |
-| updatedAt | DateTime  |                                          |
+| Campo        | Tipo      | Descripción                              |
+| ------------ | --------- | ---------------------------------------- |
+| id           | String    | Identificador (`cuid`)                   |
+| tenantId     | String?   | Tenant al que pertenece (`null` en SUPER_ADMIN) |
+| name         | String    | Nombre                                   |
+| email        | String    | Email único                              |
+| passwordHash | String    | Hash bcrypt de la contraseña             |
+| isActive     | Boolean   | Usuario activo (default: `true`)         |
+| lastLoginAt  | DateTime? | Último login exitoso                     |
+| role         | UserRole  | Rol del usuario (default: `AGENT`)       |
+| createdAt    | DateTime  |                                          |
+| updatedAt    | DateTime  |                                          |
 
 ## Restricciones
 
 * `email`: único (`@unique`)
 * `tenantId`: opcional para permitir `SUPER_ADMIN` sin tenant
+* `passwordHash`: obligatorio (`NOT NULL`)
+* `isActive`: default `true`
+
+## Índices
+
+* `@@index([tenantId])` → `User_tenantId_idx`
 
 ## Relaciones
 

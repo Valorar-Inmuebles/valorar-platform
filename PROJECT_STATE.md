@@ -17,7 +17,7 @@ Plataforma SaaS inmobiliaria multi-tenant orientada a:
 
 ## Estado Actual
 
-Fase: Foundation + Property API Foundation + Public API Foundation + Public Web Foundation (Fase 1–6) + Admin UI Foundation (Property Domain v1)
+Fase: Foundation + Auth Foundation Fase 1 (schema) + Property API Foundation + Public API Foundation + Public Web Foundation (Fase 1–6) + Admin UI Foundation (Property Domain v1)
 
 Infraestructura inicial:
 
@@ -26,7 +26,9 @@ Infraestructura inicial:
 * Railway
 * Neon PostgreSQL
 
-Dominio Property v1: migrado (`202606150001_property_foundation`).
+Dominio Property v1: migrado (`202606150001_property_foundation`, `202606150002_property_location_v1_1`).
+
+Auth Foundation v1: schema migrado (`20260616125024_auth_foundation`). Documentación: `docs/04-modules/auth.md`. Plan: `docs/09-roadmap/auth-implementation-plan.md`. Pendiente: Fase 2 AuthModule API.
 
 Roadmap Property API: `docs/09-roadmap/property-api-roadmap.md`
 
@@ -89,11 +91,13 @@ Infraestructura:
 ### Foundation (schema + migración)
 
 * Tenant
-* User
+* User (`passwordHash`, `isActive`, `lastLoginAt`, índice `User_tenantId_idx`)
 * UserRole
 * TenantSetting
 
-Documentación: `docs/03-database/current-schema.md`
+Migración auth: `20260616125024_auth_foundation`.
+
+Documentación: `docs/03-database/current-schema.md`, `docs/04-modules/auth.md`
 
 ### Property Domain v1 (API — Property entity)
 
@@ -237,10 +241,20 @@ Pendiente admin: auth, RBAC, TenantSwitcher, configuración (usuarios/inmobiliar
 
 ## Módulos Pendientes
 
+### Auth Foundation v1 (API + Admin — pendiente)
+
+* Fase 1 schema ✅ (`20260616125024_auth_foundation`)
+* Fase 2 AuthModule API (login, logout, me, JWT, bcrypt) — pendiente
+* Fase 3 Guards — pendiente
+* Fase 4 Refactor endpoints admin — pendiente
+* Fase 5 Admin login/middleware — pendiente
+* Fase 6 Seeds — pendiente
+
+Plan: `docs/09-roadmap/auth-implementation-plan.md`
+
 ### Foundation (campos futuros)
 
 * `Tenant.isActive`
-* `User.passwordHash`, `User.isActive`, `User.lastLoginAt`
 * `TenantSetting.facebookUrl`, `TenantSetting.instagramUrl`, `TenantSetting.linkedinUrl`
 
 ### Public Web (`apps/web`)

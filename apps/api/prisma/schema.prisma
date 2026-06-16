@@ -43,6 +43,10 @@ model User {
   name  String
   email String @unique
 
+  passwordHash String
+  isActive     Boolean   @default(true)
+  lastLoginAt  DateTime?
+
   role UserRole @default(AGENT)
 
   createdAt DateTime @default(now())
@@ -51,6 +55,8 @@ model User {
   createdProperties     Property[]            @relation("PropertyCreator")
   sharedPropertyAccess  PropertyAgentAccess[] @relation("PropertySharedWith")
   grantedPropertyAccess PropertyAgentAccess[] @relation("PropertyAccessGrantedBy")
+
+  @@index([tenantId])
 }
 
 model TenantSetting {
