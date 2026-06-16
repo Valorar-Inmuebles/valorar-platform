@@ -1,31 +1,36 @@
-export function getAdminTenantId(): string {
-  return (
-    process.env.ADMIN_DEV_TENANT_ID ??
-    process.env.TENANT_ID ??
-    ""
-  );
+import { getSession } from "@/lib/auth/session";
+
+/**
+ * @deprecated Usar getSession() desde lib/auth/session.
+ * Fallback de entorno solo para scripts locales fuera del flujo web.
+ */
+export async function getAdminTenantId(): Promise<string | null> {
+  const session = await getSession();
+  return session?.user.tenantId ?? null;
 }
 
-export function getAdminUserId(): string {
-  return process.env.ADMIN_DEV_USER_ID ?? "";
+/** @deprecated Usar getSession().user.id */
+export async function getAdminUserId(): Promise<string | null> {
+  const session = await getSession();
+  return session?.user.id ?? null;
 }
 
-export function requireAdminTenantId(): string {
-  const tenantId = getAdminTenantId();
+/** @deprecated El tenant se resuelve en la API desde la sesión JWT. */
+export async function requireAdminTenantId(): Promise<string> {
+  const tenantId = await getAdminTenantId();
   if (!tenantId) {
     throw new Error(
-      "Configurá ADMIN_DEV_TENANT_ID o TENANT_ID para conectar con la API.",
+      "No hay tenant activo en sesión. Iniciá sesión o seleccioná un tenant (SUPER_ADMIN).",
     );
   }
   return tenantId;
 }
 
-export function requireAdminUserId(): string {
-  const userId = getAdminUserId();
+/** @deprecated El usuario se resuelve en la API desde la sesión JWT. */
+export async function requireAdminUserId(): Promise<string> {
+  const userId = await getAdminUserId();
   if (!userId) {
-    throw new Error(
-      "Configurá ADMIN_DEV_USER_ID para crear propiedades hasta implementar auth.",
-    );
+    throw new Error("No hay usuario autenticado. Iniciá sesión.");
   }
   return userId;
 }

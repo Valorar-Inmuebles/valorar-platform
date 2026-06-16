@@ -7,6 +7,7 @@ import {
   Patch,
   Post,
   Query,
+  UseGuards,
 } from '@nestjs/common';
 import {
   ApiBadRequestResponse,
@@ -19,16 +20,19 @@ import {
   ApiParam,
   ApiTags,
 } from '@nestjs/swagger';
+import { CurrentTenant } from '../../../common/decorators/current-tenant.decorator';
+import { RequireTenant } from '../../../common/decorators/require-tenant.decorator';
+import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { TenantGuard } from '../../auth/guards/tenant.guard';
 import { CreatePropertyListingDto } from '../dto/create-property-listing.dto';
-import {
-  ListPropertyListingsQueryDto,
-  PropertyListingTenantQueryDto,
-} from '../dto/property-listing-query.dto';
+import { ListPropertyListingsQueryDto } from '../dto/property-listing-query.dto';
 import { PropertyListingResponseDto } from '../dto/property-listing-response.dto';
 import { UpdatePropertyListingDto } from '../dto/update-property-listing.dto';
 import { PropertyListingService } from '../services/property-listing.service';
 
 @ApiTags('Property Listings')
+@UseGuards(JwtAuthGuard, TenantGuard)
+@RequireTenant()
 @Controller('property-listings')
 export class PropertyListingController {
   constructor(
@@ -49,8 +53,11 @@ export class PropertyListingController {
     description:
       'A listing with the same type already exists for this property',
   })
-  create(@Body() dto: CreatePropertyListingDto) {
-    return this.propertyListingService.create(dto);
+  create(
+    @CurrentTenant() tenantId: string,
+    @Body() dto: CreatePropertyListingDto,
+  ) {
+    return this.propertyListingService.create(dto, tenantId);
   }
 
   @Get()
@@ -61,8 +68,11 @@ export class PropertyListingController {
     isArray: true,
   })
   @ApiBadRequestResponse({ description: 'Invalid query parameters' })
-  findAll(@Query() query: ListPropertyListingsQueryDto) {
-    return this.propertyListingService.findAll(query.tenantId, {
+  findAll(
+    @CurrentTenant() tenantId: string,
+    @Query() query: ListPropertyListingsQueryDto,
+  ) {
+    return this.propertyListingService.findAll(tenantId, {
       propertyId: query.propertyId,
       listingType: query.listingType,
       status: query.status,
@@ -76,13 +86,9 @@ export class PropertyListingController {
     description: 'Property listing details',
     type: PropertyListingResponseDto,
   })
-  @ApiBadRequestResponse({ description: 'Invalid query parameters' })
   @ApiNotFoundResponse({ description: 'Property listing not found' })
-  findOne(
-    @Param('id') id: string,
-    @Query() query: PropertyListingTenantQueryDto,
-  ) {
-    return this.propertyListingService.findOne(id, query.tenantId);
+  findOne(@Param('id') id: string, @CurrentTenant() tenantId: string) {
+    return this.propertyListingService.findOne(id, tenantId);
   }
 
   @Patch(':id')
@@ -100,10 +106,10 @@ export class PropertyListingController {
   @ApiNotFoundResponse({ description: 'Property listing not found' })
   update(
     @Param('id') id: string,
-    @Query() query: PropertyListingTenantQueryDto,
+    @CurrentTenant() tenantId: string,
     @Body() dto: UpdatePropertyListingDto,
   ) {
-    return this.propertyListingService.update(id, query.tenantId, dto);
+    return this.propertyListingService.update(id, tenantId, dto);
   }
 
   @Delete(':id')
@@ -113,12 +119,8 @@ export class PropertyListingController {
     description: 'Property listing closed successfully',
     type: PropertyListingResponseDto,
   })
-  @ApiBadRequestResponse({ description: 'Invalid query parameters' })
   @ApiNotFoundResponse({ description: 'Property listing not found' })
-  remove(
-    @Param('id') id: string,
-    @Query() query: PropertyListingTenantQueryDto,
-  ) {
-    return this.propertyListingService.remove(id, query.tenantId);
+  remove(@Param('id') id: string, @CurrentTenant() tenantId: string) {
+    return this.propertyListingService.remove(id, tenantId);
   }
 }

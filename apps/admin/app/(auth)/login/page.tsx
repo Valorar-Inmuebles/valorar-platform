@@ -1,12 +1,11 @@
-import Link from "next/link";
+import { Suspense } from "react";
 import {
   Card,
   CardContent,
-  CardFooter,
   CardHeader,
   CardTitle,
 } from "@repo/ui/card";
-import { Button } from "@repo/ui/button";
+import { LoginForm } from "@/components/auth/login-form";
 
 export default function LoginPage() {
   return (
@@ -15,18 +14,13 @@ export default function LoginPage() {
         <CardTitle>Iniciar sesión</CardTitle>
       </CardHeader>
       <CardContent>
-        <p className="text-sm text-muted">
-          Autenticación pendiente. Esta pantalla es un placeholder del route
-          group <code className="text-xs">(auth)</code>.
+        <p className="mb-4 text-sm text-muted">
+          Accedé al panel administrativo con tu cuenta.
         </p>
+        <Suspense fallback={<p className="text-sm text-muted">Cargando…</p>}>
+          <LoginForm />
+        </Suspense>
       </CardContent>
-      <CardFooter>
-        <Link href="/" className="w-full">
-          <Button variant="secondary" className="w-full">
-            Volver al dashboard
-          </Button>
-        </Link>
-      </CardFooter>
     </Card>
   );
 }

@@ -17,16 +17,20 @@ import {
 export class PropertyService {
   constructor(private readonly propertyRepository: PropertyRepository) {}
 
-  async create(dto: CreatePropertyDto): Promise<PropertyResponseDto> {
-    await this.assertTenantExists(dto.tenantId);
-    await this.assertCreatedByBelongsToTenant(dto.createdById, dto.tenantId);
-    await this.assertSlugIsUnique(dto.slug, dto.tenantId);
+  async create(
+    dto: CreatePropertyDto,
+    tenantId: string,
+    createdById: string,
+  ): Promise<PropertyResponseDto> {
+    await this.assertTenantExists(tenantId);
+    await this.assertCreatedByBelongsToTenant(createdById, tenantId);
+    await this.assertSlugIsUnique(dto.slug, tenantId);
 
     const internalCode = this.normalizeInternalCode(dto.internalCode);
-    await this.assertInternalCodeIsUnique(internalCode, dto.tenantId);
+    await this.assertInternalCodeIsUnique(internalCode, tenantId);
 
     const property = await this.propertyRepository.create(
-      this.toCreateData(dto, internalCode),
+      this.toCreateData(dto, tenantId, createdById, internalCode),
     );
 
     return PropertyResponseDto.fromEntity(property);
@@ -155,11 +159,13 @@ export class PropertyService {
 
   private toCreateData(
     dto: CreatePropertyDto,
+    tenantId: string,
+    createdById: string,
     internalCode: string | null | undefined,
   ) {
     return {
-      tenantId: dto.tenantId,
-      createdById: dto.createdById,
+      tenantId,
+      createdById,
       slug: dto.slug,
       title: dto.title,
       description: dto.description,

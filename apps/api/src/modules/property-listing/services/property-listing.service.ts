@@ -33,17 +33,18 @@ export class PropertyListingService {
 
   async create(
     dto: CreatePropertyListingDto,
+    tenantId: string,
   ): Promise<PropertyListingResponseDto> {
-    await this.assertTenantExists(dto.tenantId);
+    await this.assertTenantExists(tenantId);
     await this.assertPropertyIsActiveForListing(
       dto.propertyId,
-      dto.tenantId,
+      tenantId,
       'create',
     );
     await this.assertListingTypeIsUnique(dto.propertyId, dto.listingType);
 
     const listing = await this.propertyListingRepository.create({
-      tenantId: dto.tenantId,
+      tenantId,
       propertyId: dto.propertyId,
       listingType: dto.listingType,
       status: PropertyListingStatus.DRAFT,

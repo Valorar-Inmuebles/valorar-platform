@@ -7,6 +7,7 @@ import {
   Patch,
   Post,
   Query,
+  UseGuards,
 } from '@nestjs/common';
 import {
   ApiBadRequestResponse,
@@ -19,16 +20,19 @@ import {
   ApiQuery,
   ApiTags,
 } from '@nestjs/swagger';
+import { CurrentTenant } from '../../../common/decorators/current-tenant.decorator';
+import { RequireTenant } from '../../../common/decorators/require-tenant.decorator';
+import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { TenantGuard } from '../../auth/guards/tenant.guard';
 import { CreatePropertyImageDto } from '../dto/create-property-image.dto';
-import {
-  ListPropertyImagesQueryDto,
-  PropertyImageTenantQueryDto,
-} from '../dto/property-image-query.dto';
+import { ListPropertyImagesQueryDto } from '../dto/property-image-query.dto';
 import { PropertyImageResponseDto } from '../dto/property-image-response.dto';
 import { UpdatePropertyImageDto } from '../dto/update-property-image.dto';
 import { PropertyImageService } from '../services/property-image.service';
 
 @ApiTags('Property Images')
+@UseGuards(JwtAuthGuard, TenantGuard)
+@RequireTenant()
 @Controller('property-images')
 export class PropertyImageController {
   constructor(private readonly propertyImageService: PropertyImageService) {}
@@ -44,13 +48,15 @@ export class PropertyImageController {
     description:
       'Validation error, tenant not found, property not found, or property archived',
   })
-  create(@Body() dto: CreatePropertyImageDto) {
-    return this.propertyImageService.create(dto);
+  create(
+    @CurrentTenant() tenantId: string,
+    @Body() dto: CreatePropertyImageDto,
+  ) {
+    return this.propertyImageService.create(dto, tenantId);
   }
 
   @Get()
   @ApiOperation({ summary: 'List property images by tenant and property' })
-  @ApiQuery({ name: 'tenantId', required: true, type: String })
   @ApiQuery({ name: 'propertyId', required: true, type: String })
   @ApiOkResponse({
     description: 'List of property images',
@@ -60,31 +66,28 @@ export class PropertyImageController {
   @ApiBadRequestResponse({
     description: 'Invalid query parameters or property not found',
   })
-  findAll(@Query() query: ListPropertyImagesQueryDto) {
-    return this.propertyImageService.findAll(query.tenantId, query.propertyId);
+  findAll(
+    @CurrentTenant() tenantId: string,
+    @Query() query: ListPropertyImagesQueryDto,
+  ) {
+    return this.propertyImageService.findAll(tenantId, query.propertyId);
   }
 
   @Get(':id')
   @ApiOperation({ summary: 'Get a property image by id' })
   @ApiParam({ name: 'id', type: String })
-  @ApiQuery({ name: 'tenantId', required: true, type: String })
   @ApiOkResponse({
     description: 'Property image details',
     type: PropertyImageResponseDto,
   })
-  @ApiBadRequestResponse({ description: 'Invalid query parameters' })
   @ApiNotFoundResponse({ description: 'Property image not found' })
-  findOne(
-    @Param('id') id: string,
-    @Query() query: PropertyImageTenantQueryDto,
-  ) {
-    return this.propertyImageService.findOne(id, query.tenantId);
+  findOne(@Param('id') id: string, @CurrentTenant() tenantId: string) {
+    return this.propertyImageService.findOne(id, tenantId);
   }
 
   @Patch(':id')
   @ApiOperation({ summary: 'Update a property image' })
   @ApiParam({ name: 'id', type: String })
-  @ApiQuery({ name: 'tenantId', required: true, type: String })
   @ApiBody({ type: UpdatePropertyImageDto })
   @ApiOkResponse({
     description: 'Property image updated successfully',
@@ -96,24 +99,22 @@ export class PropertyImageController {
   @ApiNotFoundResponse({ description: 'Property image not found' })
   update(
     @Param('id') id: string,
-    @Query() query: PropertyImageTenantQueryDto,
+    @CurrentTenant() tenantId: string,
     @Body() dto: UpdatePropertyImageDto,
   ) {
-    return this.propertyImageService.update(id, query.tenantId, dto);
+    return this.propertyImageService.update(id, tenantId, dto);
   }
 
   @Delete(':id')
   @ApiOperation({ summary: 'Delete a property image (physical delete)' })
   @ApiParam({ name: 'id', type: String })
-  @ApiQuery({ name: 'tenantId', required: true, type: String })
   @ApiOkResponse({
     description:
       'Property image deleted successfully. Returns a snapshot of the deleted image (pre-delete state).',
     type: PropertyImageResponseDto,
   })
-  @ApiBadRequestResponse({ description: 'Invalid query parameters' })
   @ApiNotFoundResponse({ description: 'Property image not found' })
-  remove(@Param('id') id: string, @Query() query: PropertyImageTenantQueryDto) {
-    return this.propertyImageService.remove(id, query.tenantId);
+  remove(@Param('id') id: string, @CurrentTenant() tenantId: string) {
+    return this.propertyImageService.remove(id, tenantId);
   }
 }

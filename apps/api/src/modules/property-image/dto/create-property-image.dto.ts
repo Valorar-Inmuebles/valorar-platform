@@ -10,11 +10,6 @@ import {
 } from 'class-validator';
 
 export class CreatePropertyImageDto {
-  @ApiProperty({ description: 'Tenant identifier' })
-  @IsString()
-  @IsNotEmpty()
-  tenantId: string;
-
   @ApiProperty({ description: 'Property identifier' })
   @IsString()
   @IsNotEmpty()

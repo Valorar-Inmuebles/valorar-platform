@@ -16,20 +16,23 @@ export class PropertyImageService {
     private readonly propertyRepository: PropertyRepository,
   ) {}
 
-  async create(dto: CreatePropertyImageDto): Promise<PropertyImageResponseDto> {
-    await this.assertTenantExists(dto.tenantId);
-    await this.assertPropertyIsActiveForImage(dto.propertyId, dto.tenantId);
+  async create(
+    dto: CreatePropertyImageDto,
+    tenantId: string,
+  ): Promise<PropertyImageResponseDto> {
+    await this.assertTenantExists(tenantId);
+    await this.assertPropertyIsActiveForImage(dto.propertyId, tenantId);
 
     const existingCount = await this.propertyImageRepository.countByProperty(
       dto.propertyId,
-      dto.tenantId,
+      tenantId,
     );
 
     const isCover = existingCount === 0 ? true : (dto.isCover ?? false);
 
     const image = await this.propertyImageRepository.createWithCoverHandling(
       {
-        tenantId: dto.tenantId,
+        tenantId,
         propertyId: dto.propertyId,
         storageKey: dto.storageKey,
         url: dto.url,

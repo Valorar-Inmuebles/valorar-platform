@@ -17,12 +17,14 @@ export function ApiErrorPanel({
       <CardContent>
         <p className="text-sm text-red-700">{message}</p>
         <p className="mt-3 text-xs text-muted">
-          Verificá que la API esté corriendo y que{" "}
-          <code className="rounded bg-zinc-100 px-1">API_URL</code>,{" "}
-          <code className="rounded bg-zinc-100 px-1">ADMIN_DEV_TENANT_ID</code>{" "}
-          y{" "}
-          <code className="rounded bg-zinc-100 px-1">ADMIN_DEV_USER_ID</code>{" "}
-          estén configurados.
+          Verificá que la API esté corriendo, que{" "}
+          <code className="rounded bg-zinc-100 px-1">API_URL</code> apunte a{" "}
+          <code className="rounded bg-zinc-100 px-1">apps/api</code> y que tu
+          sesión esté activa. Si expiró, volvé a{" "}
+          <a href="/login" className="underline">
+            iniciar sesión
+          </a>
+          .
         </p>
       </CardContent>
     </Card>

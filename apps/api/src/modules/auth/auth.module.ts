@@ -40,6 +40,7 @@ const jwtSignOptions: JwtSignOptions = {
   ],
   exports: [
     AuthService,
+    AuthRepository,
     JwtAuthGuard,
     RolesGuard,
     TenantGuard,
