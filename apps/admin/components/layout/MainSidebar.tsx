@@ -12,7 +12,9 @@ import {
   type NavViewerContext,
 } from "@/components/layout/nav-config";
 import { useSidebar } from "@/components/layout/sidebar-context";
+import { TenantSwitcher } from "@/components/layout/tenant-switcher";
 import { cn } from "@/lib/cn";
+import type { AuthUser } from "@/lib/auth/types";
 
 const itemBase =
   "relative flex w-full items-center gap-2 rounded-md text-[13px] font-medium outline-none transition-colors duration-100 focus-visible:ring-2 focus-visible:ring-white/20";
@@ -142,9 +144,15 @@ function CollapsedItem({
 
 type MainSidebarProps = {
   navContext: NavViewerContext;
+  user: AuthUser;
+  activeTenantId: string | null;
 };
 
-export function MainSidebar({ navContext }: MainSidebarProps) {
+export function MainSidebar({
+  navContext,
+  user,
+  activeTenantId,
+}: MainSidebarProps) {
   const pathname = usePathname() ?? "/";
   const router = useRouter();
   const { collapsed, mobileOpen, isMobile, closeMobile } = useSidebar();
@@ -207,6 +215,17 @@ export function MainSidebar({ navContext }: MainSidebarProps) {
         </div>
 
         <nav className="flex-1 overflow-x-hidden overflow-y-auto px-2 py-2">
+          {user.role === "SUPER_ADMIN" && !isCollapsed ? (
+            <div className="mb-4 px-1 lg:hidden">
+              <TenantSwitcher
+                user={user}
+                activeTenantId={activeTenantId}
+                highlighted={!activeTenantId}
+                compact
+              />
+            </div>
+          ) : null}
+
           {navigation.map((section, idx) => (
             <div key={section.id} className={idx > 0 ? "mt-4" : ""}>
               {!isCollapsed ? (

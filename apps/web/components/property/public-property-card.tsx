@@ -4,6 +4,7 @@ import type { PublicPropertyCard } from "@repo/shared-types";
 import { formatArea } from "@/lib/format/area";
 import { formatPrice } from "@/lib/format/price";
 import { getPropertyTypeLabel } from "@/lib/format/labels";
+import { buildPublicPropertyDetailHref } from "@/lib/url/public-property-detail";
 import { ListingTypeBadge } from "./listing-type-badge";
 import { PropertyImagePlaceholder } from "./property-image-placeholder";
 
@@ -58,7 +59,7 @@ export function PublicPropertyCard({ property }: PublicPropertyCardProps) {
   return (
     <article className="group">
       <Link
-        href={`/propiedades/${property.slug}`}
+        href={buildPublicPropertyDetailHref(property.slug, property.listingType)}
         className="block overflow-hidden rounded-2xl border border-border bg-background shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
       >
         <div className="relative aspect-[4/3] overflow-hidden bg-slate-100">

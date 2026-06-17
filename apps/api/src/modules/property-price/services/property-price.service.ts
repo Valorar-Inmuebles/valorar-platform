@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { PropertyListingStatus } from '../../../../generated/prisma/client';
 import { PropertyListingRepository } from '../../property-listing/repositories/property-listing.repository';
+import { ListingOperationalTrustService } from '../../property-listing/services/listing-operational-trust.service';
 import { CreatePropertyPriceDto } from '../dto/create-property-price.dto';
 import { PropertyPriceResponseDto } from '../dto/property-price-response.dto';
 import { UpdatePropertyPriceDto } from '../dto/update-property-price.dto';
@@ -21,6 +22,7 @@ export class PropertyPriceService {
   constructor(
     private readonly propertyPriceRepository: PropertyPriceRepository,
     private readonly propertyListingRepository: PropertyListingRepository,
+    private readonly listingOperationalTrustService: ListingOperationalTrustService,
   ) {}
 
   async create(
@@ -119,6 +121,11 @@ export class PropertyPriceService {
         throw new NotFoundException(`Property price with id "${id}" not found`);
       }
 
+      await this.listingOperationalTrustService.syncActiveListingsForListing(
+        existing.listingId,
+        tenantId,
+      );
+
       return PropertyPriceResponseDto.fromEntity(price);
     }
 
@@ -135,6 +142,11 @@ export class PropertyPriceService {
     if (!price) {
       throw new NotFoundException(`Property price with id "${id}" not found`);
     }
+
+    await this.listingOperationalTrustService.syncActiveListingsForListing(
+      existing.listingId,
+      tenantId,
+    );
 
     return PropertyPriceResponseDto.fromEntity(price);
   }
@@ -182,6 +194,11 @@ export class PropertyPriceService {
     if (!deleted) {
       throw new NotFoundException(`Property price with id "${id}" not found`);
     }
+
+    await this.listingOperationalTrustService.syncActiveListingsForListing(
+      existing.listingId,
+      tenantId,
+    );
 
     return PropertyPriceResponseDto.fromEntity(existing);
   }

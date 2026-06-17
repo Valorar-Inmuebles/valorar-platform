@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@repo/ui/button";
 import { Input } from "@repo/ui/input";
@@ -10,17 +10,23 @@ type TenantSwitcherProps = {
   user: AuthUser;
   activeTenantId: string | null;
   highlighted?: boolean;
+  compact?: boolean;
 };
 
 export function TenantSwitcher({
   user,
   activeTenantId,
   highlighted = false,
+  compact = false,
 }: TenantSwitcherProps) {
   const router = useRouter();
   const [tenantId, setTenantId] = useState(activeTenantId ?? "");
   const [error, setError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+    setTenantId(activeTenantId ?? "");
+  }, [activeTenantId]);
 
   if (user.role !== "SUPER_ADMIN") {
     return user.tenantId ? (
@@ -65,22 +71,28 @@ export function TenantSwitcher({
   return (
     <form
       onSubmit={handleSave}
-      className={`space-y-2 rounded-lg p-2 ${
+      className={`rounded-lg p-2 ${
         highlighted
           ? "border border-amber-300 bg-amber-50/80 ring-2 ring-amber-200/60"
-          : ""
-      }`}
+          : "border border-border bg-surface"
+      } ${compact ? "space-y-2" : "space-y-2"}`}
     >
       <Input
-        id="active-tenant-id"
-        label="Tenant activo (SUPER_ADMIN)"
+        id={compact ? "active-tenant-id-header" : "active-tenant-id"}
+        label={compact ? "Inmobiliaria (SUPER_ADMIN)" : "Tenant activo (SUPER_ADMIN)"}
         value={tenantId}
         onChange={(event) => setTenantId(event.target.value)}
         placeholder="ID del tenant"
         className="h-8 text-xs"
       />
       {error ? <p className="text-xs text-red-600">{error}</p> : null}
-      <Button type="submit" size="sm" variant="secondary" disabled={isSaving}>
+      <Button
+        type="submit"
+        size="sm"
+        variant="secondary"
+        disabled={isSaving}
+        className={compact ? "w-full" : undefined}
+      >
         {isSaving ? "Guardando…" : "Aplicar tenant"}
       </Button>
     </form>

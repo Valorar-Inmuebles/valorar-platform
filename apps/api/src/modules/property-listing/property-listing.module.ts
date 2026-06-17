@@ -5,6 +5,7 @@ import { PropertyModule } from '../property/property.module';
 import { PropertyPriceModule } from '../property-price/property-price.module';
 import { PropertyListingController } from './controllers/property-listing.controller';
 import { PropertyListingRepository } from './repositories/property-listing.repository';
+import { ListingOperationalTrustService } from './services/listing-operational-trust.service';
 import { PropertyListingService } from './services/property-listing.service';
 
 @Module({
@@ -15,7 +16,15 @@ import { PropertyListingService } from './services/property-listing.service';
     forwardRef(() => PropertyPriceModule),
   ],
   controllers: [PropertyListingController],
-  providers: [PropertyListingService, PropertyListingRepository],
-  exports: [PropertyListingService, PropertyListingRepository],
+  providers: [
+    PropertyListingService,
+    PropertyListingRepository,
+    ListingOperationalTrustService,
+  ],
+  exports: [
+    PropertyListingService,
+    PropertyListingRepository,
+    ListingOperationalTrustService,
+  ],
 })
 export class PropertyListingModule {}

@@ -135,7 +135,19 @@ export function PropertyListingForm({
       );
 
       if (!result.ok) {
-        setError(result.error);
+        if (
+          result.code === "PUBLICATION_CHECKLIST_INCOMPLETE" &&
+          result.missing
+        ) {
+          setChecklistError({
+            message: result.error,
+            missing: result.missing,
+          });
+          setError(null);
+        } else {
+          setError(result.error);
+          setChecklistError(null);
+        }
         toast.error(result.error);
         return;
       }
@@ -264,13 +276,13 @@ export function PropertyListingForm({
         </Card>
       ) : null}
 
-      {checklistError && listing ? (
+      {checklistError ? (
         <FormField state="error">
           <PublicationChecklistError
             message={checklistError.message}
             missing={checklistError.missing}
             propertyId={propertyId}
-            listingId={listing.id}
+            listingId={listing?.id}
           />
         </FormField>
       ) : error ? (

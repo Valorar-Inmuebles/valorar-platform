@@ -20,7 +20,12 @@ jest.mock('../repositories/property.repository', () => ({
   PropertyRepository: class PropertyRepository {},
 }));
 
+jest.mock('../../property-listing/services/listing-operational-trust.service', () => ({
+  ListingOperationalTrustService: class ListingOperationalTrustService {},
+}));
+
 import { PropertyListingRepository } from '../../property-listing/repositories/property-listing.repository';
+import { ListingOperationalTrustService } from '../../property-listing/services/listing-operational-trust.service';
 import { PropertyRepository } from '../repositories/property.repository';
 
 describe('PropertyService', () => {
@@ -42,6 +47,10 @@ describe('PropertyService', () => {
     hasActiveListingForProperty: jest.fn(),
   };
 
+  const listingOperationalTrustService = {
+    syncActiveListingsAfterDegradation: jest.fn(),
+  };
+
   beforeEach(async () => {
     jest.clearAllMocks();
 
@@ -52,6 +61,10 @@ describe('PropertyService', () => {
         {
           provide: PropertyListingRepository,
           useValue: propertyListingRepository,
+        },
+        {
+          provide: ListingOperationalTrustService,
+          useValue: listingOperationalTrustService,
         },
       ],
     }).compile();
@@ -99,6 +112,37 @@ describe('PropertyService', () => {
 
       expect(result.slug).toBe('casa-nueva');
       expect(propertyRepository.update).toHaveBeenCalled();
+    });
+  });
+
+  describe('operational trust on archive', () => {
+    const propertyId = 'property-1';
+    const tenantId = 'tenant-1';
+
+    it('syncs listings when property is archived via update', async () => {
+      propertyRepository.update.mockResolvedValue({
+        id: propertyId,
+        isActive: false,
+      });
+
+      await service.update(propertyId, tenantId, { isActive: false });
+
+      expect(
+        listingOperationalTrustService.syncActiveListingsAfterDegradation,
+      ).toHaveBeenCalledWith(propertyId, tenantId);
+    });
+
+    it('syncs listings when property is soft archived', async () => {
+      propertyRepository.softArchive.mockResolvedValue({
+        id: propertyId,
+        isActive: false,
+      });
+
+      await service.remove(propertyId, tenantId);
+
+      expect(
+        listingOperationalTrustService.syncActiveListingsAfterDegradation,
+      ).toHaveBeenCalledWith(propertyId, tenantId);
     });
   });
 });

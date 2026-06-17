@@ -15,44 +15,58 @@ type MainHeaderProps = {
 export function MainHeader({ user, activeTenantId }: MainHeaderProps) {
   const { collapsed, isMobile, toggleSidebar } = useSidebar();
   const initials = getUserInitials(user.name);
+  const isSuperAdmin = user.role === "SUPER_ADMIN";
 
   return (
-    <header className="flex h-[3.25rem] shrink-0 items-center gap-3 border-b border-border bg-surface/75 px-4 backdrop-blur-xl supports-[backdrop-filter]:bg-surface/65 sm:px-6">
-      <Button
-        type="button"
-        variant="ghost"
-        size="sm"
-        onClick={toggleSidebar}
-        aria-label={
-          isMobile
-            ? "Abrir menú"
-            : collapsed
-              ? "Expandir barra lateral"
-              : "Contraer barra lateral"
-        }
-        aria-pressed={isMobile ? undefined : !collapsed}
-        className="size-8 shrink-0 px-0"
-      >
-        <IconMenu className="size-[1.125rem]" />
-      </Button>
+    <header className="flex min-h-[3.25rem] shrink-0 flex-col gap-2 border-b border-border bg-surface/75 px-4 py-2 backdrop-blur-xl supports-[backdrop-filter]:bg-surface/65 sm:flex-row sm:items-center sm:gap-3 sm:py-0 sm:px-6">
+      <div className="flex min-w-0 flex-1 items-center gap-3">
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={toggleSidebar}
+          aria-label={
+            isMobile
+              ? "Abrir menú"
+              : collapsed
+                ? "Expandir barra lateral"
+                : "Contraer barra lateral"
+          }
+          aria-pressed={isMobile ? undefined : !collapsed}
+          className="size-8 shrink-0 px-0"
+        >
+          <IconMenu className="size-[1.125rem]" />
+        </Button>
 
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-medium text-foreground">
-          {user.name}
-        </p>
-        <p className="truncate text-xs text-muted">{user.email}</p>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-medium text-foreground">
+            {user.name}
+          </p>
+          <p className="truncate text-xs text-muted">{user.email}</p>
+        </div>
+
+        <div
+          className="flex size-8 shrink-0 items-center justify-center rounded-full bg-zinc-100 text-xs font-semibold text-zinc-600 ring-1 ring-border sm:hidden"
+          title={user.name}
+          aria-label={`Usuario: ${user.name}`}
+        >
+          {initials}
+        </div>
       </div>
 
-      <div className="hidden min-w-0 max-w-[240px] md:block lg:max-w-[280px]">
-        <TenantSwitcher
-          user={user}
-          activeTenantId={activeTenantId}
-          highlighted={user.role === "SUPER_ADMIN" && !activeTenantId}
-        />
-      </div>
+      {isSuperAdmin ? (
+        <div className="w-full min-w-0 sm:max-w-[240px] lg:max-w-[280px]">
+          <TenantSwitcher
+            user={user}
+            activeTenantId={activeTenantId}
+            highlighted={!activeTenantId}
+            compact
+          />
+        </div>
+      ) : null}
 
       <div
-        className="flex size-8 shrink-0 items-center justify-center rounded-full bg-zinc-100 text-xs font-semibold text-zinc-600 ring-1 ring-border"
+        className="hidden size-8 shrink-0 items-center justify-center rounded-full bg-zinc-100 text-xs font-semibold text-zinc-600 ring-1 ring-border sm:flex"
         title={user.name}
         aria-label={`Usuario: ${user.name}`}
       >
