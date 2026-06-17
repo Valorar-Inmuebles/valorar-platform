@@ -9,10 +9,10 @@ export const LISTING_TYPE_LABELS: Record<PropertyListingType, string> = {
 
 export const LISTING_STATUS_LABELS: Record<PropertyListingStatus, string> = {
   DRAFT: "Borrador",
-  ACTIVE: "Publicada",
+  ACTIVE: "Activa",
   PAUSED: "Pausada",
   RESERVED: "Reservada",
-  CLOSED: "Archivada",
+  CLOSED: "Cerrada",
 };
 
 export const LISTING_TYPE_OPTIONS: Array<{

@@ -1,12 +1,12 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { ApiError } from "@/lib/api/client";
 import {
   createPropertyPrice,
   deletePropertyPrice,
   updatePropertyPrice,
 } from "@/lib/api/property-price";
+import { mapUnknownError } from "@/lib/api/error-map";
 import type {
   CreatePropertyPricePayload,
   UpdatePropertyPricePayload,
@@ -17,24 +17,7 @@ export type PriceActionResult =
   | { ok: false; error: string };
 
 function toActionError(error: unknown): PriceActionResult {
-  if (error instanceof ApiError) {
-    return { ok: false, error: mapPriceApiError(error.message) };
-  }
-  if (error instanceof Error) return { ok: false, error: error.message };
-  return { ok: false, error: "Ocurrió un error inesperado." };
-}
-
-function mapPriceApiError(message: string): string {
-  if (message.includes("Cannot delete the only price of a publishable")) {
-    return "No podés eliminar el único precio de una publicación activa, pausada o reservada.";
-  }
-  if (message.includes("Cannot demote the only price")) {
-    return "Debe existir un precio principal mientras haya precios cargados.";
-  }
-  if (message.includes("amount must not be less than 0.01")) {
-    return "El monto debe ser mayor a 0.";
-  }
-  return message;
+  return { ok: false, error: mapUnknownError(error) };
 }
 
 function revalidatePricePaths(propertyId: string, listingId: string) {

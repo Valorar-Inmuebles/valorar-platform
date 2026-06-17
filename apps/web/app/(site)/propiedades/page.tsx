@@ -5,6 +5,7 @@ import { SiteContainer } from "@/components/layout/site-container";
 import { Pagination } from "@/components/property/pagination";
 import { PropertiesListLayout } from "@/components/property/properties-list-layout";
 import { PropertyEmptyState } from "@/components/property/property-empty-state";
+import { PropertyUnavailableState } from "@/components/property/property-unavailable-state";
 import { PropertyGrid } from "@/components/property/property-grid";
 import { PropertyGridSkeleton } from "@/components/property/property-grid-skeleton";
 import { PublicPropertyCard } from "@/components/property/public-property-card";
@@ -71,14 +72,16 @@ async function PropertiesResults({
   searchParams: Record<string, string | string[] | undefined>;
 }) {
   const filters = parsePropertyListSearchParams(searchParams);
-  const { data, meta } = await getPublicProperties(filters);
+  const { data, meta, unavailable } = await getPublicProperties(filters);
 
   return (
     <>
       <PropertyResultsCount total={meta.total} />
 
       <div className="mt-6">
-        {data.length === 0 ? (
+        {unavailable ? (
+          <PropertyUnavailableState />
+        ) : data.length === 0 ? (
           <PropertyEmptyState
             title={
               hasActivePropertyListFilters(filters)

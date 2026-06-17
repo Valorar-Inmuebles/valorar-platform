@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { ApiError } from "@/lib/api/client";
+import { mapUnknownError } from "@/lib/api/error-map";
 import {
   archiveProperty,
   createProperty,
@@ -17,9 +17,7 @@ export type PropertyActionResult =
   | { ok: false; error: string };
 
 function toActionError(error: unknown): PropertyActionResult {
-  if (error instanceof ApiError) return { ok: false, error: error.message };
-  if (error instanceof Error) return { ok: false, error: error.message };
-  return { ok: false, error: "Ocurrió un error inesperado." };
+  return { ok: false, error: mapUnknownError(error) };
 }
 
 export async function createPropertyAction(

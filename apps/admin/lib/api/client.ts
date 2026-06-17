@@ -1,4 +1,5 @@
 import { cookies } from "next/headers";
+import { mapApiErrorMessage } from "@/lib/api/error-map";
 import { ACTIVE_TENANT_ID_COOKIE, ACCESS_TOKEN_COOKIE } from "@/lib/auth/constants";
 
 const DEFAULT_API_URL = "http://localhost:3002";
@@ -90,15 +91,5 @@ export async function apiFetch<T>(
 }
 
 export function parseApiErrorMessage(body: unknown, status: number): string {
-  if (body && typeof body === "object" && "message" in body) {
-    const message = (body as { message: string | string[] }).message;
-    if (Array.isArray(message)) return message.join(". ");
-    if (typeof message === "string" && message.length > 0) return message;
-  }
-
-  if (status === 401) {
-    return "Tu sesión expiró. Volvé a iniciar sesión.";
-  }
-
-  return `Error de API (${status})`;
+  return mapApiErrorMessage(body, status);
 }

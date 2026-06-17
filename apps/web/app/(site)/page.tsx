@@ -37,15 +37,25 @@ export function generateMetadata(): Metadata {
 export const revalidate = 300;
 
 async function FeaturedSection() {
-  const properties = await getFeaturedProperties(3);
+  const { data: properties, unavailable } = await getFeaturedProperties(3);
 
-  return <FeaturedPropertiesSection properties={properties} />;
+  return (
+    <FeaturedPropertiesSection
+      properties={properties}
+      unavailable={unavailable}
+    />
+  );
 }
 
 async function RecentSection() {
-  const properties = await getRecentProperties(8);
+  const { data: properties, unavailable } = await getRecentProperties(8);
 
-  return <RecentPropertiesSection properties={properties} />;
+  return (
+    <RecentPropertiesSection
+      properties={properties}
+      unavailable={unavailable}
+    />
+  );
 }
 
 export default function HomePage() {
