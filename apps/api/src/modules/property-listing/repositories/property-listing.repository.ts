@@ -99,6 +99,50 @@ export class PropertyListingRepository {
     return this.findById(id, tenantId);
   }
 
+  hasActiveListingForProperty(
+    propertyId: string,
+    tenantId: string,
+    excludeListingId?: string,
+  ): Promise<boolean> {
+    return this.prisma.propertyListing
+      .count({
+        where: {
+          propertyId,
+          tenantId,
+          status: 'ACTIVE',
+          ...(excludeListingId ? { NOT: { id: excludeListingId } } : {}),
+        },
+      })
+      .then((count) => count > 0);
+  }
+
+  async countActiveDashboardMetrics(tenantId: string): Promise<{
+    sale: number;
+    rent: number;
+    featured: number;
+  }> {
+    const [sale, rent, temporaryRent, featured] = await Promise.all([
+      this.prisma.propertyListing.count({
+        where: { tenantId, status: 'ACTIVE', listingType: 'SALE' },
+      }),
+      this.prisma.propertyListing.count({
+        where: { tenantId, status: 'ACTIVE', listingType: 'RENT' },
+      }),
+      this.prisma.propertyListing.count({
+        where: { tenantId, status: 'ACTIVE', listingType: 'TEMPORARY_RENT' },
+      }),
+      this.prisma.propertyListing.count({
+        where: { tenantId, status: 'ACTIVE', isFeatured: true },
+      }),
+    ]);
+
+    return {
+      sale,
+      rent: rent + temporaryRent,
+      featured,
+    };
+  }
+
   tenantExists(tenantId: string): Promise<boolean> {
     return this.prisma.tenant
       .count({ where: { id: tenantId } })

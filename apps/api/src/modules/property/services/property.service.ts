@@ -4,6 +4,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { PropertyListingRepository } from '../../property-listing/repositories/property-listing.repository';
 import { CreatePropertyDto } from '../dto/create-property.dto';
 import { PropertyResponseDto } from '../dto/property-response.dto';
 import { UpdatePropertyDto } from '../dto/update-property.dto';
@@ -15,7 +16,10 @@ import {
 
 @Injectable()
 export class PropertyService {
-  constructor(private readonly propertyRepository: PropertyRepository) {}
+  constructor(
+    private readonly propertyRepository: PropertyRepository,
+    private readonly propertyListingRepository: PropertyListingRepository,
+  ) {}
 
   async create(
     dto: CreatePropertyDto,
@@ -63,6 +67,26 @@ export class PropertyService {
     dto: UpdatePropertyDto,
   ): Promise<PropertyResponseDto> {
     if (dto.slug !== undefined) {
+      const existing = await this.propertyRepository.findById(id, tenantId);
+
+      if (!existing) {
+        throw new NotFoundException(`Property with id "${id}" not found`);
+      }
+
+      if (dto.slug !== existing.slug) {
+        const hasActiveListing =
+          await this.propertyListingRepository.hasActiveListingForProperty(
+            id,
+            tenantId,
+          );
+
+        if (hasActiveListing) {
+          throw new BadRequestException(
+            'Cannot change slug while the property has an active listing. Pause or close listings first.',
+          );
+        }
+      }
+
       await this.assertSlugIsUnique(dto.slug, tenantId, id);
     }
 

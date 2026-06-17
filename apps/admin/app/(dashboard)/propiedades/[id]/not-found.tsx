@@ -1,21 +1,27 @@
 import Link from "next/link";
 import { Button } from "@repo/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@repo/ui/card";
+import { PropertyEmptyState } from "@/components/property/property-empty-state";
+import { PageShell } from "@/components/shared/page-shell";
+import { propertyListBreadcrumbs } from "@/lib/property/breadcrumbs";
 
 export default function PropertyNotFound() {
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Propiedad no encontrada</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <p className="text-sm text-muted">
-          La propiedad no existe o no pertenece al tenant configurado.
-        </p>
-        <Link href="/propiedades">
-          <Button variant="secondary">Volver al listado</Button>
-        </Link>
-      </CardContent>
-    </Card>
+    <PageShell
+      title="Propiedad no encontrada"
+      breadcrumbs={[
+        ...propertyListBreadcrumbs(),
+        { label: "No encontrada" },
+      ]}
+    >
+      <PropertyEmptyState
+        title="Propiedad no encontrada"
+        description="La propiedad no existe o no pertenece a la inmobiliaria seleccionada."
+        action={
+          <Link href="/propiedades">
+            <Button variant="secondary">Volver al listado</Button>
+          </Link>
+        }
+      />
+    </PageShell>
   );
 }

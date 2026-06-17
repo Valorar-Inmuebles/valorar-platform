@@ -18,6 +18,7 @@ import {
   ApiOkResponse,
   ApiOperation,
   ApiParam,
+  ApiQuery,
   ApiTags,
 } from '@nestjs/swagger';
 import { CurrentTenant } from '../../../common/decorators/current-tenant.decorator';
@@ -27,9 +28,13 @@ import type { AuthenticatedUser } from '../../../common/types/authenticated-user
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { TenantGuard } from '../../auth/guards/tenant.guard';
 import { CreatePropertyDto } from '../dto/create-property.dto';
+import { PropertyPublishabilityQueryDto } from '../dto/property-publishability-query.dto';
+import { PropertyPublishabilityResponseDto } from '../dto/property-publishability-response.dto';
+import { PropertyPublishabilitySummaryItemDto } from '../dto/property-publishability-summary.dto';
 import { ListPropertiesQueryDto } from '../dto/property-query.dto';
 import { PropertyResponseDto } from '../dto/property-response.dto';
 import { UpdatePropertyDto } from '../dto/update-property.dto';
+import { PropertyPublishabilityService } from '../services/property-publishability.service';
 import { PropertyService } from '../services/property.service';
 
 @ApiTags('Properties')
@@ -37,7 +42,10 @@ import { PropertyService } from '../services/property.service';
 @RequireTenant()
 @Controller('properties')
 export class PropertyController {
-  constructor(private readonly propertyService: PropertyService) {}
+  constructor(
+    private readonly propertyService: PropertyService,
+    private readonly propertyPublishabilityService: PropertyPublishabilityService,
+  ) {}
 
   @Post()
   @ApiOperation({ summary: 'Create a property' })
@@ -75,6 +83,50 @@ export class PropertyController {
     return this.propertyService.findAll(tenantId, query.isActive);
   }
 
+  @Get('publishability-summary')
+  @ApiOperation({
+    summary: 'Batch publishability summary for all tenant properties',
+  })
+  @ApiOkResponse({
+    description: 'Commercial status and public URL per property',
+    type: PropertyPublishabilitySummaryItemDto,
+    isArray: true,
+  })
+  findPublishabilitySummary(@CurrentTenant() tenantId: string) {
+    return this.propertyPublishabilityService.summarizeForTenant(tenantId);
+  }
+
+  @Get(':id/publishability')
+  @ApiOperation({
+    summary: 'Get publication checklist for a property listing',
+  })
+  @ApiParam({ name: 'id', type: String, description: 'Property id' })
+  @ApiQuery({
+    name: 'listingId',
+    required: true,
+    type: String,
+    description: 'Property listing id to evaluate',
+  })
+  @ApiOkResponse({
+    description: 'Publication checklist result',
+    type: PropertyPublishabilityResponseDto,
+  })
+  @ApiBadRequestResponse({ description: 'Invalid query parameters' })
+  @ApiNotFoundResponse({
+    description: 'Property or listing not found for this tenant',
+  })
+  findPublishability(
+    @Param('id') id: string,
+    @Query() query: PropertyPublishabilityQueryDto,
+    @CurrentTenant() tenantId: string,
+  ) {
+    return this.propertyPublishabilityService.evaluate(
+      id,
+      query.listingId,
+      tenantId,
+    );
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Get a property by id' })
   @ApiParam({ name: 'id', type: String })
@@ -92,7 +144,7 @@ export class PropertyController {
     description: 'Property updated successfully',
     type: PropertyResponseDto,
   })
-  @ApiBadRequestResponse({ description: 'Validation error' })
+  @ApiBadRequestResponse({ description: 'Validation error or slug locked' })
   @ApiNotFoundResponse({ description: 'Property not found' })
   @ApiConflictResponse({
     description: 'Slug or internalCode already exists for tenant',

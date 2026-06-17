@@ -1,11 +1,10 @@
-import { Card, CardContent } from "@repo/ui/card";
+import { PropertyDetailSkeleton } from "@/components/property/property-detail-skeleton";
+import { PageShell } from "@/components/shared/page-shell";
 
 export default function PropiedadCaracteristicasLoading() {
   return (
-    <Card>
-      <CardContent className="py-10 text-center text-sm text-muted">
-        Cargando características…
-      </CardContent>
-    </Card>
+    <PageShell title="Características">
+      <PropertyDetailSkeleton />
+    </PageShell>
   );
 }

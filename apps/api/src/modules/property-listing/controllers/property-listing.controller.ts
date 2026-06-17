@@ -101,7 +101,7 @@ export class PropertyListingController {
   })
   @ApiBadRequestResponse({
     description:
-      'Validation error, invalid status transition, or invalid query',
+      'Validation error, invalid status transition, publication checklist incomplete, or invalid query',
   })
   @ApiNotFoundResponse({ description: 'Property listing not found' })
   update(

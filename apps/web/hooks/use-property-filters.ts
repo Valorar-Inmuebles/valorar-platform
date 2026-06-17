@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { useCallback } from "react";
+import { useCallback, useMemo } from "react";
 import {
   buildPropertyListUrl,
   parsePropertyListSearchParams,
@@ -12,8 +12,14 @@ export function usePropertyFilters() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  const filters = parsePropertyListSearchParams(
-    Object.fromEntries(searchParams.entries()),
+  const searchParamsKey = searchParams.toString();
+
+  const filters = useMemo(
+    () =>
+      parsePropertyListSearchParams(
+        Object.fromEntries(searchParams.entries()),
+      ),
+    [searchParamsKey],
   );
 
   const applyFilters = useCallback(

@@ -21,6 +21,8 @@ import { Input } from "@repo/ui/input";
 import { Select } from "@repo/ui/select";
 import { useToast } from "@repo/ui/toast";
 import { PropertyListingStatusBadge } from "@/components/property/property-listing-status-badge";
+import { PublicationChecklistError } from "@/components/property/publication-checklist-error";
+import type { PublicationCheckKey } from "@repo/property-rules";
 import {
   createPropertyListingAction,
   updatePropertyListingAction,
@@ -59,6 +61,10 @@ export function PropertyListingForm({
     listing ? listingToFormValues(listing) : emptyListingFormValues(),
   );
   const [error, setError] = useState<string | null>(null);
+  const [checklistError, setChecklistError] = useState<{
+    message: string;
+    missing: PublicationCheckKey[];
+  } | null>(null);
   const [isPending, startTransition] = useTransition();
 
   const updateField = <K extends keyof PropertyListingFormValues>(
@@ -71,6 +77,7 @@ export function PropertyListingForm({
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError(null);
+    setChecklistError(null);
 
     const validationError =
       mode === "create"
@@ -90,7 +97,16 @@ export function PropertyListingForm({
         );
 
         if (!result.ok) {
-          setError(result.error);
+          if (result.code === "PUBLICATION_CHECKLIST_INCOMPLETE" && result.missing) {
+            setChecklistError({
+              message: result.error,
+              missing: result.missing,
+            });
+            setError(null);
+          } else {
+            setError(result.error);
+            setChecklistError(null);
+          }
           toast.error(result.error);
           return;
         }
@@ -239,15 +255,25 @@ export function PropertyListingForm({
                 options={statusOptions}
               />
               <HelperText>
-                Publicar (ACTIVE) requiere al menos un precio cargado. Archivar
-                usa cierre lógico (CLOSED).
+                Activar (ACTIVE) requiere propiedad activa, al menos una imagen
+                con portada y precio principal. Archivar usa cierre lógico
+                (CLOSED).
               </HelperText>
             </FormField>
           </CardContent>
         </Card>
       ) : null}
 
-      {error ? (
+      {checklistError && listing ? (
+        <FormField state="error">
+          <PublicationChecklistError
+            message={checklistError.message}
+            missing={checklistError.missing}
+            propertyId={propertyId}
+            listingId={listing.id}
+          />
+        </FormField>
+      ) : error ? (
         <FormField state="error">
           <ErrorMessage>{error}</ErrorMessage>
         </FormField>

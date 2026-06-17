@@ -66,6 +66,50 @@ export class PropertyImageRepository {
     });
   }
 
+  hasCoverImage(propertyId: string, tenantId: string): Promise<boolean> {
+    return this.prisma.propertyImage
+      .count({
+        where: { propertyId, tenantId, isCover: true },
+      })
+      .then((count) => count > 0);
+  }
+
+  async getStatsByPropertyIds(
+    tenantId: string,
+    propertyIds: string[],
+  ): Promise<Map<string, { imageCount: number; hasCoverImage: boolean }>> {
+    const stats = new Map<string, { imageCount: number; hasCoverImage: boolean }>();
+
+    for (const propertyId of propertyIds) {
+      stats.set(propertyId, { imageCount: 0, hasCoverImage: false });
+    }
+
+    if (propertyIds.length === 0) {
+      return stats;
+    }
+
+    const images = await this.prisma.propertyImage.findMany({
+      where: { tenantId, propertyId: { in: propertyIds } },
+      select: { propertyId: true, isCover: true },
+    });
+
+    for (const image of images) {
+      const entry = stats.get(image.propertyId);
+
+      if (!entry) {
+        continue;
+      }
+
+      entry.imageCount += 1;
+
+      if (image.isCover) {
+        entry.hasCoverImage = true;
+      }
+    }
+
+    return stats;
+  }
+
   async update(
     id: string,
     tenantId: string,

@@ -1,11 +1,11 @@
-import { Card, CardContent } from "@repo/ui/card";
+import { PropertyListSkeleton } from "@/components/property/property-list-skeleton";
+import { PageShell } from "@/components/shared/page-shell";
+import { propertyListBreadcrumbs } from "@/lib/property/breadcrumbs";
 
 export default function PropiedadesLoading() {
   return (
-    <Card>
-      <CardContent className="py-10 text-center text-sm text-muted">
-        Cargando propiedades…
-      </CardContent>
-    </Card>
+    <PageShell title="Propiedades" breadcrumbs={propertyListBreadcrumbs()}>
+      <PropertyListSkeleton />
+    </PageShell>
   );
 }

@@ -1,58 +1,50 @@
-import { listPropertyImages } from "@/lib/api/property-image";
-import { listPropertyListings } from "@/lib/api/property-listing";
-import { listPropertyPrices } from "@/lib/api/property-price";
+import { getPropertyPublishability } from "@/lib/api/property-publishability";
 import { getProperty } from "@/lib/api/property";
+import { listPropertyListings } from "@/lib/api/property-listing";
 import type { AdminProperty } from "@/lib/api/types/property";
-import type { AdminPropertyImage } from "@/lib/api/types/property-image";
 import type { AdminPropertyListing } from "@/lib/api/types/property-listing";
-import type { AdminPropertyPrice } from "@/lib/api/types/property-price";
 import {
   buildPropertyPublishabilitySummary,
+  mapApiPublishabilityToListing,
+  type ListingPublishability,
   type PropertyPublishabilitySummary,
 } from "@/lib/property/publishability";
 
 export type PropertyPublishabilityContext = {
   property: AdminProperty;
   listings: AdminPropertyListing[];
-  images: AdminPropertyImage[];
   summary: PropertyPublishabilitySummary;
+  publishabilityByListingId: Record<string, ListingPublishability>;
 };
-
-async function loadPricesByListingId(
-  listingIds: string[],
-): Promise<Record<string, AdminPropertyPrice[]>> {
-  const entries = await Promise.all(
-    listingIds.map(async (listingId) => {
-      const prices = await listPropertyPrices(listingId);
-      return [listingId, prices] as const;
-    }),
-  );
-
-  return Object.fromEntries(entries);
-}
 
 export async function loadPropertyPublishabilityContext(
   propertyId: string,
 ): Promise<PropertyPublishabilityContext> {
-  const [property, listings, images] = await Promise.all([
+  const [property, listings] = await Promise.all([
     getProperty(propertyId),
     listPropertyListings({ propertyId }),
-    listPropertyImages(propertyId),
   ]);
 
-  const pricesByListingId = await loadPricesByListingId(
-    listings.map((listing) => listing.id),
+  const publishabilityEntries = await Promise.all(
+    listings.map(async (listing) => {
+      const api = await getPropertyPublishability(propertyId, listing.id);
+      return [
+        listing.id,
+        mapApiPublishabilityToListing(property, listing, api),
+      ] as const;
+    }),
   );
+
+  const publishabilityByListingId = Object.fromEntries(publishabilityEntries);
 
   return {
     property,
     listings,
-    images,
+    publishabilityByListingId,
     summary: buildPropertyPublishabilitySummary(
       property,
       listings,
-      pricesByListingId,
-      images,
+      publishabilityByListingId,
     ),
   };
 }

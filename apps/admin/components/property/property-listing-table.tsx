@@ -105,7 +105,14 @@ export function PropertyListingTable({
                       </Link>
                     </td>
                     <td className="px-4 py-3">
-                      <PropertyListingStatusBadge status={listing.status} />
+                      <div className="flex flex-wrap items-center gap-2">
+                        <PropertyListingStatusBadge status={listing.status} />
+                        {listing.status === "ACTIVE" &&
+                        publishability &&
+                        !publishability.isPublishable ? (
+                          <Badge variant="warning">Activa (no visible)</Badge>
+                        ) : null}
+                      </div>
                     </td>
                     <td className="px-4 py-3 text-muted">
                       {formatExpenses(listing)}

@@ -10,6 +10,7 @@ import { PropertyListingModule } from './modules/property-listing/property-listi
 import { PropertyModule } from './modules/property/property.module';
 import { PropertyPriceModule } from './modules/property-price/property-price.module';
 import { StorageModule } from './modules/storage/storage.module';
+import { AdminDashboardModule } from './modules/admin-dashboard/admin-dashboard.module';
 import { PrismaModule } from './prisma/prisma.module';
 
 @Module({
@@ -24,6 +25,7 @@ import { PrismaModule } from './prisma/prisma.module';
     PropertyFeatureModule,
     PropertyFeatureAssignmentModule,
     PublicPropertyModule,
+    AdminDashboardModule,
   ],
   controllers: [AppController],
   providers: [AppService],

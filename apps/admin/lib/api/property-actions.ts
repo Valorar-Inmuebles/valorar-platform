@@ -60,3 +60,16 @@ export async function archivePropertyAction(
     return toActionError(error);
   }
 }
+
+export async function restorePropertyAction(
+  id: string,
+): Promise<PropertyActionResult> {
+  try {
+    await updateProperty(id, { isActive: true });
+    revalidatePath("/propiedades");
+    revalidatePath(`/propiedades/${id}`);
+    return { ok: true };
+  } catch (error) {
+    return toActionError(error);
+  }
+}
