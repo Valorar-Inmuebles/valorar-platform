@@ -157,6 +157,34 @@ export class PropertyImageRepository {
     });
   }
 
+  async reorderMany(
+    tenantId: string,
+    propertyId: string,
+    items: Array<{ id: string; sortOrder: number }>,
+  ): Promise<PropertyImage[]> {
+    return this.prisma.$transaction(async (tx) => {
+      for (const item of items) {
+        const result = await tx.propertyImage.updateMany({
+          where: { id: item.id, tenantId, propertyId },
+          data: { sortOrder: item.sortOrder },
+        });
+
+        if (result.count === 0) {
+          return [];
+        }
+      }
+
+      return tx.propertyImage.findMany({
+        where: { tenantId, propertyId },
+        orderBy: [
+          { isCover: 'desc' },
+          { sortOrder: 'asc' },
+          { createdAt: 'asc' },
+        ],
+      });
+    });
+  }
+
   tenantExists(tenantId: string): Promise<boolean> {
     return this.prisma.tenant
       .count({ where: { id: tenantId } })

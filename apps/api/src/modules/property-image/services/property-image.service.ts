@@ -2,10 +2,22 @@ import {
   BadRequestException,
   Injectable,
   NotFoundException,
+  ServiceUnavailableException,
 } from '@nestjs/common';
 import { PropertyRepository } from '../../property/repositories/property.repository';
+import { isStorageConfigured } from '../../storage/storage.config';
+import {
+  ALLOWED_IMAGE_MIME_TYPES,
+  MAX_PROPERTY_IMAGE_FILE_SIZE_BYTES,
+  MAX_PROPERTY_IMAGES,
+} from '../../storage/storage.constants';
+import { S3CompatibleStorageService } from '../../storage/services/s3-compatible-storage.service';
+import { StorageUploadUrlResponseDto } from '../../storage/dto/storage-upload-url-response.dto';
+import { buildPropertyImageStorageKey } from '../../storage/utils/storage-key.util';
 import { CreatePropertyImageDto } from '../dto/create-property-image.dto';
+import { CreatePropertyImageUploadUrlDto } from '../dto/create-property-image-upload-url.dto';
 import { PropertyImageResponseDto } from '../dto/property-image-response.dto';
+import { ReorderPropertyImagesDto } from '../dto/reorder-property-images.dto';
 import { UpdatePropertyImageDto } from '../dto/update-property-image.dto';
 import { PropertyImageRepository } from '../repositories/property-image.repository';
 
@@ -14,7 +26,27 @@ export class PropertyImageService {
   constructor(
     private readonly propertyImageRepository: PropertyImageRepository,
     private readonly propertyRepository: PropertyRepository,
+    private readonly storageService: S3CompatibleStorageService,
   ) {}
+
+  async createUploadUrl(
+    dto: CreatePropertyImageUploadUrlDto,
+    tenantId: string,
+  ): Promise<StorageUploadUrlResponseDto> {
+    this.assertStorageAvailable();
+    await this.assertTenantExists(tenantId);
+    await this.assertPropertyIsActiveForImage(dto.propertyId, tenantId);
+    await this.assertImageLimitNotReached(dto.propertyId, tenantId);
+
+    const storageKey = buildPropertyImageStorageKey(
+      tenantId,
+      dto.propertyId,
+      dto.mimeType,
+      dto.filename,
+    );
+
+    return this.storageService.getSignedUploadUrl(storageKey, dto.mimeType);
+  }
 
   async create(
     dto: CreatePropertyImageDto,
@@ -22,6 +54,8 @@ export class PropertyImageService {
   ): Promise<PropertyImageResponseDto> {
     await this.assertTenantExists(tenantId);
     await this.assertPropertyIsActiveForImage(dto.propertyId, tenantId);
+    await this.assertImageLimitNotReached(dto.propertyId, tenantId);
+    this.assertValidImageMetadata(dto.mimeType, dto.fileSize);
 
     const existingCount = await this.propertyImageRepository.countByProperty(
       dto.propertyId,
@@ -29,17 +63,22 @@ export class PropertyImageService {
     );
 
     const isCover = existingCount === 0 ? true : (dto.isCover ?? false);
+    const url =
+      dto.url ??
+      (isStorageConfigured()
+        ? this.storageService.getPublicUrl(dto.storageKey)
+        : undefined);
 
     const image = await this.propertyImageRepository.createWithCoverHandling(
       {
         tenantId,
         propertyId: dto.propertyId,
         storageKey: dto.storageKey,
-        url: dto.url,
+        url,
         altText: dto.altText,
         mimeType: dto.mimeType,
         fileSize: dto.fileSize,
-        sortOrder: dto.sortOrder ?? 0,
+        sortOrder: dto.sortOrder ?? existingCount,
         isCover,
       },
       isCover,
@@ -72,6 +111,59 @@ export class PropertyImageService {
     }
 
     return PropertyImageResponseDto.fromEntity(image);
+  }
+
+  async reorder(
+    dto: ReorderPropertyImagesDto,
+    tenantId: string,
+  ): Promise<PropertyImageResponseDto[]> {
+    const firstImage = await this.propertyImageRepository.findById(
+      dto.items[0].id,
+      tenantId,
+    );
+
+    if (!firstImage) {
+      throw new NotFoundException(
+        `Property image with id "${dto.items[0].id}" not found`,
+      );
+    }
+
+    const propertyId = firstImage.propertyId;
+
+    await this.assertPropertyBelongsToTenant(propertyId, tenantId);
+
+    const existingImages = await this.propertyImageRepository.findMany(
+      tenantId,
+      { propertyId },
+    );
+
+    if (existingImages.length === 0) {
+      throw new NotFoundException(
+        `No property images found for property "${propertyId}"`,
+      );
+    }
+
+    const existingIds = new Set(existingImages.map((image) => image.id));
+
+    for (const item of dto.items) {
+      if (!existingIds.has(item.id)) {
+        throw new BadRequestException(
+          `Property image with id "${item.id}" does not belong to property "${propertyId}"`,
+        );
+      }
+    }
+
+    const images = await this.propertyImageRepository.reorderMany(
+      tenantId,
+      propertyId,
+      dto.items,
+    );
+
+    if (images.length === 0) {
+      throw new BadRequestException('Unable to reorder property images');
+    }
+
+    return images.map(PropertyImageResponseDto.fromEntity);
   }
 
   async update(
@@ -129,6 +221,14 @@ export class PropertyImageService {
       throw new NotFoundException(`Property image with id "${id}" not found`);
     }
 
+    if (isStorageConfigured()) {
+      try {
+        await this.storageService.deleteObject(existing.storageKey);
+      } catch {
+        // DB record is already removed; storage cleanup failure should not block the response.
+      }
+    }
+
     return PropertyImageResponseDto.fromEntity(existing);
   }
 
@@ -174,6 +274,52 @@ export class PropertyImageService {
     if (!property.isActive) {
       throw new BadRequestException(
         'Cannot create a property image for an archived property (isActive = false). Restore the property before adding images.',
+      );
+    }
+  }
+
+  private async assertImageLimitNotReached(
+    propertyId: string,
+    tenantId: string,
+  ): Promise<void> {
+    const count = await this.propertyImageRepository.countByProperty(
+      propertyId,
+      tenantId,
+    );
+
+    if (count >= MAX_PROPERTY_IMAGES) {
+      throw new BadRequestException(
+        `This property already has the maximum of ${MAX_PROPERTY_IMAGES} images.`,
+      );
+    }
+  }
+
+  private assertValidImageMetadata(
+    mimeType?: string,
+    fileSize?: number,
+  ): void {
+    if (
+      mimeType &&
+      !ALLOWED_IMAGE_MIME_TYPES.includes(
+        mimeType as (typeof ALLOWED_IMAGE_MIME_TYPES)[number],
+      )
+    ) {
+      throw new BadRequestException(
+        `Unsupported mime type "${mimeType}". Allowed: ${ALLOWED_IMAGE_MIME_TYPES.join(', ')}`,
+      );
+    }
+
+    if (fileSize != null && fileSize > MAX_PROPERTY_IMAGE_FILE_SIZE_BYTES) {
+      throw new BadRequestException(
+        `File size exceeds the maximum of ${MAX_PROPERTY_IMAGE_FILE_SIZE_BYTES} bytes.`,
+      );
+    }
+  }
+
+  private assertStorageAvailable(): void {
+    if (!isStorageConfigured()) {
+      throw new ServiceUnavailableException(
+        'Storage is not configured on this server.',
       );
     }
   }

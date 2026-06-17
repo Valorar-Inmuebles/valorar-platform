@@ -5,15 +5,23 @@ import { ApiError } from "@/lib/api/client";
 import {
   createPropertyImage,
   deletePropertyImage,
+  getPropertyImageUploadUrl,
+  reorderPropertyImages,
   updatePropertyImage,
 } from "@/lib/api/property-image";
 import type {
   CreatePropertyImagePayload,
+  PropertyImageUploadUrlResponse,
+  ReorderPropertyImageItem,
   UpdatePropertyImagePayload,
 } from "@/lib/api/types/property-image";
 
 export type ImageActionResult =
   | { ok: true; id?: string }
+  | { ok: false; error: string };
+
+export type UploadUrlActionResult =
+  | { ok: true; data: PropertyImageUploadUrlResponse }
   | { ok: false; error: string };
 
 function toActionError(error: unknown): ImageActionResult {
@@ -28,12 +36,30 @@ function mapImageApiError(message: string): string {
   if (message.includes("archived property")) {
     return "No podés agregar imágenes a una propiedad archivada. Restaurala primero.";
   }
+  if (message.includes("Storage is not configured")) {
+    return "El almacenamiento no está configurado en el servidor.";
+  }
+  if (message.includes("maximum of")) {
+    return "Alcanzaste el límite máximo de imágenes para esta propiedad.";
+  }
   return message;
 }
 
 function revalidateImagePaths(propertyId: string) {
   revalidatePath(`/propiedades/${propertyId}/imagenes`);
   revalidatePath(`/propiedades/${propertyId}`);
+}
+
+export async function getPropertyImageUploadUrlAction(
+  propertyId: string,
+  payload: { mimeType: string; filename?: string },
+): Promise<UploadUrlActionResult> {
+  try {
+    const data = await getPropertyImageUploadUrl(propertyId, payload);
+    return { ok: true, data };
+  } catch (error) {
+    return toActionError(error) as UploadUrlActionResult;
+  }
 }
 
 export async function createPropertyImageAction(
@@ -69,6 +95,19 @@ export async function markPropertyImageCoverAction(
 ): Promise<ImageActionResult> {
   try {
     await updatePropertyImage(imageId, { isCover: true });
+    revalidateImagePaths(propertyId);
+    return { ok: true };
+  } catch (error) {
+    return toActionError(error);
+  }
+}
+
+export async function reorderPropertyImagesAction(
+  propertyId: string,
+  items: ReorderPropertyImageItem[],
+): Promise<ImageActionResult> {
+  try {
+    await reorderPropertyImages(items);
     revalidateImagePaths(propertyId);
     return { ok: true };
   } catch (error) {
