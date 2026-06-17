@@ -5,6 +5,7 @@ import {
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { PropertyRepository } from '../../property/repositories/property.repository';
+import { ListingOperationalTrustService } from '../../property-listing/services/listing-operational-trust.service';
 import { isStorageConfigured } from '../../storage/storage.config';
 import {
   ALLOWED_IMAGE_MIME_TYPES,
@@ -27,6 +28,7 @@ export class PropertyImageService {
     private readonly propertyImageRepository: PropertyImageRepository,
     private readonly propertyRepository: PropertyRepository,
     private readonly storageService: S3CompatibleStorageService,
+    private readonly listingOperationalTrustService: ListingOperationalTrustService,
   ) {}
 
   async createUploadUrl(
@@ -197,6 +199,11 @@ export class PropertyImageService {
       throw new NotFoundException(`Property image with id "${id}" not found`);
     }
 
+    await this.listingOperationalTrustService.syncActiveListingsAfterDegradation(
+      existing.propertyId,
+      tenantId,
+    );
+
     return PropertyImageResponseDto.fromEntity(image);
   }
 
@@ -228,6 +235,11 @@ export class PropertyImageService {
         // DB record is already removed; storage cleanup failure should not block the response.
       }
     }
+
+    await this.listingOperationalTrustService.syncActiveListingsAfterDegradation(
+      existing.propertyId,
+      tenantId,
+    );
 
     return PropertyImageResponseDto.fromEntity(existing);
   }

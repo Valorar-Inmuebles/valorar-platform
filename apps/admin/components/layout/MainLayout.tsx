@@ -23,7 +23,11 @@ export function MainLayout({
   return (
     <SidebarProvider>
       <div className="flex min-h-screen bg-background text-foreground antialiased">
-        <MainSidebar navContext={navContext} />
+        <MainSidebar
+          navContext={navContext}
+          user={session.user}
+          activeTenantId={activeTenantId}
+        />
 
         <div className="flex min-w-0 flex-1 flex-col">
           <div className="sticky top-0 z-30 bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/70">

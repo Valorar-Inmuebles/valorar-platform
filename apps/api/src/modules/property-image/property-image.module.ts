@@ -1,5 +1,6 @@
 import { Module, forwardRef } from '@nestjs/common';
 import { AuthModule } from '../auth/auth.module';
+import { PropertyListingModule } from '../property-listing/property-listing.module';
 import { PropertyModule } from '../property/property.module';
 import { StorageModule } from '../storage/storage.module';
 import { PropertyImageController } from './controllers/property-image.controller';
@@ -7,7 +8,12 @@ import { PropertyImageRepository } from './repositories/property-image.repositor
 import { PropertyImageService } from './services/property-image.service';
 
 @Module({
-  imports: [AuthModule, forwardRef(() => PropertyModule), StorageModule],
+  imports: [
+    AuthModule,
+    forwardRef(() => PropertyModule),
+    forwardRef(() => PropertyListingModule),
+    StorageModule,
+  ],
   controllers: [PropertyImageController],
   providers: [PropertyImageService, PropertyImageRepository],
   exports: [PropertyImageService, PropertyImageRepository],

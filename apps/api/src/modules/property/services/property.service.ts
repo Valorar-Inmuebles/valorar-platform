@@ -5,6 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PropertyListingRepository } from '../../property-listing/repositories/property-listing.repository';
+import { ListingOperationalTrustService } from '../../property-listing/services/listing-operational-trust.service';
 import { CreatePropertyDto } from '../dto/create-property.dto';
 import { PropertyResponseDto } from '../dto/property-response.dto';
 import { UpdatePropertyDto } from '../dto/update-property.dto';
@@ -19,6 +20,7 @@ export class PropertyService {
   constructor(
     private readonly propertyRepository: PropertyRepository,
     private readonly propertyListingRepository: PropertyListingRepository,
+    private readonly listingOperationalTrustService: ListingOperationalTrustService,
   ) {}
 
   async create(
@@ -109,6 +111,13 @@ export class PropertyService {
       throw new NotFoundException(`Property with id "${id}" not found`);
     }
 
+    if (dto.isActive === false) {
+      await this.listingOperationalTrustService.syncActiveListingsAfterDegradation(
+        id,
+        tenantId,
+      );
+    }
+
     return PropertyResponseDto.fromEntity(property);
   }
 
@@ -118,6 +127,11 @@ export class PropertyService {
     if (!property) {
       throw new NotFoundException(`Property with id "${id}" not found`);
     }
+
+    await this.listingOperationalTrustService.syncActiveListingsAfterDegradation(
+      id,
+      tenantId,
+    );
 
     return PropertyResponseDto.fromEntity(property);
   }
