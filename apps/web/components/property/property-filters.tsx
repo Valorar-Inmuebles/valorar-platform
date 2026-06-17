@@ -67,6 +67,20 @@ function parseOptionalNumber(value: string): number | undefined {
   return Number.isNaN(parsed) ? undefined : parsed;
 }
 
+function isSameFormState(a: FilterFormState, b: FilterFormState): boolean {
+  return (
+    a.listingType === b.listingType &&
+    a.propertyType === b.propertyType &&
+    a.city === b.city &&
+    a.neighborhood === b.neighborhood &&
+    a.priceMin === b.priceMin &&
+    a.priceMax === b.priceMax &&
+    a.currency === b.currency &&
+    a.bedrooms === b.bedrooms &&
+    a.bathrooms === b.bathrooms
+  );
+}
+
 function parseOptionalIntField(value: string): number | undefined {
   if (!value.trim()) {
     return undefined;
@@ -82,7 +96,11 @@ export function PropertyFilters({ onApplied, className = "" }: PropertyFiltersPr
   const [form, setForm] = useState<FilterFormState>(() => filtersToFormState(filters));
 
   useEffect(() => {
-    setForm(filtersToFormState(filters));
+    const nextForm = filtersToFormState(filters);
+
+    setForm((current) =>
+      isSameFormState(current, nextForm) ? current : nextForm,
+    );
   }, [filters]);
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {

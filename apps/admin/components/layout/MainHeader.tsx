@@ -43,8 +43,12 @@ export function MainHeader({ user, activeTenantId }: MainHeaderProps) {
         <p className="truncate text-xs text-muted">{user.email}</p>
       </div>
 
-      <div className="hidden max-w-[220px] lg:block">
-        <TenantSwitcher user={user} activeTenantId={activeTenantId} />
+      <div className="hidden min-w-0 max-w-[240px] md:block lg:max-w-[280px]">
+        <TenantSwitcher
+          user={user}
+          activeTenantId={activeTenantId}
+          highlighted={user.role === "SUPER_ADMIN" && !activeTenantId}
+        />
       </div>
 
       <div

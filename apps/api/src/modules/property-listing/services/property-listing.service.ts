@@ -4,7 +4,12 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import {
+  evaluateActivationChecklist,
+  PUBLICATION_CHECKLIST_INCOMPLETE,
+} from '@repo/property-rules';
 import { PropertyListingStatus } from '../../../../generated/prisma/client';
+import { PropertyImageRepository } from '../../property-image/repositories/property-image.repository';
 import { PropertyPriceRepository } from '../../property-price/repositories/property-price.repository';
 import { PropertyRepository } from '../../property/repositories/property.repository';
 import { CreatePropertyListingDto } from '../dto/create-property-listing.dto';
@@ -29,6 +34,7 @@ export class PropertyListingService {
     private readonly propertyListingRepository: PropertyListingRepository,
     private readonly propertyRepository: PropertyRepository,
     private readonly propertyPriceRepository: PropertyPriceRepository,
+    private readonly propertyImageRepository: PropertyImageRepository,
   ) {}
 
   async create(
@@ -108,12 +114,11 @@ export class PropertyListingService {
       dto.status === PropertyListingStatus.ACTIVE &&
       existing.status !== PropertyListingStatus.ACTIVE
     ) {
-      await this.assertPropertyIsActiveForListing(
+      await this.assertPublicationChecklistForActivation(
         existing.propertyId,
+        id,
         tenantId,
-        'activate',
       );
-      await this.assertListingHasAtLeastOnePrice(id, tenantId);
     }
 
     const updateData = this.toUpdateData(existing, dto);
@@ -213,19 +218,43 @@ export class PropertyListingService {
     }
   }
 
-  private async assertListingHasAtLeastOnePrice(
+  private async assertPublicationChecklistForActivation(
+    propertyId: string,
     listingId: string,
     tenantId: string,
   ): Promise<void> {
-    const priceCount = await this.propertyPriceRepository.countByListing(
-      listingId,
+    const property = await this.propertyRepository.findById(
+      propertyId,
       tenantId,
     );
 
-    if (priceCount === 0) {
+    if (!property) {
       throw new BadRequestException(
-        'Cannot activate a property listing without at least one price. Add a price before activating.',
+        `Property with id "${propertyId}" not found for this tenant`,
       );
+    }
+
+    const [imageCount, hasCoverImage, hasPrimaryPrice] = await Promise.all([
+      this.propertyImageRepository.countByProperty(propertyId, tenantId),
+      this.propertyImageRepository.hasCoverImage(propertyId, tenantId),
+      this.propertyPriceRepository.hasPrimaryPrice(listingId, tenantId),
+    ]);
+
+    const result = evaluateActivationChecklist({
+      propertyIsActive: property.isActive,
+      imageCount,
+      hasCoverImage,
+      listingStatus: 'DRAFT',
+      hasPrimaryPrice,
+    });
+
+    if (!result.isPublishable) {
+      throw new BadRequestException({
+        message:
+          'Cannot activate listing: publication checklist incomplete.',
+        code: PUBLICATION_CHECKLIST_INCOMPLETE,
+        missing: result.missing,
+      });
     }
   }
 

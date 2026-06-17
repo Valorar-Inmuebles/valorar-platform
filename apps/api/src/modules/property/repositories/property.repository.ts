@@ -58,6 +58,20 @@ export class PropertyRepository {
     });
   }
 
+  count(
+    tenantId: string,
+    options: FindManyPropertiesOptions = {},
+  ): Promise<number> {
+    const { isActive } = options;
+
+    return this.prisma.property.count({
+      where: {
+        tenantId,
+        ...(isActive !== undefined ? { isActive } : {}),
+      },
+    });
+  }
+
   async update(
     id: string,
     tenantId: string,

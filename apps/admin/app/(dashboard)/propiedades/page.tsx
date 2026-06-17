@@ -1,20 +1,62 @@
 import Link from "next/link";
 import { Button } from "@repo/ui/button";
-import { Card, CardContent } from "@repo/ui/card";
 import { PropertyEmptyState } from "@/components/property/property-empty-state";
-import { PropertyTable } from "@/components/property/property-table";
+import { PropertyListView } from "@/components/property/property-list-view";
+import { SuperAdminTenantEmptyState } from "@/components/shared/super-admin-tenant-empty-state";
 import { ApiErrorPanel } from "@/components/shared/api-error-panel";
 import { PageShell } from "@/components/shared/page-shell";
 import { ApiError } from "@/lib/api/client";
+import { getPropertiesPublishabilitySummary } from "@/lib/api/property-publishability-summary";
 import { listProperties } from "@/lib/api/property";
+import { resolveActiveTenantGate } from "@/lib/auth/require-active-tenant";
+import { getActiveTenantId } from "@/lib/auth/active-tenant";
+import { getSession } from "@/lib/auth/session";
 import { propertyListBreadcrumbs } from "@/lib/property/breadcrumbs";
+import { parsePropertyListHref } from "@/lib/property/property-list-url";
 
-export default async function PropiedadesPage() {
-  let properties;
+type PropiedadesPageProps = {
+  searchParams: Promise<{ estado?: string }>;
+};
+
+export default async function PropiedadesPage({
+  searchParams,
+}: PropiedadesPageProps) {
+  const { estado } = await searchParams;
+  const initialCommercialFilter = parsePropertyListHref(estado);
+
+  const [session, activeTenantId] = await Promise.all([
+    getSession(),
+    getActiveTenantId(),
+  ]);
+
+  const tenantGate = session
+    ? resolveActiveTenantGate(session.user, activeTenantId)
+    : { ok: true as const };
+
+  if (!tenantGate.ok) {
+    return (
+      <PageShell title="Propiedades" breadcrumbs={propertyListBreadcrumbs()}>
+        <SuperAdminTenantEmptyState />
+      </PageShell>
+    );
+  }
+
+  let properties;  let summaryByPropertyId: Record<
+    string,
+    Awaited<ReturnType<typeof getPropertiesPublishabilitySummary>>[number]
+  > = {};
   let errorMessage: string | null = null;
 
   try {
-    properties = await listProperties();
+    const [propertyList, summaries] = await Promise.all([
+      listProperties(),
+      getPropertiesPublishabilitySummary(),
+    ]);
+
+    properties = propertyList;
+    summaryByPropertyId = Object.fromEntries(
+      summaries.map((summary) => [summary.propertyId, summary]),
+    );
   } catch (error) {
     errorMessage =
       error instanceof ApiError
@@ -47,19 +89,11 @@ export default async function PropiedadesPage() {
           }
         />
       ) : properties ? (
-        <PropertyTable properties={properties} />
-      ) : null}
-
-      {!errorMessage && properties && properties.length > 0 ? (
-        <Card className="mt-4">
-          <CardContent className="py-4">
-            <p className="text-xs text-muted">
-              {properties.length}{" "}
-              {properties.length === 1 ? "propiedad" : "propiedades"} en total.
-              Archivar desactiva la propiedad (`isActive = false`).
-            </p>
-          </CardContent>
-        </Card>
+        <PropertyListView
+          properties={properties}
+          summaryByPropertyId={summaryByPropertyId}
+          initialCommercialFilter={initialCommercialFilter}
+        />
       ) : null}
     </PageShell>
   );

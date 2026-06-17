@@ -9,9 +9,14 @@ import type { AuthUser } from "@/lib/auth/types";
 type TenantSwitcherProps = {
   user: AuthUser;
   activeTenantId: string | null;
+  highlighted?: boolean;
 };
 
-export function TenantSwitcher({ user, activeTenantId }: TenantSwitcherProps) {
+export function TenantSwitcher({
+  user,
+  activeTenantId,
+  highlighted = false,
+}: TenantSwitcherProps) {
   const router = useRouter();
   const [tenantId, setTenantId] = useState(activeTenantId ?? "");
   const [error, setError] = useState<string | null>(null);
@@ -58,7 +63,14 @@ export function TenantSwitcher({ user, activeTenantId }: TenantSwitcherProps) {
   }
 
   return (
-    <form onSubmit={handleSave} className="space-y-2">
+    <form
+      onSubmit={handleSave}
+      className={`space-y-2 rounded-lg p-2 ${
+        highlighted
+          ? "border border-amber-300 bg-amber-50/80 ring-2 ring-amber-200/60"
+          : ""
+      }`}
+    >
       <Input
         id="active-tenant-id"
         label="Tenant activo (SUPER_ADMIN)"

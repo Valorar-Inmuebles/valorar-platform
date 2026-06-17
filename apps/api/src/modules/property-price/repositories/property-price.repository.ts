@@ -62,6 +62,34 @@ export class PropertyPriceRepository {
     });
   }
 
+  hasPrimaryPrice(listingId: string, tenantId: string): Promise<boolean> {
+    return this.prisma.propertyPrice
+      .count({
+        where: { listingId, tenantId, isPrimary: true },
+      })
+      .then((count) => count > 0);
+  }
+
+  async getListingIdsWithPrimaryPrice(
+    tenantId: string,
+    listingIds: string[],
+  ): Promise<Set<string>> {
+    if (listingIds.length === 0) {
+      return new Set();
+    }
+
+    const rows = await this.prisma.propertyPrice.findMany({
+      where: {
+        tenantId,
+        listingId: { in: listingIds },
+        isPrimary: true,
+      },
+      select: { listingId: true },
+    });
+
+    return new Set(rows.map((row) => row.listingId));
+  }
+
   async update(
     id: string,
     tenantId: string,
