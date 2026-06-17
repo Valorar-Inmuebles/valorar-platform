@@ -14,6 +14,7 @@ export { PropertyPriceForm } from "./property-price-form";
 export { PropertyPriceManager } from "./property-price-manager";
 export { PropertyPriceTable } from "./property-price-table";
 export { PropertyPublishabilityPanel } from "./property-publishability-panel";
+export { PublicationChecklistError } from "./publication-checklist-error";
 export { PropertyStatusBadge } from "./property-status-badge";
 export { PropertySubNav } from "./property-sub-nav";
 export { PropertyTable } from "./property-table";

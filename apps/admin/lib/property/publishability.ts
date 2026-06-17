@@ -1,21 +1,17 @@
 import type { PropertyListingType } from "@repo/shared-types";
+import type { PublicationCheckKey } from "@repo/property-rules";
+import type { PropertyPublishabilityResponse } from "@/lib/api/types/property-publishability";
 import type { AdminProperty } from "@/lib/api/types/property";
-import type { AdminPropertyImage } from "@/lib/api/types/property-image";
 import type { AdminPropertyListing } from "@/lib/api/types/property-listing";
-import type { AdminPropertyPrice } from "@/lib/api/types/property-price";
 import { getListingTypeLabel } from "@/lib/format/listing-labels";
 import type { PropertyStatusVariant } from "@/lib/property/navigation";
-
-export type PublishabilityRequirement =
-  | "property-active"
-  | "listing-active"
-  | "primary-price"
-  | "cover-image";
+import { resolvePublicationCheckHref } from "@/lib/property/publication-check-keys";
 
 export type PublishabilityCheckItem = {
-  id: PublishabilityRequirement;
+  key: PublicationCheckKey;
   label: string;
-  met: boolean;
+  passed: boolean;
+  message?: string;
   href?: string;
 };
 
@@ -24,7 +20,9 @@ export type ListingPublishability = {
   listingType: PropertyListingType;
   listingTypeLabel: string;
   isPublishable: boolean;
+  progress: number;
   items: PublishabilityCheckItem[];
+  missing: PublicationCheckKey[];
   publicWebUrl: string | null;
 };
 
@@ -33,7 +31,6 @@ export type PropertyPublishabilitySummary = {
   slug: string;
   statusVariant: PropertyStatusVariant;
   isAnyPublishable: boolean;
-  hasCoverImage: boolean;
   listings: ListingPublishability[];
 };
 
@@ -65,78 +62,6 @@ export function buildPublicPropertyUrl(
   return url.toString();
 }
 
-function hasPrimaryPrice(prices: AdminPropertyPrice[]): boolean {
-  return prices.some((price) => price.isPrimary);
-}
-
-function hasCoverImage(images: AdminPropertyImage[]): boolean {
-  return images.some((image) => image.isCover);
-}
-
-function buildListingChecklist(
-  property: AdminProperty,
-  listing: AdminPropertyListing,
-  prices: AdminPropertyPrice[],
-  images: AdminPropertyImage[],
-): PublishabilityCheckItem[] {
-  const propertyId = property.id;
-
-  return [
-    {
-      id: "property-active",
-      label: "Propiedad activa",
-      met: property.isActive,
-      href: property.isActive ? undefined : `/propiedades/${propertyId}`,
-    },
-    {
-      id: "listing-active",
-      label: `Publicación ${getListingTypeLabel(listing.listingType)} activa`,
-      met: listing.status === "ACTIVE",
-      href:
-        listing.status === "ACTIVE"
-          ? undefined
-          : `/propiedades/${propertyId}/publicaciones/${listing.id}`,
-    },
-    {
-      id: "primary-price",
-      label: "Precio principal definido",
-      met: hasPrimaryPrice(prices),
-      href: hasPrimaryPrice(prices)
-        ? undefined
-        : `/propiedades/${propertyId}/publicaciones/${listing.id}/precios`,
-    },
-    {
-      id: "cover-image",
-      label: "Imagen portada definida",
-      met: hasCoverImage(images),
-      href: hasCoverImage(images)
-        ? undefined
-        : `/propiedades/${propertyId}/imagenes`,
-    },
-  ];
-}
-
-export function evaluateListingPublishability(
-  property: AdminProperty,
-  listing: AdminPropertyListing,
-  prices: AdminPropertyPrice[],
-  images: AdminPropertyImage[],
-): ListingPublishability {
-  const items = buildListingChecklist(property, listing, prices, images);
-  const isPublishable = items.every((item) => item.met);
-
-  return {
-    listingId: listing.id,
-    listingType: listing.listingType,
-    listingTypeLabel: getListingTypeLabel(listing.listingType),
-    isPublishable,
-    items,
-    publicWebUrl: isPublishable
-      ? buildPublicPropertyUrl(property.slug, listing.listingType)
-      : null,
-  };
-}
-
 export function resolvePropertyStatusVariant(
   property: AdminProperty,
   isAnyPublishable: boolean,
@@ -148,19 +73,53 @@ export function resolvePropertyStatusVariant(
   return isAnyPublishable ? "published" : "commercial-draft";
 }
 
+export function mapApiPublishabilityToListing(
+  property: AdminProperty,
+  listing: AdminPropertyListing,
+  api: PropertyPublishabilityResponse,
+): ListingPublishability {
+  const items: PublishabilityCheckItem[] = api.checks.map((check) => ({
+    key: check.key,
+    label: check.label,
+    passed: check.passed,
+    message: check.message,
+    href: check.passed
+      ? undefined
+      : resolvePublicationCheckHref(check.key, property.id, listing.id),
+  }));
+
+  return {
+    listingId: listing.id,
+    listingType: listing.listingType,
+    listingTypeLabel: getListingTypeLabel(listing.listingType),
+    isPublishable: api.isPublishable,
+    progress: api.progress,
+    items,
+    missing: api.missing,
+    publicWebUrl: api.isPublishable
+      ? buildPublicPropertyUrl(property.slug, listing.listingType)
+      : null,
+  };
+}
+
 export function buildPropertyPublishabilitySummary(
   property: AdminProperty,
   listings: AdminPropertyListing[],
-  pricesByListingId: Record<string, AdminPropertyPrice[]>,
-  images: AdminPropertyImage[],
+  publishabilityByListingId: Record<string, ListingPublishability>,
 ): PropertyPublishabilitySummary {
-  const listingPublishability = listings.map((listing) =>
-    evaluateListingPublishability(
-      property,
-      listing,
-      pricesByListingId[listing.id] ?? [],
-      images,
-    ),
+  const listingPublishability = listings.map(
+    (listing) =>
+      publishabilityByListingId[listing.id] ??
+      ({
+        listingId: listing.id,
+        listingType: listing.listingType,
+        listingTypeLabel: getListingTypeLabel(listing.listingType),
+        isPublishable: false,
+        progress: 0,
+        items: [],
+        missing: [],
+        publicWebUrl: null,
+      } satisfies ListingPublishability),
   );
 
   const isAnyPublishable = listingPublishability.some(
@@ -172,7 +131,6 @@ export function buildPropertyPublishabilitySummary(
     slug: property.slug,
     statusVariant: resolvePropertyStatusVariant(property, isAnyPublishable),
     isAnyPublishable,
-    hasCoverImage: hasCoverImage(images),
     listings: listingPublishability,
   };
 }

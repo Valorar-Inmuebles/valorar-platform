@@ -19,12 +19,8 @@ export default async function PropiedadPublicacionesPage({
   const { id } = await params;
 
   try {
-    const { property, listings, summary: publishability } =
+    const { property, listings, publishabilityByListingId } =
       await loadPropertyPublishabilityContext(id);
-
-    const publishabilityByListingId = Object.fromEntries(
-      publishability.listings.map((listing) => [listing.listingId, listing]),
-    );
 
     return (
       <PropertyPageShell
