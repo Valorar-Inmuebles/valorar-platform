@@ -12,6 +12,7 @@ import { cn } from "@/lib/cn";
 const TABS: Array<{ id: PropertySubNavTab; label: string }> = [
   { id: "general", label: "Datos generales" },
   { id: "publicaciones", label: "Publicaciones" },
+  { id: "caracteristicas", label: "Características" },
   { id: "imagenes", label: "Imágenes" },
 ];
 

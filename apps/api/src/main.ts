@@ -39,6 +39,8 @@ async function bootstrap() {
         .addTag('Property Listings')
         .addTag('Property Prices')
         .addTag('Property Images')
+        .addTag('Property Features')
+        .addTag('Property Feature Assignments')
         .addTag('Public Properties')
         .build();
 

@@ -1,13 +1,17 @@
-import type { PropertyType } from "@repo/shared-types";
+import type {
+  Orientation,
+  PropertyBrightness,
+  PropertyCondition,
+  PropertyLayout,
+  PropertyType,
+} from "@repo/shared-types";
 
-export type PropertyCondition =
-  | "NEW"
-  | "EXCELLENT"
-  | "VERY_GOOD"
-  | "GOOD"
-  | "REGULAR"
-  | "TO_RENOVATE"
-  | "UNDER_CONSTRUCTION";
+export type {
+  Orientation,
+  PropertyBrightness,
+  PropertyCondition,
+  PropertyLayout,
+};
 
 export type AdminProperty = {
   id: string;
@@ -43,6 +47,9 @@ export type AdminProperty = {
   halfBathrooms: number | null;
   parkingSpaces: number | null;
   yearBuilt: number | null;
+  orientation: Orientation | null;
+  layout: PropertyLayout | null;
+  brightness: PropertyBrightness | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -64,10 +71,22 @@ export type CreatePropertyPayload = {
   province?: string;
   country?: string;
   postalCode?: string;
+  latitude?: number;
+  longitude?: number;
+  rooms?: number;
   bedrooms?: number;
   bathrooms?: number;
+  halfBathrooms?: number;
+  parkingSpaces?: number;
   totalArea?: number;
   coveredArea?: number;
+  uncoveredArea?: number;
+  lotFront?: number;
+  lotDepth?: number;
+  yearBuilt?: number;
+  orientation?: Orientation;
+  layout?: PropertyLayout;
+  brightness?: PropertyBrightness;
 };
 
 export type UpdatePropertyPayload = Partial<
@@ -84,12 +103,26 @@ export type PropertyFormValues = {
   condition: PropertyCondition | "";
   street: string;
   streetNumber: string;
+  floor: string;
+  apartment: string;
   neighborhood: string;
   province: string;
   postalCode: string;
+  latitude: string;
+  longitude: string;
+  rooms: string;
   bedrooms: string;
   bathrooms: string;
+  halfBathrooms: string;
+  parkingSpaces: string;
   totalArea: string;
   coveredArea: string;
+  uncoveredArea: string;
+  lotFront: string;
+  lotDepth: string;
+  yearBuilt: string;
+  orientation: Orientation | "";
+  layout: PropertyLayout | "";
+  brightness: PropertyBrightness | "";
   isActive: boolean;
 };

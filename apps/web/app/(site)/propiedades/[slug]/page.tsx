@@ -5,6 +5,7 @@ import { PropertyDescription } from "@/components/property/property-description"
 import { PropertyFeatures } from "@/components/property/property-features";
 import { PropertyGallery } from "@/components/property/property-gallery";
 import { PropertyHeader } from "@/components/property/property-header";
+import { PropertyTechnicalSheet } from "@/components/property/property-technical-sheet";
 import { ListingTypeSwitcher } from "@/components/property/listing-type-switcher";
 import { PropertyMapPlaceholder } from "@/components/property/property-map-placeholder";
 import { PropertyPriceCard } from "@/components/property/property-price-card";
@@ -128,11 +129,14 @@ export default async function PropertyDetailPage({
               <PropertyPriceCard property={property} />
             </div>
 
+            <PropertyTechnicalSheet property={property} />
             <PropertyFeatures features={property.features} />
             <PropertyDescription description={property.description} />
             <PropertyMapPlaceholder
               city={property.city}
               neighborhood={property.neighborhood}
+              latitude={property.latitude}
+              longitude={property.longitude}
             />
             <RelatedPropertiesSection properties={relatedProperties} />
           </div>

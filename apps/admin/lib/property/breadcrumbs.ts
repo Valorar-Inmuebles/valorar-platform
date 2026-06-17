@@ -105,6 +105,16 @@ export function propertyImagenesBreadcrumbs(
   ];
 }
 
+export function propertyCaracteristicasBreadcrumbs(
+  propertyId: string,
+  propertyTitle: string,
+): BreadcrumbItem[] {
+  return [
+    ...propertyDetailBreadcrumbs(propertyId, propertyTitle),
+    { label: "Características" },
+  ];
+}
+
 export function propertyPreciosBreadcrumbs(
   propertyId: string,
   propertyTitle: string,
