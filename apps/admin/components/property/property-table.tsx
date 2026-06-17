@@ -7,21 +7,27 @@ import { Button } from "@repo/ui/button";
 import { Card, CardContent } from "@repo/ui/card";
 import { ConfirmModal } from "@repo/ui/modal";
 import { useToast } from "@repo/ui/toast";
+import { PropertyArchiveModalContent } from "@/components/property/property-archive-modal-content";
 import { PropertyStatusBadge } from "@/components/property/property-status-badge";
 import { archivePropertyAction } from "@/lib/api/property-actions";
 import type { AdminProperty } from "@/lib/api/types/property";
+import type { ActiveListingCountsByPropertyId } from "@/lib/property/active-listing-counts";
 import { getPropertyTypeLabel } from "@/lib/format/property-labels";
 import { cn } from "@/lib/cn";
 
 type PropertyTableProps = {
   properties: AdminProperty[];
+  activeListingCountsByPropertyId?: ActiveListingCountsByPropertyId;
 };
 
 function formatLocation(property: AdminProperty): string {
   return [property.neighborhood, property.city].filter(Boolean).join(", ");
 }
 
-export function PropertyTable({ properties }: PropertyTableProps) {
+export function PropertyTable({
+  properties,
+  activeListingCountsByPropertyId = {},
+}: PropertyTableProps) {
   const router = useRouter();
   const { toast } = useToast();
   const [pendingId, setPendingId] = useState<string | null>(null);
@@ -129,10 +135,12 @@ export function PropertyTable({ properties }: PropertyTableProps) {
         title="Archivar propiedad"
         description={
           deleteTarget ? (
-            <>
-              ¿Archivar <strong>{deleteTarget.title}</strong>? Dejará de estar
-              activa y no podrá publicarse en la web.
-            </>
+            <PropertyArchiveModalContent
+              propertyTitle={deleteTarget.title}
+              activeListingsCount={
+                activeListingCountsByPropertyId[deleteTarget.id] ?? 0
+              }
+            />
           ) : null
         }
         confirmLabel="Archivar"

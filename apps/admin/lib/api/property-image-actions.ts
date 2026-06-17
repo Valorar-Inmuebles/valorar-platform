@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { ApiError } from "@/lib/api/client";
+import { mapUnknownError } from "@/lib/api/error-map";
 import {
   createPropertyImage,
   deletePropertyImage,
@@ -25,24 +25,7 @@ export type UploadUrlActionResult =
   | { ok: false; error: string };
 
 function toActionError(error: unknown): ImageActionResult {
-  if (error instanceof ApiError) {
-    return { ok: false, error: mapImageApiError(error.message) };
-  }
-  if (error instanceof Error) return { ok: false, error: error.message };
-  return { ok: false, error: "Ocurrió un error inesperado." };
-}
-
-function mapImageApiError(message: string): string {
-  if (message.includes("archived property")) {
-    return "No podés agregar imágenes a una propiedad archivada. Restaurala primero.";
-  }
-  if (message.includes("Storage is not configured")) {
-    return "El almacenamiento no está configurado en el servidor.";
-  }
-  if (message.includes("maximum of")) {
-    return "Alcanzaste el límite máximo de imágenes para esta propiedad.";
-  }
-  return message;
+  return { ok: false, error: mapUnknownError(error) };
 }
 
 function revalidateImagePaths(propertyId: string) {

@@ -6,6 +6,7 @@ import { useState, useTransition } from "react";
 import { Button } from "@repo/ui/button";
 import { ConfirmModal } from "@repo/ui/modal";
 import { useToast } from "@repo/ui/toast";
+import { PropertyArchiveModalContent } from "@/components/property/property-archive-modal-content";
 import {
   archivePropertyAction,
   restorePropertyAction,
@@ -15,11 +16,13 @@ import type { AdminProperty } from "@/lib/api/types/property";
 type PropertyRowActionsProps = {
   property: AdminProperty;
   publicUrl: string | null;
+  activeListingsCount?: number;
 };
 
 export function PropertyRowActions({
   property,
   publicUrl,
+  activeListingsCount = 0,
 }: PropertyRowActionsProps) {
   const router = useRouter();
   const { toast } = useToast();
@@ -99,10 +102,10 @@ export function PropertyRowActions({
         onConfirm={handleArchive}
         title="Archivar propiedad"
         description={
-          <>
-            ¿Archivar <strong>{property.title}</strong>? Dejará de estar activa
-            y no podrá publicarse en la web.
-          </>
+          <PropertyArchiveModalContent
+            propertyTitle={property.title}
+            activeListingsCount={activeListingsCount}
+          />
         }
         confirmLabel="Archivar"
         cancelLabel="Cancelar"
@@ -127,3 +130,4 @@ export function PropertyRowActions({
     </>
   );
 }
+

@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import type { PublicationCheckKey } from "@repo/property-rules";
 import { ApiError } from "@/lib/api/client";
+import { mapUnknownError } from "@/lib/api/error-map";
 import {
   closePropertyListing,
   createPropertyListing,
@@ -37,11 +38,10 @@ function toActionError(error: unknown): ListingActionResult {
       };
     }
 
-    return { ok: false, error: error.message };
+    return { ok: false, error: mapUnknownError(error) };
   }
 
-  if (error instanceof Error) return { ok: false, error: error.message };
-  return { ok: false, error: "Ocurrió un error inesperado." };
+  return { ok: false, error: mapUnknownError(error) };
 }
 
 function revalidateListingPaths(propertyId: string, listingId?: string) {

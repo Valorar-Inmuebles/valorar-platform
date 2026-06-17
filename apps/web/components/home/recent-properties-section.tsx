@@ -3,22 +3,27 @@ import type { PublicPropertyCard as PublicPropertyCardData } from "@repo/shared-
 import { SiteContainer } from "@/components/layout/site-container";
 import { PropertyEmptyState } from "@/components/property/property-empty-state";
 import { PropertyGrid } from "@/components/property/property-grid";
+import { PropertyUnavailableState } from "@/components/property/property-unavailable-state";
 import { PublicPropertyCard } from "@/components/property/public-property-card";
 import { PropertySectionHeader } from "./property-section-header";
 
 type RecentPropertiesSectionProps = {
   properties: PublicPropertyCardData[];
+  unavailable?: boolean;
 };
 
 export function RecentPropertiesSection({
   properties,
+  unavailable = false,
 }: RecentPropertiesSectionProps) {
   return (
     <section className="bg-slate-50 py-16 md:py-20">
       <SiteContainer>
         <PropertySectionHeader title="Propiedades recientes" href="/propiedades" />
 
-        {properties.length === 0 ? (
+        {unavailable ? (
+          <PropertyUnavailableState title="Propiedades recientes temporalmente no disponibles" />
+        ) : properties.length === 0 ? (
           <PropertyEmptyState />
         ) : (
           <>

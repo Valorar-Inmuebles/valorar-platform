@@ -18,11 +18,13 @@ import {
   resolveRowStatusVariant,
   type PropertyCommercialFilter,
 } from "@/lib/property/property-list";
+import type { ActiveListingCountsByPropertyId } from "@/lib/property/active-listing-counts";
 import { buildPropertyListHref } from "@/lib/property/property-list-url";
 
 type PropertyListViewProps = {
   properties: AdminProperty[];
   summaryByPropertyId: PropertyPublishabilitySummaryById;
+  activeListingCountsByPropertyId?: ActiveListingCountsByPropertyId;
   initialCommercialFilter?: PropertyCommercialFilter;
 };
 
@@ -79,6 +81,7 @@ function resolveEmptyState(
 export function PropertyListView({
   properties,
   summaryByPropertyId,
+  activeListingCountsByPropertyId = {},
   initialCommercialFilter = "all",
 }: PropertyListViewProps) {
   const router = useRouter();
@@ -184,6 +187,9 @@ export function PropertyListView({
                           <PropertyRowActions
                             property={property}
                             publicUrl={publicUrl}
+                            activeListingsCount={
+                              activeListingCountsByPropertyId[property.id] ?? 0
+                            }
                           />
                         </td>
                       </tr>

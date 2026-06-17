@@ -65,7 +65,7 @@ export function PropertyListingTable({
         return;
       }
 
-      toast.success("Publicación archivada correctamente.");
+      toast.success("Publicación cerrada correctamente.");
       router.refresh();
     });
   };
@@ -82,7 +82,7 @@ export function PropertyListingTable({
                   <th className="px-4 py-3 font-medium">Estado</th>
                   <th className="px-4 py-3 font-medium">Expensas</th>
                   <th className="px-4 py-3 font-medium">Destacada</th>
-                  <th className="px-4 py-3 font-medium">Publicada</th>
+                  <th className="px-4 py-3 font-medium">Activada el</th>
                   <th className="px-4 py-3 font-medium">Web</th>
                   <th className="px-4 py-3 font-medium text-right">Acciones</th>
                 </tr>
@@ -175,7 +175,7 @@ export function PropertyListingTable({
                             listing.status === "CLOSED" && "opacity-50",
                           )}
                         >
-                          Archivar
+                          Cerrar
                         </Button>
                       </div>
                     </td>
@@ -192,17 +192,17 @@ export function PropertyListingTable({
         open={closeTarget != null}
         onClose={() => setCloseTarget(null)}
         onConfirm={handleClose}
-        title="Archivar publicación"
+        title="Cerrar publicación"
         description={
           closeTarget ? (
             <>
-              ¿Archivar la publicación de{" "}
+              ¿Cerrar la publicación de{" "}
               <strong>{getListingTypeLabel(closeTarget.listingType)}</strong>?
               Pasará a estado {LISTING_STATUS_LABELS.CLOSED.toLowerCase()}.
             </>
           ) : null
         }
-        confirmLabel="Archivar"
+        confirmLabel="Cerrar"
         cancelLabel="Cancelar"
         loading={isPending && pendingId === closeTarget?.id}
       />

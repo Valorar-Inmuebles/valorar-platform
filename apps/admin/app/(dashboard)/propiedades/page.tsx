@@ -5,9 +5,11 @@ import { PropertyListView } from "@/components/property/property-list-view";
 import { SuperAdminTenantEmptyState } from "@/components/shared/super-admin-tenant-empty-state";
 import { ApiErrorPanel } from "@/components/shared/api-error-panel";
 import { PageShell } from "@/components/shared/page-shell";
-import { ApiError } from "@/lib/api/client";
+import { mapUnknownError } from "@/lib/api/error-map";
 import { getPropertiesPublishabilitySummary } from "@/lib/api/property-publishability-summary";
+import { listPropertyListings } from "@/lib/api/property-listing";
 import { listProperties } from "@/lib/api/property";
+import { buildActiveListingCountsByPropertyId } from "@/lib/property/active-listing-counts";
 import { resolveActiveTenantGate } from "@/lib/auth/require-active-tenant";
 import { getActiveTenantId } from "@/lib/auth/active-tenant";
 import { getSession } from "@/lib/auth/session";
@@ -41,29 +43,29 @@ export default async function PropiedadesPage({
     );
   }
 
-  let properties;  let summaryByPropertyId: Record<
+  let properties;
+  let summaryByPropertyId: Record<
     string,
     Awaited<ReturnType<typeof getPropertiesPublishabilitySummary>>[number]
   > = {};
+  let activeListingCountsByPropertyId = {};
   let errorMessage: string | null = null;
 
   try {
-    const [propertyList, summaries] = await Promise.all([
+    const [propertyList, summaries, activeListings] = await Promise.all([
       listProperties(),
       getPropertiesPublishabilitySummary(),
+      listPropertyListings({ status: "ACTIVE" }),
     ]);
 
     properties = propertyList;
     summaryByPropertyId = Object.fromEntries(
       summaries.map((summary) => [summary.propertyId, summary]),
     );
+    activeListingCountsByPropertyId =
+      buildActiveListingCountsByPropertyId(activeListings);
   } catch (error) {
-    errorMessage =
-      error instanceof ApiError
-        ? error.message
-        : error instanceof Error
-          ? error.message
-          : "Error desconocido al cargar propiedades.";
+    errorMessage = mapUnknownError(error);
   }
 
   return (
@@ -92,6 +94,7 @@ export default async function PropiedadesPage({
         <PropertyListView
           properties={properties}
           summaryByPropertyId={summaryByPropertyId}
+          activeListingCountsByPropertyId={activeListingCountsByPropertyId}
           initialCommercialFilter={initialCommercialFilter}
         />
       ) : null}

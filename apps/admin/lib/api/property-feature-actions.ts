@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { ApiError } from "@/lib/api/client";
+import { mapUnknownError } from "@/lib/api/error-map";
 import { replacePropertyFeatureAssignments } from "@/lib/api/property-feature-assignment";
 import type { ReplacePropertyFeatureAssignmentsPayload } from "@/lib/api/types/property-feature";
 
@@ -10,13 +10,7 @@ export type PropertyFeatureActionResult =
   | { ok: false; error: string };
 
 function toActionError(error: unknown): PropertyFeatureActionResult {
-  if (error instanceof ApiError) {
-    return { ok: false, error: error.message };
-  }
-  if (error instanceof Error) {
-    return { ok: false, error: error.message };
-  }
-  return { ok: false, error: "Ocurrió un error inesperado." };
+  return { ok: false, error: mapUnknownError(error) };
 }
 
 function revalidateFeaturePaths(propertyId: string) {

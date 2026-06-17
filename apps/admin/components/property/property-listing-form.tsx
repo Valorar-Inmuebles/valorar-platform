@@ -267,9 +267,9 @@ export function PropertyListingForm({
                 options={statusOptions}
               />
               <HelperText>
-                Activar (ACTIVE) requiere propiedad activa, al menos una imagen
-                con portada y precio principal. Archivar usa cierre lógico
-                (CLOSED).
+                Activar requiere propiedad activa, al menos una imagen con
+                portada y precio principal. Cerrar la publicación usa el estado
+                CLOSED.
               </HelperText>
             </FormField>
           </CardContent>

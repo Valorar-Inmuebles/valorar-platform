@@ -20,6 +20,26 @@ const EMPTY_LIST_RESPONSE: PublicPropertyListResponse = {
   },
 };
 
+export type PublicPropertiesResult = PublicPropertyListResponse & {
+  unavailable?: boolean;
+};
+
+export type PublicFeaturedPropertiesResult = {
+  data: PublicPropertyCard[];
+  unavailable?: boolean;
+};
+
+function emptyListResponse(filters: PropertyListFilters): PublicPropertiesResult {
+  return {
+    ...EMPTY_LIST_RESPONSE,
+    meta: {
+      ...EMPTY_LIST_RESPONSE.meta,
+      page: filters.page,
+      limit: filters.limit,
+    },
+  };
+}
+
 function appendFilterParams(
   params: URLSearchParams,
   filters: PropertyListFilters,
@@ -66,18 +86,11 @@ function appendFilterParams(
 
 export async function getPublicProperties(
   filters: PropertyListFilters,
-): Promise<PublicPropertyListResponse> {
+): Promise<PublicPropertiesResult> {
   const tenantId = getTenantId();
 
   if (!tenantId) {
-    return {
-      ...EMPTY_LIST_RESPONSE,
-      meta: {
-        ...EMPTY_LIST_RESPONSE.meta,
-        page: filters.page,
-        limit: filters.limit,
-      },
-    };
+    return emptyListResponse(filters);
   }
 
   const params = new URLSearchParams();
@@ -91,43 +104,44 @@ export async function getPublicProperties(
     );
   } catch {
     return {
-      ...EMPTY_LIST_RESPONSE,
-      meta: {
-        ...EMPTY_LIST_RESPONSE.meta,
-        page: filters.page,
-        limit: filters.limit,
-      },
+      ...emptyListResponse(filters),
+      unavailable: true,
     };
   }
 }
 
 export async function getFeaturedProperties(
   limit = 3,
-): Promise<PublicPropertyCard[]> {
+): Promise<PublicFeaturedPropertiesResult> {
   const tenantId = getTenantId();
 
   if (!tenantId) {
-    return [];
+    return { data: [] };
   }
 
   try {
-    return await apiFetch<PublicPropertyCard[]>(
+    const data = await apiFetch<PublicPropertyCard[]>(
       `/public/properties/featured?tenantId=${encodeURIComponent(tenantId)}&limit=${limit}`,
     );
+
+    return { data };
   } catch {
-    return [];
+    return { data: [], unavailable: true };
   }
 }
 
 export async function getRecentProperties(
   limit = 8,
-): Promise<PublicPropertyCard[]> {
+): Promise<PublicFeaturedPropertiesResult> {
   const response = await getPublicProperties({
     page: 1,
     limit,
   });
 
-  return response.data;
+  return {
+    data: response.data,
+    unavailable: response.unavailable,
+  };
 }
 
 export async function getPropertyBySlug(
@@ -202,6 +216,10 @@ export async function getRelatedProperties(
     page: 1,
     limit: limit + 1,
   });
+
+  if (response.unavailable) {
+    return [];
+  }
 
   return response.data
     .filter((item) => item.slug !== property.slug)

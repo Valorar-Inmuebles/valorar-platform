@@ -6,7 +6,7 @@ import { DashboardQuickActions } from "@/components/dashboard/dashboard-quick-ac
 import { ApiErrorPanel } from "@/components/shared/api-error-panel";
 import { PageShell } from "@/components/shared/page-shell";
 import { SuperAdminTenantEmptyState } from "@/components/shared/super-admin-tenant-empty-state";
-import { ApiError } from "@/lib/api/client";
+import { mapUnknownError } from "@/lib/api/error-map";
 import { getDashboardSummary } from "@/lib/api/dashboard";
 import { resolveActiveTenantGate } from "@/lib/auth/require-active-tenant";
 import { getActiveTenantId } from "@/lib/auth/active-tenant";
@@ -38,12 +38,7 @@ export default async function DashboardHomePage() {
   try {
     summary = await getDashboardSummary();
   } catch (error) {
-    errorMessage =
-      error instanceof ApiError
-        ? error.message
-        : error instanceof Error
-          ? error.message
-          : "Error desconocido al cargar el dashboard.";
+    errorMessage = mapUnknownError(error);
   }
 
   return (

@@ -2,22 +2,27 @@ import type { PublicPropertyCard as PublicPropertyCardData } from "@repo/shared-
 import { SiteContainer } from "@/components/layout/site-container";
 import { PropertyEmptyState } from "@/components/property/property-empty-state";
 import { PropertyGrid } from "@/components/property/property-grid";
+import { PropertyUnavailableState } from "@/components/property/property-unavailable-state";
 import { PublicPropertyCard } from "@/components/property/public-property-card";
 import { PropertySectionHeader } from "./property-section-header";
 
 type FeaturedPropertiesSectionProps = {
   properties: PublicPropertyCardData[];
+  unavailable?: boolean;
 };
 
 export function FeaturedPropertiesSection({
   properties,
+  unavailable = false,
 }: FeaturedPropertiesSectionProps) {
   return (
     <section className="py-16 md:py-20">
       <SiteContainer>
         <PropertySectionHeader title="Propiedades destacadas" href="/propiedades" />
 
-        {properties.length === 0 ? (
+        {unavailable ? (
+          <PropertyUnavailableState title="Destacadas temporalmente no disponibles" />
+        ) : properties.length === 0 ? (
           <PropertyEmptyState
             title="Aún no hay propiedades destacadas"
             description="Pronto publicaremos nuevas oportunidades seleccionadas para vos."
