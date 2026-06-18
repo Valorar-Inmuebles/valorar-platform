@@ -5,11 +5,11 @@ import { SiteContainer } from "./site-container";
 
 export function Header() {
   return (
-    <header className="sticky top-0 z-30 border-b border-border/80 bg-white/95 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-white/90">
+    <header className="sticky top-0 z-30 border-b border-border/40 bg-white">
       <SiteContainer>
         <div className="flex h-16 items-center justify-between gap-4 lg:h-[4.5rem]">
           <HeaderLogo />
-          <MainNav className="hidden lg:block" />
+          <MainNav className="hidden shrink-0 lg:block" />
           <MobileNav className="lg:hidden" />
         </div>
       </SiteContainer>
