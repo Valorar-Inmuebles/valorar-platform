@@ -36,7 +36,7 @@ export function RecentPropertiesSection({
             <div className="mt-10 flex justify-center">
               <Link
                 href="/propiedades"
-                className="inline-flex h-12 items-center justify-center rounded-xl border border-brand-green bg-surface-card px-8 text-sm font-semibold text-brand-green transition hover:bg-brand-green hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-green"
+                className="inline-flex h-12 items-center justify-center rounded-xl border border-brand-green bg-brand-green px-8 text-sm font-semibold text-white transition hover:brightness-110 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-green"
               >
                 Ver más propiedades
               </Link>

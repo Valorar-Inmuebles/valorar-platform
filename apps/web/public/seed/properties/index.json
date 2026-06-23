@@ -1,0 +1,212 @@
+[
+  {
+    "slug": "venta-depto-palermo-01",
+    "title": "Departamento 3 ambientes en Palermo Hollywood",
+    "propertyType": "APARTMENT",
+    "listingType": "SALE",
+    "featured": true
+  },
+  {
+    "slug": "venta-depto-belgrano-01",
+    "title": "Departamento 4 ambientes en Belgrano R",
+    "propertyType": "APARTMENT",
+    "listingType": "SALE",
+    "featured": false
+  },
+  {
+    "slug": "venta-depto-recoleta-01",
+    "title": "Monoambiente en Recoleta",
+    "propertyType": "APARTMENT",
+    "listingType": "SALE",
+    "featured": true
+  },
+  {
+    "slug": "venta-depto-caballito-01",
+    "title": "Departamento 2 ambientes en Caballito",
+    "propertyType": "APARTMENT",
+    "listingType": "SALE",
+    "featured": false
+  },
+  {
+    "slug": "venta-depto-almagro-01",
+    "title": "Departamento 3 ambientes en Almagro",
+    "propertyType": "APARTMENT",
+    "listingType": "SALE",
+    "featured": false
+  },
+  {
+    "slug": "venta-depto-villa-crespo-01",
+    "title": "Loft 2 ambientes en Villa Crespo",
+    "propertyType": "APARTMENT",
+    "listingType": "SALE",
+    "featured": false
+  },
+  {
+    "slug": "venta-depto-nunez-01",
+    "title": "Departamento 3 ambientes en Nuñez",
+    "propertyType": "APARTMENT",
+    "listingType": "SALE",
+    "featured": false
+  },
+  {
+    "slug": "venta-depto-colegiales-01",
+    "title": "Departamento 2 ambientes en Colegiales",
+    "propertyType": "APARTMENT",
+    "listingType": "SALE",
+    "featured": false
+  },
+  {
+    "slug": "venta-casa-san-isidro-01",
+    "title": "Casa 5 ambientes en San Isidro",
+    "propertyType": "HOUSE",
+    "listingType": "SALE",
+    "featured": true
+  },
+  {
+    "slug": "venta-casa-vicente-lopez-01",
+    "title": "Casa 4 ambientes en Vicente López",
+    "propertyType": "HOUSE",
+    "listingType": "SALE",
+    "featured": false
+  },
+  {
+    "slug": "venta-casa-olivos-01",
+    "title": "Casa 6 ambientes en Olivos",
+    "propertyType": "HOUSE",
+    "listingType": "SALE",
+    "featured": false
+  },
+  {
+    "slug": "venta-casa-tigre-01",
+    "title": "Casa 4 ambientes en Tigre",
+    "propertyType": "HOUSE",
+    "listingType": "SALE",
+    "featured": false
+  },
+  {
+    "slug": "venta-ph-palermo-01",
+    "title": "PH 3 ambientes con terraza en Palermo",
+    "propertyType": "PH",
+    "listingType": "SALE",
+    "featured": false
+  },
+  {
+    "slug": "venta-ph-belgrano-01",
+    "title": "PH 4 ambientes en Belgrano",
+    "propertyType": "PH",
+    "listingType": "SALE",
+    "featured": false
+  },
+  {
+    "slug": "venta-terreno-tigre-01",
+    "title": "Terreno en venta en Tigre",
+    "propertyType": "LAND",
+    "listingType": "SALE",
+    "featured": false
+  },
+  {
+    "slug": "venta-terreno-san-fernando-01",
+    "title": "Terreno en San Fernando",
+    "propertyType": "LAND",
+    "listingType": "SALE",
+    "featured": false
+  },
+  {
+    "slug": "alquiler-depto-palermo-01",
+    "title": "Alquiler — Departamento 2 ambientes en Palermo",
+    "propertyType": "APARTMENT",
+    "listingType": "RENT",
+    "featured": false
+  },
+  {
+    "slug": "alquiler-depto-belgrano-01",
+    "title": "Alquiler — Departamento 3 ambientes en Belgrano",
+    "propertyType": "APARTMENT",
+    "listingType": "RENT",
+    "featured": false
+  },
+  {
+    "slug": "alquiler-depto-recoleta-01",
+    "title": "Alquiler — Departamento 2 ambientes en Recoleta",
+    "propertyType": "APARTMENT",
+    "listingType": "RENT",
+    "featured": true
+  },
+  {
+    "slug": "alquiler-depto-caballito-01",
+    "title": "Alquiler — Departamento 3 ambientes en Caballito",
+    "propertyType": "APARTMENT",
+    "listingType": "RENT",
+    "featured": false
+  },
+  {
+    "slug": "alquiler-depto-puerto-madero-01",
+    "title": "Alquiler — Departamento 3 ambientes en Puerto Madero",
+    "propertyType": "APARTMENT",
+    "listingType": "RENT",
+    "featured": false
+  },
+  {
+    "slug": "alquiler-depto-san-telmo-01",
+    "title": "Alquiler — Loft en San Telmo",
+    "propertyType": "APARTMENT",
+    "listingType": "RENT",
+    "featured": false
+  },
+  {
+    "slug": "alquiler-casa-san-isidro-01",
+    "title": "Alquiler — Casa 4 ambientes en San Isidro",
+    "propertyType": "HOUSE",
+    "listingType": "RENT",
+    "featured": false
+  },
+  {
+    "slug": "alquiler-casa-martinez-01",
+    "title": "Alquiler — Casa 5 ambientes en Martínez",
+    "propertyType": "HOUSE",
+    "listingType": "RENT",
+    "featured": false
+  },
+  {
+    "slug": "alquiler-oficina-microcentro-01",
+    "title": "Alquiler — Oficina en Microcentro",
+    "propertyType": "OFFICE",
+    "listingType": "RENT",
+    "featured": true
+  },
+  {
+    "slug": "alquiler-oficina-belgrano-01",
+    "title": "Alquiler — Oficina en Belgrano",
+    "propertyType": "OFFICE",
+    "listingType": "RENT",
+    "featured": false
+  },
+  {
+    "slug": "emprendimiento-puerto-madero-01",
+    "title": "Emprendimiento Torre Libertador — Puerto Madero",
+    "propertyType": "APARTMENT",
+    "listingType": "SALE",
+    "featured": true
+  },
+  {
+    "slug": "emprendimiento-palermo-01",
+    "title": "Emprendimiento Palermo Green — Palermo Chico",
+    "propertyType": "APARTMENT",
+    "listingType": "SALE",
+    "featured": false
+  },
+  {
+    "slug": "emprendimiento-belgrano-01",
+    "title": "Emprendimiento Belgrano Park — Belgrano",
+    "propertyType": "APARTMENT",
+    "listingType": "SALE",
+    "featured": false
+  },
+  {
+    "slug": "emprendimiento-vicente-lopez-01",
+    "title": "Emprendimiento Río VIC — Vicente López",
+    "propertyType": "APARTMENT",
+    "listingType": "SALE",
+    "featured": false
+  }
+]

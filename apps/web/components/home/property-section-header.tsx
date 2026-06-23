@@ -19,7 +19,7 @@ export function PropertySectionHeader({
       {href ? (
         <Link
           href={href}
-          className="shrink-0 text-sm font-medium text-primary transition-colors hover:text-primary/80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+          className="shrink-0 inline-flex h-10 items-center justify-center rounded-lg border border-brand-green bg-transparent px-4 text-sm font-medium text-brand-green transition hover:bg-brand-green/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-green"
         >
           {linkLabel}
         </Link>

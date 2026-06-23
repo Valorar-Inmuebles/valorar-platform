@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600" viewBox="0 0 800 600">
+  <rect width="800" height="600" fill="#1c1917"/>
+  <rect x="140" y="160" width="180" height="320" fill="#44403c"/>
+  <rect x="340" y="120" width="180" height="360" fill="#57534e"/>
+  <rect x="540" y="200" width="140" height="280" fill="#44403c"/>
+  <rect x="160" y="180" width="40" height="40" fill="#fbbf24" opacity="0.9"/>
+  <rect x="220" y="180" width="40" height="40" fill="#fbbf24" opacity="0.9"/>
+  <rect x="360" y="140" width="40" height="40" fill="#fbbf24" opacity="0.9"/>
+  <rect x="420" y="140" width="40" height="40" fill="#fbbf24" opacity="0.9"/>
+  <rect x="560" y="220" width="40" height="40" fill="#fbbf24" opacity="0.9"/>
+  <rect x="300" y="460" width="200" height="24" fill="#78716c"/>
+  <text x="400" y="540" text-anchor="middle" fill="#fafaf9" font-family="system-ui,sans-serif" font-size="26">Emprendimiento</text>
+</svg>

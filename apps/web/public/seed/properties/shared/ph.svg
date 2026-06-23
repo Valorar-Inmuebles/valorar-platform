@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600" viewBox="0 0 800 600">
+  <rect width="800" height="600" fill="#4c1d95"/>
+  <rect x="100" y="200" width="600" height="280" rx="6" fill="#6d28d9"/>
+  <rect x="140" y="240" width="160" height="120" fill="#c4b5fd"/>
+  <rect x="320" y="240" width="160" height="120" fill="#ddd6fe"/>
+  <rect x="500" y="240" width="160" height="120" fill="#c4b5fd"/>
+  <rect x="320" y="380" width="160" height="60" fill="#ede9fe"/>
+  <text x="400" y="540" text-anchor="middle" fill="#ede9fe" font-family="system-ui,sans-serif" font-size="28">PH</text>
+</svg>

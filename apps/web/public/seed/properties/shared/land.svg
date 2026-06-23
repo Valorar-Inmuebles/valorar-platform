@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600" viewBox="0 0 800 600">
+  <rect width="800" height="600" fill="#713f12"/>
+  <rect x="60" y="180" width="680" height="320" fill="#a16207"/>
+  <line x1="60" y1="260" x2="740" y2="260" stroke="#ca8a04" stroke-width="2" opacity="0.6"/>
+  <line x1="60" y1="340" x2="740" y2="340" stroke="#ca8a04" stroke-width="2" opacity="0.6"/>
+  <line x1="60" y1="420" x2="740" y2="420" stroke="#ca8a04" stroke-width="2" opacity="0.6"/>
+  <line x1="200" y1="180" x2="200" y2="500" stroke="#ca8a04" stroke-width="2" opacity="0.6"/>
+  <line x1="400" y1="180" x2="400" y2="500" stroke="#ca8a04" stroke-width="2" opacity="0.6"/>
+  <line x1="600" y1="180" x2="600" y2="500" stroke="#ca8a04" stroke-width="2" opacity="0.6"/>
+  <text x="400" y="540" text-anchor="middle" fill="#fef9c3" font-family="system-ui,sans-serif" font-size="28">Terreno</text>
+</svg>
