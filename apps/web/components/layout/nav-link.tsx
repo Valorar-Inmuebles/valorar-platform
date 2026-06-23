@@ -17,19 +17,21 @@ export function NavLink({ href, label, onNavigate, className = "" }: NavLinkProp
   const isBlock = className.includes("block");
 
   const focusRing =
-    "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-brand-green,var(--color-primary,#15351d))]";
+    "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-green";
 
   const desktopClasses = !isBlock
-    ? `relative inline-flex py-1 text-sm font-medium text-foreground/80 transition-colors hover:text-[var(--color-brand-green,var(--color-primary,#15351d))] ${focusRing} ${
+    ? `relative inline-flex py-1 text-sm font-medium text-text-secondary transition-colors hover:text-brand-green ${focusRing} ${
         isActive
-          ? "after:absolute after:inset-x-0 after:bottom-0 after:h-0.5 after:bg-[var(--color-brand-orange,#ee680f)]"
+          ? "text-brand-green after:absolute after:inset-x-0 after:-bottom-px after:h-0.5 after:bg-brand-orange"
           : ""
       }`
     : "";
 
   const mobileClasses = isBlock
     ? `text-base font-medium transition-colors ${focusRing} ${
-        isActive ? "text-foreground" : "text-foreground/80 hover:text-foreground"
+        isActive
+          ? "bg-surface-alt text-brand-green"
+          : "text-text-secondary hover:bg-surface-alt/60 hover:text-brand-green"
       }`
     : "";
 

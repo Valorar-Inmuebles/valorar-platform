@@ -1,29 +1,74 @@
 @import "tailwindcss";
 
+/*
+ * Default token values — canonical source: branding/tokens.ts
+ * Runtime overrides (brand colors via env) are injected by ThemeProvider.
+ */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-  --muted: #737373;
-  --border: #e5e5e5;
-  --color-primary: #1e3a5f;
-  --color-secondary: #c9a227;
+  --surface-base: #faf9f7;
+  --surface-alt: #f6f4ef;
+  --surface-card: #ffffff;
+  --surface-elevated: #ffffff;
+
+  --brand-green: #15361e;
+  --brand-orange: #ee680f;
+
+  --action-primary: #15361e;
+  --action-accent: #ee680f;
+
+  --border-default: #ece8df;
+
+  --text-primary: #1f2937;
+  --text-secondary: #6b7280;
+
+  /* Legacy aliases — mapped to semantic tokens above */
+  --background: var(--surface-base);
+  --foreground: var(--text-primary);
+  --muted: var(--text-secondary);
+  --border: var(--border-default);
+  --color-primary: var(--brand-green);
+  --color-secondary: var(--brand-orange);
+  --color-brand-green: var(--brand-green);
+  --color-brand-orange: var(--brand-orange);
+  --color-action-primary: var(--action-primary);
+  --color-action-accent: var(--action-accent);
+  --color-action-secondary: var(--action-accent);
+
   --header-height: 4rem;
 }
 
 @theme inline {
+  --color-surface-base: var(--surface-base);
+  --color-surface-alt: var(--surface-alt);
+  --color-surface-card: var(--surface-card);
+  --color-surface-elevated: var(--surface-elevated);
+
+  --color-brand-green: var(--brand-green);
+  --color-brand-orange: var(--brand-orange);
+
+  --color-action-primary: var(--action-primary);
+  --color-action-accent: var(--action-accent);
+
+  --color-border-default: var(--border-default);
+
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+
+  /* Legacy Tailwind mappings — used by existing components */
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-muted: var(--muted);
   --color-border: var(--border);
   --color-primary: var(--color-primary);
   --color-secondary: var(--color-secondary);
+
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
+  background: var(--surface-base);
+  color: var(--text-primary);
   font-family: var(--font-geist-sans), system-ui, sans-serif;
   font-synthesis: none;
   text-rendering: optimizeLegibility;

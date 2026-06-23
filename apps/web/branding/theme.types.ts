@@ -10,6 +10,22 @@ export type ThemeBranding = {
   hero: string;
 };
 
+export type ThemeSurfaceColors = {
+  base: string;
+  alt: string;
+  card: string;
+  elevated: string;
+};
+
+export type ThemeTextColors = {
+  primary: string;
+  secondary: string;
+};
+
+export type ThemeBorderColors = {
+  default: string;
+};
+
 export type ThemeColors = {
   brand: {
     green: string;
@@ -17,8 +33,11 @@ export type ThemeColors = {
   };
   action: {
     primary: string;
-    secondary: string;
+    accent: string;
   };
+  surface: ThemeSurfaceColors;
+  text: ThemeTextColors;
+  border: ThemeBorderColors;
 };
 
 export type ThemeTypography = {

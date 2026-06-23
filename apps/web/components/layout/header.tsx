@@ -5,7 +5,7 @@ import { SiteContainer } from "./site-container";
 
 export function Header() {
   return (
-    <header className="sticky top-0 z-30 border-b border-border/40 bg-white">
+    <header className="sticky top-0 z-30 border-b border-border-default bg-surface-base/95 backdrop-blur-sm">
       <SiteContainer>
         <div className="flex h-16 items-center justify-between gap-4 lg:h-[4.5rem]">
           <HeaderLogo />

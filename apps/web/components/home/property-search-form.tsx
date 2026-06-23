@@ -1,19 +1,23 @@
 "use client";
 
+import { Fragment, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
 import type { PropertyType } from "@repo/shared-types";
-import { SEARCH_PROPERTY_TYPE_OPTIONS } from "@/lib/format/labels";
+import { LocationIcon } from "@/components/icons";
 import {
   buildPropertySearchUrl,
   type SearchTab,
 } from "@/lib/url/search-params";
+import { PropertyTypeDropdown } from "./property-type-dropdown";
 
 const SEARCH_TABS: Array<{ id: SearchTab; label: string }> = [
+  { id: "rent", label: "Alquiler" },
   { id: "sale", label: "Comprar" },
-  { id: "rent", label: "Alquilar" },
-  { id: "developments", label: "Emprendimientos" },
+  { id: "developments", label: "Emprendimiento" },
 ];
+
+const FIELD_CONTROL_CLASS =
+  "flex h-14 items-center gap-3 rounded-2xl border border-border-default bg-surface-card px-4 md:px-5";
 
 export function PropertySearchForm() {
   const router = useRouter();
@@ -33,70 +37,79 @@ export function PropertySearchForm() {
     );
   };
 
+  const isDevelopmentsTab = activeTab === "developments";
+
   return (
-    <div className="w-full max-w-4xl rounded-2xl bg-white p-4 shadow-2xl shadow-black/10 ring-1 ring-black/5 md:p-6">
+    <div className="flex w-full flex-col items-start">
       <div
         role="tablist"
         aria-label="Tipo de búsqueda"
-        className="flex flex-wrap gap-2 border-b border-border pb-4"
+        className="inline-flex w-fit items-center rounded-t-3xl border border-b-0 border-border-default bg-surface-card px-8 pb-3 pt-5 md:px-10"
       >
-        {SEARCH_TABS.map((tab) => {
+        {SEARCH_TABS.map((tab, index) => {
           const isActive = activeTab === tab.id;
 
           return (
-            <button
-              key={tab.id}
-              type="button"
-              role="tab"
-              aria-selected={isActive}
-              onClick={() => setActiveTab(tab.id)}
-              className={`rounded-full px-4 py-2 text-sm font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${
-                isActive
-                  ? "bg-primary text-white"
-                  : "bg-slate-100 text-foreground hover:bg-slate-200"
-              }`}
-            >
-              {tab.label}
-            </button>
+            <Fragment key={tab.id}>
+              {index > 0 ? (
+                <span
+                  aria-hidden
+                  className="mx-4 inline-block h-4 w-px shrink-0 bg-border-default"
+                />
+              ) : null}
+              <button
+                type="button"
+                role="tab"
+                aria-selected={isActive}
+                onClick={() => setActiveTab(tab.id)}
+                className="inline-flex w-auto pb-2 text-sm font-normal text-text-secondary transition-colors hover:text-text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-action-accent md:text-base"
+              >
+                <span className="relative inline-block whitespace-nowrap">
+                  <span className={isActive ? "font-medium text-text-primary" : undefined}>
+                    {tab.label}
+                  </span>
+                  {isActive ? (
+                    <span
+                      aria-hidden
+                      className="absolute -bottom-2 left-0 right-0 h-0.5 bg-action-accent"
+                    />
+                  ) : null}
+                </span>
+              </button>
+            </Fragment>
           );
         })}
       </div>
 
-      <form onSubmit={handleSubmit} className="mt-4 grid gap-4 md:grid-cols-[1fr_1fr_auto]">
-        <label className="flex flex-col gap-2">
-          <span className="text-sm font-medium text-foreground">Tipo de propiedad</span>
-          <select
+      <form
+        onSubmit={handleSubmit}
+        className="-mt-px w-full rounded-3xl rounded-tl-none border border-border-default bg-surface-card px-6 py-5 shadow-sm md:px-8"
+      >
+        <div className="flex flex-col gap-3 md:flex-row md:items-center">
+          <PropertyTypeDropdown
             value={propertyType}
-            onChange={(event) =>
-              setPropertyType(event.target.value as PropertyType | "")
-            }
-            disabled={activeTab === "developments"}
-            className="h-12 rounded-xl border border-border bg-white px-4 text-sm text-foreground outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:cursor-not-allowed disabled:bg-slate-100"
-          >
-            {SEARCH_PROPERTY_TYPE_OPTIONS.map((option) => (
-              <option key={option.label} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <label className="flex flex-col gap-2">
-          <span className="text-sm font-medium text-foreground">Ubicación</span>
-          <input
-            type="text"
-            value={location}
-            onChange={(event) => setLocation(event.target.value)}
-            placeholder="Ciudad o barrio"
-            disabled={activeTab === "developments"}
-            className="h-12 rounded-xl border border-border bg-white px-4 text-sm text-foreground outline-none transition placeholder:text-muted focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:cursor-not-allowed disabled:bg-slate-100"
+            onChange={setPropertyType}
+            disabled={isDevelopmentsTab}
+            className="md:w-52 lg:w-56"
           />
-        </label>
 
-        <div className="flex items-end">
+          <label className={`${FIELD_CONTROL_CLASS} min-w-0 flex-1`}>
+            <span className="sr-only">Ubicación</span>
+            <LocationIcon size={20} className="shrink-0 text-text-secondary" />
+            <input
+              type="text"
+              value={location}
+              onChange={(event) => setLocation(event.target.value)}
+              placeholder="Ingresá ubicación, barrio o zona"
+              disabled={isDevelopmentsTab}
+              aria-label="Ubicación"
+              className="min-w-0 flex-1 border-0 bg-transparent text-sm font-normal text-text-primary outline-none placeholder:text-text-secondary disabled:cursor-not-allowed disabled:opacity-50 md:text-base"
+            />
+          </label>
+
           <button
             type="submit"
-            className="inline-flex h-12 w-full items-center justify-center rounded-xl bg-primary px-8 text-sm font-semibold text-white transition hover:bg-primary/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary md:w-auto"
+            className="inline-flex h-14 w-full shrink-0 items-center justify-center rounded-2xl bg-action-accent px-8 text-base font-semibold text-white transition hover:bg-action-accent/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action-accent md:w-auto md:min-w-[9.5rem]"
           >
             Buscar
           </button>

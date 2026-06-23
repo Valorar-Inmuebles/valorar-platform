@@ -1,4 +1,5 @@
 import type { MetadataRoute } from "next";
+import { THEME_TOKENS } from "@/branding/tokens";
 import { getSiteConfig } from "@/config/site";
 import { BRAND_ASSETS } from "@/lib/constants/brand";
 
@@ -11,7 +12,7 @@ export default function manifest(): MetadataRoute.Manifest {
     description: site.description,
     start_url: "/",
     display: "standalone",
-    background_color: "#ffffff",
+    background_color: THEME_TOKENS.surface.base,
     theme_color: site.primaryColor,
     lang: "es",
     icons: [

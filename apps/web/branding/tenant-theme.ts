@@ -1,3 +1,4 @@
+import { THEME_TOKENS } from "./tokens";
 import type { TenantTheme } from "./theme.types";
 
 export const DEFAULT_TENANT_THEME: TenantTheme = {
@@ -14,14 +15,11 @@ export const DEFAULT_TENANT_THEME: TenantTheme = {
     hero: "/brand/valorar-inmuebles-hero.jpg",
   },
   colors: {
-    brand: {
-      green: "#15351d",
-      orange: "#ee680f",
-    },
-    action: {
-      primary: "#ee680f",
-      secondary: "#15351d",
-    },
+    brand: { ...THEME_TOKENS.brand },
+    action: { ...THEME_TOKENS.action },
+    surface: { ...THEME_TOKENS.surface },
+    text: { ...THEME_TOKENS.text },
+    border: { ...THEME_TOKENS.border },
   },
   typography: {
     headingFont: "Cormorant Garamond",

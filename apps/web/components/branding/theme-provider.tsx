@@ -5,9 +5,17 @@ type ThemeProviderProps = {
   children: ReactNode;
 };
 
+/**
+ * Single injection point for tenant theme CSS variables.
+ * Resolves brand colors from env; static surfaces/text/border from branding/tokens.ts.
+ */
 export function ThemeProvider({ children }: ThemeProviderProps) {
   const theme = getTenantTheme();
   const style = buildThemeCssVars(theme);
 
-  return <div style={style}>{children}</div>;
+  return (
+    <div className="flex min-h-full flex-1 flex-col" style={style}>
+      {children}
+    </div>
+  );
 }

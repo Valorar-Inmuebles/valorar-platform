@@ -44,7 +44,7 @@ export function MobileNav({ className = "" }: MobileNavProps) {
     <div className={className}>
       <button
         type="button"
-        className="inline-flex h-10 w-10 items-center justify-center rounded-md border border-border text-foreground hover:bg-foreground/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+        className="inline-flex h-10 w-10 items-center justify-center rounded-md border border-border-default text-text-primary hover:bg-surface-alt focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-green"
         aria-expanded={isOpen}
         aria-controls={panelId}
         aria-label={isOpen ? "Cerrar menú" : "Abrir menú"}
@@ -87,13 +87,13 @@ export function MobileNav({ className = "" }: MobileNavProps) {
           <nav
             id={panelId}
             aria-label="Navegación móvil"
-            className="fixed inset-y-0 right-0 z-50 flex w-full max-w-sm flex-col bg-background shadow-xl"
+            className="fixed inset-y-0 right-0 z-50 flex w-full max-w-sm flex-col border-l border-border-default bg-surface-card shadow-sm"
           >
-            <div className="flex items-center justify-between border-b border-border px-4 py-4">
-              <span className="text-sm font-semibold text-foreground">Menú</span>
+            <div className="flex items-center justify-between border-b border-border-default px-4 py-4">
+              <span className="text-sm font-semibold text-text-primary">Menú</span>
               <button
                 type="button"
-                className="inline-flex h-9 w-9 items-center justify-center rounded-md hover:bg-foreground/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+                className="inline-flex h-9 w-9 items-center justify-center rounded-md hover:bg-surface-alt focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-green"
                 aria-label="Cerrar menú"
                 onClick={closeMenu}
               >
