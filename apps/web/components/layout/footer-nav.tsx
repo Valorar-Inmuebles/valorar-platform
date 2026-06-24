@@ -9,7 +9,7 @@ type FooterNavProps = {
 export function FooterNav({ title, items }: FooterNavProps) {
   return (
     <div>
-      <h2 className="text-sm font-semibold uppercase tracking-wide text-white">
+      <h2 className="text-sm font-semibold uppercase tracking-wide text-text-primary">
         {title}
       </h2>
       <ul className="mt-4 space-y-3">
@@ -17,7 +17,7 @@ export function FooterNav({ title, items }: FooterNavProps) {
           <li key={item.href}>
             <Link
               href={item.href}
-              className="text-sm text-white/80 transition-colors hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+              className="text-sm text-text-secondary transition-colors hover:text-brand-green focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-green"
             >
               {item.label}
             </Link>

@@ -31,7 +31,7 @@ function SocialIcon({ icon }: { icon: SocialLink["icon"] }) {
 export function FooterSocial({ links }: FooterSocialProps) {
   return (
     <div>
-      <h2 className="text-sm font-semibold uppercase tracking-wide text-white">
+      <h2 className="text-sm font-semibold uppercase tracking-wide text-text-primary">
         Redes sociales
       </h2>
       <ul className="mt-4 flex flex-wrap gap-3">
@@ -42,7 +42,7 @@ export function FooterSocial({ links }: FooterSocialProps) {
               target="_blank"
               rel="noopener noreferrer"
               aria-label={link.label}
-              className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white transition-colors hover:bg-white/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+              className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-border-default bg-surface-card text-brand-green transition-colors hover:border-brand-green/40 hover:bg-surface-base focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-green"
             >
               <SocialIcon icon={link.icon} />
             </a>

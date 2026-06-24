@@ -39,7 +39,7 @@ export function Footer() {
   }).filter((link) => link.href.length > 0);
 
   return (
-    <footer className="border-t border-border bg-[#1a1a1a] text-white">
+    <footer className="border-t border-border-default bg-surface-alt text-text-primary">
       <SiteContainer className="py-12 lg:py-16">
         <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-4">
           <div className="sm:col-span-2 lg:col-span-1">
@@ -49,10 +49,10 @@ export function Footer() {
                 alt={site.companyName}
                 width={160}
                 height={48}
-                className="h-10 w-auto brightness-0 invert"
+                className="h-10 w-auto"
               />
             </Link>
-            <p className="mt-4 max-w-sm text-sm leading-relaxed text-white/70">
+            <p className="mt-4 max-w-sm text-sm leading-relaxed text-text-secondary">
               {FOOTER_DESCRIPTION}
             </p>
           </div>
@@ -61,14 +61,14 @@ export function Footer() {
           <FooterNav title="Servicios" items={FOOTER_SERVICE_ITEMS} />
 
           <div>
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-white">
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-text-primary">
               Contacto
             </h2>
-            <ul className="mt-4 space-y-3 text-sm text-white/80">
+            <ul className="mt-4 space-y-3 text-sm text-text-secondary">
               <li>
                 <a
                   href={`tel:${contact.phone.replace(/\s/g, "")}`}
-                  className="transition-colors hover:text-white"
+                  className="transition-colors hover:text-brand-green"
                 >
                   {contact.phone}
                 </a>
@@ -76,7 +76,7 @@ export function Footer() {
               <li>
                 <a
                   href={`mailto:${contact.email}`}
-                  className="transition-colors hover:text-white"
+                  className="transition-colors hover:text-brand-green"
                 >
                   {contact.email}
                 </a>
@@ -88,7 +88,7 @@ export function Footer() {
         </div>
 
         {socialLinks.length > 0 ? (
-          <div className="mt-10 border-t border-white/10 pt-8">
+          <div className="mt-10 border-t border-border-default pt-8">
             <FooterSocial links={socialLinks} />
           </div>
         ) : null}

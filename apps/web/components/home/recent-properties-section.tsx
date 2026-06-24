@@ -17,7 +17,7 @@ export function RecentPropertiesSection({
   unavailable = false,
 }: RecentPropertiesSectionProps) {
   return (
-    <section className="bg-slate-50 py-16 md:py-20">
+    <section className="bg-surface-alt py-16 md:py-20">
       <SiteContainer>
         <PropertySectionHeader title="Propiedades recientes" href="/propiedades" />
 
@@ -36,7 +36,7 @@ export function RecentPropertiesSection({
             <div className="mt-10 flex justify-center">
               <Link
                 href="/propiedades"
-                className="inline-flex h-12 items-center justify-center rounded-xl border border-primary bg-white px-8 text-sm font-semibold text-primary transition hover:bg-primary hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+                className="inline-flex h-12 items-center justify-center rounded-xl border border-brand-green bg-brand-green px-8 text-sm font-semibold text-white transition hover:brightness-110 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-green"
               >
                 Ver más propiedades
               </Link>

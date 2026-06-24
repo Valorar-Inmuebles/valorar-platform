@@ -79,7 +79,7 @@ export default function HomePage() {
 
       <Suspense
         fallback={
-          <section className="bg-slate-50 py-16 md:py-20">
+          <section className="bg-surface-alt py-16 md:py-20">
             <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">
               <PropertyGridSkeleton count={8} columns="recent" />
             </div>

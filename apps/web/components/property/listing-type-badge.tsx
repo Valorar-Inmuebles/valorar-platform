@@ -12,7 +12,7 @@ export function ListingTypeBadge({
 }: ListingTypeBadgeProps) {
   return (
     <span
-      className={`inline-flex rounded-full bg-white/95 px-2.5 py-1 text-xs font-semibold text-primary shadow-sm backdrop-blur ${className}`}
+      className={`inline-flex rounded-full bg-surface-card/95 px-2.5 py-1 text-xs font-semibold text-brand-green backdrop-blur ${className}`}
     >
       {getListingTypeLabel(listingType)}
     </span>

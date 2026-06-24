@@ -46,10 +46,10 @@ export function ListingTypeSwitcher({
             key={listingType}
             href={buildListingTypeHref(slug, listingType, currentListingType)}
             aria-current={isActive ? "page" : undefined}
-            className={`rounded-full px-4 py-2 text-sm font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${
+            className={`rounded-full px-4 py-2 text-sm font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-green ${
               isActive
-                ? "bg-primary text-white"
-                : "bg-slate-100 text-foreground hover:bg-slate-200"
+                ? "bg-brand-green text-white"
+                : "border border-border-default bg-surface-card text-text-primary hover:border-brand-green/40 hover:bg-surface-alt"
             }`}
           >
             {getListingTypeLabel(listingType)}

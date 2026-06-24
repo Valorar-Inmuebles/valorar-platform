@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { THEME_TOKENS } from "@/branding/tokens";
 
 export type SiteConfig = {
   companyName: string;
@@ -29,8 +30,10 @@ export function getSiteConfig(): SiteConfig {
     phone: process.env.PUBLIC_PHONE ?? "+54 11 0000-0000",
     address:
       process.env.PUBLIC_ADDRESS ?? "Av. Ejemplo 1234, Buenos Aires, Argentina",
-    primaryColor: process.env.PUBLIC_PRIMARY_COLOR ?? "#1e3a5f",
-    secondaryColor: process.env.PUBLIC_SECONDARY_COLOR ?? "#c9a227",
+    primaryColor:
+      process.env.PUBLIC_PRIMARY_COLOR ?? THEME_TOKENS.brand.green,
+    secondaryColor:
+      process.env.PUBLIC_SECONDARY_COLOR ?? THEME_TOKENS.brand.orange,
     social: {
       facebook: process.env.PUBLIC_FACEBOOK_URL ?? "",
       instagram: process.env.PUBLIC_INSTAGRAM_URL ?? "",

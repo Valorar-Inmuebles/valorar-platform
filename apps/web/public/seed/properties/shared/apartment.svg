@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600" viewBox="0 0 800 600">
+  <rect width="800" height="600" fill="#1e3a5f"/>
+  <rect x="80" y="120" width="640" height="360" rx="8" fill="#2d5a87"/>
+  <rect x="120" y="160" width="120" height="100" fill="#7dd3fc" opacity="0.9"/>
+  <rect x="280" y="160" width="120" height="100" fill="#7dd3fc" opacity="0.9"/>
+  <rect x="440" y="160" width="120" height="100" fill="#7dd3fc" opacity="0.9"/>
+  <rect x="560" y="160" width="120" height="100" fill="#7dd3fc" opacity="0.9"/>
+  <rect x="120" y="300" width="120" height="100" fill="#bae6fd" opacity="0.85"/>
+  <rect x="280" y="300" width="280" height="100" fill="#bae6fd" opacity="0.85"/>
+  <rect x="560" y="300" width="120" height="100" fill="#bae6fd" opacity="0.85"/>
+  <text x="400" y="540" text-anchor="middle" fill="#e2e8f0" font-family="system-ui,sans-serif" font-size="28">Departamento</text>
+</svg>

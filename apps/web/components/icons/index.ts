@@ -1,0 +1,11 @@
+export { Icon, type IconProps } from "./icon";
+export { BedIcon } from "./bed-icon";
+export { BathIcon } from "./bath-icon";
+export { AreaIcon } from "./area-icon";
+export { GarageIcon } from "./garage-icon";
+export { HouseIcon } from "./house-icon";
+export { ApartmentIcon } from "./apartment-icon";
+export { BuildingIcon } from "./building-icon";
+export { DevelopmentIcon } from "./development-icon";
+export { LocationIcon } from "./location-icon";
+export { WhatsappIcon } from "./whatsapp-icon";

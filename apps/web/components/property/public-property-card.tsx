@@ -30,7 +30,7 @@ function PropertyCoverImage({
       alt={alt}
       fill
       unoptimized
-      className="object-cover transition-transform duration-500 group-hover:scale-105"
+      className="object-cover transition-transform duration-700 ease-out group-hover:scale-[1.03]"
       sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
     />
   );
@@ -45,11 +45,11 @@ function PropertyMetrics({ property }: { property: PublicPropertyCard }) {
   ].filter(Boolean);
 
   if (items.length === 0) {
-    return null;
+    return <span className="block min-h-5" aria-hidden />;
   }
 
   return (
-    <p className="mt-2 text-sm text-muted">{items.join(" · ")}</p>
+    <p className="text-sm text-text-secondary">{items.join(" · ")}</p>
   );
 }
 
@@ -57,12 +57,12 @@ export function PublicPropertyCard({ property }: PublicPropertyCardProps) {
   const location = [property.neighborhood, property.city].filter(Boolean).join(", ");
 
   return (
-    <article className="group">
+    <article className="group h-full">
       <Link
         href={buildPublicPropertyDetailHref(property.slug, property.listingType)}
-        className="block overflow-hidden rounded-2xl border border-border bg-background shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+        className="flex h-full flex-col overflow-hidden rounded-2xl border border-border-default bg-surface-card transition-colors duration-300 hover:border-brand-green/35 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-green"
       >
-        <div className="relative aspect-[4/3] overflow-hidden bg-slate-100">
+        <div className="relative aspect-[4/3] shrink-0 overflow-hidden bg-surface-alt">
           <PropertyCoverImage property={property} />
           <div className="absolute left-3 top-3 flex flex-wrap gap-2">
             <ListingTypeBadge listingType={property.listingType} />
@@ -72,17 +72,22 @@ export function PublicPropertyCard({ property }: PublicPropertyCardProps) {
           </div>
         </div>
 
-        <div className="p-4 md:p-5">
-          <p className="text-xl font-semibold tracking-tight text-foreground">
+        <div className="flex flex-1 flex-col p-4 md:p-5">
+          <p className="text-xl font-semibold tracking-tight text-text-primary">
             {formatPrice(property.price, property.currency)}
           </p>
-          <h3 className="mt-2 line-clamp-2 text-base font-medium text-foreground">
+          <h3 className="mt-2 line-clamp-2 min-h-[2.75rem] text-base font-medium leading-snug text-text-primary md:min-h-[3rem]">
             {property.title}
           </h3>
-          {location ? (
-            <p className="mt-2 text-sm text-muted">{location}</p>
-          ) : null}
-          <PropertyMetrics property={property} />
+
+          <div className="mt-auto space-y-2 pt-4">
+            {location ? (
+              <p className="text-sm text-text-secondary">{location}</p>
+            ) : (
+              <span className="block min-h-5" aria-hidden />
+            )}
+            <PropertyMetrics property={property} />
+          </div>
         </div>
       </Link>
     </article>

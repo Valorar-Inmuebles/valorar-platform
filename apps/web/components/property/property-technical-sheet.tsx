@@ -10,6 +10,13 @@ import {
   getPropertyConditionLabel,
   getPropertyLayoutLabel,
 } from "@/lib/format/labels";
+export const PROPERTY_METRICS_GRID_KEYS = new Set([
+  "bedrooms",
+  "bathrooms",
+  "totalArea",
+  "parkingSpaces",
+  "rooms",
+]);
 
 type PropertyTechnicalSheetProps = {
   property: PublicPropertyDetail;
@@ -21,7 +28,7 @@ type TechnicalSheetItem = {
   value: string;
 };
 
-function buildTechnicalSheetItems(
+export function buildTechnicalSheetItems(
   property: PublicPropertyDetail,
 ): TechnicalSheetItem[] {
   const items: Array<TechnicalSheetItem | null> = [
@@ -136,30 +143,28 @@ function buildTechnicalSheetItems(
 }
 
 export function PropertyTechnicalSheet({ property }: PropertyTechnicalSheetProps) {
-  const items = buildTechnicalSheetItems(property);
+  const items = buildTechnicalSheetItems(property).filter(
+    (item) => !PROPERTY_METRICS_GRID_KEYS.has(item.key),
+  );
 
   if (items.length === 0) {
     return null;
   }
 
   return (
-    <section className="mt-10">
-      <h2 className="text-2xl font-semibold tracking-tight text-foreground">
-        Ficha técnica
-      </h2>
+    <section className="mt-8">
+      <h3 className="text-xs font-semibold uppercase tracking-[0.12em] text-text-secondary">
+        Detalles técnicos
+      </h3>
 
-      <dl className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <dl className="mt-4 grid gap-3 sm:grid-cols-2">
         {items.map((item) => (
           <div
             key={item.key}
-            className="rounded-xl border border-border bg-slate-50 px-4 py-3"
+            className="flex items-center justify-between gap-4 rounded-xl border border-border-default bg-surface-card px-4 py-3"
           >
-            <dt className="text-xs font-semibold uppercase tracking-wide text-muted">
-              {item.label}
-            </dt>
-            <dd className="mt-1 text-base font-medium text-foreground">
-              {item.value}
-            </dd>
+            <dt className="text-sm text-text-secondary">{item.label}</dt>
+            <dd className="text-sm font-medium text-text-primary">{item.value}</dd>
           </div>
         ))}
       </dl>

@@ -1,4 +1,4 @@
-import type { CSSProperties, ReactNode } from "react";
+import type { ReactNode } from "react";
 
 type SiteContainerProps = {
   children: ReactNode;
@@ -11,23 +11,4 @@ export function SiteContainer({ children, className = "" }: SiteContainerProps) 
       {children}
     </div>
   );
-}
-
-type BrandingVariablesProps = {
-  primaryColor: string;
-  secondaryColor: string;
-  children: ReactNode;
-};
-
-export function BrandingVariables({
-  primaryColor,
-  secondaryColor,
-  children,
-}: BrandingVariablesProps) {
-  const style = {
-    "--color-primary": primaryColor,
-    "--color-secondary": secondaryColor,
-  } as CSSProperties;
-
-  return <div style={style}>{children}</div>;
 }

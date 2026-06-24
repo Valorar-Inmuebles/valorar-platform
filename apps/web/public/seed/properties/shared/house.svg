@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600" viewBox="0 0 800 600">
+  <rect width="800" height="600" fill="#14532d"/>
+  <polygon points="400,80 680,280 680,480 120,480 120,280" fill="#166534"/>
+  <rect x="200" y="320" width="400" height="160" fill="#22c55e" opacity="0.85"/>
+  <rect x="340" y="380" width="120" height="100" fill="#fef3c7"/>
+  <rect x="240" y="340" width="80" height="60" fill="#7dd3fc" opacity="0.9"/>
+  <rect x="480" y="340" width="80" height="60" fill="#7dd3fc" opacity="0.9"/>
+  <text x="400" y="540" text-anchor="middle" fill="#dcfce7" font-family="system-ui,sans-serif" font-size="28">Casa</text>
+</svg>

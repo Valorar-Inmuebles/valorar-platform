@@ -14,15 +14,33 @@ export function NavLink({ href, label, onNavigate, className = "" }: NavLinkProp
   const pathname = usePathname();
   const isActive =
     href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(`${href}/`);
+  const isBlock = className.includes("block");
+
+  const focusRing =
+    "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-green";
+
+  const desktopClasses = !isBlock
+    ? `relative inline-flex py-1 text-sm font-medium text-text-secondary transition-colors hover:text-brand-green ${focusRing} ${
+        isActive
+          ? "text-brand-green after:absolute after:inset-x-0 after:-bottom-px after:h-0.5 after:bg-brand-orange"
+          : ""
+      }`
+    : "";
+
+  const mobileClasses = isBlock
+    ? `font-medium transition-colors ${focusRing} ${
+        isActive
+          ? "bg-brand-green/5 font-semibold text-brand-green"
+          : "text-text-primary hover:bg-surface-alt hover:text-brand-green active:bg-brand-green/10 active:text-brand-green"
+      }`
+    : "";
 
   return (
     <Link
       href={href}
       onClick={onNavigate}
       aria-current={isActive ? "page" : undefined}
-      className={`text-sm font-medium transition-colors hover:text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${
-        isActive ? "text-primary" : "text-foreground/80"
-      } ${className}`}
+      className={`${desktopClasses} ${mobileClasses} ${className}`}
     >
       {label}
     </Link>

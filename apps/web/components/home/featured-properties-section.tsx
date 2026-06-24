@@ -16,7 +16,7 @@ export function FeaturedPropertiesSection({
   unavailable = false,
 }: FeaturedPropertiesSectionProps) {
   return (
-    <section className="py-16 md:py-20">
+    <section className="bg-surface-base py-16 md:py-20">
       <SiteContainer>
         <PropertySectionHeader title="Propiedades destacadas" href="/propiedades" />
 

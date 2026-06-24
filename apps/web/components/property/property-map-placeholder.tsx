@@ -1,3 +1,6 @@
+import { LocationIcon } from "@/components/icons";
+import { PropertyDetailSection } from "./property-detail-section";
+
 type PropertyMapPlaceholderProps = {
   city: string;
   neighborhood: string | null;
@@ -27,54 +30,45 @@ export function PropertyMapPlaceholder({
   const hasCoordinates = latitude != null && longitude != null;
 
   return (
-    <section className="mt-10">
-      <h2 className="text-2xl font-semibold tracking-tight text-foreground">
-        Ubicación
-      </h2>
+    <PropertyDetailSection title="Ubicación">
+      {location ? (
+        <p className="mb-4 inline-flex items-center gap-2 text-base text-text-primary">
+          <LocationIcon size={18} className="shrink-0 text-brand-green" />
+          {location}
+        </p>
+      ) : null}
 
       {hasCoordinates ? (
-        <div className="mt-4 overflow-hidden rounded-2xl border border-border bg-slate-50">
+        <div className="overflow-hidden rounded-2xl border border-border-default bg-surface-card">
           <iframe
             title={`Mapa aproximado de ${location || city}`}
             src={buildOpenStreetMapEmbedUrl(latitude, longitude)}
-            className="h-72 w-full border-0"
+            className="h-80 w-full border-0 md:h-96"
             loading="lazy"
             referrerPolicy="no-referrer-when-downgrade"
           />
-          <div className="border-t border-border px-4 py-3">
-            <p className="text-sm font-medium text-foreground">{location}</p>
-            <p className="mt-1 text-xs text-muted">
+          <div className="border-t border-border-default px-4 py-3">
+            <p className="text-xs text-text-secondary">
               Ubicación aproximada. La dirección exacta no se publica por
               privacidad.
             </p>
           </div>
         </div>
       ) : (
-        <div className="mt-4 overflow-hidden rounded-2xl border border-dashed border-border bg-slate-50">
-          <div className="flex min-h-56 flex-col items-center justify-center px-6 py-10 text-center">
-            <div className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
-              <svg
-                aria-hidden
-                viewBox="0 0 24 24"
-                className="h-6 w-6"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.8"
-              >
-                <path
-                  d="M12 21s7-4.5 7-11a7 7 0 1 0-14 0c0 6.5 7 11 7 11Z"
-                  strokeLinejoin="round"
-                />
-                <circle cx="12" cy="10" r="2.5" />
-              </svg>
+        <div className="overflow-hidden rounded-2xl border border-dashed border-border-default bg-surface-alt">
+          <div className="flex min-h-64 flex-col items-center justify-center px-6 py-10 text-center md:min-h-72">
+            <div className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-brand-green/10 text-brand-green">
+              <LocationIcon size={24} />
             </div>
-            <p className="mt-4 text-base font-medium text-foreground">{location}</p>
-            <p className="mt-2 max-w-md text-sm text-muted">
+            <p className="mt-4 text-base font-medium text-text-primary">
+              {location || city}
+            </p>
+            <p className="mt-2 max-w-md text-sm text-text-secondary">
               Mapa no disponible. La ubicación se muestra a nivel barrio o ciudad.
             </p>
           </div>
         </div>
       )}
-    </section>
+    </PropertyDetailSection>
   );
 }
