@@ -17,7 +17,7 @@ const SEARCH_TABS: Array<{ id: SearchTab; label: string }> = [
 ];
 
 const FIELD_CONTROL_CLASS =
-  "flex h-14 items-center gap-3 rounded-2xl border border-border-default bg-surface-card px-4 md:px-5";
+  "flex h-14 w-full items-center gap-3 rounded-2xl border border-border-default bg-surface-card px-4 md:px-5";
 
 export function PropertySearchForm() {
   const router = useRouter();
@@ -40,11 +40,11 @@ export function PropertySearchForm() {
   const isDevelopmentsTab = activeTab === "developments";
 
   return (
-    <div className="flex w-full flex-col items-start">
+    <div className="flex w-full flex-col">
       <div
         role="tablist"
         aria-label="Tipo de búsqueda"
-        className="inline-flex w-fit items-center rounded-t-3xl border border-b-0 border-border-default bg-surface-card px-8 pb-3 pt-5 md:px-10"
+        className="grid w-full grid-cols-3 rounded-t-3xl border border-b-0 border-border-default bg-surface-card px-2 pb-3 pt-4 md:flex md:w-fit md:items-center md:px-8 md:pb-3 md:pt-5 lg:px-10"
       >
         {SEARCH_TABS.map((tab, index) => {
           const isActive = activeTab === tab.id;
@@ -54,7 +54,7 @@ export function PropertySearchForm() {
               {index > 0 ? (
                 <span
                   aria-hidden
-                  className="mx-4 inline-block h-4 w-px shrink-0 bg-border-default"
+                  className="mx-4 hidden h-4 w-px shrink-0 bg-border-default md:inline-block"
                 />
               ) : null}
               <button
@@ -62,9 +62,9 @@ export function PropertySearchForm() {
                 role="tab"
                 aria-selected={isActive}
                 onClick={() => setActiveTab(tab.id)}
-                className="inline-flex w-auto pb-2 text-sm font-normal text-text-secondary transition-colors hover:text-text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-action-accent md:text-base"
+                className="flex min-h-11 w-full items-center justify-center px-1 pb-2 text-center text-xs font-normal text-text-secondary transition-colors hover:text-text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-action-accent sm:text-sm md:inline-flex md:min-h-0 md:w-auto md:px-0 md:text-base"
               >
-                <span className="relative inline-block whitespace-nowrap">
+                <span className="relative inline-block max-w-full whitespace-normal md:whitespace-nowrap">
                   <span className={isActive ? "font-medium text-text-primary" : undefined}>
                     {tab.label}
                   </span>
@@ -83,17 +83,17 @@ export function PropertySearchForm() {
 
       <form
         onSubmit={handleSubmit}
-        className="-mt-px w-full rounded-3xl rounded-tl-none border border-border-default bg-surface-card px-6 py-5 shadow-sm md:px-8"
+        className="-mt-px w-full rounded-b-3xl border border-border-default bg-surface-card px-4 py-4 shadow-sm sm:px-6 sm:py-5 md:rounded-3xl md:rounded-tl-none md:px-8"
       >
-        <div className="flex flex-col gap-3 md:flex-row md:items-center">
+        <div className="flex w-full flex-col gap-3 md:flex-row md:items-center">
           <PropertyTypeDropdown
             value={propertyType}
             onChange={setPropertyType}
             disabled={isDevelopmentsTab}
-            className="md:w-52 lg:w-56"
+            className="w-full md:w-52 lg:w-56"
           />
 
-          <label className={`${FIELD_CONTROL_CLASS} min-w-0 flex-1`}>
+          <label className={`${FIELD_CONTROL_CLASS} min-w-0 md:flex-1`}>
             <span className="sr-only">Ubicación</span>
             <LocationIcon size={20} className="shrink-0 text-text-secondary" />
             <input
@@ -103,7 +103,7 @@ export function PropertySearchForm() {
               placeholder="Ingresá ubicación, barrio o zona"
               disabled={isDevelopmentsTab}
               aria-label="Ubicación"
-              className="min-w-0 flex-1 border-0 bg-transparent text-sm font-normal text-text-primary outline-none placeholder:text-text-secondary disabled:cursor-not-allowed disabled:opacity-50 md:text-base"
+              className="min-h-0 min-w-0 flex-1 border-0 bg-transparent text-sm font-normal text-text-primary outline-none placeholder:text-text-secondary disabled:cursor-not-allowed disabled:opacity-50 md:text-base"
             />
           </label>
 

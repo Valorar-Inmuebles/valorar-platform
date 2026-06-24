@@ -6,6 +6,7 @@ import {
 
 type PropertyFeaturesProps = {
   features: PublicPropertyFeature[];
+  showHeading?: boolean;
 };
 
 function groupFeaturesByCategory(features: PublicPropertyFeature[]) {
@@ -16,7 +17,10 @@ function groupFeaturesByCategory(features: PublicPropertyFeature[]) {
   })).filter((group) => group.items.length > 0);
 }
 
-export function PropertyFeatures({ features }: PropertyFeaturesProps) {
+export function PropertyFeatures({
+  features,
+  showHeading = true,
+}: PropertyFeaturesProps) {
   const groups = groupFeaturesByCategory(features);
 
   if (groups.length === 0) {
@@ -24,26 +28,30 @@ export function PropertyFeatures({ features }: PropertyFeaturesProps) {
   }
 
   return (
-    <section className="mt-10">
-      <h2 className="text-2xl font-semibold tracking-tight text-foreground">
-        Características
-      </h2>
+    <section className={showHeading ? "mt-12" : "mt-8"}>
+      {showHeading ? (
+        <h2 className="text-2xl font-semibold tracking-tight text-text-primary md:text-3xl">
+          Comodidades y servicios
+        </h2>
+      ) : null}
 
-      <div className="mt-6 space-y-8">
+      <div className={showHeading ? "mt-6 space-y-8" : "space-y-8"}>
         {groups.map((group) => (
           <div key={group.category}>
-            <h3 className="text-sm font-semibold uppercase tracking-wide text-muted">
+            <h3 className="text-xs font-semibold uppercase tracking-[0.12em] text-text-secondary">
               {group.label}
             </h3>
             <ul className="mt-3 flex flex-wrap gap-2">
               {group.items.map((feature) => (
                 <li
                   key={feature.id}
-                  className="inline-flex items-center rounded-full border border-border bg-slate-50 px-3 py-1.5 text-sm text-foreground"
+                  className="inline-flex items-center rounded-full border border-border-default bg-surface-card px-3 py-1.5 text-sm text-text-primary"
                 >
                   {feature.name}
                   {feature.value ? (
-                    <span className="ml-1 text-muted">· {feature.value}</span>
+                    <span className="ml-1 text-text-secondary">
+                      · {feature.value}
+                    </span>
                   ) : null}
                 </li>
               ))}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { PropertyDetailSection } from "./property-detail-section";
 
 type PropertyDescriptionProps = {
   description: string | null;
@@ -14,26 +15,22 @@ export function PropertyDescription({ description }: PropertyDescriptionProps) {
   }
 
   return (
-    <section className="mt-10">
-      <h2 className="text-2xl font-semibold tracking-tight text-foreground">
-        Descripción
-      </h2>
-      <div className="mt-4">
-        <p
-          className={`whitespace-pre-line text-base leading-7 text-foreground/90 ${
-            isExpanded ? "" : "line-clamp-6 md:line-clamp-none"
-          }`}
-        >
-          {description}
-        </p>
-        <button
-          type="button"
-          onClick={() => setIsExpanded((value) => !value)}
-          className="mt-3 text-sm font-medium text-primary md:hidden"
-        >
-          {isExpanded ? "Leer menos" : "Leer más"}
-        </button>
-      </div>
-    </section>
+    <PropertyDetailSection title="Descripción">
+      <p
+        className={`whitespace-pre-line text-base leading-8 text-text-primary/90 ${
+          isExpanded ? "" : "line-clamp-6 md:line-clamp-none"
+        }`}
+      >
+        {description}
+      </p>
+      <button
+        type="button"
+        onClick={() => setIsExpanded((value) => !value)}
+        className="mt-4 inline-flex items-center gap-1 text-sm font-medium text-brand-green transition hover:text-brand-green/80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-green md:hidden"
+      >
+        {isExpanded ? "Leer menos" : "Ver más"}
+        <span aria-hidden>{isExpanded ? "↑" : "↓"}</span>
+      </button>
+    </PropertyDetailSection>
   );
 }

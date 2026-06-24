@@ -1,11 +1,10 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { SiteContainer } from "@/components/layout/site-container";
+import { PropertyCharacteristics } from "@/components/property/property-characteristics";
 import { PropertyDescription } from "@/components/property/property-description";
-import { PropertyFeatures } from "@/components/property/property-features";
 import { PropertyGallery } from "@/components/property/property-gallery";
 import { PropertyHeader } from "@/components/property/property-header";
-import { PropertyTechnicalSheet } from "@/components/property/property-technical-sheet";
 import { ListingTypeSwitcher } from "@/components/property/listing-type-switcher";
 import { PropertyMapPlaceholder } from "@/components/property/property-map-placeholder";
 import { PropertyPriceCard } from "@/components/property/property-price-card";
@@ -17,6 +16,7 @@ import {
   getRelatedProperties,
 } from "@/lib/api/public-property";
 import { getListingTypeLabel } from "@/lib/format/labels";
+import { getPublicSiteConfig } from "@/lib/tenant/site-config";
 import { createPageMetadata } from "@/lib/seo/metadata";
 import type { PropertyListingType } from "@repo/shared-types";
 
@@ -98,13 +98,20 @@ export default async function PropertyDetailPage({
   }
 
   const relatedProperties = await getRelatedProperties(property);
+  const site = getPublicSiteConfig();
+  const contact = {
+    whatsapp: site.whatsapp,
+    email: site.email,
+    phone: site.phone,
+    siteUrl: site.siteUrl,
+  };
 
   return (
     <>
       <PropertyJsonLd property={property} />
       <PropertyGallery images={property.gallery} title={property.title} />
 
-      <SiteContainer className="py-10 md:py-14">
+      <SiteContainer className="pb-10 pt-4 md:pb-14 md:pt-5">
         <Breadcrumbs
           items={[
             { label: "Inicio", href: "/" },
@@ -113,7 +120,7 @@ export default async function PropertyDetailPage({
           ]}
         />
 
-        <div className="mt-8 grid gap-8 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start">
+        <div className="mt-4 grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start lg:gap-8">
           <div className="min-w-0">
             <ListingTypeSwitcher
               slug={property.slug}
@@ -121,16 +128,15 @@ export default async function PropertyDetailPage({
               availableListingTypes={
                 property.availableListingTypes ?? [property.listingType]
               }
-              className="mb-4"
+              className="mb-3"
             />
             <PropertyHeader property={property} />
 
-            <div className="mt-8 lg:hidden">
-              <PropertyPriceCard property={property} />
+            <div className="mt-6 lg:hidden">
+              <PropertyPriceCard property={property} contact={contact} />
             </div>
 
-            <PropertyTechnicalSheet property={property} />
-            <PropertyFeatures features={property.features} />
+            <PropertyCharacteristics property={property} />
             <PropertyDescription description={property.description} />
             <PropertyMapPlaceholder
               city={property.city}
@@ -142,7 +148,7 @@ export default async function PropertyDetailPage({
           </div>
 
           <div className="hidden lg:block">
-            <PropertyPriceCard property={property} />
+            <PropertyPriceCard property={property} contact={contact} />
           </div>
         </div>
       </SiteContainer>

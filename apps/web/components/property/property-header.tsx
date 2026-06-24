@@ -1,34 +1,18 @@
+import { Playfair_Display } from "next/font/google";
 import type { PublicPropertyDetail } from "@repo/shared-types";
-import { formatArea } from "@/lib/format/area";
-import {
-  getListingTypeLabel,
-  getPropertyTypeLabel,
-} from "@/lib/format/labels";
+import { LocationIcon } from "@/components/icons";
+import { getPropertyTypeLabel } from "@/lib/format/labels";
 import { ListingTypeBadge } from "./listing-type-badge";
+
+const playfair = Playfair_Display({
+  subsets: ["latin"],
+  weight: ["500", "600"],
+  display: "swap",
+});
 
 type PropertyHeaderProps = {
   property: PublicPropertyDetail;
 };
-
-function PropertyMetrics({ property }: { property: PublicPropertyDetail }) {
-  const items = [
-    property.bedrooms != null ? `${property.bedrooms} dormitorios` : null,
-    property.bathrooms != null ? `${property.bathrooms} baños` : null,
-    formatArea(property.totalArea),
-  ].filter(Boolean);
-
-  if (items.length === 0) {
-    return null;
-  }
-
-  return (
-    <ul className="mt-4 flex flex-wrap gap-x-4 gap-y-2 text-sm text-muted">
-      {items.map((item) => (
-        <li key={item}>{item}</li>
-      ))}
-    </ul>
-  );
-}
 
 export function PropertyHeader({ property }: PropertyHeaderProps) {
   const location = [property.neighborhood, property.city]
@@ -39,29 +23,28 @@ export function PropertyHeader({ property }: PropertyHeaderProps) {
     <header>
       <div className="flex flex-wrap items-center gap-2">
         <ListingTypeBadge listingType={property.listingType} />
-        <span className="inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-foreground">
+        <span className="inline-flex rounded-full bg-surface-alt px-2.5 py-1 text-xs font-medium text-text-primary">
           {getPropertyTypeLabel(property.propertyType)}
         </span>
         {property.listing.isFeatured ? (
-          <span className="inline-flex rounded-full bg-secondary/15 px-2.5 py-1 text-xs font-semibold text-secondary">
+          <span className="inline-flex rounded-full bg-brand-orange/10 px-2.5 py-1 text-xs font-semibold text-brand-orange">
             Destacada
           </span>
         ) : null}
       </div>
 
-      <h1 className="mt-4 text-3xl font-semibold tracking-tight text-foreground md:text-4xl">
+      <h1
+        className={`${playfair.className} mt-3 text-3xl font-medium leading-tight tracking-tight text-text-primary md:text-4xl lg:text-[2.75rem]`}
+      >
         {property.title}
       </h1>
 
       {location ? (
-        <p className="mt-3 text-base text-muted">{location}</p>
+        <p className="mt-3 inline-flex items-center gap-2 text-base text-text-secondary">
+          <LocationIcon size={18} className="shrink-0 text-brand-green" />
+          {location}
+        </p>
       ) : null}
-
-      <p className="mt-2 text-sm text-muted">
-        Operación: {getListingTypeLabel(property.listingType)}
-      </p>
-
-      <PropertyMetrics property={property} />
     </header>
   );
 }

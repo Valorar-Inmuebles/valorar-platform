@@ -28,10 +28,10 @@ export function NavLink({ href, label, onNavigate, className = "" }: NavLinkProp
     : "";
 
   const mobileClasses = isBlock
-    ? `text-base font-medium transition-colors ${focusRing} ${
+    ? `font-medium transition-colors ${focusRing} ${
         isActive
-          ? "bg-surface-alt text-brand-green"
-          : "text-text-secondary hover:bg-surface-alt/60 hover:text-brand-green"
+          ? "bg-brand-green/5 font-semibold text-brand-green"
+          : "text-text-primary hover:bg-surface-alt hover:text-brand-green active:bg-brand-green/10 active:text-brand-green"
       }`
     : "";
 
