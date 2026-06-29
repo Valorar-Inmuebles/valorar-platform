@@ -6,8 +6,9 @@
   "private": true,
   "license": "UNLICENSED",
   "scripts": {
+    "generate": "prisma generate",
+    "prebuild": "npm run generate && npm run build -w @repo/property-rules",
     "build": "nest build",
-    "prebuild": "npm run build -w @repo/property-rules",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "dev": "npm run build -w @repo/property-rules && nest start --watch",
     "start": "nest start",
