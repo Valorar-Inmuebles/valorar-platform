@@ -53,6 +53,17 @@ export function visibleNavChildren(
   return item.children.filter((child) => isNavItemVisible(child, ctx));
 }
 
+/** Oculta rutas placeholder de Configuración durante demo comercial. */
+export const HIDE_CONFIGURATION_NAV = true;
+
+export function getVisibleNavigation(): NavSection[] {
+  if (!HIDE_CONFIGURATION_NAV) {
+    return navigation;
+  }
+
+  return navigation.filter((section) => section.id !== "configuracion");
+}
+
 /** @deprecated Usar sessionToNavContext() con la sesión real. */
 export const DEV_NAV_CONTEXT: NavViewerContext = {
   isSuperAdmin: true,

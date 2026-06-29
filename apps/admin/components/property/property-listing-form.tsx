@@ -120,7 +120,7 @@ export function PropertyListingForm({
 
         toast.success("Publicación creada correctamente.");
         router.push(
-          `/propiedades/${propertyId}/publicaciones/${result.id}`,
+          `/propiedades/${propertyId}/publicaciones/${result.id}/precios`,
         );
         router.refresh();
         return;

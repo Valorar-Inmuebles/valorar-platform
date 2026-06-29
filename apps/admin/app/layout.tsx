@@ -38,7 +38,10 @@ export default function RootLayout({
       lang="es"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="flex min-h-full flex-col bg-background font-sans text-foreground">
+      <body
+        data-app="admin"
+        className="flex min-h-full flex-col bg-background font-sans text-foreground"
+      >
         <AdminProviders>{children}</AdminProviders>
       </body>
     </html>

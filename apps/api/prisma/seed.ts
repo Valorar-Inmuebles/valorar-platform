@@ -10,6 +10,12 @@ import {
   SEED_USERS,
 } from './seed-data';
 import { seedPropertyFeatures } from './seed-features';
+import {
+  countFeaturedDemoListings,
+  countPublishableDemoProperties,
+  isDemoPropertiesSeedEnabled,
+  seedDemoProperties,
+} from './seed-demo-properties';
 
 function resolveSeedPassword(): string {
   const password = process.env.SEED_DEFAULT_PASSWORD?.trim();
@@ -81,6 +87,29 @@ async function main(): Promise<void> {
       const tenantLabel =
         spec.tenantSlug === null ? 'null (platform)' : `${DEMO_TENANT_SLUG} (${tenant.id})`;
       console.log(`  - ${spec.role}: ${spec.email} → tenant ${tenantLabel}`);
+    }
+
+    if (isDemoPropertiesSeedEnabled()) {
+      const demoResult = await seedDemoProperties(prisma);
+      const publishableCount = await countPublishableDemoProperties(
+        prisma,
+        tenant.id,
+      );
+      const featuredCount = await countFeaturedDemoListings(prisma, tenant.id);
+
+      console.log('');
+      console.log('Demo properties seed completed (SEED_DEMO_PROPERTIES=true).');
+      console.log(`  Properties: ${demoResult.propertyCount}`);
+      console.log(`  Listings: ${demoResult.listingCount}`);
+      console.log(`  Images: ${demoResult.imageCount}`);
+      console.log(`  Feature assignments: ${demoResult.featureAssignmentCount}`);
+      console.log(`  Publishable (public API rules): ${publishableCount}`);
+      console.log(`  Featured listings: ${featuredCount}`);
+    } else {
+      console.log('');
+      console.log(
+        'Demo properties seed skipped (set SEED_DEMO_PROPERTIES=true to enable).',
+      );
     }
   } finally {
     await prisma.$disconnect();

@@ -4,8 +4,13 @@ import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@repo/ui/button";
 import { Input } from "@repo/ui/input";
+import { cn } from "@/lib/cn";
 
-export function LoginForm() {
+type LoginFormProps = {
+  className?: string;
+};
+
+export function LoginForm({ className }: LoginFormProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
@@ -54,38 +59,50 @@ export function LoginForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <Input
-        id="email"
-        name="email"
-        type="email"
-        label="Email"
-        autoComplete="email"
-        required
-        value={email}
-        onChange={(event) => setEmail(event.target.value)}
-      />
+    <div className={cn("space-y-6", className)}>
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <Input
+          id="email"
+          name="email"
+          type="email"
+          label="Email"
+          autoComplete="email"
+          required
+          value={email}
+          onChange={(event) => setEmail(event.target.value)}
+        />
 
-      <Input
-        id="password"
-        name="password"
-        type="password"
-        label="Contraseña"
-        autoComplete="current-password"
-        required
-        value={password}
-        onChange={(event) => setPassword(event.target.value)}
-      />
+        <Input
+          id="password"
+          name="password"
+          type="password"
+          label="Contraseña"
+          autoComplete="current-password"
+          required
+          value={password}
+          onChange={(event) => setPassword(event.target.value)}
+        />
 
-      {error ? (
-        <p className="text-sm text-red-600" role="alert">
-          {error}
-        </p>
-      ) : null}
+        {error ? (
+          <p className="text-sm text-red-600" role="alert">
+            {error}
+          </p>
+        ) : null}
 
-      <Button type="submit" className="w-full" disabled={isSubmitting}>
-        {isSubmitting ? "Ingresando…" : "Ingresar"}
-      </Button>
-    </form>
+        <Button type="submit" size="lg" className="w-full" disabled={isSubmitting}>
+          {isSubmitting ? "Ingresando…" : "Ingresar"}
+        </Button>
+      </form>
+
+      <div className="border-t border-border pt-5 text-center">
+        <p className="text-sm text-muted">¿Necesitás ayuda?</p>
+        <a
+          href="mailto:contacto@valorar.com.ar"
+          className="mt-1 inline-block text-sm font-medium text-brand-green underline-offset-4 transition hover:underline"
+        >
+          contacto@valorar.com.ar
+        </a>
+      </div>
+    </div>
   );
 }
