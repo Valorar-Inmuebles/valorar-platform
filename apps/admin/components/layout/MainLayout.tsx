@@ -30,7 +30,7 @@ export function MainLayout({
         />
 
         <div className="flex min-w-0 flex-1 flex-col">
-          <div className="sticky top-0 z-30 bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/70">
+          <div className="sticky top-0 z-30 border-b border-border/60 bg-surface-base/85 backdrop-blur-xl supports-[backdrop-filter]:bg-surface-base/75">
             <MainHeader
               user={session.user}
               activeTenantId={activeTenantId}

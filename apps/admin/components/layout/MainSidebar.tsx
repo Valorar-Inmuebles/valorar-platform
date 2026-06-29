@@ -4,10 +4,11 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useToast } from "@repo/ui/toast";
 import { NavIcon } from "@/components/layout/icons";
+import { AdminBrandMark } from "@/components/branding/admin-brand-mark";
 import {
+  getVisibleNavigation,
   isNavItemVisible,
   matchNavPath,
-  navigation,
   type NavItem,
   type NavViewerContext,
 } from "@/components/layout/nav-config";
@@ -26,7 +27,7 @@ const stateIdle =
 function ActiveBar() {
   return (
     <span
-      className="absolute left-0 top-1/2 h-5 w-0.5 -translate-y-1/2 rounded-r-full bg-blue-400"
+      className="absolute left-0 top-1/2 h-5 w-0.5 -translate-y-1/2 rounded-r-full bg-brand-orange"
       aria-hidden
     />
   );
@@ -179,7 +180,7 @@ export function MainSidebar({
         <button
           type="button"
           aria-label="Cerrar menú"
-          className="fixed inset-0 z-40 bg-zinc-900/40 backdrop-blur-[1px] lg:hidden"
+          className="fixed inset-0 z-40 bg-brand-green/40 backdrop-blur-[1px] lg:hidden"
           onClick={closeMobile}
         />
       )}
@@ -195,22 +196,29 @@ export function MainSidebar({
       >
         <div
           className={cn(
-            "flex h-[3.25rem] shrink-0 items-center gap-2.5 border-b border-sidebar-border",
-            isCollapsed ? "justify-center" : "px-3",
+            "flex shrink-0 flex-col justify-center border-b border-sidebar-border",
+            isCollapsed ? "items-center px-2 py-3" : "px-3 py-3",
           )}
         >
-          <div className="grid size-7 shrink-0 place-items-center rounded-md bg-primary text-[11px] font-bold text-primary-foreground">
-            V
-          </div>
-          {!isCollapsed && (
-            <div className="min-w-0">
-              <div className="truncate text-sm font-semibold text-sidebar-foreground">
-                Valorar Admin
-              </div>
-              <div className="truncate text-[11px] text-sidebar-muted">
-                Panel administrativo
-              </div>
-            </div>
+          {isCollapsed ? (
+            <Link
+              href="/"
+              onClick={handleNavigate}
+              className="rounded-md p-1 transition hover:bg-white/10"
+              title="Admin — Inicio"
+              aria-label="Valorar Admin — Inicio"
+            >
+              <AdminBrandMark variant="sidebar-compact" />
+            </Link>
+          ) : (
+            <Link
+              href="/"
+              onClick={handleNavigate}
+              className="min-w-0 transition hover:opacity-90"
+              aria-label="Valorar Admin — Inicio"
+            >
+              <AdminBrandMark variant="sidebar" />
+            </Link>
           )}
         </div>
 
@@ -226,7 +234,7 @@ export function MainSidebar({
             </div>
           ) : null}
 
-          {navigation.map((section, idx) => (
+          {getVisibleNavigation().map((section, idx) => (
             <div key={section.id} className={idx > 0 ? "mt-4" : ""}>
               {!isCollapsed ? (
                 <div className="mb-1 px-2 text-[10px] font-medium uppercase tracking-wide text-sidebar-muted">

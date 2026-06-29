@@ -50,6 +50,7 @@ Copiar desde `apps/api/.env.example`:
 | `CORS_ORIGIN` | No | Origen admin (default `http://localhost:3001`) |
 | `COOKIE_SECURE` | No | `false` en dev HTTP local |
 | `SEED_DEFAULT_PASSWORD` | Solo seed | Contraseña de usuarios demo (dev) |
+| `SEED_DEMO_PROPERTIES` | No | `true` para cargar 30 propiedades demo publicables |
 
 ## Seed de desarrollo (Auth Foundation v1)
 
@@ -71,6 +72,16 @@ npx prisma db seed
 | `AGENT` | `agent@demo.valorar.dev` | Demo Inmobiliaria (`slug: demo`) |
 
 Contraseña: valor de `SEED_DEFAULT_PASSWORD` en `.env`. Sugerencia documentada para dev local: `ValorarDev2026!` (no commitear `.env`).
+
+### Propiedades demo (opt-in)
+
+Con `SEED_DEMO_PROPERTIES=true` se cargan 30 propiedades publicables para el tenant demo. Ver `docs/seed-demo-properties-plan.md`.
+
+```bash
+# En .env además de SEED_DEFAULT_PASSWORD:
+# SEED_DEMO_PROPERTIES=true
+npx prisma db seed
+```
 
 ## Auth Foundation v1 (implementado)
 

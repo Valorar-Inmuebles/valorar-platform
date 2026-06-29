@@ -17,8 +17,11 @@ export function MainHeader({ user, activeTenantId }: MainHeaderProps) {
   const initials = getUserInitials(user.name);
   const isSuperAdmin = user.role === "SUPER_ADMIN";
 
+  const avatarClassName =
+    "flex size-8 shrink-0 items-center justify-center rounded-full bg-brand-green/10 text-xs font-semibold text-brand-green ring-1 ring-brand-green/20";
+
   return (
-    <header className="flex min-h-[3.25rem] shrink-0 flex-col gap-2 border-b border-border bg-surface/75 px-4 py-2 backdrop-blur-xl supports-[backdrop-filter]:bg-surface/65 sm:flex-row sm:items-center sm:gap-3 sm:py-0 sm:px-6">
+    <header className="flex min-h-[3.25rem] shrink-0 flex-col gap-2 border-b border-border bg-surface/90 px-4 py-2 backdrop-blur-xl supports-[backdrop-filter]:bg-surface/80 sm:flex-row sm:items-center sm:gap-3 sm:py-0 sm:px-6">
       <div className="flex min-w-0 flex-1 items-center gap-3">
         <Button
           type="button"
@@ -33,7 +36,7 @@ export function MainHeader({ user, activeTenantId }: MainHeaderProps) {
                 : "Contraer barra lateral"
           }
           aria-pressed={isMobile ? undefined : !collapsed}
-          className="size-8 shrink-0 px-0"
+          className="size-8 shrink-0 px-0 text-brand-green hover:bg-surface-alt"
         >
           <IconMenu className="size-[1.125rem]" />
         </Button>
@@ -46,7 +49,7 @@ export function MainHeader({ user, activeTenantId }: MainHeaderProps) {
         </div>
 
         <div
-          className="flex size-8 shrink-0 items-center justify-center rounded-full bg-zinc-100 text-xs font-semibold text-zinc-600 ring-1 ring-border sm:hidden"
+          className={`${avatarClassName} sm:hidden`}
           title={user.name}
           aria-label={`Usuario: ${user.name}`}
         >
@@ -66,7 +69,7 @@ export function MainHeader({ user, activeTenantId }: MainHeaderProps) {
       ) : null}
 
       <div
-        className="hidden size-8 shrink-0 items-center justify-center rounded-full bg-zinc-100 text-xs font-semibold text-zinc-600 ring-1 ring-border sm:flex"
+        className={`${avatarClassName} hidden sm:flex`}
         title={user.name}
         aria-label={`Usuario: ${user.name}`}
       >

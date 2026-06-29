@@ -3,23 +3,32 @@
 @source "../../../packages/ui/src";
 
 :root {
-  --background: #f4f4f5;
-  --foreground: #18181b;
-  --surface: #ffffff;
-  --muted: #71717a;
-  --border: #e4e4e7;
+  --surface-base: #faf9f7;
+  --surface-alt: #f6f4ef;
+  --surface-card: #ffffff;
 
-  --sidebar-background: #18181b;
-  --sidebar-foreground: #fafafa;
-  --sidebar-muted: #a1a1aa;
-  --sidebar-accent: rgb(255 255 255 / 0.1);
-  --sidebar-border: rgb(255 255 255 / 0.08);
+  --brand-green: #15361e;
+  --brand-orange: #ee680f;
+
+  --border-warm: #ece8df;
+
+  --background: var(--surface-base);
+  --foreground: #1f2937;
+  --surface: var(--surface-card);
+  --muted: #6b7280;
+  --border: var(--border-warm);
+
+  --sidebar-background: var(--brand-green);
+  --sidebar-foreground: #faf9f7;
+  --sidebar-muted: rgb(250 249 247 / 0.65);
+  --sidebar-accent: rgb(255 255 255 / 0.12);
+  --sidebar-border: rgb(255 255 255 / 0.14);
   --sidebar-width: 220px;
   --sidebar-width-collapsed: 3.5rem;
 
   --header-height: 3.5rem;
 
-  --color-primary: #2563eb;
+  --color-primary: var(--brand-green);
   --color-primary-foreground: #ffffff;
   --color-destructive: #dc2626;
   --color-destructive-foreground: #ffffff;
@@ -29,8 +38,12 @@
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-surface: var(--surface);
+  --color-surface-alt: var(--surface-alt);
+  --color-surface-base: var(--surface-base);
   --color-muted: var(--muted);
   --color-border: var(--border);
+  --color-brand-green: var(--brand-green);
+  --color-brand-orange: var(--brand-orange);
   --color-sidebar: var(--sidebar-background);
   --color-sidebar-foreground: var(--sidebar-foreground);
   --color-sidebar-muted: var(--sidebar-muted);
@@ -55,4 +68,40 @@ body {
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+/*
+ * Align @repo/ui primary buttons with Valorar brand within admin only.
+ * Shared package uses fixed blue-* classes; this scopes the override locally.
+ */
+body[data-app="admin"] button.bg-blue-600 {
+  background-color: var(--brand-green);
+}
+
+body[data-app="admin"] button.hover\:bg-blue-700:hover {
+  background-color: color-mix(in srgb, var(--brand-green) 88%, black);
+}
+
+body[data-app="admin"] button.active\:bg-blue-800:active {
+  background-color: color-mix(in srgb, var(--brand-green) 78%, black);
+}
+
+body[data-app="admin"] button.focus-visible\:ring-blue-500\/30:focus-visible {
+  --tw-ring-color: color-mix(in srgb, var(--brand-green) 30%, transparent);
+}
+
+body[data-app="admin"] button.disabled\:bg-blue-300:disabled {
+  background-color: color-mix(in srgb, var(--brand-green) 45%, white);
+}
+
+body[data-app="admin"] button.border-blue-500 {
+  border-color: var(--brand-green);
+}
+
+body[data-app="admin"] button.text-blue-600 {
+  color: var(--brand-green);
+}
+
+body[data-app="admin"] button.hover\:bg-blue-50:hover {
+  background-color: color-mix(in srgb, var(--brand-green) 8%, white);
 }
