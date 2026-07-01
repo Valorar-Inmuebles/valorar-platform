@@ -17,6 +17,7 @@ export type PropertyWithCreatorRecord = PropertyRecord & {
 
 export interface FindManyPropertiesOptions {
   isActive?: boolean;
+  where?: Prisma.PropertyWhereInput;
 }
 
 @Injectable()
@@ -60,10 +61,10 @@ export class PropertyRepository {
     tenantId: string,
     options: FindManyPropertiesOptions = {},
   ): Promise<PropertyRecord[]> {
-    const { isActive } = options;
+    const { isActive, where: extraWhere } = options;
 
     return this.prisma.property.findMany({
-      where: {
+      where: extraWhere ?? {
         tenantId,
         ...(isActive !== undefined ? { isActive } : {}),
       },

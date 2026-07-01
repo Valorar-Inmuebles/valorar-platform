@@ -2,6 +2,8 @@ import { Module } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './modules/auth/auth.module';
+import { OrganizationModule } from './modules/organization/organization.module';
+import { UserModule } from './modules/user/user.module';
 import { PublicPropertyModule } from './modules/public-property/public-property.module';
 import { PropertyFeatureAssignmentModule } from './modules/property-feature-assignment/property-feature-assignment.module';
 import { PropertyFeatureModule } from './modules/property-feature/property-feature.module';
@@ -18,6 +20,8 @@ import { PrismaModule } from './prisma/prisma.module';
   imports: [
     PrismaModule,
     AuthModule,
+    OrganizationModule,
+    UserModule,
     StorageModule,
     PropertyModule,
     PropertyListingModule,

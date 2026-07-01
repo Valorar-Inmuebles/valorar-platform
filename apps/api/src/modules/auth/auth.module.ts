@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { JwtModule, JwtSignOptions } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
+import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import {
   getJwtExpiresIn,
   getJwtSecret,
@@ -37,6 +38,7 @@ const jwtSignOptions: JwtSignOptions = {
     JwtAuthGuard,
     RolesGuard,
     TenantGuard,
+    PermissionsGuard,
   ],
   exports: [
     AuthService,
@@ -44,6 +46,7 @@ const jwtSignOptions: JwtSignOptions = {
     JwtAuthGuard,
     RolesGuard,
     TenantGuard,
+    PermissionsGuard,
     JwtModule,
     PassportModule,
   ],

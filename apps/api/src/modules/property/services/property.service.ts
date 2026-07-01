@@ -1,15 +1,18 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import type { AuthenticatedUser } from '../../../common/types/authenticated-user.type';
 import { PropertyListingRepository } from '../../property-listing/repositories/property-listing.repository';
 import { ListingOperationalTrustService } from '../../property-listing/services/listing-operational-trust.service';
 import { CreatePropertyDto } from '../dto/create-property.dto';
 import { PropertyResponseDto } from '../dto/property-response.dto';
 import { UpdatePropertyDto } from '../dto/update-property.dto';
 import { PropertyGeoService } from './property-geo.service';
+import { PropertyAccessService } from './property-access.service';
 import { PropertyRepository } from '../repositories/property.repository';
 import {
   mapLocationEnrichmentFields,
@@ -23,6 +26,7 @@ export class PropertyService {
     private readonly propertyListingRepository: PropertyListingRepository,
     private readonly listingOperationalTrustService: ListingOperationalTrustService,
     private readonly propertyGeoService: PropertyGeoService,
+    private readonly propertyAccessService: PropertyAccessService,
   ) {}
 
   async create(
@@ -46,21 +50,40 @@ export class PropertyService {
 
   async findAll(
     tenantId: string,
+    user: AuthenticatedUser,
     isActive?: boolean,
   ): Promise<PropertyResponseDto[]> {
+    const where = this.propertyAccessService.buildListWhere(tenantId, user, {
+      ...(isActive !== undefined ? { isActive } : {}),
+    });
+
     const properties = await this.propertyRepository.findMany(tenantId, {
-      isActive,
+      where,
     });
 
     return properties.map(PropertyResponseDto.fromEntity);
   }
 
-  async findOne(id: string, tenantId: string): Promise<PropertyResponseDto> {
+  async findOne(
+    id: string,
+    tenantId: string,
+    user: AuthenticatedUser,
+  ): Promise<PropertyResponseDto> {
     const property = await this.propertyRepository.findById(id, tenantId);
 
     if (!property) {
       throw new NotFoundException(`Property with id "${id}" not found`);
     }
+
+    await this.propertyAccessService.assertCanViewProperty(
+      {
+        id: property.id,
+        tenantId: property.tenantId,
+        createdById: property.createdById,
+        assignedToId: property.assignedToId,
+      },
+      user,
+    );
 
     return PropertyResponseDto.fromEntity(property);
   }
@@ -69,14 +92,25 @@ export class PropertyService {
     id: string,
     tenantId: string,
     dto: UpdatePropertyDto,
+    user: AuthenticatedUser,
   ): Promise<PropertyResponseDto> {
+    const existing = await this.propertyRepository.findById(id, tenantId);
+
+    if (!existing) {
+      throw new NotFoundException(`Property with id "${id}" not found`);
+    }
+
+    await this.propertyAccessService.assertCanEditProperty(
+      {
+        id: existing.id,
+        tenantId: existing.tenantId,
+        createdById: existing.createdById,
+        assignedToId: existing.assignedToId,
+      },
+      user,
+    );
+
     if (dto.slug !== undefined) {
-      const existing = await this.propertyRepository.findById(id, tenantId);
-
-      if (!existing) {
-        throw new NotFoundException(`Property with id "${id}" not found`);
-      }
-
       if (dto.slug !== existing.slug) {
         const hasActiveListing =
           await this.propertyListingRepository.hasActiveListingForProperty(
@@ -123,7 +157,27 @@ export class PropertyService {
     return PropertyResponseDto.fromEntity(property);
   }
 
-  async remove(id: string, tenantId: string): Promise<PropertyResponseDto> {
+  async remove(
+    id: string,
+    tenantId: string,
+    user: AuthenticatedUser,
+  ): Promise<PropertyResponseDto> {
+    const existing = await this.propertyRepository.findById(id, tenantId);
+
+    if (!existing) {
+      throw new NotFoundException(`Property with id "${id}" not found`);
+    }
+
+    await this.propertyAccessService.assertCanEditProperty(
+      {
+        id: existing.id,
+        tenantId: existing.tenantId,
+        createdById: existing.createdById,
+        assignedToId: existing.assignedToId,
+      },
+      user,
+    );
+
     const property = await this.propertyRepository.softArchive(id, tenantId);
 
     if (!property) {

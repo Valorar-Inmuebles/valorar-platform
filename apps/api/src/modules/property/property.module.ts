@@ -4,6 +4,7 @@ import { GeoModule } from '../geo/geo.module';
 import { PropertyImageModule } from '../property-image/property-image.module';
 import { PropertyListingModule } from '../property-listing/property-listing.module';
 import { PropertyPriceModule } from '../property-price/property-price.module';
+import { PropertyAccessService } from './services/property-access.service';
 import { PropertyController } from './controllers/property.controller';
 import { PropertyRepository } from './repositories/property.repository';
 import { PropertyGeoService } from './services/property-geo.service';
@@ -24,7 +25,8 @@ import { PropertyService } from './services/property.service';
     PropertyGeoService,
     PropertyRepository,
     PropertyPublishabilityService,
+    PropertyAccessService,
   ],
-  exports: [PropertyService, PropertyRepository, PropertyPublishabilityService],
+  exports: [PropertyService, PropertyRepository, PropertyPublishabilityService, PropertyAccessService],
 })
 export class PropertyModule {}

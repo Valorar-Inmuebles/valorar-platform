@@ -23,7 +23,9 @@ import {
 } from '@nestjs/swagger';
 import { CurrentTenant } from '../../../common/decorators/current-tenant.decorator';
 import { CurrentUser } from '../../../common/decorators/current-user.decorator';
+import { RequireAnyPermission, RequirePermissions } from '../../../common/decorators/require-permissions.decorator';
 import { RequireTenant } from '../../../common/decorators/require-tenant.decorator';
+import { PermissionsGuard } from '../../../common/guards/permissions.guard';
 import type { AuthenticatedUser } from '../../../common/types/authenticated-user.type';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { TenantGuard } from '../../auth/guards/tenant.guard';
@@ -38,7 +40,7 @@ import { PropertyPublishabilityService } from '../services/property-publishabili
 import { PropertyService } from '../services/property.service';
 
 @ApiTags('Properties')
-@UseGuards(JwtAuthGuard, TenantGuard)
+@UseGuards(JwtAuthGuard, TenantGuard, PermissionsGuard)
 @RequireTenant()
 @Controller('properties')
 export class PropertyController {
@@ -48,6 +50,7 @@ export class PropertyController {
   ) {}
 
   @Post()
+  @RequirePermissions('property.create')
   @ApiOperation({ summary: 'Create a property' })
   @ApiBody({ type: CreatePropertyDto })
   @ApiCreatedResponse({
@@ -69,6 +72,7 @@ export class PropertyController {
   }
 
   @Get()
+  @RequirePermissions('property.read')
   @ApiOperation({ summary: 'List properties by tenant' })
   @ApiOkResponse({
     description: 'List of properties',
@@ -78,9 +82,10 @@ export class PropertyController {
   @ApiBadRequestResponse({ description: 'Invalid query parameters' })
   findAll(
     @CurrentTenant() tenantId: string,
+    @CurrentUser() user: AuthenticatedUser,
     @Query() query: ListPropertiesQueryDto,
   ) {
-    return this.propertyService.findAll(tenantId, query.isActive);
+    return this.propertyService.findAll(tenantId, user, query.isActive);
   }
 
   @Get('publishability-summary')
@@ -128,15 +133,21 @@ export class PropertyController {
   }
 
   @Get(':id')
+  @RequirePermissions('property.read')
   @ApiOperation({ summary: 'Get a property by id' })
   @ApiParam({ name: 'id', type: String })
   @ApiOkResponse({ description: 'Property details', type: PropertyResponseDto })
   @ApiNotFoundResponse({ description: 'Property not found' })
-  findOne(@Param('id') id: string, @CurrentTenant() tenantId: string) {
-    return this.propertyService.findOne(id, tenantId);
+  findOne(
+    @Param('id') id: string,
+    @CurrentTenant() tenantId: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.propertyService.findOne(id, tenantId, user);
   }
 
   @Patch(':id')
+  @RequireAnyPermission('property.update.own', 'property.update.any')
   @ApiOperation({ summary: 'Update a property' })
   @ApiParam({ name: 'id', type: String })
   @ApiBody({ type: UpdatePropertyDto })
@@ -152,12 +163,14 @@ export class PropertyController {
   update(
     @Param('id') id: string,
     @CurrentTenant() tenantId: string,
+    @CurrentUser() user: AuthenticatedUser,
     @Body() dto: UpdatePropertyDto,
   ) {
-    return this.propertyService.update(id, tenantId, dto);
+    return this.propertyService.update(id, tenantId, dto, user);
   }
 
   @Delete(':id')
+  @RequirePermissions('property.delete')
   @ApiOperation({ summary: 'Archive a property (soft delete)' })
   @ApiParam({ name: 'id', type: String })
   @ApiOkResponse({
@@ -165,7 +178,11 @@ export class PropertyController {
     type: PropertyResponseDto,
   })
   @ApiNotFoundResponse({ description: 'Property not found' })
-  remove(@Param('id') id: string, @CurrentTenant() tenantId: string) {
-    return this.propertyService.remove(id, tenantId);
+  remove(
+    @Param('id') id: string,
+    @CurrentTenant() tenantId: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.propertyService.remove(id, tenantId, user);
   }
 }

@@ -23,6 +23,9 @@ export class PropertyResponseDto {
   @ApiProperty()
   createdById: string;
 
+  @ApiPropertyOptional({ nullable: true })
+  assignedToId: string | null;
+
   @ApiProperty()
   slug: string;
 
@@ -172,6 +175,7 @@ export class PropertyResponseDto {
       id: property.id,
       tenantId: property.tenantId,
       createdById: property.createdById,
+      assignedToId: property.assignedToId,
       slug: property.slug,
       internalCode: property.internalCode,
       title: property.title,
