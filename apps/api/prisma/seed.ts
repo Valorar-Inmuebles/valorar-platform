@@ -8,6 +8,7 @@ import {
   DEMO_TENANT_SLUG,
   DOCUMENTED_DEV_PASSWORD_HINT,
   SEED_USERS,
+  seedUserFullName,
 } from './seed-data';
 import { seedPropertyFeatures } from './seed-features';
 import {
@@ -61,7 +62,9 @@ async function main(): Promise<void> {
       await prisma.user.upsert({
         where: { email: spec.email },
         update: {
-          name: spec.name,
+          firstName: spec.firstName,
+          lastName: spec.lastName,
+          name: seedUserFullName(spec),
           role: spec.role,
           tenantId,
           passwordHash,
@@ -69,7 +72,9 @@ async function main(): Promise<void> {
         },
         create: {
           email: spec.email,
-          name: spec.name,
+          firstName: spec.firstName,
+          lastName: spec.lastName,
+          name: seedUserFullName(spec),
           role: spec.role,
           tenantId,
           passwordHash,

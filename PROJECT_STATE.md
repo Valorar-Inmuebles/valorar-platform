@@ -17,15 +17,13 @@ Plataforma SaaS inmobiliaria multi-tenant orientada a:
 
 ## Foco actual del producto
 
-**Property Complete MVP** — cerrar el flujo de negocio end-to-end de propiedades para operación inmobiliaria real.
+**Fase 5 — Administración Base** (Organización + Usuarios + Roles + Permisos)
 
-Documentación: `docs/04-modules/property-complete-mvp.md`
+Documentación: `docs/07-admin/fase5-admin-base.md`
 
-Branch: `feature/property-complete-mvp`
+Branch: `feature/property-complete-mvp` (o rama dedicada Fase 5)
 
-Roadmap: Fase A (Features) → Fase B (Ficha técnica) → Fase C (Storage + galería) → Fase D (Publicación) → Fase E (Buscador avanzado, P2).
-
-Sin migraciones Prisma nuevas salvo necesidad estricta documentada (excepción: **Geo Catalog** — `202607010001` … `202607010006_property_geo_fks`).
+Anterior: Property Complete MVP, Web Premium ✅
 
 ---
 
@@ -45,7 +43,7 @@ Integración Property (GEO-002): FKs en Property + Admin select/autocomplete + W
 
 ## Estado Actual
 
-Fase: Foundation + **Auth Foundation v1** ✅ + Property API Foundation + Public API Foundation + Public Web Foundation (Fase 1–6) + Admin UI Foundation (Property Domain v1 + Auth v1) → **Property Complete MVP en implementación**
+Fase: Foundation + **Auth Foundation v1** ✅ + Property API + Admin UI + Web Premium ✅ → **Fase 5 Administración Base** (en implementación)
 
 Infraestructura inicial:
 
@@ -66,7 +64,7 @@ Lead Domain v1: documentado y congelado (inquiry-centric). `docs/03-database/lea
 
 Public Web: documentación en `docs/06-web/*`. Fases 1–6 ✅. **Web Premium (Fase 4)** ✅ — hero search-first, GEO completo, cards/filtros premium, share, landing SEO `/explorar/`.
 
-Admin UI: documentación en `docs/07-admin/*`. Property Domain v1 ✅. **Comercialización UX unificada** ✅. **Ficha ejecutiva de propiedad (Fase 2)** ✅. **Dashboard operativo (Fase 3)** ✅ — KPIs, catálogo, alertas, actividad reciente, acciones rápidas.
+Admin UI: documentación en `docs/07-admin/*`. Property Domain v1 ✅. **Comercialización UX unificada** ✅. **Ficha ejecutiva de propiedad (Fase 2)** ✅. **Dashboard operativo (Fase 3)** ✅. **Administración Base (Fase 5)** ✅ — Organización, Usuarios, Roles/permisos, Perfil, `@repo/rbac`, scoping Property por rol.
 
 Desarrollo local: convención de puertos web **3000** / admin **3001** / api **3002**; `npm run dev` levanta las tres apps con guard `verify:workspace` (`predev`). Ver `docs/02-architecture/monorepo.md`.
 

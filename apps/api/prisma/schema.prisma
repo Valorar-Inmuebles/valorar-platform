@@ -32,7 +32,9 @@ model Tenant {
 enum UserRole {
   SUPER_ADMIN
   TENANT_ADMIN
+  MANAGER
   AGENT
+  COLLABORATOR
 }
 
 model User {
@@ -41,8 +43,12 @@ model User {
   tenantId String?
   tenant   Tenant? @relation(fields: [tenantId], references: [id])
 
-  name  String
-  email String @unique
+  firstName String
+  lastName  String
+  name      String
+  email     String @unique
+  phone     String?
+  avatarUrl String?
 
   passwordHash String
   isActive     Boolean   @default(true)
@@ -53,9 +59,10 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  createdProperties     Property[]            @relation("PropertyCreator")
-  sharedPropertyAccess  PropertyAgentAccess[] @relation("PropertySharedWith")
-  grantedPropertyAccess PropertyAgentAccess[] @relation("PropertyAccessGrantedBy")
+  createdProperties      Property[]            @relation("PropertyCreator")
+  assignedProperties     Property[]            @relation("PropertyAssignee")
+  sharedPropertyAccess   PropertyAgentAccess[] @relation("PropertySharedWith")
+  grantedPropertyAccess  PropertyAgentAccess[] @relation("PropertyAccessGrantedBy")
 
   @@index([tenantId])
 }
@@ -67,14 +74,26 @@ model TenantSetting {
   tenant   Tenant @relation(fields: [tenantId], references: [id])
 
   companyName String?
+  legalName   String?
 
   logoUrl String?
 
   primaryColor   String?
   secondaryColor String?
 
+  phone    String?
   whatsapp String?
   email    String?
+  website  String?
+  address  String?
+
+  facebookUrl  String?
+  instagramUrl String?
+  linkedinUrl  String?
+
+  shortDescription String? @db.Text
+  seoTitle         String?
+  seoDescription   String? @db.Text
 
   domain String?
 
@@ -180,6 +199,9 @@ model Property {
   createdById String
   createdBy   User   @relation("PropertyCreator", fields: [createdById], references: [id])
 
+  assignedToId String?
+  assignedTo   User?   @relation("PropertyAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
+
   slug         String
   internalCode String?
   title        String
@@ -243,6 +265,7 @@ model Property {
   @@unique([tenantId, internalCode])
   @@index([tenantId])
   @@index([tenantId, createdById])
+  @@index([tenantId, assignedToId])
   @@index([tenantId, city])
   @@index([tenantId, province])
   @@index([tenantId, provinceId])
