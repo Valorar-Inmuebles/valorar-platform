@@ -2,7 +2,7 @@
 
 Versión: v1
 
-Estado: Inventario de planificación — sin implementación.
+Estado: Inventario alineado a `apps/web` — actualizado Fase 4 Web Premium. Ver `docs/06-web/web-premium-fase4.md`.
 
 Referencias:
 

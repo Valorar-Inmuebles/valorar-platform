@@ -64,7 +64,7 @@ Property Complete MVP: `docs/04-modules/property-complete-mvp.md`
 
 Lead Domain v1: documentado y congelado (inquiry-centric). `docs/03-database/lead-domain.md`
 
-Public Web: documentación en `docs/06-web/*`. Fases 1–6 ✅ (layout, home, listado, detalle, SEO & production hardening).
+Public Web: documentación en `docs/06-web/*`. Fases 1–6 ✅. **Web Premium (Fase 4)** ✅ — hero search-first, GEO completo, cards/filtros premium, share, landing SEO `/explorar/`.
 
 Admin UI: documentación en `docs/07-admin/*`. Property Domain v1 ✅. **Comercialización UX unificada** ✅. **Ficha ejecutiva de propiedad (Fase 2)** ✅. **Dashboard operativo (Fase 3)** ✅ — KPIs, catálogo, alertas, actividad reciente, acciones rápidas.
 
