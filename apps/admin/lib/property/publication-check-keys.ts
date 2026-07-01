@@ -24,7 +24,7 @@ export const PUBLICATION_CTA_GROUPS: PublicationCtaGroup[] = [
   },
   {
     id: "listings",
-    label: "Ir a Publicaciones",
+    label: "Ir a Comercialización",
     keys: ["listing-active", "primary-price"],
     href: (propertyId, listingId) =>
       listingId
@@ -46,11 +46,11 @@ export function resolvePublicationCheckHref(
       return `/propiedades/${propertyId}/imagenes`;
     case "listing-active":
       return listingId
-        ? `/propiedades/${propertyId}/publicaciones/${listingId}`
+        ? `/propiedades/${propertyId}/publicaciones?edit=${listingId}`
         : `/propiedades/${propertyId}/publicaciones`;
     case "primary-price":
       return listingId
-        ? `/propiedades/${propertyId}/publicaciones/${listingId}/precios`
+        ? `/propiedades/${propertyId}/publicaciones?edit=${listingId}`
         : `/propiedades/${propertyId}/publicaciones`;
     default:
       return undefined;

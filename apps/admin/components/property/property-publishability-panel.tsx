@@ -19,29 +19,6 @@ type PropertyPublishabilityPanelProps = {
   summary: PropertyPublishabilitySummary;
 };
 
-function ProgressBar({ progress }: { progress: number }) {
-  return (
-    <div className="space-y-1">
-      <div className="flex items-center justify-between text-xs text-muted">
-        <span>Progreso de publicación</span>
-        <span>{progress}%</span>
-      </div>
-      <div
-        className="h-2 overflow-hidden rounded-full bg-zinc-200"
-        role="progressbar"
-        aria-valuenow={progress}
-        aria-valuemin={0}
-        aria-valuemax={100}
-      >
-        <div
-          className="h-full rounded-full bg-emerald-600 transition-all"
-          style={{ width: `${progress}%` }}
-        />
-      </div>
-    </div>
-  );
-}
-
 function ChecklistItem({ item }: { item: PublishabilityCheckItem }) {
   const icon = item.passed ? "✓" : "○";
   const content = (
@@ -80,43 +57,41 @@ function ChecklistItem({ item }: { item: PublishabilityCheckItem }) {
   );
 }
 
-function ListingPublishabilitySection({
+function ListingSummaryRow({
   listing,
   propertyId,
 }: {
   listing: ListingPublishability;
   propertyId: string;
 }) {
-  const ctaGroups = getPublicationCtaGroupsForMissing(
-    listing.missing,
-    propertyId,
-    listing.listingId,
-  );
-
   return (
-    <section className="rounded-lg border border-border bg-zinc-50/60 p-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h3 className="text-sm font-semibold text-foreground">
+    <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border bg-zinc-50/60 px-3 py-2">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-sm font-medium text-foreground">
           {listing.listingTypeLabel}
-        </h3>
+        </span>
         <Badge variant={listing.isPublishable ? "success" : "warning"}>
           {listing.isPublishable ? "Visible en web" : "No publicable"}
         </Badge>
+        <span className="text-xs text-muted">{listing.progress}%</span>
       </div>
-
-      <div className="mt-3">
-        <ProgressBar progress={listing.progress} />
-      </div>
-
-      <ul className="mt-3 space-y-2">
-        {listing.items.map((item) => (
-          <ChecklistItem key={item.key} item={item} />
-        ))}
-      </ul>
-
-      {ctaGroups.length > 0 ? (
-        <div className="mt-4 flex flex-wrap gap-2">
-          {ctaGroups.map((group) => (
+      {listing.publicWebUrl ? (
+        <Link
+          href={listing.publicWebUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-xs font-medium text-primary underline-offset-2 hover:underline"
+        >
+          Ver en web
+        </Link>
+      ) : null}
+      {!listing.isPublishable && listing.missing.length > 0 ? (
+        <div className="flex flex-wrap gap-2">
+          {getPublicationCtaGroupsForMissing(
+            listing.missing,
+            propertyId,
+            listing.listingId,
+          ).map((group) => (
             <Link key={group.id} href={group.href}>
               <Button variant="secondary" size="sm">
                 {group.label}
@@ -125,74 +100,63 @@ function ListingPublishabilitySection({
           ))}
         </div>
       ) : null}
-
-      {listing.publicWebUrl ? (
-        <p className="mt-4">
-          <Link
-            href={listing.publicWebUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-sm font-medium text-primary underline-offset-2 hover:underline"
-          >
-            Ver en web ({listing.listingTypeLabel})
-          </Link>
-        </p>
-      ) : null}
-    </section>
+    </div>
   );
 }
 
 export function PropertyPublishabilityPanel({
   summary,
 }: PropertyPublishabilityPanelProps) {
-  const publicWebBaseUrl =
-    summary.listings.find((listing) => listing.publicWebUrl)?.publicWebUrl ??
-    null;
+  const publishableCount = summary.listings.filter(
+    (listing) => listing.isPublishable,
+  ).length;
+  const totalListings = summary.listings.length;
 
-  const aggregateProgress =
-    summary.listings.length === 0
-      ? 0
-      : Math.round(
-          summary.listings.reduce((total, listing) => total + listing.progress, 0) /
-            summary.listings.length,
-        );
+  const uniqueChecks = new Map<string, PublishabilityCheckItem>();
+
+  for (const listing of summary.listings) {
+    for (const item of listing.items) {
+      const existing = uniqueChecks.get(item.key);
+      if (!existing || (!existing.passed && item.passed)) {
+        uniqueChecks.set(item.key, item);
+      }
+    }
+  }
+
+  const consolidatedChecks = Array.from(uniqueChecks.values());
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle>Publicabilidad web</CardTitle>
-        <PropertyStatusBadge status={summary.statusVariant} />
+      <CardHeader className="pb-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <CardTitle className="text-base">Publicabilidad web</CardTitle>
+          <PropertyStatusBadge status={summary.statusVariant} />
+        </div>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-3">
         <p className="text-sm text-muted">
-          Una propiedad es visible en la web pública cuando cumple todos los
-          requisitos por operación comercial (venta, alquiler o temporario).
+          {summary.isAnyPublishable
+            ? "Al menos una operación cumple los requisitos para el sitio web."
+            : "Completá los requisitos pendientes para habilitar la visibilidad web."}
+          {totalListings > 0 ? (
+            <>
+              {" "}
+              <span className="font-medium text-foreground">
+                {publishableCount}/{totalListings} operaciones publicables.
+              </span>
+            </>
+          ) : null}
         </p>
-
-        {summary.listings.length > 0 ? (
-          <ProgressBar progress={aggregateProgress} />
-        ) : null}
-
-        {summary.isAnyPublishable ? (
-          <p className="text-sm font-medium text-foreground">
-            Al menos una operación está lista para publicarse en el sitio web.
-          </p>
-        ) : (
-          <p className="text-sm text-muted">
-            Completá los requisitos pendientes para habilitar la visibilidad en
-            la web pública.
-          </p>
-        )}
 
         {summary.listings.length === 0 ? (
           <p className="rounded-lg border border-dashed border-border px-4 py-3 text-sm text-muted">
-            Sin publicaciones comerciales. Creá una publicación para evaluar su
-            publicabilidad.
+            Sin operaciones comerciales. Creá una operación en Comercialización
+            para evaluar su publicabilidad.
           </p>
         ) : (
-          <div className="space-y-3">
+          <div className="space-y-2">
             {summary.listings.map((listing) => (
-              <ListingPublishabilitySection
+              <ListingSummaryRow
                 key={listing.listingId}
                 listing={listing}
                 propertyId={summary.propertyId}
@@ -201,11 +165,22 @@ export function PropertyPublishabilityPanel({
           </div>
         )}
 
-        {!publicWebBaseUrl && summary.isAnyPublishable ? (
-          <p className="text-xs text-muted">
-            Configurá `PUBLIC_WEB_URL` o `NEXT_PUBLIC_SITE_URL` para habilitar
-            enlaces «Ver en web».
-          </p>
+        {consolidatedChecks.length > 0 ? (
+          <details className="group rounded-lg border border-border">
+            <summary className="cursor-pointer list-none px-4 py-3 text-sm font-medium text-foreground marker:content-none [&::-webkit-details-marker]:hidden">
+              <span className="text-muted group-open:hidden">
+                Ver checklist detallado
+              </span>
+              <span className="hidden group-open:inline">
+                Ocultar checklist detallado
+              </span>
+            </summary>
+            <ul className="space-y-2 border-t border-border px-4 py-3">
+              {consolidatedChecks.map((item) => (
+                <ChecklistItem key={item.key} item={item} />
+              ))}
+            </ul>
+          </details>
         ) : null}
       </CardContent>
     </Card>

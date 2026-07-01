@@ -24,15 +24,19 @@ export default async function PropiedadPublicacionCrearPage({
       <PropertyPageShell
         propertyId={id}
         title={property.title}
-        description="Nueva publicación comercial."
+        description="Nueva operación comercial."
         breadcrumbs={propertyListingCreateBreadcrumbs(id, property.title)}
         actions={
           <Link href={`/propiedades/${id}/publicaciones`}>
-            <Button variant="secondary">Volver al listado</Button>
+            <Button variant="secondary">Volver a comercialización</Button>
           </Link>
         }
       >
-        <PropertyListingForm propertyId={id} mode="create" />
+        <PropertyListingForm
+          propertyId={id}
+          propertySlug={property.slug}
+          mode="create"
+        />
       </PropertyPageShell>
     );
   } catch (error) {

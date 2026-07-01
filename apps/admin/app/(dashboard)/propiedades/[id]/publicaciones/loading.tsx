@@ -1,10 +1,9 @@
-import { PropertyListSkeleton } from "@/components/property/property-list-skeleton";
 import { PageShell } from "@/components/shared/page-shell";
 
-export default function PropiedadPublicacionesLoading() {
+export default function PropiedadComercializacionLoading() {
   return (
-    <PageShell title="Publicaciones">
-      <PropertyListSkeleton />
+    <PageShell title="Comercialización">
+      <div className="h-48 animate-pulse rounded-lg bg-zinc-100" />
     </PageShell>
   );
 }

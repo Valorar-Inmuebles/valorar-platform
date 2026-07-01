@@ -46,12 +46,14 @@ import type { PropertyListingFormValues } from "@/lib/api/types/property-listing
 
 type PropertyListingFormProps = {
   propertyId: string;
+  propertySlug?: string;
   mode: "create" | "edit";
   listing?: AdminPropertyListing;
 };
 
 export function PropertyListingForm({
   propertyId,
+  propertySlug,
   mode,
   listing,
 }: PropertyListingFormProps) {
@@ -94,6 +96,7 @@ export function PropertyListingForm({
         const result = await createPropertyListingAction(
           propertyId,
           formValuesToCreatePayload(values),
+          propertySlug,
         );
 
         if (!result.ok) {
@@ -118,9 +121,9 @@ export function PropertyListingForm({
           return;
         }
 
-        toast.success("Publicación creada correctamente.");
+        toast.success("Operación creada correctamente.");
         router.push(
-          `/propiedades/${propertyId}/publicaciones/${result.id}/precios`,
+          `/propiedades/${propertyId}/publicaciones?edit=${result.id}`,
         );
         router.refresh();
         return;
@@ -132,6 +135,7 @@ export function PropertyListingForm({
         propertyId,
         listing.id,
         formValuesToUpdatePayload(values, listing.status),
+        propertySlug,
       );
 
       if (!result.ok) {

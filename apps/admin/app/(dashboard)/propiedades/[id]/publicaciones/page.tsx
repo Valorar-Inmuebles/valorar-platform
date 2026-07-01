@@ -1,55 +1,60 @@
 import Link from "next/link";
+import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { Button } from "@repo/ui/button";
+import { PropertyCommercializationView } from "@/components/property/property-commercialization-view";
 import { PropertyEmptyState } from "@/components/property/property-empty-state";
-import { PropertyListingTable } from "@/components/property/property-listing-table";
 import { PropertyPageShell } from "@/components/property/property-page-shell";
 import { ApiErrorPanel } from "@/components/shared/api-error-panel";
 import { ApiError } from "@/lib/api/client";
-import { propertyPublicacionesBreadcrumbs } from "@/lib/property/breadcrumbs";
-import { loadPropertyPublishabilityContext } from "@/lib/property/load-publishability-context";
+import { propertyCommercializationBreadcrumbs } from "@/lib/property/breadcrumbs";
+import { loadCommercializationContext } from "@/lib/property/load-commercialization-context";
 
-type PropiedadPublicacionesPageProps = {
+type PropiedadComercializacionPageProps = {
   params: Promise<{ id: string }>;
 };
 
-export default async function PropiedadPublicacionesPage({
+export default async function PropiedadComercializacionPage({
   params,
-}: PropiedadPublicacionesPageProps) {
+}: PropiedadComercializacionPageProps) {
   const { id } = await params;
 
   try {
-    const { property, listings, publishabilityByListingId } =
-      await loadPropertyPublishabilityContext(id);
+    const { property, listings, publishabilityByListingId, pricesByListingId } =
+      await loadCommercializationContext(id);
 
     return (
       <PropertyPageShell
         propertyId={id}
         title={property.title}
-        description="Publicaciones comerciales de la propiedad."
-        breadcrumbs={propertyPublicacionesBreadcrumbs(id, property.title)}
+        description="Operaciones comerciales, precios y visibilidad en la web."
+        breadcrumbs={propertyCommercializationBreadcrumbs(id, property.title)}
         actions={
           <Link href={`/propiedades/${id}/publicaciones/crear`}>
-            <Button>Nueva publicación</Button>
+            <Button>Nueva operación</Button>
           </Link>
         }
       >
         {listings.length === 0 ? (
           <PropertyEmptyState
-            title="Sin publicaciones"
-            description="Creá una publicación de venta, alquiler o temporario para esta propiedad."
+            title="Sin operaciones comerciales"
+            description="Creá una operación de venta, alquiler o temporario para comercializar esta propiedad."
             action={
               <Link href={`/propiedades/${id}/publicaciones/crear`}>
-                <Button>Nueva publicación</Button>
+                <Button>Nueva operación</Button>
               </Link>
             }
           />
         ) : (
-          <PropertyListingTable
-            propertyId={id}
-            listings={listings}
-            publishabilityByListingId={publishabilityByListingId}
-          />
+          <Suspense fallback={null}>
+            <PropertyCommercializationView
+              propertyId={id}
+              propertySlug={property.slug}
+              listings={listings}
+              pricesByListingId={pricesByListingId}
+              publishabilityByListingId={publishabilityByListingId}
+            />
+          </Suspense>
         )}
       </PropertyPageShell>
     );
@@ -63,13 +68,13 @@ export default async function PropiedadPublicacionesPage({
         ? error.message
         : error instanceof Error
           ? error.message
-          : "No se pudieron cargar las publicaciones.";
+          : "No se pudo cargar la comercialización.";
 
     return (
       <PropertyPageShell
         propertyId={id}
-        title="Publicaciones"
-        breadcrumbs={propertyPublicacionesBreadcrumbs(id, "Propiedad")}
+        title="Comercialización"
+        breadcrumbs={propertyCommercializationBreadcrumbs(id, "Propiedad")}
       >
         <ApiErrorPanel message={message} />
       </PropertyPageShell>

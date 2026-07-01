@@ -56,14 +56,22 @@ export function propertyGeneralBreadcrumbs(
   ];
 }
 
-export function propertyPublicacionesBreadcrumbs(
+export function propertyCommercializationBreadcrumbs(
   propertyId: string,
   propertyTitle: string,
 ): BreadcrumbItem[] {
   return [
     ...propertyDetailBreadcrumbs(propertyId, propertyTitle),
-    { label: "Publicaciones" },
+    { label: "Comercialización" },
   ];
+}
+
+/** @deprecated Use propertyCommercializationBreadcrumbs */
+export function propertyPublicacionesBreadcrumbs(
+  propertyId: string,
+  propertyTitle: string,
+): BreadcrumbItem[] {
+  return propertyCommercializationBreadcrumbs(propertyId, propertyTitle);
 }
 
 export function propertyListingCreateBreadcrumbs(
@@ -73,10 +81,10 @@ export function propertyListingCreateBreadcrumbs(
   return [
     ...propertyDetailBreadcrumbs(propertyId, propertyTitle),
     {
-      label: "Publicaciones",
+      label: "Comercialización",
       href: `/propiedades/${propertyId}/publicaciones`,
     },
-    { label: "Nueva publicación" },
+    { label: "Nueva operación" },
   ];
 }
 
@@ -88,7 +96,7 @@ export function propertyListingEditBreadcrumbs(
   return [
     ...propertyDetailBreadcrumbs(propertyId, propertyTitle),
     {
-      label: "Publicaciones",
+      label: "Comercialización",
       href: `/propiedades/${propertyId}/publicaciones`,
     },
     { label: listingLabel },

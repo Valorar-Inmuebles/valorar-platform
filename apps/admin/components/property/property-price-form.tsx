@@ -29,6 +29,7 @@ import type { PropertyPriceFormValues } from "@/lib/api/types/property-price";
 type PropertyPriceFormProps = {
   propertyId: string;
   listingId: string;
+  propertySlug?: string;
   mode: "create" | "edit";
   price?: AdminPropertyPrice;
   isFirstPrice: boolean;
@@ -39,6 +40,7 @@ type PropertyPriceFormProps = {
 export function PropertyPriceForm({
   propertyId,
   listingId,
+  propertySlug,
   mode,
   price,
   isFirstPrice,
@@ -80,6 +82,7 @@ export function PropertyPriceForm({
           propertyId,
           listingId,
           formValuesToCreatePayload(values),
+          propertySlug,
         );
 
         if (!result.ok) {
@@ -100,6 +103,7 @@ export function PropertyPriceForm({
         listingId,
         price.id,
         formValuesToUpdatePayload(values),
+        propertySlug,
       );
 
       if (!result.ok) {
