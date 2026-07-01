@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { TenantStatus } from '../../../../generated/prisma/client';
 import { PrismaService } from '../../../prisma/prisma.service';
 
 @Injectable()
@@ -27,6 +28,22 @@ export class AuthRepository {
       where: { id: tenantId },
       select: { id: true },
     });
+  }
+
+  findTenantById(tenantId: string) {
+    return this.prisma.tenant.findUnique({
+      where: { id: tenantId },
+      select: { id: true, status: true },
+    });
+  }
+
+  isTenantActive(tenantId: string) {
+    return this.prisma.tenant
+      .findFirst({
+        where: { id: tenantId, status: TenantStatus.ACTIVE },
+        select: { id: true },
+      })
+      .then((row) => Boolean(row));
   }
 
   updateLastLoginAt(userId: string) {

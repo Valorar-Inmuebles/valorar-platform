@@ -1,10 +1,12 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import type { User } from '../../../generated/prisma/client';
+import { TenantStatus } from '../../../generated/prisma/client';
 import type { AuthenticatedUser } from '../../common/types/authenticated-user.type';
 import {
   INACTIVE_USER_MESSAGE,
   INVALID_CREDENTIALS_MESSAGE,
+  TENANT_SUSPENDED_MESSAGE,
 } from './constants/auth.constants';
 import { LoginDto } from './dto/login.dto';
 import { AuthRepository } from './repositories/auth.repository';
@@ -93,9 +95,13 @@ export class AuthService {
     }
 
     if (user.tenantId) {
-      const tenant = await this.authRepository.tenantExists(user.tenantId);
+      const tenant = await this.authRepository.findTenantById(user.tenantId);
       if (!tenant) {
         throw new UnauthorizedException(INVALID_CREDENTIALS_MESSAGE);
+      }
+
+      if (tenant.status !== TenantStatus.ACTIVE) {
+        throw new UnauthorizedException(TENANT_SUSPENDED_MESSAGE);
       }
     }
   }

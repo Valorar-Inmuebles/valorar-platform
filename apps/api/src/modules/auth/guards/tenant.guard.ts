@@ -6,13 +6,14 @@ import {
   Injectable,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { UserRole } from '../../../../generated/prisma/client';
+import { UserRole, TenantStatus } from '../../../../generated/prisma/client';
 import { REQUIRE_TENANT_KEY } from '../../../common/decorators/require-tenant.decorator';
 import type { AuthenticatedRequest } from '../../../common/types/authenticated-request.type';
 import type { AuthenticatedUser } from '../../../common/types/authenticated-user.type';
 import {
   TENANT_NOT_FOUND_MESSAGE,
   TENANT_REQUIRED_MESSAGE,
+  TENANT_SUSPENDED_MESSAGE,
   USER_TENANT_MISSING_MESSAGE,
 } from '../constants/auth.constants';
 import { AuthRepository } from '../repositories/auth.repository';
@@ -62,10 +63,14 @@ export class TenantGuard implements CanActivate {
       }
 
       const tenantId = rawTenantId.trim();
-      const tenant = await this.authRepository.tenantExists(tenantId);
+      const tenant = await this.authRepository.findTenantById(tenantId);
 
       if (!tenant) {
         throw new BadRequestException(TENANT_NOT_FOUND_MESSAGE);
+      }
+
+      if (tenant.status !== TenantStatus.ACTIVE) {
+        throw new ForbiddenException(TENANT_SUSPENDED_MESSAGE);
       }
 
       return tenantId;
@@ -75,10 +80,14 @@ export class TenantGuard implements CanActivate {
       throw new ForbiddenException(USER_TENANT_MISSING_MESSAGE);
     }
 
-    const tenant = await this.authRepository.tenantExists(user.tenantId);
+    const tenant = await this.authRepository.findTenantById(user.tenantId);
 
     if (!tenant) {
       throw new BadRequestException(TENANT_NOT_FOUND_MESSAGE);
+    }
+
+    if (tenant.status !== TenantStatus.ACTIVE) {
+      throw new ForbiddenException(TENANT_SUSPENDED_MESSAGE);
     }
 
     return user.tenantId;

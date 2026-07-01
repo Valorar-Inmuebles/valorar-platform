@@ -14,6 +14,7 @@ import { PropertyPriceModule } from './modules/property-price/property-price.mod
 import { StorageModule } from './modules/storage/storage.module';
 import { AdminDashboardModule } from './modules/admin-dashboard/admin-dashboard.module';
 import { GeoModule } from './modules/geo/geo.module';
+import { PlatformTenantModule } from './modules/platform-tenant/platform-tenant.module';
 import { PrismaModule } from './prisma/prisma.module';
 
 @Module({
@@ -22,6 +23,7 @@ import { PrismaModule } from './prisma/prisma.module';
     AuthModule,
     OrganizationModule,
     UserModule,
+    PlatformTenantModule,
     StorageModule,
     PropertyModule,
     PropertyListingModule,

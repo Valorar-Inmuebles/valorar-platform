@@ -13,6 +13,8 @@ export const FORBIDDEN_ROLE_MESSAGE =
 export const TENANT_REQUIRED_MESSAGE =
   'Seleccioná un tenant (header X-Tenant-Id requerido)';
 export const TENANT_NOT_FOUND_MESSAGE = 'Tenant no encontrado';
+export const TENANT_SUSPENDED_MESSAGE =
+  'Esta inmobiliaria está suspendida. Contactá al administrador de la plataforma.';
 export const USER_TENANT_MISSING_MESSAGE = 'Usuario sin tenant asignado';
 
 export function getJwtSecret(): string {
