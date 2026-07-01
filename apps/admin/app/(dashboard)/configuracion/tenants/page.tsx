@@ -1,15 +1,5 @@
-import { PlaceholderPanel } from "@/components/shared/placeholder-panel";
+import { redirect } from "next/navigation";
 
-export default function ConfiguracionTenantsPage() {
-  return (
-    <PlaceholderPanel
-      title="Tenants"
-      description="Gestión global de inmobiliarias (SUPER_ADMIN). Requiere auth y API — pendiente."
-      breadcrumbs={[
-        { label: "Inicio", href: "/" },
-        { label: "Configuración", href: "/configuracion" },
-        { label: "Tenants" },
-      ]}
-    />
-  );
+export default function LegacyConfigTenantsPage() {
+  redirect("/plataforma/tenants");
 }

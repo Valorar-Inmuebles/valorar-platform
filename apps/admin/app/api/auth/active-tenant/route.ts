@@ -4,6 +4,7 @@ import { getApiBaseUrl } from "@/lib/api/client";
 import { buildActiveTenantCookie } from "@/lib/auth/active-tenant";
 import { ACCESS_TOKEN_COOKIE } from "@/lib/auth/constants";
 import type { AuthUser } from "@/lib/auth/types";
+import type { PlatformTenantOption } from "@/lib/api/types/platform-tenant";
 
 type ActiveTenantBody = {
   tenantId?: string;
@@ -60,22 +61,25 @@ export async function POST(request: Request) {
     );
   }
 
-  const tenantCheckResponse = await fetch(`${getApiBaseUrl()}/properties`, {
-    headers: {
-      ...authHeaders,
-      "X-Tenant-Id": tenantId,
-    },
+  const optionsResponse = await fetch(`${getApiBaseUrl()}/platform/tenants/options`, {
+    headers: authHeaders,
     cache: "no-store",
   });
 
-  if (tenantCheckResponse.status === 400) {
-    return NextResponse.json({ message: "Tenant no encontrado." }, { status: 400 });
+  if (!optionsResponse.ok) {
+    return NextResponse.json(
+      { message: "No se pudo validar la inmobiliaria." },
+      { status: optionsResponse.status },
+    );
   }
 
-  if (!tenantCheckResponse.ok) {
+  const options = (await optionsResponse.json()) as PlatformTenantOption[];
+  const selected = options.find((option) => option.id === tenantId);
+
+  if (!selected) {
     return NextResponse.json(
-      { message: "No se pudo validar el tenant." },
-      { status: tenantCheckResponse.status },
+      { message: "Inmobiliaria no encontrada o suspendida." },
+      { status: 400 },
     );
   }
 

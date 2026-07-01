@@ -6,14 +6,16 @@ import { IconMenu } from "@/components/layout/icons";
 import { TenantSwitcher } from "@/components/layout/tenant-switcher";
 import { UserAvatar } from "@/components/user/user-avatar";
 import { useSidebar } from "@/components/layout/sidebar-context";
+import type { PlatformTenantOption } from "@/lib/api/types/platform-tenant";
 import type { AuthUser } from "@/lib/auth/types";
 
 type MainHeaderProps = {
   user: AuthUser;
   activeTenantId: string | null;
+  tenantOptions: PlatformTenantOption[];
 };
 
-export function MainHeader({ user, activeTenantId }: MainHeaderProps) {
+export function MainHeader({ user, activeTenantId, tenantOptions }: MainHeaderProps) {
   const { collapsed, isMobile, toggleSidebar } = useSidebar();
   const isSuperAdmin = user.role === "SUPER_ADMIN";
 
@@ -60,6 +62,7 @@ export function MainHeader({ user, activeTenantId }: MainHeaderProps) {
           <TenantSwitcher
             user={user}
             activeTenantId={activeTenantId}
+            tenantOptions={tenantOptions}
             highlighted={!activeTenantId}
             compact
           />

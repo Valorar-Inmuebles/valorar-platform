@@ -15,6 +15,7 @@ import {
 import { useSidebar } from "@/components/layout/sidebar-context";
 import { TenantSwitcher } from "@/components/layout/tenant-switcher";
 import { cn } from "@/lib/cn";
+import type { PlatformTenantOption } from "@/lib/api/types/platform-tenant";
 import type { AuthUser } from "@/lib/auth/types";
 
 const itemBase =
@@ -147,12 +148,14 @@ type MainSidebarProps = {
   navContext: NavViewerContext;
   user: AuthUser;
   activeTenantId: string | null;
+  tenantOptions: PlatformTenantOption[];
 };
 
 export function MainSidebar({
   navContext,
   user,
   activeTenantId,
+  tenantOptions,
 }: MainSidebarProps) {
   const pathname = usePathname() ?? "/";
   const router = useRouter();
@@ -228,6 +231,7 @@ export function MainSidebar({
               <TenantSwitcher
                 user={user}
                 activeTenantId={activeTenantId}
+                tenantOptions={tenantOptions}
                 highlighted={!activeTenantId}
                 compact
               />

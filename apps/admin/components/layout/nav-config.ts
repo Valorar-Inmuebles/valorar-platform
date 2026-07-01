@@ -103,6 +103,19 @@ export const navigation: NavSection[] = [
     ],
   },
   {
+    id: "plataforma",
+    label: "Plataforma",
+    items: [
+      {
+        id: "platform-tenants",
+        label: "Tenants",
+        href: "/plataforma/tenants",
+        iconId: "layers",
+        superAdminOnly: true,
+      },
+    ],
+  },
+  {
     id: "configuracion",
     label: "Configuración",
     items: [
@@ -138,13 +151,6 @@ export const navigation: NavSection[] = [
         label: "Preferencias",
         href: "/configuracion/preferencias",
         iconId: "sliders",
-      },
-      {
-        id: "config-tenants",
-        label: "Tenants",
-        href: "/configuracion/tenants",
-        iconId: "layers",
-        superAdminOnly: true,
       },
     ],
   },
