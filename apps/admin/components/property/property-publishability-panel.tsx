@@ -58,7 +58,7 @@ function ListingChecklistSection({
   propertyId: string;
 }) {
   return (
-    <div className="space-y-2 rounded-lg border border-border/70 bg-zinc-50/40 p-3">
+    <div className="space-y-2 rounded-lg bg-zinc-50/60 px-3 py-2.5 ring-1 ring-border/50">
       <div className="flex flex-wrap items-center gap-2">
         <span className="text-sm font-medium text-foreground">
           {listing.listingTypeLabel}
@@ -110,41 +110,31 @@ export function PropertyPublishabilityPanel({
     (listing) => listing.isPublishable,
   ).length;
   const totalListings = summary.listings.length;
-  const pendingCount = totalListings - publishableCount;
+
+  const statusLine = summary.isAnyPublishable
+    ? `${publishableCount} operación${publishableCount === 1 ? "" : "es"} lista${publishableCount === 1 ? "" : "s"} para la web.`
+    : totalListings === 0
+      ? "Creá operaciones en Comercialización para evaluar publicación."
+      : `${totalListings - publishableCount} operación${totalListings - publishableCount === 1 ? "" : "es"} con requisitos pendientes.`;
 
   return (
-    <section className="rounded-xl border border-border bg-white">
-      <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3">
-        <div>
-          <h2 className="text-sm font-semibold text-foreground">
-            Publicabilidad web
-          </h2>
-          <p className="text-xs text-muted">
-            {summary.isAnyPublishable
-              ? `${publishableCount} operación${publishableCount === 1 ? "" : "es"} lista${publishableCount === 1 ? "" : "s"} para la web.`
-              : totalListings === 0
-                ? "Creá operaciones en Comercialización para evaluar publicación."
-                : `${pendingCount} operación${pendingCount === 1 ? "" : "es"} con requisitos pendientes.`}
-          </p>
-        </div>
-        {totalListings > 0 ? (
-          <Badge variant={summary.isAnyPublishable ? "success" : "warning"}>
-            {publishableCount}/{totalListings}
-          </Badge>
-        ) : null}
-      </div>
+    <section className="rounded-xl bg-white ring-1 ring-border/70">
+      <details className="group">
+        <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 marker:content-none [&::-webkit-details-marker]:hidden">
+          <div className="min-w-0">
+            <h2 className="text-sm font-semibold text-foreground">
+              Publicabilidad web
+            </h2>
+            <p className="truncate text-xs text-muted">{statusLine}</p>
+          </div>
+          <span className="shrink-0 text-xs font-medium text-primary">
+            <span className="group-open:hidden">Ver checklist</span>
+            <span className="hidden group-open:inline">Ocultar</span>
+          </span>
+        </summary>
 
-      {summary.listings.length > 0 ? (
-        <details className="group border-t border-border">
-          <summary className="cursor-pointer list-none px-4 py-3 text-sm font-medium text-foreground marker:content-none [&::-webkit-details-marker]:hidden">
-            <span className="text-muted group-open:hidden">
-              Ver checklist completo
-            </span>
-            <span className="hidden group-open:inline">
-              Ocultar checklist completo
-            </span>
-          </summary>
-          <div className="space-y-3 border-t border-border px-4 py-3">
+        {summary.listings.length > 0 ? (
+          <div className="space-y-3 border-t border-border/70 px-4 py-3">
             {summary.listings.map((listing) => (
               <ListingChecklistSection
                 key={listing.listingId}
@@ -153,8 +143,8 @@ export function PropertyPublishabilityPanel({
               />
             ))}
           </div>
-        </details>
-      ) : null}
+        ) : null}
+      </details>
     </section>
   );
 }

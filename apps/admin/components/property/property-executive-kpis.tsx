@@ -11,6 +11,7 @@ type PropertyExecutiveKpisProps = {
 };
 
 type KpiCardProps = {
+  icon: string;
   label: string;
   value: string;
   hint?: string;
@@ -18,22 +19,31 @@ type KpiCardProps = {
   tone?: "default" | "success" | "warning";
 };
 
-function KpiCard({ label, value, hint, href, tone = "default" }: KpiCardProps) {
+function KpiCard({ icon, label, value, hint, href, tone = "default" }: KpiCardProps) {
   const content = (
     <div
       className={cn(
-        "rounded-xl border px-3 py-2.5 transition",
-        tone === "success" && "border-emerald-200 bg-emerald-50/60",
-        tone === "warning" && "border-amber-200 bg-amber-50/60",
-        tone === "default" && "border-border bg-white",
-        href && "hover:border-primary/30 hover:shadow-sm",
+        "flex items-start gap-2 rounded-lg px-2.5 py-2 transition",
+        tone === "success" && "bg-emerald-50/70 ring-1 ring-emerald-200/80",
+        tone === "warning" && "bg-amber-50/70 ring-1 ring-amber-200/80",
+        tone === "default" && "bg-white ring-1 ring-border/70",
+        href && "hover:ring-primary/25",
       )}
     >
-      <p className="text-[11px] font-medium uppercase tracking-wide text-muted">
-        {label}
-      </p>
-      <p className="mt-1 text-sm font-semibold text-foreground">{value}</p>
-      {hint ? <p className="mt-0.5 text-xs text-muted">{hint}</p> : null}
+      <span aria-hidden className="mt-0.5 text-sm leading-none">
+        {icon}
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="text-[10px] font-medium uppercase tracking-wide text-muted">
+          {label}
+        </p>
+        <p className="mt-0.5 truncate text-sm font-semibold text-foreground">
+          {value}
+        </p>
+        {hint ? (
+          <p className="mt-0.5 truncate text-[11px] text-muted">{hint}</p>
+        ) : null}
+      </div>
     </div>
   );
 
@@ -42,7 +52,7 @@ function KpiCard({ label, value, hint, href, tone = "default" }: KpiCardProps) {
   }
 
   return (
-    <Link href={href} className="block">
+    <Link href={href} className="block min-w-0">
       {content}
     </Link>
   );
@@ -74,8 +84,9 @@ export function PropertyExecutiveKpis({
   const seoTone = snapshot.seo.isReady ? "success" : "warning";
 
   return (
-    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
+    <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3 lg:grid-cols-5">
       <KpiCard
+        icon="✅"
         label="Publicable"
         value={
           totalListings === 0
@@ -91,6 +102,7 @@ export function PropertyExecutiveKpis({
         tone={publishableTone}
       />
       <KpiCard
+        icon="🏷"
         label="Operaciones"
         value={String(snapshot.activeOperationsCount)}
         hint={
@@ -101,6 +113,7 @@ export function PropertyExecutiveKpis({
         href={propertySubNavHref(propertyId, "publicaciones")}
       />
       <KpiCard
+        icon="🖼"
         label="Imágenes"
         value={String(snapshot.imageCount)}
         hint={snapshot.hasCoverImage ? "Portada OK" : "Sin portada"}
@@ -108,15 +121,21 @@ export function PropertyExecutiveKpis({
         tone={imagesTone}
       />
       <KpiCard
+        icon="⭐"
         label="Características"
         value={String(snapshot.featureCount)}
         hint={snapshot.featureCount === 0 ? "Sin asignar" : "Asignadas"}
         href={propertySubNavHref(propertyId, "caracteristicas")}
       />
       <KpiCard
+        icon="🌐"
         label="SEO"
         value={snapshot.seo.scoreLabel}
-        hint={snapshot.seo.isReady ? "Metadatos básicos OK" : snapshot.seo.issues[0]}
+        hint={
+          snapshot.seo.isReady
+            ? "Metadatos básicos OK"
+            : snapshot.seo.issues[0]
+        }
         href={propertySubNavHref(propertyId, "general")}
         tone={seoTone}
       />

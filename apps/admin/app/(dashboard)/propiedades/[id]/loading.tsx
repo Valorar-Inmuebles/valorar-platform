@@ -1,10 +1,11 @@
 import { PropertyDetailSkeleton } from "@/components/property/property-detail-skeleton";
-import { PageShell } from "@/components/shared/page-shell";
+import { PropertyExecutiveSkeleton } from "@/components/property/property-executive-skeleton";
 
 export default function PropiedadDetalleLoading() {
   return (
-    <PageShell title="Propiedad">
-      <PropertyDetailSkeleton />
-    </PageShell>
+    <div className="flex flex-col gap-4">
+      <PropertyExecutiveSkeleton />
+      <PropertyDetailSkeleton embedded />
+    </div>
   );
 }
