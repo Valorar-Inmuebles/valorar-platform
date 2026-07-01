@@ -12,7 +12,7 @@ export type PublicationCtaGroup = {
 export const PUBLICATION_CTA_GROUPS: PublicationCtaGroup[] = [
   {
     id: "general",
-    label: "Ir a Datos generales",
+    label: "Ir a Datos",
     keys: ["property-active"],
     href: (propertyId) => `/propiedades/${propertyId}`,
   },

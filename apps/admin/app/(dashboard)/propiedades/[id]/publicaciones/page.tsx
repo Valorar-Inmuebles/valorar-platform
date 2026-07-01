@@ -7,7 +7,6 @@ import { PropertyEmptyState } from "@/components/property/property-empty-state";
 import { PropertyPageShell } from "@/components/property/property-page-shell";
 import { ApiErrorPanel } from "@/components/shared/api-error-panel";
 import { ApiError } from "@/lib/api/client";
-import { propertyCommercializationBreadcrumbs } from "@/lib/property/breadcrumbs";
 import { loadCommercializationContext } from "@/lib/property/load-commercialization-context";
 
 type PropiedadComercializacionPageProps = {
@@ -24,38 +23,44 @@ export default async function PropiedadComercializacionPage({
       await loadCommercializationContext(id);
 
     return (
-      <PropertyPageShell
-        propertyId={id}
-        title={property.title}
-        description="Operaciones comerciales, precios y visibilidad en la web."
-        breadcrumbs={propertyCommercializationBreadcrumbs(id, property.title)}
-        actions={
-          <Link href={`/propiedades/${id}/publicaciones/crear`}>
-            <Button>Nueva operación</Button>
-          </Link>
-        }
-      >
-        {listings.length === 0 ? (
-          <PropertyEmptyState
-            title="Sin operaciones comerciales"
-            description="Creá una operación de venta, alquiler o temporario para comercializar esta propiedad."
-            action={
-              <Link href={`/propiedades/${id}/publicaciones/crear`}>
-                <Button>Nueva operación</Button>
-              </Link>
-            }
-          />
-        ) : (
-          <Suspense fallback={null}>
-            <PropertyCommercializationView
-              propertyId={id}
-              propertySlug={property.slug}
-              listings={listings}
-              pricesByListingId={pricesByListingId}
-              publishabilityByListingId={publishabilityByListingId}
+      <PropertyPageShell propertyId={id} embedded>
+        <div className="space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <h2 className="text-base font-semibold text-foreground">
+                Comercialización
+              </h2>
+              <p className="text-sm text-muted">
+                Operaciones comerciales, precios y visibilidad en la web.
+              </p>
+            </div>
+            <Link href={`/propiedades/${id}/publicaciones/crear`}>
+              <Button>Nueva operación</Button>
+            </Link>
+          </div>
+
+          {listings.length === 0 ? (
+            <PropertyEmptyState
+              title="Sin operaciones comerciales"
+              description="Creá una operación de venta, alquiler o temporario para comercializar esta propiedad."
+              action={
+                <Link href={`/propiedades/${id}/publicaciones/crear`}>
+                  <Button>Nueva operación</Button>
+                </Link>
+              }
             />
-          </Suspense>
-        )}
+          ) : (
+            <Suspense fallback={null}>
+              <PropertyCommercializationView
+                propertyId={id}
+                propertySlug={property.slug}
+                listings={listings}
+                pricesByListingId={pricesByListingId}
+                publishabilityByListingId={publishabilityByListingId}
+              />
+            </Suspense>
+          )}
+        </div>
       </PropertyPageShell>
     );
   } catch (error) {
@@ -71,11 +76,7 @@ export default async function PropiedadComercializacionPage({
           : "No se pudo cargar la comercialización.";
 
     return (
-      <PropertyPageShell
-        propertyId={id}
-        title="Comercialización"
-        breadcrumbs={propertyCommercializationBreadcrumbs(id, "Propiedad")}
-      >
+      <PropertyPageShell propertyId={id} embedded>
         <ApiErrorPanel message={message} />
       </PropertyPageShell>
     );

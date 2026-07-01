@@ -1,13 +1,6 @@
 import Link from "next/link";
 import { Badge } from "@repo/ui/badge";
 import { Button } from "@repo/ui/button";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@repo/ui/card";
-import { PropertyStatusBadge } from "@/components/property/property-status-badge";
 import type {
   ListingPublishability,
   PropertyPublishabilitySummary,
@@ -57,7 +50,7 @@ function ChecklistItem({ item }: { item: PublishabilityCheckItem }) {
   );
 }
 
-function ListingSummaryRow({
+function ListingChecklistSection({
   listing,
   propertyId,
 }: {
@@ -65,28 +58,34 @@ function ListingSummaryRow({
   propertyId: string;
 }) {
   return (
-    <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border bg-zinc-50/60 px-3 py-2">
+    <div className="space-y-2 rounded-lg border border-border/70 bg-zinc-50/40 p-3">
       <div className="flex flex-wrap items-center gap-2">
         <span className="text-sm font-medium text-foreground">
           {listing.listingTypeLabel}
         </span>
         <Badge variant={listing.isPublishable ? "success" : "warning"}>
-          {listing.isPublishable ? "Visible en web" : "No publicable"}
+          {listing.isPublishable ? "Publicable" : "Pendiente"}
         </Badge>
-        <span className="text-xs text-muted">{listing.progress}%</span>
+        {listing.publicWebUrl ? (
+          <Link
+            href={listing.publicWebUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-xs font-medium text-primary underline-offset-2 hover:underline"
+          >
+            Ver en web
+          </Link>
+        ) : null}
       </div>
-      {listing.publicWebUrl ? (
-        <Link
-          href={listing.publicWebUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-xs font-medium text-primary underline-offset-2 hover:underline"
-        >
-          Ver en web
-        </Link>
-      ) : null}
+
+      <ul className="space-y-1.5">
+        {listing.items.map((item) => (
+          <ChecklistItem key={item.key} item={item} />
+        ))}
+      </ul>
+
       {!listing.isPublishable && listing.missing.length > 0 ? (
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2 pt-1">
           {getPublicationCtaGroupsForMissing(
             listing.missing,
             propertyId,
@@ -111,78 +110,51 @@ export function PropertyPublishabilityPanel({
     (listing) => listing.isPublishable,
   ).length;
   const totalListings = summary.listings.length;
-
-  const uniqueChecks = new Map<string, PublishabilityCheckItem>();
-
-  for (const listing of summary.listings) {
-    for (const item of listing.items) {
-      const existing = uniqueChecks.get(item.key);
-      if (!existing || (!existing.passed && item.passed)) {
-        uniqueChecks.set(item.key, item);
-      }
-    }
-  }
-
-  const consolidatedChecks = Array.from(uniqueChecks.values());
+  const pendingCount = totalListings - publishableCount;
 
   return (
-    <Card>
-      <CardHeader className="pb-3">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <CardTitle className="text-base">Publicabilidad web</CardTitle>
-          <PropertyStatusBadge status={summary.statusVariant} />
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        <p className="text-sm text-muted">
-          {summary.isAnyPublishable
-            ? "Al menos una operación cumple los requisitos para el sitio web."
-            : "Completá los requisitos pendientes para habilitar la visibilidad web."}
-          {totalListings > 0 ? (
-            <>
-              {" "}
-              <span className="font-medium text-foreground">
-                {publishableCount}/{totalListings} operaciones publicables.
-              </span>
-            </>
-          ) : null}
-        </p>
-
-        {summary.listings.length === 0 ? (
-          <p className="rounded-lg border border-dashed border-border px-4 py-3 text-sm text-muted">
-            Sin operaciones comerciales. Creá una operación en Comercialización
-            para evaluar su publicabilidad.
+    <section className="rounded-xl border border-border bg-white">
+      <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3">
+        <div>
+          <h2 className="text-sm font-semibold text-foreground">
+            Publicabilidad web
+          </h2>
+          <p className="text-xs text-muted">
+            {summary.isAnyPublishable
+              ? `${publishableCount} operación${publishableCount === 1 ? "" : "es"} lista${publishableCount === 1 ? "" : "s"} para la web.`
+              : totalListings === 0
+                ? "Creá operaciones en Comercialización para evaluar publicación."
+                : `${pendingCount} operación${pendingCount === 1 ? "" : "es"} con requisitos pendientes.`}
           </p>
-        ) : (
-          <div className="space-y-2">
+        </div>
+        {totalListings > 0 ? (
+          <Badge variant={summary.isAnyPublishable ? "success" : "warning"}>
+            {publishableCount}/{totalListings}
+          </Badge>
+        ) : null}
+      </div>
+
+      {summary.listings.length > 0 ? (
+        <details className="group border-t border-border">
+          <summary className="cursor-pointer list-none px-4 py-3 text-sm font-medium text-foreground marker:content-none [&::-webkit-details-marker]:hidden">
+            <span className="text-muted group-open:hidden">
+              Ver checklist completo
+            </span>
+            <span className="hidden group-open:inline">
+              Ocultar checklist completo
+            </span>
+          </summary>
+          <div className="space-y-3 border-t border-border px-4 py-3">
             {summary.listings.map((listing) => (
-              <ListingSummaryRow
+              <ListingChecklistSection
                 key={listing.listingId}
                 listing={listing}
                 propertyId={summary.propertyId}
               />
             ))}
           </div>
-        )}
-
-        {consolidatedChecks.length > 0 ? (
-          <details className="group rounded-lg border border-border">
-            <summary className="cursor-pointer list-none px-4 py-3 text-sm font-medium text-foreground marker:content-none [&::-webkit-details-marker]:hidden">
-              <span className="text-muted group-open:hidden">
-                Ver checklist detallado
-              </span>
-              <span className="hidden group-open:inline">
-                Ocultar checklist detallado
-              </span>
-            </summary>
-            <ul className="space-y-2 border-t border-border px-4 py-3">
-              {consolidatedChecks.map((item) => (
-                <ChecklistItem key={item.key} item={item} />
-              ))}
-            </ul>
-          </details>
-        ) : null}
-      </CardContent>
-    </Card>
+        </details>
+      ) : null}
+    </section>
   );
 }

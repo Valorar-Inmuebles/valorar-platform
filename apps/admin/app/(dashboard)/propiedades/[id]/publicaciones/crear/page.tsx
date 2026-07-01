@@ -6,7 +6,6 @@ import { PropertyPageShell } from "@/components/property/property-page-shell";
 import { ApiErrorPanel } from "@/components/shared/api-error-panel";
 import { ApiError } from "@/lib/api/client";
 import { getProperty } from "@/lib/api/property";
-import { propertyListingCreateBreadcrumbs } from "@/lib/property/breadcrumbs";
 
 type PropiedadPublicacionCrearPageProps = {
   params: Promise<{ id: string }>;
@@ -21,22 +20,25 @@ export default async function PropiedadPublicacionCrearPage({
     const property = await getProperty(id);
 
     return (
-      <PropertyPageShell
-        propertyId={id}
-        title={property.title}
-        description="Nueva operación comercial."
-        breadcrumbs={propertyListingCreateBreadcrumbs(id, property.title)}
-        actions={
-          <Link href={`/propiedades/${id}/publicaciones`}>
-            <Button variant="secondary">Volver a comercialización</Button>
-          </Link>
-        }
-      >
-        <PropertyListingForm
-          propertyId={id}
-          propertySlug={property.slug}
-          mode="create"
-        />
+      <PropertyPageShell propertyId={id} embedded>
+        <div className="space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <h2 className="text-base font-semibold text-foreground">
+                Nueva operación
+              </h2>
+              <p className="text-sm text-muted">Alta de operación comercial.</p>
+            </div>
+            <Link href={`/propiedades/${id}/publicaciones`}>
+              <Button variant="secondary">Volver a comercialización</Button>
+            </Link>
+          </div>
+          <PropertyListingForm
+            propertyId={id}
+            propertySlug={property.slug}
+            mode="create"
+          />
+        </div>
       </PropertyPageShell>
     );
   } catch (error) {
@@ -52,11 +54,7 @@ export default async function PropiedadPublicacionCrearPage({
           : "No se pudo cargar la propiedad.";
 
     return (
-      <PropertyPageShell
-        propertyId={id}
-        title="Nueva publicación"
-        breadcrumbs={propertyListingCreateBreadcrumbs(id, "Propiedad")}
-      >
+      <PropertyPageShell propertyId={id} embedded>
         <ApiErrorPanel message={message} />
       </PropertyPageShell>
     );

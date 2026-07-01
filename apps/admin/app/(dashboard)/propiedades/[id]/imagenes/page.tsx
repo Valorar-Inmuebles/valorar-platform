@@ -5,7 +5,6 @@ import { ApiErrorPanel } from "@/components/shared/api-error-panel";
 import { ApiError } from "@/lib/api/client";
 import { listPropertyImages } from "@/lib/api/property-image";
 import { getProperty } from "@/lib/api/property";
-import { propertyImagenesBreadcrumbs } from "@/lib/property/breadcrumbs";
 
 type PropiedadImagenesPageProps = {
   params: Promise<{ id: string }>;
@@ -23,17 +22,18 @@ export default async function PropiedadImagenesPage({
     ]);
 
     return (
-      <PropertyPageShell
-        propertyId={id}
-        title={property.title}
-        description="Galería e imágenes de la propiedad."
-        breadcrumbs={propertyImagenesBreadcrumbs(id, property.title)}
-      >
-        <PropertyImageManager
-          propertyId={id}
-          propertyIsActive={property.isActive}
-          images={images}
-        />
+      <PropertyPageShell propertyId={id} embedded>
+        <div className="space-y-4">
+          <div>
+            <h2 className="text-base font-semibold text-foreground">Imágenes</h2>
+            <p className="text-sm text-muted">Galería e imágenes de la propiedad.</p>
+          </div>
+          <PropertyImageManager
+            propertyId={id}
+            propertyIsActive={property.isActive}
+            images={images}
+          />
+        </div>
       </PropertyPageShell>
     );
   } catch (error) {
@@ -49,11 +49,7 @@ export default async function PropiedadImagenesPage({
           : "No se pudieron cargar las imágenes.";
 
     return (
-      <PropertyPageShell
-        propertyId={id}
-        title="Imágenes"
-        breadcrumbs={propertyImagenesBreadcrumbs(id, "Propiedad")}
-      >
+      <PropertyPageShell propertyId={id} embedded>
         <ApiErrorPanel message={message} />
       </PropertyPageShell>
     );

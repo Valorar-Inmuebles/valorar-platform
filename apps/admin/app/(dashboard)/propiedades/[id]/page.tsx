@@ -4,11 +4,9 @@ import { Button } from "@repo/ui/button";
 import { PropertyForm } from "@/components/property/property-form";
 import { PropertyPageShell } from "@/components/property/property-page-shell";
 import { PropertyPublishabilityPanel } from "@/components/property/property-publishability-panel";
-import { PropertyStatusBadge } from "@/components/property/property-status-badge";
 import { ApiErrorPanel } from "@/components/shared/api-error-panel";
 import { ApiError } from "@/lib/api/client";
-import { propertyGeneralBreadcrumbs } from "@/lib/property/breadcrumbs";
-import { loadPropertyPublishabilityContext } from "@/lib/property/load-publishability-context";
+import { loadPropertyExecutiveContext } from "@/lib/property/load-property-executive-context";
 
 type PropiedadDetallePageProps = {
   params: Promise<{ id: string }>;
@@ -20,29 +18,28 @@ export default async function PropiedadDetallePage({
   const { id } = await params;
 
   try {
-    const { property, summary: publishability } =
-      await loadPropertyPublishabilityContext(id);
+    const { property, publishability } = await loadPropertyExecutiveContext(id);
 
     return (
-      <PropertyPageShell
-        propertyId={id}
-        title={property.title}
-        description="Datos generales del inmueble."
-        breadcrumbs={propertyGeneralBreadcrumbs(id, property.title)}
-        actions={
-          <div className="flex flex-wrap gap-2">
-            <PropertyStatusBadge status={publishability.statusVariant} />
+      <PropertyPageShell propertyId={id} embedded>
+        <div className="space-y-6">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <h2 className="text-base font-semibold text-foreground">Datos</h2>
+              <p className="text-sm text-muted">
+                Información general del inmueble.
+              </p>
+            </div>
             <Link href="/propiedades">
               <Button variant="secondary" size="sm">
                 Volver al listado
               </Button>
             </Link>
           </div>
-        }
-      >
-        <div className="space-y-6">
-          <PropertyPublishabilityPanel summary={publishability} />
+
           <PropertyForm mode="edit" property={property} />
+
+          <PropertyPublishabilityPanel summary={publishability} />
         </div>
       </PropertyPageShell>
     );
@@ -59,11 +56,7 @@ export default async function PropiedadDetallePage({
           : "No se pudo cargar la propiedad.";
 
     return (
-      <PropertyPageShell
-        propertyId={id}
-        title="Propiedad"
-        breadcrumbs={propertyGeneralBreadcrumbs(id, "Propiedad")}
-      >
+      <PropertyPageShell propertyId={id} embedded>
         <ApiErrorPanel message={message} />
       </PropertyPageShell>
     );

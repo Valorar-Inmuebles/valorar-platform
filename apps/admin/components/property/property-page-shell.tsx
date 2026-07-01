@@ -5,11 +5,13 @@ import type { BreadcrumbItem } from "@/components/layout/PageHeader";
 
 type PropertyPageShellProps = {
   propertyId: string;
-  title: string;
+  title?: string;
   description?: string;
-  breadcrumbs: BreadcrumbItem[];
+  breadcrumbs?: BreadcrumbItem[];
   actions?: ReactNode;
   children: ReactNode;
+  /** When true, layout provides header/sub-nav; page renders content only. */
+  embedded?: boolean;
 };
 
 export function PropertyPageShell({
@@ -19,10 +21,15 @@ export function PropertyPageShell({
   breadcrumbs,
   actions,
   children,
+  embedded = false,
 }: PropertyPageShellProps) {
+  if (embedded) {
+    return <>{children}</>;
+  }
+
   return (
     <PageShell
-      title={title}
+      title={title ?? ""}
       description={description}
       breadcrumbs={breadcrumbs}
       actions={actions}
