@@ -1,10 +1,15 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma, Property } from '../../../../generated/prisma/client';
 import { PrismaService } from '../../../prisma/prisma.service';
+import { propertyGeoInclude } from '../utils/property-location';
 
 export type CreatePropertyData = Prisma.PropertyUncheckedCreateInput;
 
 export type UpdatePropertyData = Prisma.PropertyUncheckedUpdateInput;
+
+export type PropertyRecord = Prisma.PropertyGetPayload<{
+  include: typeof propertyGeoInclude;
+}>;
 
 export interface FindManyPropertiesOptions {
   isActive?: boolean;
@@ -14,13 +19,17 @@ export interface FindManyPropertiesOptions {
 export class PropertyRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  create(data: CreatePropertyData): Promise<Property> {
-    return this.prisma.property.create({ data });
+  create(data: CreatePropertyData): Promise<PropertyRecord> {
+    return this.prisma.property.create({
+      data,
+      include: propertyGeoInclude,
+    });
   }
 
-  findById(id: string, tenantId: string): Promise<Property | null> {
+  findById(id: string, tenantId: string): Promise<PropertyRecord | null> {
     return this.prisma.property.findFirst({
       where: { id, tenantId },
+      include: propertyGeoInclude,
     });
   }
 
@@ -46,7 +55,7 @@ export class PropertyRepository {
   findMany(
     tenantId: string,
     options: FindManyPropertiesOptions = {},
-  ): Promise<Property[]> {
+  ): Promise<PropertyRecord[]> {
     const { isActive } = options;
 
     return this.prisma.property.findMany({
@@ -54,6 +63,7 @@ export class PropertyRepository {
         tenantId,
         ...(isActive !== undefined ? { isActive } : {}),
       },
+      include: propertyGeoInclude,
       orderBy: { updatedAt: 'desc' },
     });
   }
@@ -76,7 +86,7 @@ export class PropertyRepository {
     id: string,
     tenantId: string,
     data: UpdatePropertyData,
-  ): Promise<Property | null> {
+  ): Promise<PropertyRecord | null> {
     const result = await this.prisma.property.updateMany({
       where: { id, tenantId },
       data,
@@ -89,7 +99,7 @@ export class PropertyRepository {
     return this.findById(id, tenantId);
   }
 
-  async softArchive(id: string, tenantId: string): Promise<Property | null> {
+  async softArchive(id: string, tenantId: string): Promise<PropertyRecord | null> {
     const result = await this.prisma.property.updateMany({
       where: { id, tenantId },
       data: { isActive: false },

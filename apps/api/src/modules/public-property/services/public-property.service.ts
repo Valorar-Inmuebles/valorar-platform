@@ -25,6 +25,7 @@ import {
   PublicPropertyRepository,
   FeaturedListingRecord,
 } from '../repositories/public-property.repository';
+import { resolvePropertyLocation } from '../../property/utils/property-location';
 
 const LISTING_TYPE_PRIORITY: PropertyListingType[] = [
   PropertyListingType.SALE,
@@ -54,6 +55,9 @@ export class PublicPropertyService {
         {
           listingType: query.listingType,
           propertyType: query.propertyType,
+          provinceId: query.provinceId,
+          localityId: query.localityId,
+          neighborhoodId: query.neighborhoodId,
           city: query.city,
           neighborhood: query.neighborhood,
           priceMin: query.priceMin,
@@ -129,14 +133,22 @@ export class PublicPropertyService {
       return null;
     }
 
+    const location = resolvePropertyLocation(property);
+
     return {
       id: property.id,
       slug: property.slug,
       title: property.title,
       description: property.description,
       propertyType: property.propertyType,
-      city: property.city,
-      neighborhood: property.neighborhood,
+      city: location.city,
+      neighborhood: location.neighborhood,
+      provinceId: location.provinceId,
+      provinceName: location.provinceName,
+      localityId: location.localityId,
+      localityName: location.localityName,
+      neighborhoodId: location.neighborhoodId,
+      neighborhoodName: location.neighborhoodName,
       coverImage: this.toCoverImageDto(coverImage),
       price: Number(primaryPrice.amount),
       currency: primaryPrice.currency,
@@ -158,14 +170,22 @@ export class PublicPropertyService {
       return null;
     }
 
+    const location = resolvePropertyLocation(property);
+
     return {
       id: property.id,
       slug: property.slug,
       title: property.title,
       description: property.description,
       propertyType: property.propertyType,
-      city: property.city,
-      neighborhood: property.neighborhood,
+      city: location.city,
+      neighborhood: location.neighborhood,
+      provinceId: location.provinceId,
+      provinceName: location.provinceName,
+      localityId: location.localityId,
+      localityName: location.localityName,
+      neighborhoodId: location.neighborhoodId,
+      neighborhoodName: location.neighborhoodName,
       coverImage: this.toCoverImageDto(coverImage),
       price: Number(primaryPrice.amount),
       currency: primaryPrice.currency,
@@ -195,6 +215,7 @@ export class PublicPropertyService {
 
     const primaryPriceDto = this.toPrimaryPriceDto(primaryPrice);
     const availableListingTypes = this.resolveAvailableListingTypes(property);
+    const location = resolvePropertyLocation(property);
 
     return {
       id: property.id,
@@ -202,10 +223,16 @@ export class PublicPropertyService {
       title: property.title,
       description: property.description,
       propertyType: property.propertyType,
-      city: property.city,
-      neighborhood: property.neighborhood,
-      province: property.province,
-      country: property.country,
+      city: location.city,
+      neighborhood: location.neighborhood,
+      province: location.province,
+      country: location.country,
+      provinceId: location.provinceId,
+      provinceName: location.provinceName,
+      localityId: location.localityId,
+      localityName: location.localityName,
+      neighborhoodId: location.neighborhoodId,
+      neighborhoodName: location.neighborhoodName,
       latitude: property.latitude != null ? Number(property.latitude) : null,
       longitude: property.longitude != null ? Number(property.longitude) : null,
       condition: property.condition,

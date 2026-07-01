@@ -43,6 +43,24 @@ export class PublicPropertyCardDto {
   @ApiPropertyOptional()
   neighborhood: string | null;
 
+  @ApiPropertyOptional()
+  provinceId: string | null;
+
+  @ApiPropertyOptional()
+  provinceName: string | null;
+
+  @ApiPropertyOptional()
+  localityId: string | null;
+
+  @ApiPropertyOptional()
+  localityName: string | null;
+
+  @ApiPropertyOptional()
+  neighborhoodId: string | null;
+
+  @ApiPropertyOptional()
+  neighborhoodName: string | null;
+
   @ApiProperty({ type: PublicCoverImageDto })
   coverImage: PublicCoverImageDto;
 
@@ -163,6 +181,24 @@ export class PublicPropertyDetailDto {
 
   @ApiProperty()
   country: string;
+
+  @ApiPropertyOptional()
+  provinceId: string | null;
+
+  @ApiPropertyOptional()
+  provinceName: string | null;
+
+  @ApiPropertyOptional()
+  localityId: string | null;
+
+  @ApiPropertyOptional()
+  localityName: string | null;
+
+  @ApiPropertyOptional()
+  neighborhoodId: string | null;
+
+  @ApiPropertyOptional()
+  neighborhoodName: string | null;
 
   @ApiPropertyOptional()
   latitude: number | null;

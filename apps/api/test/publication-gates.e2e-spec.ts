@@ -43,7 +43,12 @@ describe('Publication gates (e2e)', () => {
       })
       .expect(200);
 
-    authCookie = login.headers['set-cookie'] ?? [];
+    authCookie = (() => {
+      const header = login.headers['set-cookie'];
+      if (Array.isArray(header)) return header;
+      if (typeof header === 'string') return [header];
+      return [];
+    })();
     tenantId = login.body.tenantId as string;
 
     const properties = await request(app.getHttpServer())

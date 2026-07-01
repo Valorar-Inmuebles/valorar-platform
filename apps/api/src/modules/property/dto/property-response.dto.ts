@@ -1,6 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
-  Property,
   PropertyBrightness,
   PropertyCondition,
   PropertyLayout,
@@ -9,6 +8,10 @@ import {
   GeocodeSource,
   GeocodeAccuracy,
 } from '../../../../generated/prisma/client';
+import {
+  PropertyWithGeoRelations,
+  resolvePropertyLocation,
+} from '../utils/property-location';
 
 export class PropertyResponseDto {
   @ApiProperty()
@@ -71,6 +74,27 @@ export class PropertyResponseDto {
 
   @ApiProperty()
   country: string;
+
+  @ApiPropertyOptional()
+  countryId: string | null;
+
+  @ApiPropertyOptional()
+  provinceId: string | null;
+
+  @ApiPropertyOptional()
+  localityId: string | null;
+
+  @ApiPropertyOptional()
+  neighborhoodId: string | null;
+
+  @ApiPropertyOptional()
+  provinceName: string | null;
+
+  @ApiPropertyOptional()
+  localityName: string | null;
+
+  @ApiPropertyOptional()
+  neighborhoodName: string | null;
 
   @ApiPropertyOptional()
   postalCode: string | null;
@@ -141,7 +165,9 @@ export class PropertyResponseDto {
   @ApiProperty()
   updatedAt: Date;
 
-  static fromEntity(property: Property): PropertyResponseDto {
+  static fromEntity(property: PropertyWithGeoRelations): PropertyResponseDto {
+    const location = resolvePropertyLocation(property);
+
     return {
       id: property.id,
       tenantId: property.tenantId,
@@ -157,11 +183,18 @@ export class PropertyResponseDto {
       streetNumber: property.streetNumber,
       floor: property.floor,
       apartment: property.apartment,
-      neighborhood: property.neighborhood,
-      city: property.city,
-      province: property.province,
-      state: property.province,
-      country: property.country,
+      neighborhood: location.neighborhood,
+      city: location.city,
+      province: location.province,
+      state: location.province,
+      country: location.country,
+      countryId: location.countryId,
+      provinceId: location.provinceId,
+      localityId: location.localityId,
+      neighborhoodId: location.neighborhoodId,
+      provinceName: location.provinceName,
+      localityName: location.localityName,
+      neighborhoodName: location.neighborhoodName,
       postalCode: property.postalCode,
       latitude: property.latitude != null ? Number(property.latitude) : null,
       longitude: property.longitude != null ? Number(property.longitude) : null,

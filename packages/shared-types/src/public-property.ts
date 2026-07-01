@@ -1,3 +1,5 @@
+import type { PropertyGeoFields } from "./geo";
+
 export type Currency = "ARS" | "USD";
 
 export type PropertyListingType = "SALE" | "RENT" | "TEMPORARY_RENT";
@@ -56,7 +58,7 @@ export type PublicCoverImage = {
   altText: string | null;
 };
 
-export type PublicPropertyCard = {
+export type PublicPropertyCard = PropertyGeoFields & {
   id: string;
   slug: string;
   title: string;
@@ -118,7 +120,7 @@ export type PublicPropertyFeature = {
   value: string | null;
 };
 
-export type PublicPropertyDetail = {
+export type PublicPropertyDetail = PropertyGeoFields & {
   id: string;
   slug: string;
   title: string;

@@ -198,6 +198,14 @@ model Property {
   city         String
   province     String?
   country      String  @default("AR")
+  countryId      String?
+  provinceId     String?
+  localityId     String?
+  neighborhoodId String?
+  geoCountry     Country?      @relation(fields: [countryId], references: [id], onDelete: SetNull)
+  geoProvince    Province?     @relation(fields: [provinceId], references: [id], onDelete: SetNull)
+  geoLocality    Locality?     @relation(fields: [localityId], references: [id], onDelete: SetNull)
+  geoNeighborhood Neighborhood? @relation(fields: [neighborhoodId], references: [id], onDelete: SetNull)
   postalCode   String?
   latitude     Decimal? @db.Decimal(10, 7)
   longitude    Decimal? @db.Decimal(10, 7)
@@ -237,6 +245,12 @@ model Property {
   @@index([tenantId, createdById])
   @@index([tenantId, city])
   @@index([tenantId, province])
+  @@index([tenantId, provinceId])
+  @@index([tenantId, localityId])
+  @@index([countryId])
+  @@index([provinceId])
+  @@index([localityId])
+  @@index([neighborhoodId])
   @@index([tenantId, propertyType])
   @@index([tenantId, condition])
   @@index([tenantId, updatedAt])
@@ -384,4 +398,73 @@ model PropertyAgentAccess {
   @@unique([propertyId, userId])
   @@index([tenantId])
   @@index([userId])
+}
+
+model Country {
+  id        String     @id @default(cuid())
+  name      String
+  iso2      String     @unique
+  slug      String     @unique
+  search    String
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  provinces  Province[]
+  properties Property[]
+
+  @@index([search])
+}
+
+model Province {
+  id         String     @id @default(cuid())
+  countryId  String
+  country    Country    @relation(fields: [countryId], references: [id], onDelete: Restrict)
+  name       String
+  isoCode    String?
+  slug       String
+  search     String
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+  localities Locality[]
+  properties Property[]
+
+  @@unique([countryId, name])
+  @@unique([countryId, slug])
+  @@index([countryId])
+  @@index([search])
+}
+
+model Locality {
+  id            String         @id @default(cuid())
+  provinceId    String
+  province      Province       @relation(fields: [provinceId], references: [id], onDelete: Restrict)
+  name          String
+  postalCode    String?
+  slug          String
+  search        String
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  neighborhoods Neighborhood[]
+  properties    Property[]
+
+  @@unique([provinceId, name])
+  @@unique([provinceId, slug])
+  @@index([provinceId])
+  @@index([search])
+}
+
+model Neighborhood {
+  id         String   @id @default(cuid())
+  localityId String
+  locality   Locality @relation(fields: [localityId], references: [id], onDelete: Restrict)
+  name       String
+  slug       String
+  search     String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  properties Property[]
+
+  @@unique([localityId, name])
+  @@unique([localityId, slug])
+  @@index([localityId])
+  @@index([search])
 }

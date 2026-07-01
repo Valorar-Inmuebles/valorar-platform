@@ -20,6 +20,7 @@ import {
   Matches,
   Max,
   Min,
+  ValidateIf,
 } from 'class-validator';
 
 const SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
@@ -90,10 +91,34 @@ export class CreatePropertyDto {
   @IsString()
   neighborhood?: string;
 
-  @ApiProperty({ example: 'Buenos Aires' })
+  @ApiPropertyOptional({
+    example: 'Buenos Aires',
+    description: 'Legacy city/locality text. Required when localityId is not set.',
+  })
+  @ValidateIf((dto: CreatePropertyDto) => !dto.localityId)
   @IsString()
   @IsNotEmpty()
-  city: string;
+  city?: string;
+
+  @ApiPropertyOptional({ description: 'Geo catalog country ID' })
+  @IsOptional()
+  @IsString()
+  countryId?: string;
+
+  @ApiPropertyOptional({ description: 'Geo catalog province ID' })
+  @IsOptional()
+  @IsString()
+  provinceId?: string;
+
+  @ApiPropertyOptional({ description: 'Geo catalog locality ID' })
+  @IsOptional()
+  @IsString()
+  localityId?: string;
+
+  @ApiPropertyOptional({ description: 'Geo catalog neighborhood ID (optional)' })
+  @IsOptional()
+  @IsString()
+  neighborhoodId?: string;
 
   @ApiPropertyOptional({ description: 'Province or state name' })
   @IsOptional()

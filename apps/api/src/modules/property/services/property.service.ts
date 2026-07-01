@@ -9,6 +9,7 @@ import { ListingOperationalTrustService } from '../../property-listing/services/
 import { CreatePropertyDto } from '../dto/create-property.dto';
 import { PropertyResponseDto } from '../dto/property-response.dto';
 import { UpdatePropertyDto } from '../dto/update-property.dto';
+import { PropertyGeoService } from './property-geo.service';
 import { PropertyRepository } from '../repositories/property.repository';
 import {
   mapLocationEnrichmentFields,
@@ -21,6 +22,7 @@ export class PropertyService {
     private readonly propertyRepository: PropertyRepository,
     private readonly propertyListingRepository: PropertyListingRepository,
     private readonly listingOperationalTrustService: ListingOperationalTrustService,
+    private readonly propertyGeoService: PropertyGeoService,
   ) {}
 
   async create(
@@ -36,7 +38,7 @@ export class PropertyService {
     await this.assertInternalCodeIsUnique(internalCode, tenantId);
 
     const property = await this.propertyRepository.create(
-      this.toCreateData(dto, tenantId, createdById, internalCode),
+      await this.toCreateData(dto, tenantId, createdById, internalCode),
     );
 
     return PropertyResponseDto.fromEntity(property);
@@ -104,7 +106,7 @@ export class PropertyService {
     const property = await this.propertyRepository.update(
       id,
       tenantId,
-      this.toUpdateData(dto, internalCode),
+      await this.toUpdateData(dto, internalCode),
     );
 
     if (!property) {
@@ -195,12 +197,28 @@ export class PropertyService {
     }
   }
 
-  private toCreateData(
+  private async toCreateData(
     dto: CreatePropertyDto,
     tenantId: string,
     createdById: string,
     internalCode: string | null | undefined,
   ) {
+    const location = await this.propertyGeoService.resolveForWrite(
+      {
+        countryId: dto.countryId,
+        provinceId: dto.provinceId,
+        localityId: dto.localityId,
+        neighborhoodId: dto.neighborhoodId,
+      },
+      {
+        country: dto.country,
+        province: resolveProvince(dto),
+        city: dto.city,
+        neighborhood: dto.neighborhood,
+        postalCode: dto.postalCode,
+      },
+    );
+
     return {
       tenantId,
       createdById,
@@ -215,11 +233,15 @@ export class PropertyService {
       streetNumber: dto.streetNumber,
       floor: dto.floor,
       apartment: dto.apartment,
-      neighborhood: dto.neighborhood,
-      city: dto.city,
-      province: resolveProvince(dto),
-      country: dto.country ?? 'AR',
-      postalCode: dto.postalCode,
+      neighborhood: location.neighborhood,
+      city: location.city,
+      province: location.province,
+      country: location.country,
+      countryId: location.countryId,
+      provinceId: location.provinceId,
+      localityId: location.localityId,
+      neighborhoodId: location.neighborhoodId,
+      postalCode: location.postalCode ?? dto.postalCode,
       latitude: dto.latitude,
       longitude: dto.longitude,
       ...mapLocationEnrichmentFields(dto),
@@ -240,10 +262,38 @@ export class PropertyService {
     };
   }
 
-  private toUpdateData(
+  private async toUpdateData(
     dto: UpdatePropertyDto,
     internalCode: string | null | undefined,
   ) {
+    const hasGeoInput =
+      dto.countryId !== undefined ||
+      dto.provinceId !== undefined ||
+      dto.localityId !== undefined ||
+      dto.neighborhoodId !== undefined;
+
+    let locationPatch: Awaited<
+      ReturnType<PropertyGeoService['resolveForWrite']>
+    > | null = null;
+
+    if (hasGeoInput) {
+      locationPatch = await this.propertyGeoService.resolveForWrite(
+        {
+          countryId: dto.countryId,
+          provinceId: dto.provinceId,
+          localityId: dto.localityId,
+          neighborhoodId: dto.neighborhoodId ?? null,
+        },
+        {
+          country: dto.country,
+          province: resolveProvince(dto),
+          city: dto.city,
+          neighborhood: dto.neighborhood ?? null,
+          postalCode: dto.postalCode,
+        },
+      );
+    }
+
     return {
       ...(dto.slug !== undefined ? { slug: dto.slug } : {}),
       ...(dto.title !== undefined ? { title: dto.title } : {}),
@@ -262,15 +312,33 @@ export class PropertyService {
         : {}),
       ...(dto.floor !== undefined ? { floor: dto.floor } : {}),
       ...(dto.apartment !== undefined ? { apartment: dto.apartment } : {}),
-      ...(dto.neighborhood !== undefined
-        ? { neighborhood: dto.neighborhood }
-        : {}),
-      ...(dto.city !== undefined ? { city: dto.city } : {}),
-      ...(resolveProvince(dto) !== undefined
-        ? { province: resolveProvince(dto) }
-        : {}),
-      ...(dto.country !== undefined ? { country: dto.country } : {}),
-      ...(dto.postalCode !== undefined ? { postalCode: dto.postalCode } : {}),
+      ...(locationPatch
+        ? {
+            neighborhood: locationPatch.neighborhood,
+            city: locationPatch.city,
+            province: locationPatch.province,
+            country: locationPatch.country,
+            countryId: locationPatch.countryId,
+            provinceId: locationPatch.provinceId,
+            localityId: locationPatch.localityId,
+            neighborhoodId: locationPatch.neighborhoodId,
+            ...(locationPatch.postalCode !== undefined
+              ? { postalCode: locationPatch.postalCode }
+              : {}),
+          }
+        : {
+            ...(dto.neighborhood !== undefined
+              ? { neighborhood: dto.neighborhood }
+              : {}),
+            ...(dto.city !== undefined ? { city: dto.city } : {}),
+            ...(resolveProvince(dto) !== undefined
+              ? { province: resolveProvince(dto) }
+              : {}),
+            ...(dto.country !== undefined ? { country: dto.country } : {}),
+            ...(dto.postalCode !== undefined
+              ? { postalCode: dto.postalCode }
+              : {}),
+          }),
       ...(dto.latitude !== undefined ? { latitude: dto.latitude } : {}),
       ...(dto.longitude !== undefined ? { longitude: dto.longitude } : {}),
       ...mapLocationEnrichmentFields(dto),

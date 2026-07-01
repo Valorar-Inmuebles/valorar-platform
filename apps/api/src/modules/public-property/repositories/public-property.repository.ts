@@ -7,10 +7,15 @@ import {
   PropertyType,
 } from '../../../../generated/prisma/client';
 import { PrismaService } from '../../../prisma/prisma.service';
+import { buildPropertyLocationWhere } from '../../property/utils/property-location-filters';
+import { propertyGeoInclude } from '../../property/utils/property-location';
 
 export interface FindManyPublicPropertiesFilters {
   listingType?: PropertyListingType;
   propertyType?: PropertyType;
+  provinceId?: string;
+  localityId?: string;
+  neighborhoodId?: string;
   city?: string;
   neighborhood?: string;
   priceMin?: number;
@@ -34,6 +39,7 @@ const publishableListingInclude = {
 } satisfies Prisma.PropertyListingInclude;
 
 export const publicListInclude = {
+  ...propertyGeoInclude,
   images: {
     where: { isCover: true },
     take: 1,
@@ -45,6 +51,7 @@ export const publicListInclude = {
 } satisfies Prisma.PropertyInclude;
 
 export const publicDetailInclude = {
+  ...propertyGeoInclude,
   images: {
     orderBy: [
       { isCover: 'desc' as const },
@@ -122,6 +129,7 @@ export class PublicPropertyRepository {
         },
         property: {
           include: {
+            ...propertyGeoInclude,
             images: {
               where: { isCover: true },
               take: 1,
@@ -184,6 +192,8 @@ export class PublicPropertyRepository {
     tenantId: string,
     filters: FindManyPublicPropertiesFilters = {},
   ): Prisma.PropertyWhereInput {
+    const locationWhere = buildPropertyLocationWhere(filters);
+
     return {
       tenantId,
       isActive: true,
@@ -192,10 +202,7 @@ export class PublicPropertyRepository {
       ...(filters.propertyType !== undefined
         ? { propertyType: filters.propertyType }
         : {}),
-      ...(filters.city !== undefined ? { city: filters.city } : {}),
-      ...(filters.neighborhood !== undefined
-        ? { neighborhood: filters.neighborhood }
-        : {}),
+      ...locationWhere,
       ...(filters.bedrooms !== undefined
         ? { bedrooms: { gte: filters.bedrooms } }
         : {}),

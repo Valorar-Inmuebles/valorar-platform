@@ -43,6 +43,21 @@ export class ListPublicPropertiesQueryDto extends PublicPropertyTenantQueryDto {
   @IsString()
   neighborhood?: string;
 
+  @ApiPropertyOptional({ description: 'Geo catalog province ID' })
+  @IsOptional()
+  @IsString()
+  provinceId?: string;
+
+  @ApiPropertyOptional({ description: 'Geo catalog locality ID' })
+  @IsOptional()
+  @IsString()
+  localityId?: string;
+
+  @ApiPropertyOptional({ description: 'Geo catalog neighborhood ID' })
+  @IsOptional()
+  @IsString()
+  neighborhoodId?: string;
+
   @ApiPropertyOptional({ minimum: 0 })
   @IsOptional()
   @Type(() => Number)

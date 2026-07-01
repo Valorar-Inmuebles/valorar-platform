@@ -1,4 +1,11 @@
 export type {
+  GeoLocality,
+  GeoLocalitySearchResult,
+  GeoNeighborhood,
+  GeoProvince,
+  PropertyGeoFields,
+} from "./geo";
+export type {
   Currency,
   GeocodeAccuracy,
   GeocodeSource,
