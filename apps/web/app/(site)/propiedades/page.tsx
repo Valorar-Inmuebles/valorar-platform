@@ -53,6 +53,7 @@ export async function generateMetadata({
     title,
     description,
     path: "/propiedades",
+    noIndex: hasActivePropertyListFilters(filters),
   });
 }
 

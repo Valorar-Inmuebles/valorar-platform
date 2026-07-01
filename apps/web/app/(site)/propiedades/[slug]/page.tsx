@@ -99,6 +99,9 @@ export default async function PropertyDetailPage({
 
   const relatedProperties = await getRelatedProperties(property);
   const site = getPublicSiteConfig();
+  const shareUrl = `${site.siteUrl}/propiedades/${property.slug}${
+    property.listingType ? `?listingType=${property.listingType}` : ""
+  }`;
   const contact = {
     whatsapp: site.whatsapp,
     email: site.email,
@@ -130,7 +133,7 @@ export default async function PropertyDetailPage({
               }
               className="mb-3"
             />
-            <PropertyHeader property={property} />
+            <PropertyHeader property={property} shareUrl={shareUrl} />
 
             <div className="mt-6 lg:hidden">
               <PropertyPriceCard property={property} contact={contact} />

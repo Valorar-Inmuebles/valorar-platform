@@ -29,6 +29,18 @@ export function createPageMetadata(options: PageMetadataOptions): Metadata {
   };
   const customOpenGraph = options.openGraph ?? {};
   const images = customOpenGraph.images ?? [defaultImage];
+  const imageList = Array.isArray(images) ? images : [images];
+  const twitterImages = imageList
+    .map((image) => {
+      if (typeof image === "string") return image;
+      if (image instanceof URL) return image.toString();
+      if (typeof image === "object" && image && "url" in image) {
+        const url = image.url;
+        return typeof url === "string" ? url : url.toString();
+      }
+      return undefined;
+    })
+    .filter((url): url is string => Boolean(url));
 
   return {
     title: options.title,
@@ -52,6 +64,7 @@ export function createPageMetadata(options: PageMetadataOptions): Metadata {
       card: "summary_large_image",
       title: options.title,
       description: options.description,
+      ...(twitterImages?.length ? { images: twitterImages } : {}),
     },
     robots: options.noIndex
       ? { index: false, follow: true }

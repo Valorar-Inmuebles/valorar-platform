@@ -48,11 +48,11 @@ export function PropertyPriceCard({ property, contact }: PropertyPriceCardProps)
 
   return (
     <aside className="space-y-4 lg:sticky lg:top-[calc(var(--header-height)+1rem)]">
-      <div className="rounded-2xl border border-border-default bg-surface-card p-6">
+      <div className="rounded-2xl bg-surface-card p-6 ring-1 ring-border-default/80">
         <p className="text-xs font-medium uppercase tracking-[0.12em] text-text-secondary">
           {getListingTypeLabel(property.listingType)}
         </p>
-        <p className="mt-2 text-3xl font-semibold tracking-tight text-text-primary">
+        <p className="mt-2 text-3xl font-semibold tracking-tight text-text-primary md:text-4xl">
           {formatPrice(price.amount, price.currency)}
         </p>
         {price.label ? (
@@ -60,7 +60,7 @@ export function PropertyPriceCard({ property, contact }: PropertyPriceCardProps)
         ) : null}
 
         {listing.expensesAmount != null && listing.expensesCurrency ? (
-          <p className="mt-4 border-t border-border-default pt-4 text-sm text-text-primary">
+          <p className="mt-4 border-t border-border-default/80 pt-4 text-sm text-text-primary">
             <span className="font-medium">Expensas:</span>{" "}
             {formatPrice(listing.expensesAmount, listing.expensesCurrency)}
           </p>
@@ -77,11 +77,11 @@ export function PropertyPriceCard({ property, contact }: PropertyPriceCardProps)
           </p>
         ) : null}
 
-        <div className="mt-6 space-y-3 border-t border-border-default pt-6">
+        <div className="mt-6 space-y-3 border-t border-border-default/80 pt-6">
           {inquiryMailto ? (
             <a
               href={inquiryMailto}
-              className="inline-flex w-full items-center justify-center rounded-xl border border-brand-green bg-brand-green px-4 py-3 text-sm font-semibold text-white transition hover:brightness-110 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-green"
+              className="inline-flex w-full items-center justify-center rounded-xl bg-brand-green px-4 py-3 text-sm font-semibold text-white transition hover:brightness-110"
             >
               Solicitar información
             </a>

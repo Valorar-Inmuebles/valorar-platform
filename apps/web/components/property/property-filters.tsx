@@ -1,12 +1,13 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
 import type { Currency, PropertyListingType, PropertyType } from "@repo/shared-types";
+import { GeoProvinceCombobox } from "@/components/geo/geo-province-combobox";
 import {
   GeoLocalitySearch,
   type SelectedLocality,
 } from "@/components/geo/geo-locality-search";
-import { GeoProvinceSelect } from "@/components/geo/geo-province-select";
 import { FILTER_PROPERTY_TYPE_OPTIONS } from "@/lib/format/labels";
 import { usePropertyFilters } from "@/hooks/use-property-filters";
 
@@ -28,6 +29,9 @@ const ROOM_COUNT_OPTIONS = [
   { value: "4", label: "4+" },
   { value: "5", label: "5+" },
 ];
+
+const FILTER_INPUT =
+  "h-11 w-full rounded-xl bg-white px-3 text-sm outline-none ring-1 ring-border-default/80 transition placeholder:text-muted focus:ring-brand-green/40";
 
 type FilterFormState = {
   listingType: PropertyListingType | "";
@@ -72,12 +76,14 @@ function filtersToFormState(
 }
 
 function parseOptionalNumber(value: string): number | undefined {
-  if (!value.trim()) {
-    return undefined;
-  }
-
+  if (!value.trim()) return undefined;
   const parsed = Number.parseFloat(value);
+  return Number.isNaN(parsed) ? undefined : parsed;
+}
 
+function parseOptionalIntField(value: string): number | undefined {
+  if (!value.trim()) return undefined;
+  const parsed = Number.parseInt(value, 10);
   return Number.isNaN(parsed) ? undefined : parsed;
 }
 
@@ -96,14 +102,21 @@ function isSameFormState(a: FilterFormState, b: FilterFormState): boolean {
   );
 }
 
-function parseOptionalIntField(value: string): number | undefined {
-  if (!value.trim()) {
-    return undefined;
-  }
-
-  const parsed = Number.parseInt(value, 10);
-
-  return Number.isNaN(parsed) ? undefined : parsed;
+function FilterSection({
+  title,
+  children,
+}: {
+  title: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className="space-y-2.5">
+      <p className="text-xs font-medium uppercase tracking-wide text-text-secondary">
+        {title}
+      </p>
+      {children}
+    </div>
+  );
 }
 
 export function PropertyFilters({ onApplied, className = "" }: PropertyFiltersProps) {
@@ -112,7 +125,6 @@ export function PropertyFilters({ onApplied, className = "" }: PropertyFiltersPr
 
   useEffect(() => {
     const nextForm = filtersToFormState(filters);
-
     setForm((current) =>
       isSameFormState(current, nextForm) ? current : nextForm,
     );
@@ -139,37 +151,27 @@ export function PropertyFilters({ onApplied, className = "" }: PropertyFiltersPr
   };
 
   return (
-    <form
-      onSubmit={handleSubmit}
-      className={`space-y-6 rounded-2xl border border-border bg-white p-5 shadow-sm ${className}`}
-    >
+    <form onSubmit={handleSubmit} className={`space-y-6 ${className}`}>
       <div>
-        <h2 className="text-lg font-semibold text-foreground">Filtros</h2>
-        <p className="mt-1 text-sm text-muted">
-          Refiná tu búsqueda por operación, tipo y ubicación.
-        </p>
+        <h2 className="text-base font-semibold text-foreground">Filtros</h2>
+        <p className="mt-1 text-sm text-muted">Refiná por ubicación, operación y precio.</p>
       </div>
 
-      <fieldset className="space-y-3">
-        <legend className="text-sm font-medium text-foreground">Operación</legend>
+      <FilterSection title="Operación">
         <div className="flex flex-wrap gap-2">
           {LISTING_TYPE_OPTIONS.map((option) => {
             const isActive = form.listingType === option.value;
-
             return (
               <button
                 key={option.label}
                 type="button"
                 onClick={() =>
-                  setForm((current) => ({
-                    ...current,
-                    listingType: option.value,
-                  }))
+                  setForm((current) => ({ ...current, listingType: option.value }))
                 }
-                className={`rounded-full px-3 py-1.5 text-sm font-medium transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${
+                className={`rounded-full px-3 py-1.5 text-sm font-medium transition ${
                   isActive
-                    ? "bg-primary text-white"
-                    : "bg-slate-100 text-foreground hover:bg-slate-200"
+                    ? "bg-text-primary text-white"
+                    : "bg-surface-alt text-text-primary hover:bg-surface-base"
                 }`}
               >
                 {option.label}
@@ -177,45 +179,20 @@ export function PropertyFilters({ onApplied, className = "" }: PropertyFiltersPr
             );
           })}
         </div>
-      </fieldset>
+      </FilterSection>
 
-      <label className="flex flex-col gap-2">
-        <span className="text-sm font-medium text-foreground">Tipo de inmueble</span>
-        <select
-          value={form.propertyType}
-          onChange={(event) =>
-            setForm((current) => ({
-              ...current,
-              propertyType: event.target.value as PropertyType | "",
-            }))
-          }
-          className="h-11 rounded-xl border border-border bg-white px-3 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
-        >
-          {FILTER_PROPERTY_TYPE_OPTIONS.map((option) => (
-            <option key={option.label} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </select>
-      </label>
-
-      <label className="flex flex-col gap-2">
-        <span className="text-sm font-medium text-foreground">Provincia</span>
-        <GeoProvinceSelect
+      <FilterSection title="Provincia">
+        <GeoProvinceCombobox
           value={form.provinceId}
           onChange={(provinceId) =>
-            setForm((current) => ({
-              ...current,
-              provinceId,
-              locality: null,
-            }))
+            setForm((current) => ({ ...current, provinceId, locality: null }))
           }
-          className="h-11 rounded-xl border border-border bg-white px-3 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
+          placeholder="Todas las provincias"
+          inputClassName={FILTER_INPUT}
         />
-      </label>
+      </FilterSection>
 
-      <label className="flex flex-col gap-2">
-        <span className="text-sm font-medium text-foreground">Localidad</span>
+      <FilterSection title="Localidad">
         <GeoLocalitySearch
           value={form.locality}
           provinceId={form.provinceId || undefined}
@@ -226,22 +203,38 @@ export function PropertyFilters({ onApplied, className = "" }: PropertyFiltersPr
               provinceId: locality?.provinceId ?? current.provinceId,
             }))
           }
-          placeholder="Buscar localidad"
-          className="w-full"
-          inputClassName="h-11 w-full rounded-xl border border-border bg-white px-3 text-sm outline-none transition placeholder:text-muted focus:border-primary focus:ring-2 focus:ring-primary/20"
+          placeholder="Buscar localidad o barrio"
+          inputClassName={FILTER_INPUT}
         />
-      </label>
+      </FilterSection>
 
-      <fieldset className="space-y-3">
-        <legend className="text-sm font-medium text-foreground">Moneda</legend>
-        <div className="flex gap-2">
+      <FilterSection title="Tipo">
+        <select
+          value={form.propertyType}
+          onChange={(event) =>
+            setForm((current) => ({
+              ...current,
+              propertyType: event.target.value as PropertyType | "",
+            }))
+          }
+          className={FILTER_INPUT}
+        >
+          {FILTER_PROPERTY_TYPE_OPTIONS.map((option) => (
+            <option key={option.label} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+      </FilterSection>
+
+      <FilterSection title="Precio">
+        <div className="flex flex-wrap gap-2">
           {[
             { value: "", label: "Todas" },
             { value: "ARS", label: "ARS" },
             { value: "USD", label: "USD" },
           ].map((option) => {
             const isActive = form.currency === option.value;
-
             return (
               <button
                 key={option.label}
@@ -252,10 +245,10 @@ export function PropertyFilters({ onApplied, className = "" }: PropertyFiltersPr
                     currency: option.value as Currency | "",
                   }))
                 }
-                className={`rounded-full px-3 py-1.5 text-sm font-medium transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${
+                className={`rounded-full px-3 py-1.5 text-sm font-medium transition ${
                   isActive
-                    ? "bg-primary text-white"
-                    : "bg-slate-100 text-foreground hover:bg-slate-200"
+                    ? "bg-text-primary text-white"
+                    : "bg-surface-alt text-text-primary hover:bg-surface-base"
                 }`}
               >
                 {option.label}
@@ -263,11 +256,7 @@ export function PropertyFilters({ onApplied, className = "" }: PropertyFiltersPr
             );
           })}
         </div>
-      </fieldset>
-
-      <div className="grid grid-cols-2 gap-3">
-        <label className="flex flex-col gap-2">
-          <span className="text-sm font-medium text-foreground">Precio mín.</span>
+        <div className="mt-2 grid grid-cols-2 gap-2">
           <input
             type="number"
             min="0"
@@ -275,12 +264,9 @@ export function PropertyFilters({ onApplied, className = "" }: PropertyFiltersPr
             onChange={(event) =>
               setForm((current) => ({ ...current, priceMin: event.target.value }))
             }
-            placeholder="0"
-            className="h-11 rounded-xl border border-border bg-white px-3 text-sm outline-none transition placeholder:text-muted focus:border-primary focus:ring-2 focus:ring-primary/20"
+            placeholder="Mín."
+            className={FILTER_INPUT}
           />
-        </label>
-        <label className="flex flex-col gap-2">
-          <span className="text-sm font-medium text-foreground">Precio máx.</span>
           <input
             type="number"
             min="0"
@@ -288,50 +274,51 @@ export function PropertyFilters({ onApplied, className = "" }: PropertyFiltersPr
             onChange={(event) =>
               setForm((current) => ({ ...current, priceMax: event.target.value }))
             }
-            placeholder="0"
-            className="h-11 rounded-xl border border-border bg-white px-3 text-sm outline-none transition placeholder:text-muted focus:border-primary focus:ring-2 focus:ring-primary/20"
+            placeholder="Máx."
+            className={FILTER_INPUT}
           />
-        </label>
-      </div>
+        </div>
+      </FilterSection>
 
-      <label className="flex flex-col gap-2">
-        <span className="text-sm font-medium text-foreground">Dormitorios</span>
-        <select
-          value={form.bedrooms}
-          onChange={(event) =>
-            setForm((current) => ({ ...current, bedrooms: event.target.value }))
-          }
-          className="h-11 rounded-xl border border-border bg-white px-3 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
-        >
-          {ROOM_COUNT_OPTIONS.map((option) => (
-            <option key={option.label} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </select>
-      </label>
+      <FilterSection title="Ambientes">
+        <div className="grid grid-cols-2 gap-2">
+          <select
+            value={form.bedrooms}
+            onChange={(event) =>
+              setForm((current) => ({ ...current, bedrooms: event.target.value }))
+            }
+            className={FILTER_INPUT}
+            aria-label="Dormitorios"
+          >
+            <option value="">Dorm. cualquiera</option>
+            {ROOM_COUNT_OPTIONS.filter((o) => o.value).map((option) => (
+              <option key={option.label} value={option.value}>
+                {option.label.replace("+", "+ dorm.")}
+              </option>
+            ))}
+          </select>
+          <select
+            value={form.bathrooms}
+            onChange={(event) =>
+              setForm((current) => ({ ...current, bathrooms: event.target.value }))
+            }
+            className={FILTER_INPUT}
+            aria-label="Baños"
+          >
+            <option value="">Baños cualquiera</option>
+            {ROOM_COUNT_OPTIONS.filter((o) => o.value).map((option) => (
+              <option key={`bath-${option.label}`} value={option.value}>
+                {option.label.replace("+", "+ baños")}
+              </option>
+            ))}
+          </select>
+        </div>
+      </FilterSection>
 
-      <label className="flex flex-col gap-2">
-        <span className="text-sm font-medium text-foreground">Baños</span>
-        <select
-          value={form.bathrooms}
-          onChange={(event) =>
-            setForm((current) => ({ ...current, bathrooms: event.target.value }))
-          }
-          className="h-11 rounded-xl border border-border bg-white px-3 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
-        >
-          {ROOM_COUNT_OPTIONS.map((option) => (
-            <option key={`bath-${option.label}`} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </select>
-      </label>
-
-      <div className="flex flex-col gap-3 pt-2">
+      <div className="flex flex-col gap-2 pt-1">
         <button
           type="submit"
-          className="inline-flex h-11 items-center justify-center rounded-xl bg-primary px-4 text-sm font-semibold text-white transition hover:bg-primary/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+          className="inline-flex h-11 items-center justify-center rounded-xl bg-text-primary px-4 text-sm font-semibold text-white transition hover:opacity-90"
         >
           Aplicar filtros
         </button>
@@ -341,7 +328,7 @@ export function PropertyFilters({ onApplied, className = "" }: PropertyFiltersPr
             clearFilters();
             onApplied?.();
           }}
-          className="inline-flex h-11 items-center justify-center rounded-xl border border-border px-4 text-sm font-medium text-foreground transition hover:border-primary hover:text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+          className="inline-flex h-11 items-center justify-center rounded-xl text-sm font-medium text-text-secondary transition hover:text-text-primary"
         >
           Limpiar filtros
         </button>

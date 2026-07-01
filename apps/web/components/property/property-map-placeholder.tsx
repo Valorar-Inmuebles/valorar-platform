@@ -55,7 +55,10 @@ export function PropertyMapPlaceholder({
           </div>
         </div>
       ) : (
-        <div className="overflow-hidden rounded-2xl border border-dashed border-border-default bg-surface-alt">
+        <div
+          className="overflow-hidden rounded-2xl bg-surface-alt ring-1 ring-border-default/80"
+          data-map-slot="interactive-map-future"
+        >
           <div className="flex min-h-64 flex-col items-center justify-center px-6 py-10 text-center md:min-h-72">
             <div className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-brand-green/10 text-brand-green">
               <LocationIcon size={24} />
@@ -64,7 +67,8 @@ export function PropertyMapPlaceholder({
               {location || city}
             </p>
             <p className="mt-2 max-w-md text-sm text-text-secondary">
-              Mapa no disponible. La ubicación se muestra a nivel barrio o ciudad.
+              Mapa interactivo próximamente. Por ahora mostramos la ubicación a
+              nivel barrio o ciudad.
             </p>
           </div>
         </div>

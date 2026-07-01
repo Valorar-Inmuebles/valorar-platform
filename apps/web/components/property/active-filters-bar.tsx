@@ -40,9 +40,14 @@ function buildActiveFilterChips(
 
   if (filters.city) {
     chips.push({
-      key: "city",
+      key: "locality",
       label: filters.city,
-      onRemove: () => applyFilters({ city: undefined }),
+      onRemove: () =>
+        applyFilters({
+          localityId: undefined,
+          city: undefined,
+          provinceId: undefined,
+        }),
     });
   }
 

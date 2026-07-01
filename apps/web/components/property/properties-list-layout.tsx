@@ -6,12 +6,11 @@ import { PropertyFilters } from "./property-filters";
 
 function FiltersSidebarFallback() {
   return (
-    <div className="space-y-4 rounded-2xl border border-border bg-white p-5 shadow-sm">
-      <div className="h-6 w-24 animate-pulse rounded bg-slate-200" />
-      <div className="h-4 w-full animate-pulse rounded bg-slate-200" />
-      <div className="h-11 w-full animate-pulse rounded-xl bg-slate-200" />
-      <div className="h-11 w-full animate-pulse rounded-xl bg-slate-200" />
-      <div className="h-11 w-full animate-pulse rounded-xl bg-slate-200" />
+    <div className="space-y-4">
+      <div className="h-6 w-24 animate-pulse rounded bg-surface-alt" />
+      <div className="h-11 w-full animate-pulse rounded-xl bg-surface-alt" />
+      <div className="h-11 w-full animate-pulse rounded-xl bg-surface-alt" />
+      <div className="h-11 w-full animate-pulse rounded-xl bg-surface-alt" />
     </div>
   );
 }
