@@ -108,3 +108,24 @@ export function hasAllPermissions(
 ): boolean {
   return permissions.every((permission) => hasPermission(role, permission));
 }
+
+/** Roles assignable within a tenant (excludes platform SUPER_ADMIN). */
+export const TENANT_ROLES: PlatformRole[] = [
+  'TENANT_ADMIN',
+  'MANAGER',
+  'AGENT',
+  'COLLABORATOR',
+];
+
+export function getVisibleRoles(viewerRole: PlatformRole): PlatformRole[] {
+  if (viewerRole === 'SUPER_ADMIN') {
+    return PLATFORM_ROLES;
+  }
+
+  return TENANT_ROLES;
+}
+
+/** Roles that always see all properties in a tenant (list/detail). */
+export function roleViewsAllProperties(role: PlatformRole): boolean {
+  return role === 'SUPER_ADMIN' || role === 'TENANT_ADMIN' || role === 'MANAGER';
+}
