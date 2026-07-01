@@ -38,6 +38,7 @@ Fuera de alcance v1 (documentados aparte): `PropertyFeature`, `PropertyFeatureAs
 | PropertyListings | ✅ | CRUD estados + tipos |
 | PropertyPrices | ✅ | Integrado en Comercialización (SidePanel) |
 | Comercialización (UX unificada) | ✅ | Tabla + SidePanel listing+precios; sin pantalla `/precios` |
+| Ficha ejecutiva Property (Fase 2) | ✅ | Layout sticky: cabecera + KPIs + sub-nav |
 | PropertyImages | ✅ | Grid + SidePanel; «Usar como portada»; metadata manual |
 | Indicador publicabilidad (§5) | ⏳ | Checklist cross-module pendiente |
 | Auth / RBAC / TenantSwitcher | ⏳ | Tenant dev vía env |
@@ -147,7 +148,18 @@ Una Property archivada (`isActive = false`) deja de ser visible en la web públi
 | Superficies y distribución | m² totales/cubiertos/descubiertos, frente/fondo, ambientes, dormitorios, baños, cocheras, antigüedad |
 | Descripción | Texto libre |
 | Estado | Activa / archivada (`isActive`) |
-| Resumen comercial (solo lectura v1) | Badges de publicaciones activas, precio principal, portada — links a sub-módulos |
+| Resumen comercial (solo lectura) | Cabecera ejecutiva + KPIs en layout `[id]` — links a sub-módulos |
+
+### Ficha ejecutiva (Fase 2)
+
+Layout compartido en `/propiedades/[id]/*`:
+
+| Bloque | Contenido |
+| ------ | --------- |
+| Cabecera sticky | Tipo, título, dirección, provincia/localidad, estado activa/archivada, estado comercial publicada/borrador, operaciones activas, precio principal, moneda, destacada, imágenes, última modificación |
+| KPIs | Publicable, Operaciones, Imágenes, Características, SEO |
+| Sub-nav | Datos · Comercialización · Características · Imágenes |
+| Tab Datos | Formulario + publicabilidad (checklist en acordeón al final) |
 
 ## Acciones
 

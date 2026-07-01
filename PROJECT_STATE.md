@@ -66,9 +66,9 @@ Lead Domain v1: documentado y congelado (inquiry-centric). `docs/03-database/lea
 
 Public Web: documentación en `docs/06-web/*`. Fases 1–6 ✅ (layout, home, listado, detalle, SEO & production hardening).
 
-Admin UI: documentación en `docs/07-admin/*`. Property Domain v1 ✅ (shell, CRUD, publicabilidad, multi-operación). **Comercialización UX unificada** ✅ (tabla + SidePanel listing+precios, invalidación cache web).
+Admin UI: documentación en `docs/07-admin/*`. Property Domain v1 ✅. **Comercialización UX unificada** ✅. **Ficha ejecutiva de propiedad (Fase 2)** ✅ — cabecera + KPIs sticky, publicabilidad compacta.
 
-Desarrollo local: convención de puertos web **3000** / admin **3001** / api **3002**; `npm run dev` levanta las tres apps. Ver `docs/02-architecture/monorepo.md`.
+Desarrollo local: convención de puertos web **3000** / admin **3001** / api **3002**; `npm run dev` levanta las tres apps con guard `verify:workspace` (`predev`). Ver `docs/02-architecture/monorepo.md`.
 
 ---
 

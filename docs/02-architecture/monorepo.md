@@ -157,6 +157,14 @@ npm run dev
 
 Turbo ejecuta el script `dev` de **web**, **admin** y **api** en paralelo.
 
+Antes de iniciar, `predev` ejecuta `npm run verify:workspace`, que valida que cada app exponga su script `dev` (incluido `apps/api` → `npm run start:dev`). Si falta, el comando falla con un mensaje explícito en lugar de omitir silenciosamente la API.
+
+Verificación manual:
+
+```bash
+npm run verify:workspace
+```
+
 ### URLs de API en frontends
 
 | App | Variable | Default en código |
