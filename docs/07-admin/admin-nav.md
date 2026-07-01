@@ -184,10 +184,10 @@ export type NavSection = {
 | `/propiedades` | Inicio › Propiedades |
 | `/propiedades/crear` | Inicio › Propiedades › Nueva propiedad |
 | `/propiedades/[id]` | Inicio › Propiedades › {título property} |
-| `/propiedades/[id]/publicaciones` | Inicio › Propiedades › {título} › Publicaciones |
-| `/propiedades/[id]/publicaciones/crear` | Inicio › Propiedades › {título} › Publicaciones › Nueva publicación |
-| `/propiedades/[id]/publicaciones/[listingId]` | Inicio › Propiedades › {título} › Publicaciones › {tipo operación} |
-| `/propiedades/[id]/publicaciones/[listingId]/precios` | Inicio › Propiedades › {título} › Publicaciones › {tipo} › Precios |
+| `/propiedades/[id]/publicaciones` | Inicio › Propiedades › {título} › Comercialización |
+| `/propiedades/[id]/publicaciones/crear` | Inicio › Propiedades › {título} › Comercialización › Nueva operación |
+| `/propiedades/[id]/publicaciones/[listingId]` | *(redirect)* → Comercialización `?edit=` |
+| `/propiedades/[id]/publicaciones/[listingId]/precios` | *(redirect)* → Comercialización `?edit=` |
 | `/propiedades/[id]/imagenes` | Inicio › Propiedades › {título} › Imágenes |
 | `/configuracion/usuarios` | Inicio › Configuración › Usuarios |
 | `/configuracion/inmobiliaria` | Inicio › Configuración › Inmobiliaria |
@@ -240,14 +240,14 @@ Desde `/propiedades/[id]`, tabs o links secundarios (no sidebar):
 ```txt
 ┌──────────────────────────────────────────────────────────┐
 │ {título property}                                        │
-│ [Datos generales] [Publicaciones] [Imágenes]             │
+│ [Datos generales] [Comercialización] [Imágenes]             │
 └──────────────────────────────────────────────────────────┘
 ```
 
 | Tab / link | Ruta | Resalta cuando |
 | ---------- | ---- | -------------- |
 | Datos generales | `/propiedades/[id]` | pathname exacto o edición campos |
-| Publicaciones | `/propiedades/[id]/publicaciones` | pathname incluye `/publicaciones` |
+| Comercialización | `/propiedades/[id]/publicaciones` | pathname incluye `/publicaciones` |
 | Imágenes | `/propiedades/[id]/imagenes` | pathname incluye `/imagenes` |
 
 Desde detalle de listing (`/publicaciones/[listingId]`):
@@ -358,12 +358,12 @@ function matchPath(pathname: string, href: string): boolean {
 
 ### 6.2 Estado activo de tabs Property
 
-Los tabs contextuales (`Datos generales`, `Publicaciones`, `Imágenes`) usan matching **más estricto**:
+Los tabs contextuales (`Datos generales`, `Comercialización`, `Imágenes`) usan matching **más estricto**:
 
 | Tab | Activo si |
 | --- | --------- |
 | Datos generales | pathname = `/propiedades/[id]` (sin sub-segmentos) |
-| Publicaciones | pathname incluye `/publicaciones` |
+| Comercialización | pathname incluye `/publicaciones` |
 | Imágenes | pathname incluye `/imagenes` |
 
 Precios: tab bajo listing, no tab de property; breadcrumb indica contexto.
@@ -515,7 +515,7 @@ apps/admin/components/layout/
 ├── sidebar-context.tsx
 ├── TenantSwitcher.tsx         # SUPER_ADMIN
 ├── PageHeader.tsx             # wrapper o re-export @repo/ui
-└── PropertySubNav.tsx         # tabs Datos / Publicaciones / Imágenes
+└── PropertySubNav.tsx         # tabs Datos / Comercialización / Imágenes
 
 apps/admin/middleware.ts       # Protección (dashboard)/* — fase auth
 ```

@@ -36,7 +36,8 @@ Fuera de alcance v1 (documentados aparte): `PropertyFeature`, `PropertyFeatureAs
 | Admin Shell | ✅ | Layout, sidebar, nav, breadcrumbs, PropertySubNav, toast |
 | Properties | ✅ | CRUD + archivar |
 | PropertyListings | ✅ | CRUD estados + tipos |
-| PropertyPrices | ✅ | Tabla + SidePanel; «Marcar principal» |
+| PropertyPrices | ✅ | Integrado en Comercialización (SidePanel) |
+| Comercialización (UX unificada) | ✅ | Tabla + SidePanel listing+precios; sin pantalla `/precios` |
 | PropertyImages | ✅ | Grid + SidePanel; «Usar como portada»; metadata manual |
 | Indicador publicabilidad (§5) | ⏳ | Checklist cross-module pendiente |
 | Auth / RBAC / TenantSwitcher | ⏳ | Tenant dev vía env |
@@ -134,7 +135,7 @@ Una Property archivada (`isActive = false`) deja de ser visible en la web públi
 | `/propiedades` | Propiedades | Listado paginado/buscable de propiedades del tenant |
 | `/propiedades/crear` | Nueva propiedad | Formulario de alta |
 | `/propiedades/[id]` | Detalle / editar | Ficha editable con secciones y acceso a sub-módulos |
-| `/propiedades/[id]/publicaciones` | Publicaciones | Enlace al módulo Listings (contexto property) |
+| `/propiedades/[id]/publicaciones` | Comercialización | Operaciones comerciales, precios y visibilidad web |
 | `/propiedades/[id]/imagenes` | Imágenes | Enlace al módulo Images (contexto property) |
 
 ### Secciones del formulario `/propiedades/[id]`
@@ -404,16 +405,32 @@ DRAFT ──→ CLOSED
 
 ```txt
 /propiedades/[id]
-└── Publicaciones → /propiedades/[id]/publicaciones
-    ├── [+ Nueva publicación] (solo tipos no existentes o reactivar CLOSED)
-    ├── [fila] → /propiedades/[id]/publicaciones/[listingId]
-    └── [Precios] → /propiedades/[id]/publicaciones/[listingId]/precios
+└── Comercialización → /propiedades/[id]/publicaciones
+    ├── [+ Nueva operación] → /propiedades/[id]/publicaciones/crear
+    ├── [Editar] → SidePanel (listing + precios, sin cambio de ruta)
+    └── Rutas legacy (redirect automático):
+        ├── /publicaciones/[listingId] → ?edit=[listingId]
+        └── /publicaciones/[listingId]/precios → ?edit=[listingId]
 
 Breadcrumb:
-Inicio > Propiedades > {título} > Publicaciones > Venta
+Inicio > Propiedades > {título} > Comercialización
 ```
 
-Entrada alternativa desde listado global de propiedades: columna «Publicaciones» con contador por estado.
+Entrada alternativa desde listado global de propiedades: columna «Comercialización» con contador por estado.
+
+### UX Comercialización (v1.1)
+
+El operador gestiona **operaciones y precios en un único módulo**. No existe navegación separada a «Precios».
+
+| Elemento | Comportamiento |
+| -------- | -------------- |
+| Tabla | Operación, estado, precio principal, moneda, otros precios, visible web, destacada |
+| SidePanel editar | Estado, expensas, destacada + sección precios con radio principal |
+| Agregar/editar precio | SidePanel anidado (sin navegación) |
+| Guardar | Persiste listing + promoción de precio principal si cambió |
+| Cache web | Tras mutación comercial, Admin llama `POST /api/revalidate` en web (`REVALIDATE_SECRET`) |
+
+Rutas internas del dominio (`PropertyListing`, `PropertyPrice`, `/property-listings`, `/property-prices`) **no cambian**.
 
 ## Dependencias
 
@@ -432,7 +449,7 @@ Entrada alternativa desde listado global de propiedades: columna «Publicaciones
 
 ## Objetivo
 
-Administrar los precios de una publicación comercial. Soporta múltiples precios por listing (distintas monedas o variaciones con `label`), con exactamente un precio principal (`isPrimary`) para visualización en web y filtros públicos.
+Gestionar los precios de una operación comercial **desde el módulo Comercialización** (SidePanel de edición). Soporta múltiples precios por listing (distintas monedas o variaciones con `label`), con exactamente un precio principal (`isPrimary`) para visualización en web y filtros públicos.
 
 El admin debe hacer explícitas las reglas de promoción automática al cambiar o eliminar el precio principal, y los bloqueos cuando el listing está en estados publicados.
 
@@ -449,20 +466,21 @@ El admin debe hacer explícitas las reglas de promoción automática al cambiar 
 
 | Ruta admin | Nombre UI | Descripción |
 | ---------- | --------- | ----------- |
-| `/propiedades/[id]/publicaciones/[listingId]/precios` | Precios | Tabla de precios del listing |
-| Side panel «Nuevo precio» | Agregar precio | Form: monto, moneda, label |
-| Side panel «Editar precio» | Editar precio | Mismos campos; restricciones según estado listing |
+| `/propiedades/[id]/publicaciones` | Comercialización | Tabla con resumen de precios por operación |
+| SidePanel «Editar operación» | Comercialización | Listing + sección precios |
+| SidePanel «Agregar / Editar precio» | (anidado) | Form: monto, moneda, label |
+| `/propiedades/.../precios` | *(legacy)* | Redirect → Comercialización `?edit=` |
 
 ## Acciones
 
 | Acción UI | API | Efecto |
 | --------- | --- | ------ |
-| Listar | `GET /property-prices?tenantId=&listingId=` | Precios del listing |
+| Listar | `GET /property-prices?listingId=` | Precios del listing (server-side en página Comercialización) |
 | Crear | `POST /property-prices` | Nuevo precio; primer precio → auto `isPrimary` |
-| Editar | `PATCH /property-prices/:id?tenantId=` | Monto, moneda, label |
-| Marcar principal | `PATCH` `isPrimary: true` | Demota los demás (transacción); acción UI dedicada |
-| Quitar principal | `PATCH` `isPrimary: false` | Promueve otro si existe; error si es único — **no expuesto en UI v1** |
-| Eliminar | `DELETE /property-prices/:id?tenantId=` | Borrado físico; promueve otro si era primary |
+| Editar | `PATCH /property-prices/:id` | Monto, moneda, label |
+| Marcar principal | Radio + Guardar → `PATCH` `isPrimary: true` | Demota los demás (transacción) |
+| Quitar principal | `PATCH` `isPrimary: false` | Promueve otro si existe; error si es único — **no expuesto en UI** |
+| Eliminar | `DELETE /property-prices/:id` | Borrado físico; promueve otro si era primary |
 
 ## Permisos
 
@@ -503,7 +521,7 @@ Hereda acceso al PropertyListing padre (y por extensión a Property).
 | Precio | `Input type="number"` (v1); `CurrencyInput` en `@repo/ui` — futuro |
 | Moneda | Select ARS / USD |
 | Etiqueta | Texto libre — ej. «Contado», «Financiado» |
-| Principal | Badge «Principal» + acción «Marcar principal» — sin checkbox en form |
+| Principal | Radio en SidePanel Comercialización + Guardar |
 
 ## Estados
 
