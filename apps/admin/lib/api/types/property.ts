@@ -33,6 +33,13 @@ export type AdminProperty = {
   province: string | null;
   state: string | null;
   country: string;
+  countryId: string | null;
+  provinceId: string | null;
+  localityId: string | null;
+  neighborhoodId: string | null;
+  provinceName: string | null;
+  localityName: string | null;
+  neighborhoodName: string | null;
   postalCode: string | null;
   latitude: number | null;
   longitude: number | null;
@@ -58,7 +65,7 @@ export type CreatePropertyPayload = {
   slug: string;
   title: string;
   propertyType: PropertyType;
-  city: string;
+  city?: string;
   description?: string;
   internalCode?: string;
   condition?: PropertyCondition;
@@ -69,6 +76,10 @@ export type CreatePropertyPayload = {
   apartment?: string;
   neighborhood?: string;
   province?: string;
+  countryId?: string;
+  provinceId?: string;
+  localityId?: string;
+  neighborhoodId?: string | null;
   country?: string;
   postalCode?: string;
   latitude?: number;
@@ -107,6 +118,13 @@ export type PropertyFormValues = {
   apartment: string;
   neighborhood: string;
   province: string;
+  countryId: string;
+  provinceId: string;
+  localityId: string;
+  neighborhoodId: string;
+  provinceName: string;
+  localityName: string;
+  neighborhoodName: string;
   postalCode: string;
   latitude: string;
   longitude: string;

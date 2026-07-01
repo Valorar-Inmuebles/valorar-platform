@@ -52,6 +52,14 @@ function appendFilterParams(
     params.set("propertyType", filters.propertyType);
   }
 
+  if (filters.provinceId) {
+    params.set("provinceId", filters.provinceId);
+  }
+
+  if (filters.localityId) {
+    params.set("localityId", filters.localityId);
+  }
+
   if (filters.city) {
     params.set("city", filters.city);
   }

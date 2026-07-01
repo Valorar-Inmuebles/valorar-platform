@@ -41,6 +41,10 @@ import {
   validatePropertyFormValues,
 } from "@/lib/property/form";
 import type { PropertyFormValues } from "@/lib/api/types/property";
+import {
+  PropertyLocationFields,
+  type PropertyLocationValue,
+} from "@/components/property/property-location-fields";
 
 type PropertyFormProps = {
   mode: "create" | "edit";
@@ -69,6 +73,22 @@ export function PropertyForm({ mode, property }: PropertyFormProps) {
       ...current,
       title,
       slug: slugTouched ? current.slug : slugifyTitle(title),
+    }));
+  };
+
+  const updateLocation = (location: PropertyLocationValue) => {
+    setValues((current) => ({
+      ...current,
+      countryId: current.countryId,
+      provinceId: location.provinceId,
+      provinceName: location.provinceName,
+      province: location.provinceName,
+      localityId: location.localityId,
+      localityName: location.localityName,
+      city: location.localityName,
+      neighborhoodId: location.neighborhoodId,
+      neighborhoodName: location.neighborhoodName,
+      neighborhood: location.neighborhoodName,
     }));
   };
 
@@ -234,32 +254,18 @@ export function PropertyForm({ mode, property }: PropertyFormProps) {
             />
           </FormField>
 
-          <FormField>
-            <Label>Barrio</Label>
-            <Input
-              value={values.neighborhood}
-              onChange={(event) => updateField("neighborhood", event.target.value)}
-              disabled={isPending}
-            />
-          </FormField>
-
-          <FormField>
-            <Label required>Ciudad</Label>
-            <Input
-              value={values.city}
-              onChange={(event) => updateField("city", event.target.value)}
-              disabled={isPending}
-            />
-          </FormField>
-
-          <FormField>
-            <Label>Provincia</Label>
-            <Input
-              value={values.province}
-              onChange={(event) => updateField("province", event.target.value)}
-              disabled={isPending}
-            />
-          </FormField>
+          <PropertyLocationFields
+            value={{
+              provinceId: values.provinceId,
+              provinceName: values.provinceName,
+              localityId: values.localityId,
+              localityName: values.localityName,
+              neighborhoodId: values.neighborhoodId,
+              neighborhoodName: values.neighborhoodName,
+            }}
+            disabled={isPending}
+            onChange={updateLocation}
+          />
 
           <FormField>
             <Label>Código postal</Label>

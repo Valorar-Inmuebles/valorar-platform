@@ -7,6 +7,8 @@ import type {
 export type PropertyListFilters = {
   listingType?: PropertyListingType;
   propertyType?: PropertyType;
+  provinceId?: string;
+  localityId?: string;
   city?: string;
   neighborhood?: string;
   priceMin?: number;
@@ -118,6 +120,8 @@ export function parsePropertyListSearchParams(
   return {
     listingType: parseListingType(getSingleParam(params, "listingType")),
     propertyType: parsePropertyType(getSingleParam(params, "propertyType")),
+    provinceId: getSingleParam(params, "provinceId")?.trim() || undefined,
+    localityId: getSingleParam(params, "localityId")?.trim() || undefined,
     city: getSingleParam(params, "city")?.trim() || undefined,
     neighborhood: getSingleParam(params, "neighborhood")?.trim() || undefined,
     priceMin: parseOptionalFloat(getSingleParam(params, "priceMin")),
@@ -141,6 +145,14 @@ export function buildPropertyListUrl(
 
   if (filters.propertyType) {
     params.set("propertyType", filters.propertyType);
+  }
+
+  if (filters.provinceId) {
+    params.set("provinceId", filters.provinceId);
+  }
+
+  if (filters.localityId) {
+    params.set("localityId", filters.localityId);
   }
 
   if (filters.city) {
@@ -190,6 +202,8 @@ export function hasActivePropertyListFilters(
   return Boolean(
     filters.listingType ||
       filters.propertyType ||
+      filters.provinceId ||
+      filters.localityId ||
       filters.city ||
       filters.neighborhood ||
       filters.priceMin != null ||
@@ -206,12 +220,18 @@ export type PropertySearchParams = {
   tab: SearchTab;
   propertyType?: PropertyType;
   location?: string;
+  provinceId?: string;
+  localityId?: string;
+  localityName?: string;
 };
 
 export function buildPropertySearchUrl({
   tab,
   propertyType,
   location,
+  provinceId,
+  localityId,
+  localityName,
 }: PropertySearchParams): string {
   if (tab === "developments") {
     return "/emprendimientos";
@@ -220,7 +240,9 @@ export function buildPropertySearchUrl({
   return buildPropertyListUrl({
     listingType: tab === "rent" ? "RENT" : "SALE",
     propertyType,
-    city: location?.trim() || undefined,
+    provinceId,
+    localityId,
+    city: localityName?.trim() || location?.trim() || undefined,
     page: 1,
     limit: DEFAULT_PROPERTY_LIST_FILTERS.limit,
   });

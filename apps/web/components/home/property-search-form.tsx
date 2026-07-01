@@ -1,9 +1,13 @@
 "use client";
 
-import { Fragment, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { PropertyType } from "@repo/shared-types";
 import { LocationIcon } from "@/components/icons";
+import {
+  GeoLocalitySearch,
+  type SelectedLocality,
+} from "@/components/geo/geo-locality-search";
 import {
   buildPropertySearchUrl,
   type SearchTab,
@@ -23,7 +27,7 @@ export function PropertySearchForm() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<SearchTab>("sale");
   const [propertyType, setPropertyType] = useState<PropertyType | "">("");
-  const [location, setLocation] = useState("");
+  const [locality, setLocality] = useState<SelectedLocality | null>(null);
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -32,7 +36,9 @@ export function PropertySearchForm() {
       buildPropertySearchUrl({
         tab: activeTab,
         propertyType: propertyType || undefined,
-        location,
+        provinceId: locality?.provinceId,
+        localityId: locality?.localityId,
+        localityName: locality?.localityName,
       }),
     );
   };
@@ -50,7 +56,7 @@ export function PropertySearchForm() {
           const isActive = activeTab === tab.id;
 
           return (
-            <Fragment key={tab.id}>
+            <span key={tab.id} className="contents">
               {index > 0 ? (
                 <span
                   aria-hidden
@@ -76,7 +82,7 @@ export function PropertySearchForm() {
                   ) : null}
                 </span>
               </button>
-            </Fragment>
+            </span>
           );
         })}
       </div>
@@ -93,19 +99,17 @@ export function PropertySearchForm() {
             className="w-full md:w-52 lg:w-56"
           />
 
-          <label className={`${FIELD_CONTROL_CLASS} min-w-0 md:flex-1`}>
-            <span className="sr-only">Ubicación</span>
+          <div className={`${FIELD_CONTROL_CLASS} min-w-0 md:flex-1`}>
             <LocationIcon size={20} className="shrink-0 text-text-secondary" />
-            <input
-              type="text"
-              value={location}
-              onChange={(event) => setLocation(event.target.value)}
-              placeholder="Ingresá ubicación, barrio o zona"
+            <GeoLocalitySearch
+              value={locality}
+              onChange={setLocality}
               disabled={isDevelopmentsTab}
-              aria-label="Ubicación"
-              className="min-h-0 min-w-0 flex-1 border-0 bg-transparent text-sm font-normal text-text-primary outline-none placeholder:text-text-secondary disabled:cursor-not-allowed disabled:opacity-50 md:text-base"
+              placeholder="Buscar localidad o barrio"
+              className="min-w-0 flex-1"
+              inputClassName="min-h-0 min-w-0 w-full border-0 bg-transparent text-sm font-normal text-text-primary outline-none placeholder:text-text-secondary disabled:cursor-not-allowed disabled:opacity-50 md:text-base"
             />
-          </label>
+          </div>
 
           <button
             type="submit"

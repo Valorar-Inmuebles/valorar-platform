@@ -38,6 +38,13 @@ export function emptyPropertyFormValues(): PropertyFormValues {
     apartment: "",
     neighborhood: "",
     province: "",
+    countryId: "",
+    provinceId: "",
+    localityId: "",
+    neighborhoodId: "",
+    provinceName: "",
+    localityName: "",
+    neighborhoodName: "",
     postalCode: "",
     latitude: "",
     longitude: "",
@@ -64,7 +71,7 @@ export function propertyToFormValues(property: AdminProperty): PropertyFormValue
     title: property.title,
     slug: property.slug,
     propertyType: property.propertyType,
-    city: property.city,
+    city: property.localityName ?? property.city,
     description: property.description ?? "",
     internalCode: property.internalCode ?? "",
     condition: property.condition ?? "",
@@ -72,8 +79,15 @@ export function propertyToFormValues(property: AdminProperty): PropertyFormValue
     streetNumber: property.streetNumber ?? "",
     floor: property.floor ?? "",
     apartment: property.apartment ?? "",
-    neighborhood: property.neighborhood ?? "",
-    province: property.province ?? "",
+    neighborhood: property.neighborhoodName ?? property.neighborhood ?? "",
+    province: property.provinceName ?? property.province ?? "",
+    countryId: property.countryId ?? "",
+    provinceId: property.provinceId ?? "",
+    localityId: property.localityId ?? "",
+    neighborhoodId: property.neighborhoodId ?? "",
+    provinceName: property.provinceName ?? property.province ?? "",
+    localityName: property.localityName ?? property.city,
+    neighborhoodName: property.neighborhoodName ?? property.neighborhood ?? "",
     postalCode: property.postalCode ?? "",
     latitude: property.latitude?.toString() ?? "",
     longitude: property.longitude?.toString() ?? "",
@@ -154,7 +168,8 @@ export function validatePropertyFormValues(
   }
   if (values.slug.length < 3) return "El slug debe tener al menos 3 caracteres.";
   if (!values.propertyType) return "Seleccioná un tipo de propiedad.";
-  if (!values.city.trim()) return "La ciudad es obligatoria.";
+  if (!values.provinceId.trim()) return "Seleccioná una provincia.";
+  if (!values.localityId.trim()) return "Seleccioná una localidad.";
 
   const intFields: Array<[string, string]> = [
     [values.rooms, "Ambientes"],
@@ -216,7 +231,11 @@ export function formValuesToCreatePayload(
     slug: values.slug.trim(),
     title: values.title.trim(),
     propertyType: values.propertyType as PropertyType,
-    city: values.city.trim(),
+    city: values.localityName.trim(),
+    provinceId: values.provinceId.trim(),
+    localityId: values.localityId.trim(),
+    neighborhoodId: values.neighborhoodId.trim() || null,
+    province: values.provinceName.trim() || undefined,
     description: trimOrUndefined(values.description),
     internalCode: trimOrUndefined(values.internalCode),
     condition: values.condition || undefined,
@@ -224,8 +243,7 @@ export function formValuesToCreatePayload(
     streetNumber: trimOrUndefined(values.streetNumber),
     floor: trimOrUndefined(values.floor),
     apartment: trimOrUndefined(values.apartment),
-    neighborhood: trimOrUndefined(values.neighborhood),
-    province: trimOrUndefined(values.province),
+    neighborhood: trimOrUndefined(values.neighborhoodName),
     postalCode: trimOrUndefined(values.postalCode),
     latitude: parseOptionalFloat(values.latitude),
     longitude: parseOptionalFloat(values.longitude),

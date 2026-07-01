@@ -2,6 +2,11 @@
 
 import { useEffect, useState } from "react";
 import type { Currency, PropertyListingType, PropertyType } from "@repo/shared-types";
+import {
+  GeoLocalitySearch,
+  type SelectedLocality,
+} from "@/components/geo/geo-locality-search";
+import { GeoProvinceSelect } from "@/components/geo/geo-province-select";
 import { FILTER_PROPERTY_TYPE_OPTIONS } from "@/lib/format/labels";
 import { usePropertyFilters } from "@/hooks/use-property-filters";
 
@@ -27,8 +32,8 @@ const ROOM_COUNT_OPTIONS = [
 type FilterFormState = {
   listingType: PropertyListingType | "";
   propertyType: PropertyType | "";
-  city: string;
-  neighborhood: string;
+  provinceId: string;
+  locality: SelectedLocality | null;
   priceMin: string;
   priceMax: string;
   currency: Currency | "";
@@ -44,11 +49,20 @@ type PropertyFiltersProps = {
 function filtersToFormState(
   filters: ReturnType<typeof usePropertyFilters>["filters"],
 ): FilterFormState {
+  const hasLocalityLabel = Boolean(filters.city);
+
   return {
     listingType: filters.listingType ?? "",
     propertyType: filters.propertyType ?? "",
-    city: filters.city ?? "",
-    neighborhood: filters.neighborhood ?? "",
+    provinceId: filters.provinceId ?? "",
+    locality: hasLocalityLabel
+      ? {
+          provinceId: filters.provinceId ?? "",
+          provinceName: "",
+          localityId: filters.localityId ?? "",
+          localityName: filters.city ?? "",
+        }
+      : null,
     priceMin: filters.priceMin != null ? String(filters.priceMin) : "",
     priceMax: filters.priceMax != null ? String(filters.priceMax) : "",
     currency: filters.currency ?? "",
@@ -71,8 +85,9 @@ function isSameFormState(a: FilterFormState, b: FilterFormState): boolean {
   return (
     a.listingType === b.listingType &&
     a.propertyType === b.propertyType &&
-    a.city === b.city &&
-    a.neighborhood === b.neighborhood &&
+    a.provinceId === b.provinceId &&
+    a.locality?.localityId === b.locality?.localityId &&
+    a.locality?.localityName === b.locality?.localityName &&
     a.priceMin === b.priceMin &&
     a.priceMax === b.priceMax &&
     a.currency === b.currency &&
@@ -109,8 +124,10 @@ export function PropertyFilters({ onApplied, className = "" }: PropertyFiltersPr
     applyFilters({
       listingType: form.listingType || undefined,
       propertyType: form.propertyType || undefined,
-      city: form.city.trim() || undefined,
-      neighborhood: form.neighborhood.trim() || undefined,
+      provinceId: form.provinceId || form.locality?.provinceId || undefined,
+      localityId: form.locality?.localityId || undefined,
+      city: form.locality?.localityName || undefined,
+      neighborhood: undefined,
       priceMin: parseOptionalNumber(form.priceMin),
       priceMax: parseOptionalNumber(form.priceMax),
       currency: form.currency || undefined,
@@ -183,31 +200,35 @@ export function PropertyFilters({ onApplied, className = "" }: PropertyFiltersPr
       </label>
 
       <label className="flex flex-col gap-2">
-        <span className="text-sm font-medium text-foreground">Ciudad</span>
-        <input
-          type="text"
-          value={form.city}
-          onChange={(event) =>
-            setForm((current) => ({ ...current, city: event.target.value }))
+        <span className="text-sm font-medium text-foreground">Provincia</span>
+        <GeoProvinceSelect
+          value={form.provinceId}
+          onChange={(provinceId) =>
+            setForm((current) => ({
+              ...current,
+              provinceId,
+              locality: null,
+            }))
           }
-          placeholder="Ej. Buenos Aires"
-          className="h-11 rounded-xl border border-border bg-white px-3 text-sm outline-none transition placeholder:text-muted focus:border-primary focus:ring-2 focus:ring-primary/20"
+          className="h-11 rounded-xl border border-border bg-white px-3 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
         />
       </label>
 
       <label className="flex flex-col gap-2">
-        <span className="text-sm font-medium text-foreground">Barrio</span>
-        <input
-          type="text"
-          value={form.neighborhood}
-          onChange={(event) =>
+        <span className="text-sm font-medium text-foreground">Localidad</span>
+        <GeoLocalitySearch
+          value={form.locality}
+          provinceId={form.provinceId || undefined}
+          onChange={(locality) =>
             setForm((current) => ({
               ...current,
-              neighborhood: event.target.value,
+              locality,
+              provinceId: locality?.provinceId ?? current.provinceId,
             }))
           }
-          placeholder="Ej. Palermo"
-          className="h-11 rounded-xl border border-border bg-white px-3 text-sm outline-none transition placeholder:text-muted focus:border-primary focus:ring-2 focus:ring-primary/20"
+          placeholder="Buscar localidad"
+          className="w-full"
+          inputClassName="h-11 w-full rounded-xl border border-border bg-white px-3 text-sm outline-none transition placeholder:text-muted focus:border-primary focus:ring-2 focus:ring-primary/20"
         />
       </label>
 
