@@ -6,6 +6,7 @@
   "private": true,
   "license": "UNLICENSED",
   "scripts": {
+    "dev": "npm run start:dev",
     "generate": "prisma generate",
     "prebuild": "npm run generate && npm run build -w @repo/property-rules && npm run build -w @repo/geo-text",
     "build": "nest build",
