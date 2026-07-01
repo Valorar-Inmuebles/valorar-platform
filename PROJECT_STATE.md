@@ -17,13 +17,11 @@ Plataforma SaaS inmobiliaria multi-tenant orientada a:
 
 ## Foco actual del producto
 
-**Fase 5 — Administración Base** (Organización + Usuarios + Roles + Permisos)
+**Fase 6 — Plataforma (Super Admin)**
 
-Documentación: `docs/07-admin/fase5-admin-base.md`
+Documentación: `docs/07-admin/fase6-plataforma-super-admin.md`
 
-Branch: `feature/property-complete-mvp` (o rama dedicada Fase 5)
-
-Anterior: Property Complete MVP, Web Premium ✅
+Anterior: Fase 5 Administración Base ✅ (Organización, Usuarios, Roles, RBAC)
 
 ---
 
@@ -43,7 +41,7 @@ Integración Property (GEO-002): FKs en Property + Admin select/autocomplete + W
 
 ## Estado Actual
 
-Fase: Foundation + **Auth Foundation v1** ✅ + Property API + Admin UI + Web Premium ✅ → **Fase 5 Administración Base** (en implementación)
+Fase: Foundation + **Auth Foundation v1** ✅ + Property API + Admin UI + Web Premium ✅ + **Fase 5 Administración Base** ✅ → **Fase 6 Plataforma (Super Admin)** (implementado)
 
 Infraestructura inicial:
 
@@ -64,7 +62,7 @@ Lead Domain v1: documentado y congelado (inquiry-centric). `docs/03-database/lea
 
 Public Web: documentación en `docs/06-web/*`. Fases 1–6 ✅. **Web Premium (Fase 4)** ✅ — hero search-first, GEO completo, cards/filtros premium, share, landing SEO `/explorar/`.
 
-Admin UI: documentación en `docs/07-admin/*`. Property Domain v1 ✅. **Comercialización UX unificada** ✅. **Ficha ejecutiva de propiedad (Fase 2)** ✅. **Dashboard operativo (Fase 3)** ✅. **Administración Base (Fase 5)** ✅ — Organización, Usuarios, Roles/permisos, Perfil, `@repo/rbac`, scoping Property por rol.
+Admin UI: documentación en `docs/07-admin/*`. Property Domain v1 ✅. **Comercialización UX unificada** ✅. **Ficha ejecutiva de propiedad (Fase 2)** ✅. **Dashboard operativo (Fase 3)** ✅. **Administración Base (Fase 5)** ✅ — Organización, Usuarios, Roles/permisos, Perfil, `@repo/rbac`, scoping Property por rol. **Plataforma Super Admin (Fase 6)** ✅ — CRUD tenants, suspender/reactivar, área `/plataforma`, KPIs, SidePanels, seguridad API/UI.
 
 Desarrollo local: convención de puertos web **3000** / admin **3001** / api **3002**; `npm run dev` levanta las tres apps con guard `verify:workspace` (`predev`). Ver `docs/02-architecture/monorepo.md`.
 
@@ -118,7 +116,7 @@ Infraestructura:
 
 ### Foundation (schema + migración)
 
-* Tenant
+* Tenant (`status`: ACTIVE | SUSPENDED)
 * User (`passwordHash`, `isActive`, `lastLoginAt`, índice `User_tenantId_idx`)
 * UserRole
 * TenantSetting
@@ -133,7 +131,7 @@ Documentación: `docs/03-database/current-schema.md`, `docs/04-modules/auth.md`
 * JWT stateless en cookie httpOnly `access_token` (bcrypt, Passport JWT)
 * `JwtAuthGuard`, `TenantGuard` en Property admin API (4 módulos)
 * `RolesGuard` + `@Roles()` implementados en código — **no aplicados** (v1.1)
-* Admin: login UI, middleware, BFF cookie cross-port, `TenantSwitcher` (SUPER_ADMIN)
+* Admin: login UI, middleware, BFF cookie cross-port, `TenantSwitcher` (SUPER_ADMIN — select de tenants activos)
 * Nav admin filtra por rol (UI); sesión vía `GET /auth/me`
 * Seed dev: tenant `demo` + 3 usuarios (`super@valorar.dev`, `admin@demo.valorar.dev`, `agent@demo.valorar.dev`)
 
@@ -298,8 +296,7 @@ Pendiente admin: RBAC API (v1.1), configuración (usuarios/inmobiliaria/tenants)
 
 ### Foundation (campos futuros)
 
-* `Tenant.isActive`
-* `TenantSetting.facebookUrl`, `TenantSetting.instagramUrl`, `TenantSetting.linkedinUrl`
+* `TenantSetting.facebookUrl`, `TenantSetting.instagramUrl`, `TenantSetting.linkedinUrl` (redes ya en schema; UI parcial)
 
 ### Public Web (`apps/web`)
 

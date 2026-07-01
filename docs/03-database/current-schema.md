@@ -28,17 +28,19 @@ Representa una inmobiliaria dentro de la plataforma.
 
 ## Campos
 
-| Campo     | Tipo     | Descripción              |
-| --------- | -------- | ------------------------ |
-| id        | String   | Identificador (`cuid`)   |
-| name      | String   | Nombre de la inmobiliaria|
-| slug      | String   | Identificador URL único  |
-| createdAt | DateTime |                          |
-| updatedAt | DateTime |                          |
+| Campo     | Tipo         | Descripción              |
+| --------- | ------------ | ------------------------ |
+| id        | String       | Identificador (`cuid`)   |
+| name      | String       | Nombre de la inmobiliaria|
+| slug      | String       | Identificador URL único  |
+| status    | TenantStatus | `ACTIVE` (default) \| `SUSPENDED` |
+| createdAt | DateTime     |                          |
+| updatedAt | DateTime     |                          |
 
 ## Restricciones
 
 * `slug`: único (`@unique`)
+* Sin borrado físico; suspensión vía `status = SUSPENDED`
 
 ## Relaciones
 
