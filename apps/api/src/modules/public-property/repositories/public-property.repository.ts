@@ -34,6 +34,7 @@ export interface PublicPropertiesPagination {
 const publishableListingInclude = {
   prices: {
     where: { isPrimary: true },
+    orderBy: { updatedAt: 'desc' as const },
     take: 1,
   },
 } satisfies Prisma.PropertyListingInclude;
