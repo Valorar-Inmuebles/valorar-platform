@@ -17,6 +17,7 @@ import {
   formatPublicationChecklistMessage,
   isPublicationChecklistErrorBody,
 } from "@/lib/property/publication-checklist-error";
+import { revalidatePublicWeb } from "@/lib/web/revalidate-public";
 
 export type ListingActionResult =
   | { ok: true; id?: string }
@@ -44,21 +45,33 @@ function toActionError(error: unknown): ListingActionResult {
   return { ok: false, error: mapUnknownError(error) };
 }
 
-function revalidateListingPaths(propertyId: string, listingId?: string) {
+function revalidateListingPaths(
+  propertyId: string,
+  listingId?: string,
+  propertySlug?: string,
+) {
   revalidatePath(`/propiedades/${propertyId}`);
   revalidatePath(`/propiedades/${propertyId}/publicaciones`);
   if (listingId) {
     revalidatePath(`/propiedades/${propertyId}/publicaciones/${listingId}`);
+    revalidatePath(
+      `/propiedades/${propertyId}/publicaciones/${listingId}/precios`,
+    );
+  }
+
+  if (propertySlug) {
+    void revalidatePublicWeb(propertySlug);
   }
 }
 
 export async function createPropertyListingAction(
   propertyId: string,
   payload: CreatePropertyListingPayload,
+  propertySlug?: string,
 ): Promise<ListingActionResult> {
   try {
     const listing = await createPropertyListing(propertyId, payload);
-    revalidateListingPaths(propertyId, listing.id);
+    revalidateListingPaths(propertyId, listing.id, propertySlug);
     return { ok: true, id: listing.id };
   } catch (error) {
     return toActionError(error);
@@ -69,10 +82,11 @@ export async function updatePropertyListingAction(
   propertyId: string,
   listingId: string,
   payload: UpdatePropertyListingPayload,
+  propertySlug?: string,
 ): Promise<ListingActionResult> {
   try {
     await updatePropertyListing(listingId, payload);
-    revalidateListingPaths(propertyId, listingId);
+    revalidateListingPaths(propertyId, listingId, propertySlug);
     return { ok: true };
   } catch (error) {
     return toActionError(error);
@@ -82,10 +96,11 @@ export async function updatePropertyListingAction(
 export async function closePropertyListingAction(
   propertyId: string,
   listingId: string,
+  propertySlug?: string,
 ): Promise<ListingActionResult> {
   try {
     await closePropertyListing(listingId);
-    revalidateListingPaths(propertyId, listingId);
+    revalidateListingPaths(propertyId, listingId, propertySlug);
     return { ok: true };
   } catch (error) {
     return toActionError(error);

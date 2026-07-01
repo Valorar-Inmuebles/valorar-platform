@@ -121,6 +121,7 @@ Copiar desde `apps/admin/.env.example`:
 | -------- | --- |
 | `API_URL` | Base URL de `apps/api` (default `http://localhost:3002`) |
 | `PUBLIC_WEB_URL` | Sitio público para enlaces «Ver en web» (default `http://localhost:3000`) |
+| `REVALIDATE_SECRET` | Secreto compartido con `apps/web` para invalidar ISR tras cambios comerciales |
 
 Las variables `ADMIN_DEV_*` están **deprecated** — el flujo principal usa login + JWT.
 
