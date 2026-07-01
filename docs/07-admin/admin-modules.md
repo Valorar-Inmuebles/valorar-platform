@@ -142,7 +142,7 @@ Una Property archivada (`isActive = false`) deja de ser visible en la web públi
 | Sección UI | Campos principales |
 | ---------- | ------------------ |
 | Identificación | Título, slug, código interno, tipo, condición |
-| Ubicación | Calle, número, piso, depto, barrio, ciudad, provincia, país, CP, coordenadas |
+| Ubicación | Calle, número, piso, depto; **Provincia** (select catálogo); **Localidad** (autocomplete); **Barrio** (autocomplete opcional); CP, coordenadas. Campos legacy sincronizados al guardar. |
 | Superficies y distribución | m² totales/cubiertos/descubiertos, frente/fondo, ambientes, dormitorios, baños, cocheras, antigüedad |
 | Descripción | Texto libre |
 | Estado | Activa / archivada (`isActive`) |
@@ -184,7 +184,17 @@ Una Property archivada (`isActive = false`) deja de ser visible en la web públi
 | `slug` | 3–120 chars; `[a-z0-9-]+`; único por tenant |
 | `title` | No vacío |
 | `propertyType` | Enum válido |
-| `city` | No vacío |
+| `provinceId` + `localityId` | Obligatorios vía catálogo GEO (Admin UI). API acepta legacy `city` si no hay IDs. |
+
+### Ubicación (GEO-002)
+
+| Campo UI | Fuente | Comportamiento |
+| -------- | ------ | -------------- |
+| Provincia | `GET /geo/provinces` | Select; al cambiar limpia localidad y barrio |
+| Localidad | `GET /geo/provinces/:id/localities?q=` | Autocomplete dependiente de provincia |
+| Barrio | `GET /geo/localities/:id/neighborhoods?q=` | Autocomplete opcional; limpia al cambiar localidad |
+
+Cliente admin: `apps/admin/lib/api/geo-client.ts` (API pública, sin cookies server-side).
 
 ### Opcionales con reglas
 

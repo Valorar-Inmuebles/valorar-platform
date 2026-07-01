@@ -187,7 +187,13 @@ PropertyBrightness      (enum)
 GeocodeSource           (enum)
 GeocodeAccuracy         (enum)
 PropertyFeature         (tabla)
+Country                 (tabla)
+Province                (tabla)
+Locality                (tabla)
+Neighborhood            (tabla)
 ```
+
+Documentación geo: `docs/08-geo/database-design.md`. Migraciones: `202607010001_geo_catalog`, `202607010003_geo_catalog_simplify`.
 
 ---
 
@@ -355,10 +361,14 @@ No contiene publicaciones comerciales ni precios.
 | streetNumber   | String?             | Altura                                   |
 | floor          | String?             | Piso                                     |
 | apartment      | String?             | Departamento                             |
-| neighborhood   | String?             | Barrio                                   |
-| city           | String              | Localidad / ciudad                       |
-| province       | String?             | Provincia (renombrado desde `state`)     |
-| country        | String              | País (default: AR)                       |
+| neighborhood   | String?             | Barrio (legacy)                          |
+| city           | String              | Localidad / ciudad (legacy)              |
+| province       | String?             | Provincia (legacy)                       |
+| country        | String              | País legacy (default: AR)                |
+| countryId      | String?             | FK → Country (GEO-002)                   |
+| provinceId     | String?             | FK → Province (GEO-002)                  |
+| localityId     | String?             | FK → Locality (GEO-002)                  |
+| neighborhoodId | String?             | FK → Neighborhood (GEO-002, opcional)    |
 | postalCode     | String?             | Código postal                            |
 | latitude       | Decimal?            | Latitud                                  |
 | longitude      | Decimal?            | Longitud                                 |
@@ -387,7 +397,19 @@ No contiene publicaciones comerciales ni precios.
 
 * `@@unique([tenantId, slug])`
 * `@@unique([tenantId, internalCode])` cuando `internalCode` está definido
-* Índices: `tenantId`, `[tenantId, createdById]`, `[tenantId, city]`, `[tenantId, province]`, `[tenantId, propertyType]`, `[tenantId, condition]`, `[tenantId, updatedAt]`
+* Índices: `tenantId`, `[tenantId, createdById]`, `[tenantId, city]`, `[tenantId, province]`, `[tenantId, provinceId]`, `[tenantId, localityId]`, `[tenantId, propertyType]`, `[tenantId, condition]`, `[tenantId, updatedAt]`
+
+### GEO-002 — relaciones catálogo
+
+```txt
+Property
+├── geoCountry      → Country (optional)
+├── geoProvince     → Province (optional)
+├── geoLocality     → Locality (optional)
+└── geoNeighborhood → Neighborhood (optional)
+```
+
+Campos legacy (`city`, `province`, `neighborhood`, `country`) se mantienen durante la transición. Escrituras con IDs sincronizan textos legacy desde el catálogo.
 
 ## Slug
 
@@ -634,6 +656,79 @@ Compartida con: María (canView, canEdit), Pedro (canView)
 
 ---
 
+# Geo Catalog (GEO-001)
+
+Estado: migrado (`202607010001_geo_catalog`).
+
+Documentación: `docs/08-geo/`
+
+Jerarquía:
+
+```txt
+Country
+└── Province
+    └── Locality
+        └── Neighborhood
+```
+
+Catálogo global sin `tenantId`. Solo lectura vía API pública en GEO-001.
+
+## Country
+
+| Campo | Tipo | Descripción |
+| ----- | ---- | ----------- |
+| id | String | cuid |
+| name | String | |
+| iso2 | String | ISO 3166-1 alpha-2 (`AR`) |
+| slug | String | URL-safe, único |
+| search | String | Normalizado para búsqueda |
+| createdAt | DateTime | |
+| updatedAt | DateTime | |
+
+## Province
+
+| Campo | Tipo | Descripción |
+| ----- | ---- | ----------- |
+| id | String | cuid |
+| countryId | String | FK → Country |
+| name | String | |
+| isoCode | String? | ISO 3166-2 (`AR-C`) |
+| slug | String | URL-safe, único por country |
+| search | String | Normalizado para búsqueda |
+| createdAt | DateTime | |
+| updatedAt | DateTime | |
+
+## Locality
+
+| Campo | Tipo | Descripción |
+| ----- | ---- | ----------- |
+| id | String | cuid |
+| provinceId | String | FK → Province |
+| name | String | |
+| postalCode | String? | Código postal (no unique) |
+| slug | String | URL-safe, único por province |
+| search | String | Normalizado para búsqueda |
+| createdAt | DateTime | |
+| updatedAt | DateTime | |
+
+En Capital Federal, cada barrio es una localidad (Palermo, Belgrano, etc.).
+
+## Neighborhood
+
+| Campo | Tipo | Descripción |
+| ----- | ---- | ----------- |
+| id | String | cuid |
+| localityId | String | FK → Locality |
+| name | String | |
+| slug | String | URL-safe, único por locality |
+| search | String | Normalizado para búsqueda |
+| createdAt | DateTime | |
+| updatedAt | DateTime | |
+
+Subdivisión opcional. `slug` y `search` se generan automáticamente desde `name` — no editables.
+
+---
+
 # Reglas Globales
 
 ## Multi Tenant
@@ -653,6 +748,10 @@ Catálogos globales sin `tenantId`:
 
 ```txt
 PropertyFeature
+Country
+Province
+Locality
+Neighborhood
 ```
 
 Enums globales:

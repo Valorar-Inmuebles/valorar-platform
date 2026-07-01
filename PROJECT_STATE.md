@@ -25,7 +25,21 @@ Branch: `feature/property-complete-mvp`
 
 Roadmap: Fase A (Features) → Fase B (Ficha técnica) → Fase C (Storage + galería) → Fase D (Publicación) → Fase E (Buscador avanzado, P2).
 
-Sin migraciones Prisma nuevas salvo necesidad estricta documentada.
+Sin migraciones Prisma nuevas salvo necesidad estricta documentada (excepción: **Geo Catalog** — `202607010001` … `202607010006_property_geo_fks`).
+
+---
+
+## Geo Catalog (GEO-001 + GEO-002) ✅
+
+Catálogo geográfico global de Argentina alineado al mercado inmobiliario. Documentación: `docs/08-geo/`.
+
+Migraciones: `202607010001_geo_catalog` … `202607010006_property_geo_fks`
+
+Modelo: Country → Province → Locality → Neighborhood (opcional). Barrios CABA = Localities. Campos `slug` + `search` auto-generados vía `@repo/geo-text`.
+
+API pública: `GET /geo/provinces`, `GET /geo/localities/search`, `GET /geo/provinces/:id/localities`, `GET /geo/localities/:id/neighborhoods`
+
+Integración Property (GEO-002): FKs en Property + Admin select/autocomplete + Web hero/filtros. Compatibilidad legacy durante transición.
 
 ---
 
@@ -126,6 +140,16 @@ Documentación: `docs/03-database/current-schema.md`, `docs/04-modules/auth.md`
 * Seed dev: tenant `demo` + 3 usuarios (`super@valorar.dev`, `admin@demo.valorar.dev`, `agent@demo.valorar.dev`)
 
 Documentación: `docs/04-modules/auth.md`, `docs/09-roadmap/auth-implementation-plan.md`
+
+### Geo Catalog (GEO-001 + GEO-002) ✅
+
+* Catálogo global: `Country`, `Province`, `Locality`, `Neighborhood`
+* `GeoModule` — endpoints públicos, cache, autocomplete localidades
+* Property: FKs geo + compatibilidad legacy
+* Admin + Web integrados con catálogo
+* Seeds opt-in: `SEED_GEO_CATALOG=true`
+* Migraciones: `202607010001_geo_catalog` … `202607010006_property_geo_fks`
+* Documentación: `docs/08-geo/`
 
 ### Property Domain v1 (API — Property entity)
 
