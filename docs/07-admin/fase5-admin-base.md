@@ -2,7 +2,7 @@
 
 Versión: v1
 
-Estado: **en implementación**
+Estado: **implementado** (QA refinamiento v1.1 incluido)
 
 Referencias:
 
@@ -158,7 +158,8 @@ PropertyAgentAccess → compartición explícita (canView / canEdit)
 
 Reglas de visibilidad (API Property list/detail):
 
-* AGENT / COLLABORATOR: `createdById`, `assignedToId`, o `PropertyAgentAccess`
+* Políticas por tenant en `TenantSetting` (`propertyVisibilityPolicy`, `propertyEditPolicy`)
+* AGENT / COLLABORATOR: según política + `createdById`, `assignedToId`, o `PropertyAgentAccess`
 * MANAGER / TENANT_ADMIN: todo el tenant
 * SUPER_ADMIN: tenant activo vía `X-Tenant-Id`
 
@@ -183,15 +184,68 @@ Reglas de visibilidad (API Property list/detail):
 | `/configuracion/roles` | Roles y permisos | TENANT_ADMIN, SUPER_ADMIN |
 | `/configuracion/perfil` | Perfil | Todos |
 | `/configuracion/preferencias` | Preferencias | Todos |
-| `/configuracion/tenants` | Tenants | SUPER_ADMIN |
 
 Redirect: `/configuracion/inmobiliaria` → `/configuracion/organizacion`
+
+> Tenants (SUPER_ADMIN) vive en **Plataforma** (`/plataforma/tenants`) desde Fase 6.
+
+---
+
+## QA refinamiento (post Fase 5)
+
+### Roles — UX por contexto
+
+| Viewer | Ve en matriz de roles |
+| ------ | --------------------- |
+| SUPER_ADMIN | Todos (incl. Super Admin) + identificadores técnicos |
+| Tenant (TENANT_ADMIN, MANAGER, …) | Solo Administrador, Manager, Agente, Colaborador |
+
+Textos:
+
+* SUPER_ADMIN: «Roles del sistema.»
+* Tenant: «Roles disponibles para esta inmobiliaria.»
+
+Permisos en UI: etiquetas en español vía `PERMISSION_LABELS` (`@repo/rbac`); IDs técnicos solo en backend.
+
+### Permisos de propiedades (TenantSetting)
+
+Configuración en **Configuración → Organización → Permisos de propiedades**.
+
+| Campo | Valores | Efecto |
+| ----- | ------- | ------ |
+| `propertyVisibilityPolicy` | `AGENT_OWN_ONLY` (default) / `AGENT_SEE_ALL` | Alcance de listado/detalle para AGENT/COLLABORATOR |
+| `propertyEditPolicy` | `CREATOR_ONLY` / `CREATOR_OR_ASSIGNEE` (default) | Quién con `property.update.own` puede editar |
+
+Managers y administradores siempre ven y editan todo el tenant (vía `property.update.any` / `roleViewsAllProperties`).
+
+`PropertyAccessService` lee políticas desde `TenantSetting` — sin reglas hardcodeadas en el servicio.
+
+Migración: `202607020003_tenant_property_policies`
+
+### Responsable comercial
+
+Campo `Property.assignedToId` editable en ficha de propiedad (selector de usuarios activos del tenant).
+
+Si está vacío, el responsable operativo es `createdById`.
+
+### Roadmap PropertyAgentAccess (V2)
+
+El schema ya incluye `PropertyAgentAccess` (canView / canEdit). `PropertyAccessService` lo consulta en runtime para compartición explícita.
+
+V2 podrá añadir:
+
+* Múltiples agentes por propiedad
+* Permisos granulares por usuario
+* UI de compartir propiedad
+
+Sin romper `TenantSetting` ni la matriz RBAC V1.
 
 ---
 
 ## Migración
 
 `202607020001_admin_fase5`
+`202607020003_tenant_property_policies`
 
 ---
 
@@ -201,5 +255,6 @@ Redirect: `/configuracion/inmobiliaria` → `/configuracion/organizacion`
 2. UI oculta acciones no permitidas según permisos del rol.
 3. API valida permisos y ownership en Property.
 4. Avatar muestra foto o iniciales con color consistente.
-5. AGENT solo ve propiedades asignadas/creadas/compartidas.
-6. `npm run check-types` y `npm run build` pasan.
+5. AGENT ve propiedades según política del tenant (own-only o all) + asignación/compartido.
+6. Responsable comercial (`assignedToId`) editable en ficha de propiedad.
+7. `npm run check-types` y `npm run build` pasan.

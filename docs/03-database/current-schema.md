@@ -121,6 +121,8 @@ Relación 1:1 con `Tenant`.
 | whatsapp       | String?  |             |
 | email          | String?  |             |
 | domain         | String?  |             |
+| propertyVisibilityPolicy | PropertyVisibilityPolicy | Default `AGENT_OWN_ONLY` |
+| propertyEditPolicy | PropertyEditPolicy | Default `CREATOR_OR_ASSIGNEE` |
 | createdAt      | DateTime |             |
 | updatedAt      | DateTime |             |
 

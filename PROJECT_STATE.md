@@ -17,11 +17,13 @@ Plataforma SaaS inmobiliaria multi-tenant orientada a:
 
 ## Foco actual del producto
 
-**Fase 6 — Plataforma (Super Admin)**
+**Fase 6 — Plataforma (Super Admin)** ✅
 
 Documentación: `docs/07-admin/fase6-plataforma-super-admin.md`
 
-Anterior: Fase 5 Administración Base ✅ (Organización, Usuarios, Roles, RBAC)
+**Fase 5 — Administración Base** ✅ + QA refinamiento (roles UX, permisos legibles, políticas de propiedad configurables, responsable comercial)
+
+Documentación: `docs/07-admin/fase5-admin-base.md`
 
 ---
 
