@@ -16,10 +16,15 @@ export default async function ConfiguracionRolesPage() {
     redirect("/");
   }
 
+  const description =
+    session.user.role === "SUPER_ADMIN"
+      ? "Roles del sistema."
+      : "Roles disponibles para esta inmobiliaria.";
+
   return (
     <PageShell
       title="Roles y permisos"
-      description="Matriz de roles predefinidos de la plataforma."
+      description={description}
       breadcrumbs={[
         { label: "Inicio", href: "/" },
         { label: "Configuración", href: "/configuracion" },
@@ -27,7 +32,7 @@ export default async function ConfiguracionRolesPage() {
       ]}
       subNav={<ConfigSubNav />}
     >
-      <RolesOverview />
+      <RolesOverview viewerRole={session.user.role} />
     </PageShell>
   );
 }

@@ -24,6 +24,7 @@ import {
   createPropertyAction,
   updatePropertyAction,
 } from "@/lib/api/property-actions";
+import type { AssignableUserOption } from "@/lib/api/types/organization";
 import type { AdminProperty } from "@/lib/api/types/property";
 import {
   ORIENTATION_OPTIONS,
@@ -49,9 +50,14 @@ import {
 type PropertyFormProps = {
   mode: "create" | "edit";
   property?: AdminProperty;
+  assignableUsers?: AssignableUserOption[];
 };
 
-export function PropertyForm({ mode, property }: PropertyFormProps) {
+export function PropertyForm({
+  mode,
+  property,
+  assignableUsers = [],
+}: PropertyFormProps) {
   const router = useRouter();
   const { toast } = useToast();
   const [values, setValues] = useState<PropertyFormValues>(() =>
@@ -197,6 +203,28 @@ export function PropertyForm({ mode, property }: PropertyFormProps) {
               disabled={isPending}
             />
           </FormField>
+
+          {assignableUsers.length > 0 ? (
+            <FormField className="md:col-span-2">
+              <Label>Responsable comercial</Label>
+              <Select
+                value={values.assignedToId || undefined}
+                onChange={(value) => updateField("assignedToId", value ?? "")}
+                placeholder="Sin asignar"
+                disabled={isPending}
+                options={[
+                  { value: "", label: "Sin asignar (usa el creador)" },
+                  ...assignableUsers.map((user) => ({
+                    value: user.id,
+                    label: user.name,
+                  })),
+                ]}
+              />
+              <HelperText>
+                Si está vacío, el creador de la propiedad es el responsable operativo.
+              </HelperText>
+            </FormField>
+          ) : null}
 
           <FormField>
             <Label>Condición</Label>

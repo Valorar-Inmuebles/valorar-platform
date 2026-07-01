@@ -1,3 +1,8 @@
+import type {
+  PropertyEditPolicy,
+  PropertyVisibilityPolicy,
+} from "@/lib/permissions";
+
 export type OrganizationSettings = {
   tenantId: string;
   tenantName: string;
@@ -19,8 +24,15 @@ export type OrganizationSettings = {
   seoTitle?: string | null;
   seoDescription?: string | null;
   domain?: string | null;
+  propertyVisibilityPolicy: PropertyVisibilityPolicy;
+  propertyEditPolicy: PropertyEditPolicy;
 };
 
 export type UpdateOrganizationPayload = Partial<
   Omit<OrganizationSettings, "tenantId" | "tenantName" | "tenantSlug">
 >;
+
+export type AssignableUserOption = {
+  id: string;
+  name: string;
+};

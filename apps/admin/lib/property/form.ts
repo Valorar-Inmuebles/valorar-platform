@@ -63,6 +63,7 @@ export function emptyPropertyFormValues(): PropertyFormValues {
     layout: "",
     brightness: "",
     isActive: true,
+    assignedToId: "",
   };
 }
 
@@ -106,6 +107,7 @@ export function propertyToFormValues(property: AdminProperty): PropertyFormValue
     layout: property.layout ?? "",
     brightness: property.brightness ?? "",
     isActive: property.isActive,
+    assignedToId: property.assignedToId ?? "",
   };
 }
 
@@ -262,6 +264,7 @@ export function formValuesToCreatePayload(
     layout: values.layout || undefined,
     brightness: values.brightness || undefined,
     isActive: values.isActive,
+    assignedToId: values.assignedToId.trim() || null,
   };
 }
 

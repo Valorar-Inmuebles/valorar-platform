@@ -32,7 +32,7 @@ jest.mock('./property-access.service', () => ({
   PropertyAccessService: class PropertyAccessService {
     assertCanEditProperty = jest.fn().mockResolvedValue(undefined);
     assertCanViewProperty = jest.fn().mockResolvedValue(undefined);
-    buildListWhere = jest.fn((_tenantId, _user, base) => base ?? {});
+    buildListWhere = jest.fn(async (_tenantId, _user, base) => base ?? {});
   },
 }));
 

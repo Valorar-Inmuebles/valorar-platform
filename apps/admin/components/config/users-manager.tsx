@@ -21,11 +21,9 @@ import type { AdminUser, CreateUserPayload } from "@/lib/api/types/user";
 import type { AuthUser } from "@/lib/auth/types";
 import { sessionHasPermission } from "@/lib/auth/types";
 import type { PlatformRole } from "@/lib/permissions";
-import { PLATFORM_ROLES } from "@/lib/permissions";
+import { TENANT_ROLES } from "@/lib/permissions";
 
-const ASSIGNABLE_ROLES: PlatformRole[] = PLATFORM_ROLES.filter(
-  (role) => role !== "SUPER_ADMIN",
-);
+const ASSIGNABLE_ROLES: PlatformRole[] = TENANT_ROLES;
 
 function formatDate(value?: string | null): string {
   if (!value) return "—";

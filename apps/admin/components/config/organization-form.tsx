@@ -8,6 +8,8 @@ import { Input } from "@repo/ui/input";
 import { useToast } from "@repo/ui/toast";
 import { updateOrganizationAction } from "@/lib/api/organization-actions";
 import type { OrganizationSettings } from "@/lib/api/types/organization";
+import type { PropertyEditPolicy, PropertyVisibilityPolicy } from "@/lib/permissions";
+import { OrganizationPropertyPermissions } from "@/components/config/organization-property-permissions";
 
 type OrganizationFormProps = {
   organization: OrganizationSettings;
@@ -52,6 +54,12 @@ export function OrganizationForm({
         shortDescription: String(form.get("shortDescription") ?? ""),
         seoTitle: String(form.get("seoTitle") ?? ""),
         seoDescription: String(form.get("seoDescription") ?? ""),
+        propertyVisibilityPolicy: String(
+          form.get("propertyVisibilityPolicy") ?? organization.propertyVisibilityPolicy,
+        ) as PropertyVisibilityPolicy,
+        propertyEditPolicy: String(
+          form.get("propertyEditPolicy") ?? organization.propertyEditPolicy,
+        ) as PropertyEditPolicy,
       });
 
       if (result.ok) {
@@ -181,6 +189,13 @@ export function OrganizationForm({
           </FormField>
         </div>
       </Card>
+
+      <OrganizationPropertyPermissions
+        visibilityPolicy={organization.propertyVisibilityPolicy}
+        editPolicy={organization.propertyEditPolicy}
+        readOnly={readOnly}
+        disabled={isPending}
+      />
 
       {!readOnly ? (
         <div className="flex justify-end">

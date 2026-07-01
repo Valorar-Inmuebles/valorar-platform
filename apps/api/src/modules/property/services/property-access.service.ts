@@ -1,9 +1,17 @@
 import { ForbiddenException, Injectable } from '@nestjs/common';
-import { Prisma, UserRole } from '../../../../generated/prisma/client';
-import type { PlatformRole } from '@repo/rbac';
-import { canEditProperty, canViewProperty } from '@repo/rbac';
+import { UserRole } from '../../../../generated/prisma/client';
+import {
+  canEditProperty,
+  canViewProperty,
+  DEFAULT_PROPERTY_TENANT_POLICIES,
+  roleViewsAllProperties,
+  shouldScopePropertyList,
+  type PlatformRole,
+  type PropertyTenantPolicies,
+} from '@repo/rbac';
 import type { AuthenticatedUser } from '../../../common/types/authenticated-user.type';
 import { PrismaService } from '../../../prisma/prisma.service';
+import type { Prisma } from '../../../../generated/prisma/client';
 
 export type PropertyAccessRecord = {
   id: string;
@@ -16,19 +24,16 @@ export type PropertyAccessRecord = {
 export class PropertyAccessService {
   constructor(private readonly prisma: PrismaService) {}
 
-  /** Prisma filter for property list queries scoped by role. */
-  buildListWhere(
+  /** Prisma filter for property list queries scoped by tenant policies. */
+  async buildListWhere(
     tenantId: string,
     user: AuthenticatedUser,
     base: Prisma.PropertyWhereInput = {},
-  ): Prisma.PropertyWhereInput {
+  ): Promise<Prisma.PropertyWhereInput> {
     const role = user.role as PlatformRole;
+    const policies = await this.getTenantPolicies(tenantId);
 
-    if (
-      role === UserRole.SUPER_ADMIN ||
-      role === UserRole.TENANT_ADMIN ||
-      role === UserRole.MANAGER
-    ) {
+    if (!shouldScopePropertyList(role, policies)) {
       return { ...base, tenantId };
     }
 
@@ -76,15 +81,12 @@ export class PropertyAccessService {
       return false;
     }
 
-    const shared = await this.getSharedAccess(property.id, user.id);
+    const [shared, policies] = await Promise.all([
+      this.getSharedAccess(property.id, user.id),
+      this.getTenantPolicies(property.tenantId),
+    ]);
 
-    return canViewProperty({
-      userId: user.id,
-      role: user.role as PlatformRole,
-      createdById: property.createdById,
-      assignedToId: property.assignedToId,
-      sharedCanView: shared?.canView,
-    });
+    return canViewProperty(this.toAccessContext(property, user, policies, shared));
   }
 
   async userCanEditProperty(
@@ -95,15 +97,48 @@ export class PropertyAccessService {
       return false;
     }
 
-    const shared = await this.getSharedAccess(property.id, user.id);
+    const [shared, policies] = await Promise.all([
+      this.getSharedAccess(property.id, user.id),
+      this.getTenantPolicies(property.tenantId),
+    ]);
 
-    return canEditProperty({
+    return canEditProperty(this.toAccessContext(property, user, policies, shared));
+  }
+
+  async getTenantPolicies(tenantId: string): Promise<PropertyTenantPolicies> {
+    const settings = await this.prisma.tenantSetting.findUnique({
+      where: { tenantId },
+      select: {
+        propertyVisibilityPolicy: true,
+        propertyEditPolicy: true,
+      },
+    });
+
+    if (!settings) {
+      return DEFAULT_PROPERTY_TENANT_POLICIES;
+    }
+
+    return {
+      visibility: settings.propertyVisibilityPolicy,
+      edit: settings.propertyEditPolicy,
+    };
+  }
+
+  private toAccessContext(
+    property: PropertyAccessRecord,
+    user: AuthenticatedUser,
+    policies: PropertyTenantPolicies,
+    shared: { canView: boolean; canEdit: boolean } | null,
+  ) {
+    return {
       userId: user.id,
       role: user.role as PlatformRole,
       createdById: property.createdById,
       assignedToId: property.assignedToId,
+      tenantPolicies: policies,
+      sharedCanView: shared?.canView,
       sharedCanEdit: shared?.canEdit,
-    });
+    };
   }
 
   private getSharedAccess(propertyId: string, userId: string) {

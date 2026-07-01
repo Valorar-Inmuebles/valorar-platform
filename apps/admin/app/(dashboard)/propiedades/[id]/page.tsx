@@ -6,7 +6,18 @@ import { PropertyPageShell } from "@/components/property/property-page-shell";
 import { PropertyPublishabilityPanel } from "@/components/property/property-publishability-panel";
 import { ApiErrorPanel } from "@/components/shared/api-error-panel";
 import { ApiError } from "@/lib/api/client";
+import { listUsers } from "@/lib/api/users";
+import type { AssignableUserOption } from "@/lib/api/types/organization";
+import { mapUnknownError } from "@/lib/api/error-map";
 import { loadPropertyExecutiveContext } from "@/lib/property/load-property-executive-context";
+
+function toAssignableUsers(
+  users: Awaited<ReturnType<typeof listUsers>>,
+): AssignableUserOption[] {
+  return users
+    .filter((user) => user.isActive)
+    .map((user) => ({ id: user.id, name: user.name }));
+}
 
 type PropiedadDetallePageProps = {
   params: Promise<{ id: string }>;
@@ -18,7 +29,11 @@ export default async function PropiedadDetallePage({
   const { id } = await params;
 
   try {
-    const { property, publishability } = await loadPropertyExecutiveContext(id);
+    const [{ property, publishability }, users] = await Promise.all([
+      loadPropertyExecutiveContext(id),
+      listUsers(),
+    ]);
+    const assignableUsers = toAssignableUsers(users);
 
     return (
       <PropertyPageShell propertyId={id} embedded>
@@ -37,7 +52,11 @@ export default async function PropiedadDetallePage({
             </Link>
           </div>
 
-          <PropertyForm mode="edit" property={property} />
+          <PropertyForm
+            mode="edit"
+            property={property}
+            assignableUsers={assignableUsers}
+          />
 
           <PropertyPublishabilityPanel summary={publishability} />
         </div>

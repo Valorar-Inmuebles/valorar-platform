@@ -1,5 +1,10 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import type { Tenant, TenantSetting } from '../../../../generated/prisma/client';
+import {
+  PropertyEditPolicy,
+  PropertyVisibilityPolicy,
+  type Tenant,
+  type TenantSetting,
+} from '../../../../generated/prisma/client';
 
 export class OrganizationResponseDto {
   @ApiProperty()
@@ -62,6 +67,12 @@ export class OrganizationResponseDto {
   @ApiPropertyOptional({ description: 'Reserved for custom domain (future)' })
   domain?: string | null;
 
+  @ApiProperty({ enum: ['AGENT_OWN_ONLY', 'AGENT_SEE_ALL'] })
+  propertyVisibilityPolicy!: string;
+
+  @ApiProperty({ enum: ['CREATOR_ONLY', 'CREATOR_OR_ASSIGNEE'] })
+  propertyEditPolicy!: string;
+
   static fromEntities(
     tenant: Pick<Tenant, 'id' | 'name' | 'slug'>,
     settings: TenantSetting | null,
@@ -87,6 +98,10 @@ export class OrganizationResponseDto {
       seoTitle: settings?.seoTitle ?? null,
       seoDescription: settings?.seoDescription ?? null,
       domain: settings?.domain ?? null,
+      propertyVisibilityPolicy:
+        settings?.propertyVisibilityPolicy ?? PropertyVisibilityPolicy.AGENT_OWN_ONLY,
+      propertyEditPolicy:
+        settings?.propertyEditPolicy ?? PropertyEditPolicy.CREATOR_OR_ASSIGNEE,
     };
   }
 }

@@ -104,8 +104,21 @@ model TenantSetting {
 
   domain String?
 
+  propertyVisibilityPolicy PropertyVisibilityPolicy @default(AGENT_OWN_ONLY)
+  propertyEditPolicy       PropertyEditPolicy       @default(CREATOR_OR_ASSIGNEE)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+enum PropertyVisibilityPolicy {
+  AGENT_OWN_ONLY
+  AGENT_SEE_ALL
+}
+
+enum PropertyEditPolicy {
+  CREATOR_ONLY
+  CREATOR_OR_ASSIGNEE
 }
 
 enum PropertyType {

@@ -17,6 +17,7 @@ export type AdminProperty = {
   id: string;
   tenantId: string;
   createdById: string;
+  assignedToId: string | null;
   slug: string;
   internalCode: string | null;
   title: string;
@@ -98,6 +99,7 @@ export type CreatePropertyPayload = {
   orientation?: Orientation;
   layout?: PropertyLayout;
   brightness?: PropertyBrightness;
+  assignedToId?: string | null;
 };
 
 export type UpdatePropertyPayload = Partial<
@@ -143,4 +145,5 @@ export type PropertyFormValues = {
   layout: PropertyLayout | "";
   brightness: PropertyBrightness | "";
   isActive: boolean;
+  assignedToId: string;
 };

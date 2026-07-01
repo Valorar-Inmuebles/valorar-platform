@@ -1,8 +1,11 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsOptional, IsString, MaxLength } from 'class-validator';
+import { IsEnum, IsOptional, IsString, MaxLength } from 'class-validator';
+import {
+  PropertyEditPolicy,
+  PropertyVisibilityPolicy,
+} from '../../../../generated/prisma/client';
 
-export class UpdateOrganizationDto {
-  @ApiPropertyOptional()
+export class UpdateOrganizationDto {  @ApiPropertyOptional()
   @IsOptional()
   @IsString()
   @MaxLength(200)
@@ -97,4 +100,14 @@ export class UpdateOrganizationDto {
   @IsString()
   @MaxLength(500)
   seoDescription?: string;
+
+  @ApiPropertyOptional({ enum: PropertyVisibilityPolicy })
+  @IsOptional()
+  @IsEnum(PropertyVisibilityPolicy)
+  propertyVisibilityPolicy?: PropertyVisibilityPolicy;
+
+  @ApiPropertyOptional({ enum: PropertyEditPolicy })
+  @IsOptional()
+  @IsEnum(PropertyEditPolicy)
+  propertyEditPolicy?: PropertyEditPolicy;
 }

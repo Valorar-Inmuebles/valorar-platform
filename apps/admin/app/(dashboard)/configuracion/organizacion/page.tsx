@@ -46,7 +46,7 @@ export default async function ConfiguracionOrganizacionPage() {
     return (
       <PageShell
         title="Organización"
-        description="Datos comerciales y branding de la inmobiliaria."
+        description="Datos comerciales, branding y permisos de propiedades."
         breadcrumbs={[
           { label: "Inicio", href: "/" },
           { label: "Configuración", href: "/configuracion" },
