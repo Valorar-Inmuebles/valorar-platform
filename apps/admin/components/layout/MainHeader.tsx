@@ -1,10 +1,11 @@
 "use client";
 
+import Link from "next/link";
 import { Button } from "@repo/ui/button";
 import { IconMenu } from "@/components/layout/icons";
 import { TenantSwitcher } from "@/components/layout/tenant-switcher";
+import { UserAvatar } from "@/components/user/user-avatar";
 import { useSidebar } from "@/components/layout/sidebar-context";
-import { getUserInitials } from "@/lib/auth/nav-context";
 import type { AuthUser } from "@/lib/auth/types";
 
 type MainHeaderProps = {
@@ -14,11 +15,7 @@ type MainHeaderProps = {
 
 export function MainHeader({ user, activeTenantId }: MainHeaderProps) {
   const { collapsed, isMobile, toggleSidebar } = useSidebar();
-  const initials = getUserInitials(user.name);
   const isSuperAdmin = user.role === "SUPER_ADMIN";
-
-  const avatarClassName =
-    "flex size-8 shrink-0 items-center justify-center rounded-full bg-brand-green/10 text-xs font-semibold text-brand-green ring-1 ring-brand-green/20";
 
   return (
     <header className="flex min-h-[3.25rem] shrink-0 flex-col gap-2 border-b border-border bg-surface/90 px-4 py-2 backdrop-blur-xl supports-[backdrop-filter]:bg-surface/80 sm:flex-row sm:items-center sm:gap-3 sm:py-0 sm:px-6">
@@ -48,13 +45,14 @@ export function MainHeader({ user, activeTenantId }: MainHeaderProps) {
           <p className="truncate text-xs text-muted">{user.email}</p>
         </div>
 
-        <div
-          className={`${avatarClassName} sm:hidden`}
-          title={user.name}
-          aria-label={`Usuario: ${user.name}`}
-        >
-          {initials}
-        </div>
+        <Link href="/configuracion/perfil" className="sm:hidden" title="Mi perfil">
+          <UserAvatar
+            name={user.name}
+            avatarUrl={user.avatarUrl}
+            seed={user.id}
+            size="sm"
+          />
+        </Link>
       </div>
 
       {isSuperAdmin ? (
@@ -68,13 +66,14 @@ export function MainHeader({ user, activeTenantId }: MainHeaderProps) {
         </div>
       ) : null}
 
-      <div
-        className={`${avatarClassName} hidden sm:flex`}
-        title={user.name}
-        aria-label={`Usuario: ${user.name}`}
-      >
-        {initials}
-      </div>
+      <Link href="/configuracion/perfil" className="hidden sm:block" title="Mi perfil">
+        <UserAvatar
+          name={user.name}
+          avatarUrl={user.avatarUrl}
+          seed={user.id}
+          size="sm"
+        />
+      </Link>
     </header>
   );
 }

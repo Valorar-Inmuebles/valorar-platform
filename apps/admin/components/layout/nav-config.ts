@@ -1,13 +1,21 @@
-export type UserRole = "SUPER_ADMIN" | "TENANT_ADMIN" | "AGENT";
+export type UserRole =
+  | "SUPER_ADMIN"
+  | "TENANT_ADMIN"
+  | "MANAGER"
+  | "AGENT"
+  | "COLLABORATOR";
 
 export type NavAccessRule = {
   superAdminOnly?: boolean;
   roles?: UserRole[];
+  /** Requires at least one permission from session (checked in MainSidebar). */
+  permissions?: string[];
 };
 
 export type NavViewerContext = {
   isSuperAdmin: boolean;
   roles: UserRole[];
+  permissions?: string[];
 };
 
 export type NavChildItem = {
@@ -42,6 +50,12 @@ export function isNavItemVisible(
     const hasRole = item.roles.some((role) => ctx.roles.includes(role));
     if (!hasRole) return false;
   }
+  if (item.permissions?.length && ctx.permissions) {
+    const hasPermission = item.permissions.some((permission) =>
+      ctx.permissions!.includes(permission),
+    );
+    if (!hasPermission) return false;
+  }
   return true;
 }
 
@@ -53,22 +67,20 @@ export function visibleNavChildren(
   return item.children.filter((child) => isNavItemVisible(child, ctx));
 }
 
-/** Oculta rutas placeholder de Configuración durante demo comercial. */
-export const HIDE_CONFIGURATION_NAV = true;
+export const HIDE_CONFIGURATION_NAV = false;
 
-export function getVisibleNavigation(): NavSection[] {
+export function getVisibleNavigation(ctx: NavViewerContext): NavSection[] {
   if (!HIDE_CONFIGURATION_NAV) {
-    return navigation;
+    return navigation
+      .map((section) => ({
+        ...section,
+        items: section.items.filter((item) => isNavItemVisible(item, ctx)),
+      }))
+      .filter((section) => section.items.length > 0);
   }
 
   return navigation.filter((section) => section.id !== "configuracion");
 }
-
-/** @deprecated Usar sessionToNavContext() con la sesión real. */
-export const DEV_NAV_CONTEXT: NavViewerContext = {
-  isSuperAdmin: true,
-  roles: ["SUPER_ADMIN", "TENANT_ADMIN", "AGENT"],
-};
 
 export const navigation: NavSection[] = [
   {
@@ -95,18 +107,37 @@ export const navigation: NavSection[] = [
     label: "Configuración",
     items: [
       {
+        id: "config-organizacion",
+        label: "Organización",
+        href: "/configuracion/organizacion",
+        iconId: "settings",
+        roles: ["TENANT_ADMIN"],
+      },
+      {
         id: "config-usuarios",
         label: "Usuarios",
         href: "/configuracion/usuarios",
         iconId: "users",
-        roles: ["TENANT_ADMIN", "SUPER_ADMIN"],
+        permissions: ["user.read"],
       },
       {
-        id: "config-tenant",
-        label: "Inmobiliaria",
-        href: "/configuracion/inmobiliaria",
-        iconId: "settings",
-        roles: ["TENANT_ADMIN"],
+        id: "config-roles",
+        label: "Roles y permisos",
+        href: "/configuracion/roles",
+        iconId: "shield",
+        permissions: ["user.read"],
+      },
+      {
+        id: "config-perfil",
+        label: "Perfil",
+        href: "/configuracion/perfil",
+        iconId: "user",
+      },
+      {
+        id: "config-preferencias",
+        label: "Preferencias",
+        href: "/configuracion/preferencias",
+        iconId: "sliders",
       },
       {
         id: "config-tenants",

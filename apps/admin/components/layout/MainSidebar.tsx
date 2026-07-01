@@ -234,7 +234,7 @@ export function MainSidebar({
             </div>
           ) : null}
 
-          {getVisibleNavigation().map((section, idx) => (
+          {getVisibleNavigation(navContext).map((section, idx) => (
             <div key={section.id} className={idx > 0 ? "mt-4" : ""}>
               {!isCollapsed ? (
                 <div className="mb-1 px-2 text-[10px] font-medium uppercase tracking-wide text-sidebar-muted">

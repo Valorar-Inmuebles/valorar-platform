@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@repo/property-rules": "*",
+    "@repo/rbac": "*",
     "@repo/shared-types": "*",
     "@repo/ui": "*",
     "next": "16.2.6",

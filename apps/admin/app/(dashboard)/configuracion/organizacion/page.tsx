@@ -1,17 +1,17 @@
 import { redirect } from "next/navigation";
 import { ConfigSubNav } from "@/components/config/config-sub-nav";
-import { UsersManager } from "@/components/config/users-manager";
+import { OrganizationForm } from "@/components/config/organization-form";
 import { ApiErrorPanel } from "@/components/shared/api-error-panel";
 import { PageShell } from "@/components/shared/page-shell";
 import { SuperAdminTenantEmptyState } from "@/components/shared/super-admin-tenant-empty-state";
-import { listUsers } from "@/lib/api/users";
+import { getOrganization } from "@/lib/api/organization";
 import { mapUnknownError } from "@/lib/api/error-map";
 import { resolveActiveTenantGate } from "@/lib/auth/require-active-tenant";
 import { getActiveTenantId } from "@/lib/auth/active-tenant";
 import { getSession } from "@/lib/auth/session";
 import { sessionHasPermission } from "@/lib/auth/types";
 
-export default async function ConfiguracionUsuariosPage() {
+export default async function ConfiguracionOrganizacionPage() {
   const [session, activeTenantId] = await Promise.all([
     getSession(),
     getActiveTenantId(),
@@ -21,19 +21,15 @@ export default async function ConfiguracionUsuariosPage() {
     redirect("/login");
   }
 
-  if (!sessionHasPermission(session.user, "user.read")) {
-    redirect("/");
-  }
-
   const tenantGate = resolveActiveTenantGate(session.user, activeTenantId);
   if (!tenantGate.ok) {
     return (
       <PageShell
-        title="Usuarios"
+        title="Organización"
         breadcrumbs={[
           { label: "Inicio", href: "/" },
           { label: "Configuración", href: "/configuracion" },
-          { label: "Usuarios" },
+          { label: "Organización" },
         ]}
         subNav={<ConfigSubNav />}
       >
@@ -42,26 +38,28 @@ export default async function ConfiguracionUsuariosPage() {
     );
   }
 
+  const canEdit = sessionHasPermission(session.user, "organization.update");
+
   try {
-    const users = await listUsers();
+    const organization = await getOrganization();
 
     return (
       <PageShell
-        title="Usuarios"
-        description="Equipo de la inmobiliaria, roles y acceso."
+        title="Organización"
+        description="Datos comerciales y branding de la inmobiliaria."
         breadcrumbs={[
           { label: "Inicio", href: "/" },
           { label: "Configuración", href: "/configuracion" },
-          { label: "Usuarios" },
+          { label: "Organización" },
         ]}
         subNav={<ConfigSubNav />}
       >
-        <UsersManager users={users} sessionUser={session.user} />
+        <OrganizationForm organization={organization} readOnly={!canEdit} />
       </PageShell>
     );
   } catch (error) {
     return (
-      <PageShell title="Usuarios" subNav={<ConfigSubNav />}>
+      <PageShell title="Organización" subNav={<ConfigSubNav />}>
         <ApiErrorPanel message={mapUnknownError(error)} />
       </PageShell>
     );
