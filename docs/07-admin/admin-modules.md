@@ -40,7 +40,7 @@ Fuera de alcance v1 (documentados aparte): `PropertyFeature`, `PropertyFeatureAs
 | Comercialización (UX unificada) | ✅ | Tabla + SidePanel listing+precios; sin pantalla `/precios` |
 | Ficha ejecutiva Property (Fase 2) | ✅ | Layout sticky: cabecera + KPIs + sub-nav |
 | PropertyImages | ✅ | Grid + SidePanel; «Usar como portada»; metadata manual |
-| Indicador publicabilidad (§5) | ⏳ | Checklist cross-module pendiente |
+| Indicador publicabilidad (§5) | ✅ | Acordeón compacto al final del tab Datos |
 | Auth / RBAC / TenantSwitcher | ⏳ | Tenant dev vía env |
 | Configuración (usuarios, inmobiliaria, tenants) | ⏳ | Rutas placeholder |
 | Dashboard operativo (`/`) | ⏳ | Placeholder |
@@ -714,9 +714,9 @@ Inicio > Propiedades > {título} > Imágenes
 
 # 5. Regla de publicación web (cross-module)
 
-> **Estado UI:** ⏳ pendiente — especificación funcional; no implementado en `/propiedades/[id]`.
+> **Estado UI:** ✅ implementado — KPI «Publicable» en cabecera + panel acordeón al final del tab Datos (`PropertyPublishabilityPanel`).
 
-El admin debe mostrar un **indicador de publicabilidad** en la ficha de Property y/o listing, derivado de la regla ya implementada en Public API:
+El admin muestra un **indicador de publicabilidad** en la ficha de Property, derivado de la regla ya implementada en Public API:
 
 | Requisito | Módulo responsable |
 | --------- | ------------------ |
