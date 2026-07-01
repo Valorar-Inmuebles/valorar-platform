@@ -1,5 +1,5 @@
 import type { DashboardKpis } from "@/lib/api/types/dashboard";
-import { DashboardKpiCard } from "@/components/dashboard/dashboard-kpi-card";
+import { DashboardMetricCard } from "@/components/dashboard/dashboard-metric-card";
 import { buildPropertyListHref } from "@/lib/property/property-list-url";
 
 type DashboardKpiGridProps = {
@@ -9,41 +9,50 @@ type DashboardKpiGridProps = {
 const KPI_ITEMS: Array<{
   key: keyof DashboardKpis;
   label: string;
-  href?: string;
+  hint: string;
+  href: string;
+  tone?: "default" | "success" | "warning" | "muted";
 }> = [
   {
-    key: "totalActiveProperties",
-    label: "Propiedades activas",
-    href: buildPropertyListHref("active"),
+    key: "totalProperties",
+    label: "Propiedades",
+    hint: "Inventario total",
+    href: buildPropertyListHref("all"),
   },
   {
-    key: "publishedProperties",
-    label: "Publicadas en web",
+    key: "published",
+    label: "Publicadas",
+    hint: "Visibles en web",
     href: buildPropertyListHref("published"),
+    tone: "success",
   },
   {
-    key: "activeSaleListings",
-    label: "Publicaciones activas · venta",
+    key: "drafts",
+    label: "Borradores",
+    hint: "Activas sin publicar",
+    href: buildPropertyListHref("commercial-draft"),
+    tone: "warning",
   },
   {
-    key: "activeRentListings",
-    label: "Publicaciones activas · alquiler",
-  },
-  {
-    key: "featuredListings",
-    label: "Publicaciones activas · destacadas",
+    key: "archived",
+    label: "Archivadas",
+    hint: "Fuera de operación",
+    href: buildPropertyListHref("archived"),
+    tone: "muted",
   },
 ];
 
 export function DashboardKpiGrid({ kpis }: DashboardKpiGridProps) {
   return (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5 lg:gap-4">
+    <div className="grid grid-cols-2 gap-2 lg:grid-cols-4 lg:gap-3">
       {KPI_ITEMS.map((item) => (
-        <DashboardKpiCard
+        <DashboardMetricCard
           key={item.key}
           label={item.label}
           value={kpis[item.key]}
+          hint={item.hint}
           href={item.href}
+          tone={item.tone}
         />
       ))}
     </div>

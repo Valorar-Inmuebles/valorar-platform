@@ -1,5 +1,6 @@
 import type { AdminProperty } from "@/lib/api/types/property";
 import type { PropertyPublishabilitySummaryItem } from "@/lib/api/types/property-publishability-summary";
+import type { DashboardAttentionFilter, DashboardFilterSets } from "@/lib/api/types/dashboard";
 import {
   buildPublicPropertyUrl,
   resolvePropertyStatusVariant,
@@ -73,6 +74,27 @@ export function matchesPropertySearch(
   return haystack.includes(normalized);
 }
 
+export const PROPERTY_ATTENTION_FILTER_LABELS: Record<
+  DashboardAttentionFilter,
+  string
+> = {
+  "without-images": "Sin imágenes",
+  "without-commercialization": "Sin comercialización",
+  "without-description": "Sin descripción",
+  "without-features": "Sin características",
+  "pending-publication": "Pendientes de publicación",
+  "without-price": "Sin precio",
+  "recently-archived": "Archivadas recientemente",
+};
+
+export function matchesAttentionFilter(
+  propertyId: string,
+  attentionFilter: DashboardAttentionFilter,
+  filterSets: DashboardFilterSets,
+): boolean {
+  return filterSets[attentionFilter].includes(propertyId);
+}
+
 export function matchesCommercialFilter(
   property: AdminProperty,
   summary: PropertyPublishabilitySummaryItem | undefined,
@@ -97,14 +119,26 @@ export function filterPropertiesForList(
   options: {
     searchQuery: string;
     commercialFilter: PropertyCommercialFilter;
+    attentionFilter?: DashboardAttentionFilter | null;
+    attentionFilterSets?: DashboardFilterSets | null;
   },
 ): AdminProperty[] {
   return properties.filter((property) => {
     const summary = summaryByPropertyId[property.id];
 
+    const matchesAttention =
+      !options.attentionFilter ||
+      !options.attentionFilterSets ||
+      matchesAttentionFilter(
+        property.id,
+        options.attentionFilter,
+        options.attentionFilterSets,
+      );
+
     return (
       matchesPropertySearch(property, options.searchQuery) &&
-      matchesCommercialFilter(property, summary, options.commercialFilter)
+      matchesCommercialFilter(property, summary, options.commercialFilter) &&
+      matchesAttention
     );
   });
 }

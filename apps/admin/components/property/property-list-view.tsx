@@ -8,12 +8,14 @@ import { PropertyEmptyState } from "@/components/property/property-empty-state";
 import { PropertyListFilters } from "@/components/property/property-list-filters";
 import { PropertyRowActions } from "@/components/property/property-row-actions";
 import { PropertyStatusBadge } from "@/components/property/property-status-badge";
+import type { DashboardAttentionFilter, DashboardFilterSets } from "@/lib/api/types/dashboard";
 import type { AdminProperty } from "@/lib/api/types/property";
 import type { PropertyPublishabilitySummaryById } from "@/lib/api/types/property-publishability-summary";
 import { getPropertyTypeLabel } from "@/lib/format/property-labels";
 import {
   countByCommercialStatus,
   filterPropertiesForList,
+  PROPERTY_ATTENTION_FILTER_LABELS,
   resolveRowPublicUrl,
   resolveRowStatusVariant,
   type PropertyCommercialFilter,
@@ -26,6 +28,8 @@ type PropertyListViewProps = {
   summaryByPropertyId: PropertyPublishabilitySummaryById;
   activeListingCountsByPropertyId?: ActiveListingCountsByPropertyId;
   initialCommercialFilter?: PropertyCommercialFilter;
+  initialAttentionFilter?: DashboardAttentionFilter | null;
+  attentionFilterSets?: DashboardFilterSets | null;
 };
 
 function formatLocation(property: AdminProperty): string {
@@ -35,12 +39,21 @@ function formatLocation(property: AdminProperty): string {
 function resolveEmptyState(
   commercialFilter: PropertyCommercialFilter,
   searchQuery: string,
+  attentionFilter: DashboardAttentionFilter | null,
 ): { title: string; description: string } {
   if (searchQuery.trim()) {
     return {
       title: "Sin resultados",
       description:
         "No hay propiedades que coincidan con la búsqueda. Probá con otro título, código, ciudad o barrio.",
+    };
+  }
+
+  if (attentionFilter) {
+    return {
+      title: PROPERTY_ATTENTION_FILTER_LABELS[attentionFilter],
+      description:
+        "No hay propiedades en este filtro de atención. Volvé al dashboard o limpiá el filtro.",
     };
   }
 
@@ -83,15 +96,24 @@ export function PropertyListView({
   summaryByPropertyId,
   activeListingCountsByPropertyId = {},
   initialCommercialFilter = "all",
+  initialAttentionFilter = null,
+  attentionFilterSets = null,
 }: PropertyListViewProps) {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
   const [commercialFilter, setCommercialFilter] =
     useState<PropertyCommercialFilter>(initialCommercialFilter);
+  const [attentionFilter, setAttentionFilter] = useState(
+    initialAttentionFilter,
+  );
 
   useEffect(() => {
     setCommercialFilter(initialCommercialFilter);
   }, [initialCommercialFilter]);
+
+  useEffect(() => {
+    setAttentionFilter(initialAttentionFilter);
+  }, [initialAttentionFilter]);
 
   const counts = useMemo(
     () => countByCommercialStatus(properties, summaryByPropertyId),
@@ -103,19 +125,56 @@ export function PropertyListView({
       filterPropertiesForList(properties, summaryByPropertyId, {
         searchQuery,
         commercialFilter,
+        attentionFilter,
+        attentionFilterSets,
       }),
-    [properties, summaryByPropertyId, searchQuery, commercialFilter],
+    [
+      properties,
+      summaryByPropertyId,
+      searchQuery,
+      commercialFilter,
+      attentionFilter,
+      attentionFilterSets,
+    ],
   );
 
-  const emptyState = resolveEmptyState(commercialFilter, searchQuery);
+  const emptyState = resolveEmptyState(
+    commercialFilter,
+    searchQuery,
+    attentionFilter,
+  );
 
   const handleCommercialFilterChange = (value: PropertyCommercialFilter) => {
     setCommercialFilter(value);
+    setAttentionFilter(null);
     router.replace(buildPropertyListHref(value), { scroll: false });
+  };
+
+  const clearAttentionFilter = () => {
+    setAttentionFilter(null);
+    router.replace(buildPropertyListHref(commercialFilter), { scroll: false });
   };
 
   return (
     <div className="space-y-4">
+      {attentionFilter ? (
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-amber-50/70 px-3 py-2 ring-1 ring-amber-200/80">
+          <p className="text-sm text-foreground">
+            Filtro de atención:{" "}
+            <span className="font-medium">
+              {PROPERTY_ATTENTION_FILTER_LABELS[attentionFilter]}
+            </span>
+          </p>
+          <button
+            type="button"
+            onClick={clearAttentionFilter}
+            className="text-xs font-medium text-primary underline-offset-2 hover:underline"
+          >
+            Limpiar filtro
+          </button>
+        </div>
+      ) : null}
+
       <PropertyListFilters
         searchQuery={searchQuery}
         onSearchQueryChange={setSearchQuery}
@@ -207,7 +266,9 @@ export function PropertyListView({
           <p className="text-xs text-muted">
             Mostrando {filteredProperties.length} de {properties.length}{" "}
             {properties.length === 1 ? "propiedad" : "propiedades"}.
-            {commercialFilter !== "all" || searchQuery.trim()
+            {commercialFilter !== "all" ||
+            searchQuery.trim() ||
+            attentionFilter
               ? " Filtros aplicados en el navegador."
               : null}
           </p>

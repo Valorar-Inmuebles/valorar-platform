@@ -1,43 +1,37 @@
-import { Card, CardContent } from "@repo/ui/card";
-import { SkeletonBar } from "@/components/shared/skeleton-bar";
-
-export function DashboardHomeSkeleton() {
-  return (
-    <div className="space-y-6">
-      <div className="space-y-2">
-        <SkeletonBar className="h-7 w-48" />
-        <SkeletonBar className="h-4 w-72" />
-      </div>
-
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-        {Array.from({ length: 5 }).map((_, index) => (
-          <Card key={index}>
-            <CardContent className="space-y-3 p-5">
-              <SkeletonBar className="h-4 w-24" />
-              <SkeletonBar className="h-8 w-16" />
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-
-      <div className="grid gap-4 lg:grid-cols-2">
-        <Card>
-          <CardContent className="space-y-3 p-5">
-            <SkeletonBar className="h-5 w-40" />
-            <SkeletonBar className="h-4 w-full" />
-            <SkeletonBar className="h-4 w-5/6" />
-            <SkeletonBar className="h-4 w-2/3" />
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="space-y-3 p-5">
-            <SkeletonBar className="h-5 w-32" />
-            <SkeletonBar className="h-10 w-full" />
-            <SkeletonBar className="h-10 w-full" />
-            <SkeletonBar className="h-10 w-full" />
-          </CardContent>
-        </Card>
-      </div>
-    </div>
-  );
-}
+import { SkeletonBar } from "@/components/shared/skeleton-bar";
+
+export function DashboardHomeSkeleton() {
+  return (
+    <div className="space-y-8">
+      <div className="space-y-2">
+        <SkeletonBar className="h-4 w-24" />
+        <SkeletonBar className="h-3 w-56" />
+        <div className="grid grid-cols-2 gap-2 lg:grid-cols-4 lg:gap-3">
+          {Array.from({ length: 4 }).map((_, index) => (
+            <SkeletonBar key={index} className="h-[4.5rem] rounded-lg" />
+          ))}
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <SkeletonBar className="h-4 w-36" />
+        <div className="grid grid-cols-2 gap-2 lg:grid-cols-5 lg:gap-3">
+          {Array.from({ length: 5 }).map((_, index) => (
+            <SkeletonBar key={index} className="h-[4.5rem] rounded-lg" />
+          ))}
+        </div>
+      </div>
+
+      <div className="grid gap-6 xl:grid-cols-2">
+        <SkeletonBar className="h-40 rounded-lg" />
+        <SkeletonBar className="h-40 rounded-lg" />
+      </div>
+
+      <div className="flex flex-wrap gap-2">
+        {Array.from({ length: 4 }).map((_, index) => (
+          <SkeletonBar key={index} className="h-9 w-36 rounded-lg" />
+        ))}
+      </div>
+    </div>
+  );
+}

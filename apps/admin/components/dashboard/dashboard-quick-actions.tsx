@@ -1,33 +1,77 @@
 import Link from "next/link";
-import { Button } from "@repo/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@repo/ui/card";
 import { getPublicWebBaseUrl } from "@/lib/property/publishability";
+import { buildAttentionListHref, buildPropertyListHref } from "@/lib/property/property-list-url";
+import { cn } from "@/lib/cn";
+
+const ACTIONS: Array<{
+  href: string;
+  label: string;
+  icon: string;
+  primary?: boolean;
+}> = [
+  {
+    href: "/propiedades/crear",
+    label: "Nueva propiedad",
+    icon: "+",
+    primary: true,
+  },
+  {
+    href: buildPropertyListHref("commercial-draft"),
+    label: "Ver borradores",
+    icon: "◌",
+  },
+  {
+    href: buildAttentionListHref("pending-publication"),
+    label: "Propiedades pendientes",
+    icon: "!",
+  },
+];
 
 export function DashboardQuickActions() {
   const publicWebUrl = getPublicWebBaseUrl();
 
   return (
-    <Card>
-      <CardHeader className="pb-3">
-        <CardTitle className="text-base">Acciones rápidas</CardTitle>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-2">
-        <Link href="/propiedades/crear">
-          <Button className="w-full">Nueva propiedad</Button>
-        </Link>
-        <Link href="/propiedades">
-          <Button variant="secondary" className="w-full">
-            Ver propiedades
-          </Button>
-        </Link>
+    <section className="space-y-2">
+      <div>
+        <h2 className="text-sm font-semibold text-foreground">
+          Acciones rápidas
+        </h2>
+        <p className="text-xs text-muted">Atajos para el trabajo diario.</p>
+      </div>
+
+      <div className="flex flex-wrap gap-2">
+        {ACTIONS.map((action) => (
+          <Link
+            key={action.href}
+            href={action.href}
+            className={cn(
+              "inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium transition",
+              action.primary
+                ? "bg-primary text-primary-foreground hover:opacity-90"
+                : "bg-white text-foreground ring-1 ring-border/70 hover:ring-primary/25",
+            )}
+          >
+            <span aria-hidden className="text-xs opacity-80">
+              {action.icon}
+            </span>
+            {action.label}
+          </Link>
+        ))}
+
         {publicWebUrl ? (
-          <Link href={publicWebUrl} target="_blank" rel="noopener noreferrer">
-            <Button variant="outline-secondary" className="w-full">
-              Ver sitio web
-            </Button>
+          <Link
+            href={publicWebUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 rounded-lg bg-white px-3 py-2 text-sm font-medium text-foreground ring-1 ring-border/70 transition hover:ring-primary/25"
+          >
+            <span aria-hidden className="text-xs opacity-80">
+              ↗
+            </span>
+            Ver sitio web
           </Link>
         ) : null}
-      </CardContent>
-    </Card>
+      </div>
+    </section>
   );
 }

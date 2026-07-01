@@ -6,6 +6,7 @@ import { SuperAdminTenantEmptyState } from "@/components/shared/super-admin-tena
 import { ApiErrorPanel } from "@/components/shared/api-error-panel";
 import { PageShell } from "@/components/shared/page-shell";
 import { mapUnknownError } from "@/lib/api/error-map";
+import { getDashboardSummary } from "@/lib/api/dashboard";
 import { getPropertiesPublishabilitySummary } from "@/lib/api/property-publishability-summary";
 import { listPropertyListings } from "@/lib/api/property-listing";
 import { listProperties } from "@/lib/api/property";
@@ -14,17 +15,21 @@ import { resolveActiveTenantGate } from "@/lib/auth/require-active-tenant";
 import { getActiveTenantId } from "@/lib/auth/active-tenant";
 import { getSession } from "@/lib/auth/session";
 import { propertyListBreadcrumbs } from "@/lib/property/breadcrumbs";
-import { parsePropertyListHref } from "@/lib/property/property-list-url";
+import {
+  parseAttentionFilter,
+  parsePropertyListHref,
+} from "@/lib/property/property-list-url";
 
 type PropiedadesPageProps = {
-  searchParams: Promise<{ estado?: string }>;
+  searchParams: Promise<{ estado?: string; atencion?: string }>;
 };
 
 export default async function PropiedadesPage({
   searchParams,
 }: PropiedadesPageProps) {
-  const { estado } = await searchParams;
+  const { estado, atencion } = await searchParams;
   const initialCommercialFilter = parsePropertyListHref(estado);
+  const initialAttentionFilter = parseAttentionFilter(atencion);
 
   const [session, activeTenantId] = await Promise.all([
     getSession(),
@@ -49,14 +54,24 @@ export default async function PropiedadesPage({
     Awaited<ReturnType<typeof getPropertiesPublishabilitySummary>>[number]
   > = {};
   let activeListingCountsByPropertyId = {};
+  let attentionFilterSets = null;
   let errorMessage: string | null = null;
 
   try {
-    const [propertyList, summaries, activeListings] = await Promise.all([
+    const dataPromises: [
+      ReturnType<typeof listProperties>,
+      ReturnType<typeof getPropertiesPublishabilitySummary>,
+      ReturnType<typeof listPropertyListings>,
+      ReturnType<typeof getDashboardSummary> | Promise<null>,
+    ] = [
       listProperties(),
       getPropertiesPublishabilitySummary(),
       listPropertyListings({ status: "ACTIVE" }),
-    ]);
+      initialAttentionFilter ? getDashboardSummary() : Promise.resolve(null),
+    ];
+
+    const [propertyList, summaries, activeListings, dashboardSummary] =
+      await Promise.all(dataPromises);
 
     properties = propertyList;
     summaryByPropertyId = Object.fromEntries(
@@ -64,6 +79,7 @@ export default async function PropiedadesPage({
     );
     activeListingCountsByPropertyId =
       buildActiveListingCountsByPropertyId(activeListings);
+    attentionFilterSets = dashboardSummary?.filterSets ?? null;
   } catch (error) {
     errorMessage = mapUnknownError(error);
   }
@@ -96,6 +112,8 @@ export default async function PropiedadesPage({
           summaryByPropertyId={summaryByPropertyId}
           activeListingCountsByPropertyId={activeListingCountsByPropertyId}
           initialCommercialFilter={initialCommercialFilter}
+          initialAttentionFilter={initialAttentionFilter}
+          attentionFilterSets={attentionFilterSets}
         />
       ) : null}
     </PageShell>
