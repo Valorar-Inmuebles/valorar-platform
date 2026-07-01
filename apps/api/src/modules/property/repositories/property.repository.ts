@@ -143,4 +143,15 @@ export class PropertyRepository {
       })
       .then((count) => count > 0);
   }
+
+  findActiveTenantUser(userId: string, tenantId: string) {
+    return this.prisma.user.findFirst({
+      where: {
+        id: userId,
+        tenantId,
+        isActive: true,
+      },
+      select: { id: true },
+    });
+  }
 }

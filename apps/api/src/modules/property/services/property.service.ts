@@ -36,6 +36,7 @@ export class PropertyService {
   ): Promise<PropertyResponseDto> {
     await this.assertTenantExists(tenantId);
     await this.assertCreatedByBelongsToTenant(createdById, tenantId);
+    await this.assertAssigneeBelongsToTenant(dto.assignedToId, tenantId);
     await this.assertSlugIsUnique(dto.slug, tenantId);
 
     const internalCode = this.normalizeInternalCode(dto.internalCode);
@@ -53,7 +54,7 @@ export class PropertyService {
     user: AuthenticatedUser,
     isActive?: boolean,
   ): Promise<PropertyResponseDto[]> {
-    const where = this.propertyAccessService.buildListWhere(tenantId, user, {
+    const where = await this.propertyAccessService.buildListWhere(tenantId, user, {
       ...(isActive !== undefined ? { isActive } : {}),
     });
 
@@ -137,6 +138,10 @@ export class PropertyService {
       await this.assertInternalCodeIsUnique(internalCode, tenantId, id);
     }
 
+    if (dto.assignedToId !== undefined) {
+      await this.assertAssigneeBelongsToTenant(dto.assignedToId, tenantId);
+    }
+
     const property = await this.propertyRepository.update(
       id,
       tenantId,
@@ -212,6 +217,26 @@ export class PropertyService {
     if (!belongs) {
       throw new BadRequestException(
         'createdById must belong to the same tenant',
+      );
+    }
+  }
+
+  private async assertAssigneeBelongsToTenant(
+    assignedToId: string | null | undefined,
+    tenantId: string,
+  ): Promise<void> {
+    if (assignedToId === undefined || assignedToId === null) {
+      return;
+    }
+
+    const assignee = await this.propertyRepository.findActiveTenantUser(
+      assignedToId,
+      tenantId,
+    );
+
+    if (!assignee) {
+      throw new BadRequestException(
+        'assignedToId must be an active user of the same tenant',
       );
     }
   }
@@ -313,6 +338,7 @@ export class PropertyService {
       orientation: dto.orientation,
       layout: dto.layout,
       brightness: dto.brightness,
+      assignedToId: dto.assignedToId ?? null,
     };
   }
 
@@ -420,6 +446,9 @@ export class PropertyService {
         : {}),
       ...(dto.layout !== undefined ? { layout: dto.layout } : {}),
       ...(dto.brightness !== undefined ? { brightness: dto.brightness } : {}),
+      ...(dto.assignedToId !== undefined
+        ? { assignedToId: dto.assignedToId }
+        : {}),
     };
   }
 

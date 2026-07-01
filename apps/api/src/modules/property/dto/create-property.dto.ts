@@ -269,4 +269,12 @@ export class CreatePropertyDto {
   @IsOptional()
   @IsEnum(PropertyBrightness)
   brightness?: PropertyBrightness;
+
+  @ApiPropertyOptional({
+    nullable: true,
+    description: 'Commercial assignee (must belong to tenant)',
+  })
+  @IsOptional()
+  @IsString()
+  assignedToId?: string | null;
 }
