@@ -66,7 +66,7 @@ Lead Domain v1: documentado y congelado (inquiry-centric). `docs/03-database/lea
 
 Public Web: documentación en `docs/06-web/*`. Fases 1–6 ✅ (layout, home, listado, detalle, SEO & production hardening).
 
-Admin UI: documentación en `docs/07-admin/*`. Property Domain v1 ✅. **Comercialización UX unificada** ✅. **Ficha ejecutiva de propiedad (Fase 2)** ✅ — cabecera compacta + KPIs con iconos, publicabilidad en acordeón, barra sticky con Suspense/skeleton.
+Admin UI: documentación en `docs/07-admin/*`. Property Domain v1 ✅. **Comercialización UX unificada** ✅. **Ficha ejecutiva de propiedad (Fase 2)** ✅. **Dashboard operativo (Fase 3)** ✅ — KPIs, catálogo, alertas, actividad reciente, acciones rápidas.
 
 Desarrollo local: convención de puertos web **3000** / admin **3001** / api **3002**; `npm run dev` levanta las tres apps con guard `verify:workspace` (`predev`). Ver `docs/02-architecture/monorepo.md`.
 
@@ -287,7 +287,7 @@ Documentación: `docs/07-admin/admin-modules.md`, `docs/07-admin/admin-nav.md`
 * Badges derivados: Publicada / Borrador comercial / Archivada
 * Columna Web en publicaciones + enlaces «Ver en web» por operación
 
-Pendiente admin: RBAC API (v1.1), configuración (usuarios/inmobiliaria/tenants), dashboard operativo, upload storage.
+Pendiente admin: RBAC API (v1.1), configuración (usuarios/inmobiliaria/tenants), upload storage.
 
 ---
 

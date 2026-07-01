@@ -43,7 +43,7 @@ Fuera de alcance v1 (documentados aparte): `PropertyFeature`, `PropertyFeatureAs
 | Indicador publicabilidad (§5) | ✅ | Acordeón compacto al final del tab Datos |
 | Auth / RBAC / TenantSwitcher | ⏳ | Tenant dev vía env |
 | Configuración (usuarios, inmobiliaria, tenants) | ⏳ | Rutas placeholder |
-| Dashboard operativo (`/`) | ⏳ | Placeholder |
+| Dashboard operativo (`/`) | ✅ | KPIs, catálogo, alertas, actividad, acciones — ver `docs/07-admin/dashboard.md` |
 | Upload storage | ⏳ | Fuera v1 Foundation |
 
 Orden de entrega real: Properties → PropertyListings → PropertyPrices → PropertyImages.
