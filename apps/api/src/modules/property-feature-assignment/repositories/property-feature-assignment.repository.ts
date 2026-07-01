@@ -115,4 +115,34 @@ export class PropertyFeatureAssignmentRepository {
       });
     });
   }
+
+  async countByPropertyIds(
+    tenantId: string,
+    propertyIds: string[],
+  ): Promise<Map<string, number>> {
+    const counts = new Map<string, number>();
+
+    for (const propertyId of propertyIds) {
+      counts.set(propertyId, 0);
+    }
+
+    if (propertyIds.length === 0) {
+      return counts;
+    }
+
+    const rows = await this.prisma.propertyFeatureAssignment.groupBy({
+      by: ['propertyId'],
+      where: {
+        tenantId,
+        propertyId: { in: propertyIds },
+      },
+      _count: { _all: true },
+    });
+
+    for (const row of rows) {
+      counts.set(row.propertyId, row._count._all);
+    }
+
+    return counts;
+  }
 }

@@ -11,6 +11,10 @@ export type PropertyRecord = Prisma.PropertyGetPayload<{
   include: typeof propertyGeoInclude;
 }>;
 
+export type PropertyWithCreatorRecord = PropertyRecord & {
+  createdBy: { id: string; name: string };
+};
+
 export interface FindManyPropertiesOptions {
   isActive?: boolean;
 }
@@ -64,6 +68,19 @@ export class PropertyRepository {
         ...(isActive !== undefined ? { isActive } : {}),
       },
       include: propertyGeoInclude,
+      orderBy: { updatedAt: 'desc' },
+    });
+  }
+
+  findManyWithCreator(tenantId: string): Promise<PropertyWithCreatorRecord[]> {
+    return this.prisma.property.findMany({
+      where: { tenantId },
+      include: {
+        ...propertyGeoInclude,
+        createdBy: {
+          select: { id: true, name: true },
+        },
+      },
       orderBy: { updatedAt: 'desc' },
     });
   }
