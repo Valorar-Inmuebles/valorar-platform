@@ -7,8 +7,9 @@
   "license": "UNLICENSED",
   "scripts": {
     "generate": "prisma generate",
-    "prebuild": "npm run generate && npm run build -w @repo/property-rules",
+    "prebuild": "npm run generate && npm run build -w @repo/property-rules && npm run build -w @repo/geo-text",
     "build": "nest build",
+    "check-types": "tsc --noEmit",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "start": "nest start",
     "start:dev": "nest start --watch",
@@ -32,6 +33,7 @@
     "@nestjs/swagger": "^11.4.4",
     "@prisma/adapter-pg": "^7.8.0",
     "@prisma/client": "^7.8.0",
+    "@repo/geo-text": "*",
     "@repo/property-rules": "*",
     "bcrypt": "^6.0.0",
     "class-transformer": "^0.5.1",

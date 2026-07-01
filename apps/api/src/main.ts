@@ -42,6 +42,7 @@ async function bootstrap() {
         .addTag('Property Features')
         .addTag('Property Feature Assignments')
         .addTag('Public Properties')
+        .addTag('Geo')
         .build();
 
       const document = SwaggerModule.createDocument(app, swaggerConfig);

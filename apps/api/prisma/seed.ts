@@ -16,6 +16,7 @@ import {
   isDemoPropertiesSeedEnabled,
   seedDemoProperties,
 } from './seed-demo-properties';
+import { isGeoCatalogSeedEnabled, seedGeoCatalog } from './seed-geo';
 
 function resolveSeedPassword(): string {
   const password = process.env.SEED_DEFAULT_PASSWORD?.trim();
@@ -109,6 +110,22 @@ async function main(): Promise<void> {
       console.log('');
       console.log(
         'Demo properties seed skipped (set SEED_DEMO_PROPERTIES=true to enable).',
+      );
+    }
+
+    if (isGeoCatalogSeedEnabled()) {
+      const geoResult = await seedGeoCatalog(prisma);
+
+      console.log('');
+      console.log('Geo catalog seed completed (SEED_GEO_CATALOG=true).');
+      console.log(`  Countries: ${geoResult.countryCount}`);
+      console.log(`  Provinces: ${geoResult.provinceCount}`);
+      console.log(`  Localities: ${geoResult.localityCount}`);
+      console.log(`  Neighborhoods: ${geoResult.neighborhoodCount}`);
+    } else {
+      console.log('');
+      console.log(
+        'Geo catalog seed skipped (set SEED_GEO_CATALOG=true to enable).',
       );
     }
   } finally {

@@ -11,6 +11,7 @@ import { PropertyModule } from './modules/property/property.module';
 import { PropertyPriceModule } from './modules/property-price/property-price.module';
 import { StorageModule } from './modules/storage/storage.module';
 import { AdminDashboardModule } from './modules/admin-dashboard/admin-dashboard.module';
+import { GeoModule } from './modules/geo/geo.module';
 import { PrismaModule } from './prisma/prisma.module';
 
 @Module({
@@ -26,6 +27,7 @@ import { PrismaModule } from './prisma/prisma.module';
     PropertyFeatureAssignmentModule,
     PublicPropertyModule,
     AdminDashboardModule,
+    GeoModule,
   ],
   controllers: [AppController],
   providers: [AppService],

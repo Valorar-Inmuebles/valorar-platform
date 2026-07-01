@@ -51,6 +51,7 @@ Copiar desde `apps/api/.env.example`:
 | `COOKIE_SECURE` | No | `false` en dev HTTP local |
 | `SEED_DEFAULT_PASSWORD` | Solo seed | Contraseña de usuarios demo (dev) |
 | `SEED_DEMO_PROPERTIES` | No | `true` para cargar 30 propiedades demo publicables |
+| `SEED_GEO_CATALOG` | No | `true` para cargar catálogo geo Argentina (~4.000 localidades) |
 
 ## Seed de desarrollo (Auth Foundation v1)
 
@@ -80,6 +81,16 @@ Con `SEED_DEMO_PROPERTIES=true` se cargan 30 propiedades publicables para el ten
 ```bash
 # En .env además de SEED_DEFAULT_PASSWORD:
 # SEED_DEMO_PROPERTIES=true
+npx prisma db seed
+```
+
+### Catálogo geo (opt-in)
+
+Con `SEED_GEO_CATALOG=true` se cargan provincias, localidades y barrios CABA desde `prisma/seed-data/provincias.sql` y `localidades.sql`. Ver `docs/08-geo/implementation-guide.md`.
+
+```bash
+# En .env:
+# SEED_GEO_CATALOG=true
 npx prisma db seed
 ```
 
