@@ -1,4 +1,12 @@
 import Link from "next/link";
+import type { ReactNode } from "react";
+import {
+  IconCheckCircle,
+  IconGlobe,
+  IconImage,
+  IconStar,
+  IconTag,
+} from "@/components/layout/icons";
 import type { PropertyExecutiveSnapshot } from "@/lib/property/property-executive";
 import type { PropertyPublishabilitySummary } from "@/lib/property/publishability";
 import { propertySubNavHref } from "@/lib/property/navigation";
@@ -11,7 +19,7 @@ type PropertyExecutiveKpisProps = {
 };
 
 type KpiCardProps = {
-  icon: string;
+  icon: ReactNode;
   label: string;
   value: string;
   hint?: string;
@@ -19,18 +27,23 @@ type KpiCardProps = {
   tone?: "default" | "success" | "warning";
 };
 
+const kpiIconClassName = "size-[1.05rem]";
+
 function KpiCard({ icon, label, value, hint, href, tone = "default" }: KpiCardProps) {
   const content = (
     <div
       className={cn(
-        "flex items-start gap-2 rounded-lg px-2.5 py-2 transition",
+        "flex min-h-[4.5rem] items-start gap-2 rounded-lg px-2.5 py-2 transition",
         tone === "success" && "bg-emerald-50/70 ring-1 ring-emerald-200/80",
         tone === "warning" && "bg-amber-50/70 ring-1 ring-amber-200/80",
         tone === "default" && "bg-white ring-1 ring-border/70",
         href && "hover:ring-primary/25",
       )}
     >
-      <span aria-hidden className="mt-0.5 text-sm leading-none">
+      <span
+        aria-hidden
+        className="mt-0.5 flex size-[18px] shrink-0 items-center justify-center text-muted"
+      >
         {icon}
       </span>
       <div className="min-w-0 flex-1">
@@ -86,7 +99,7 @@ export function PropertyExecutiveKpis({
   return (
     <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3 lg:grid-cols-5">
       <KpiCard
-        icon="✅"
+        icon={<IconCheckCircle className={kpiIconClassName} />}
         label="Publicable"
         value={
           totalListings === 0
@@ -102,7 +115,7 @@ export function PropertyExecutiveKpis({
         tone={publishableTone}
       />
       <KpiCard
-        icon="🏷"
+        icon={<IconTag className={kpiIconClassName} />}
         label="Operaciones"
         value={String(snapshot.activeOperationsCount)}
         hint={
@@ -113,7 +126,7 @@ export function PropertyExecutiveKpis({
         href={propertySubNavHref(propertyId, "publicaciones")}
       />
       <KpiCard
-        icon="🖼"
+        icon={<IconImage className={kpiIconClassName} />}
         label="Imágenes"
         value={String(snapshot.imageCount)}
         hint={snapshot.hasCoverImage ? "Portada OK" : "Sin portada"}
@@ -121,14 +134,14 @@ export function PropertyExecutiveKpis({
         tone={imagesTone}
       />
       <KpiCard
-        icon="⭐"
+        icon={<IconStar className={kpiIconClassName} />}
         label="Características"
         value={String(snapshot.featureCount)}
         hint={snapshot.featureCount === 0 ? "Sin asignar" : "Asignadas"}
         href={propertySubNavHref(propertyId, "caracteristicas")}
       />
       <KpiCard
-        icon="🌐"
+        icon={<IconGlobe className={kpiIconClassName} />}
         label="SEO"
         value={snapshot.seo.scoreLabel}
         hint={

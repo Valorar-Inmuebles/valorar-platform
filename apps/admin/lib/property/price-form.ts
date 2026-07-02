@@ -1,4 +1,5 @@
 import type { PropertyListingStatus } from "@/lib/api/types/property-listing";
+import { moneyToInputValue, parseMoneyInput } from "@repo/shared-types/format-money";
 import type {
   AdminPropertyPrice,
   CreatePropertyPricePayload,
@@ -24,17 +25,14 @@ export function priceToFormValues(
   price: AdminPropertyPrice,
 ): PropertyPriceFormValues {
   return {
-    amount: price.amount.toString(),
+    amount: moneyToInputValue(price.amount),
     currency: price.currency,
     label: price.label ?? "",
   };
 }
 
 function parseAmount(value: string): number | undefined {
-  const trimmed = value.trim();
-  if (!trimmed) return undefined;
-  const parsed = Number.parseFloat(trimmed);
-  return Number.isNaN(parsed) ? undefined : parsed;
+  return parseMoneyInput(value);
 }
 
 export function validatePriceFormValues(

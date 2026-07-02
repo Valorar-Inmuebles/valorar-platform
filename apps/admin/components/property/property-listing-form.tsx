@@ -17,6 +17,7 @@ import {
   HelperText,
   Label,
 } from "@repo/ui/form-field";
+import { CurrencyInput } from "@repo/ui/currency-input";
 import { Input } from "@repo/ui/input";
 import { Select } from "@repo/ui/select";
 import { useToast } from "@repo/ui/toast";
@@ -122,9 +123,7 @@ export function PropertyListingForm({
         }
 
         toast.success("Operación creada correctamente.");
-        router.push(
-          `/propiedades/${propertyId}/publicaciones?edit=${result.id}`,
-        );
+        router.push(`/propiedades/${propertyId}/publicaciones`);
         router.refresh();
         return;
       }
@@ -203,14 +202,9 @@ export function PropertyListingForm({
 
           <FormField>
             <Label>Expensas</Label>
-            <Input
-              type="number"
-              min={0}
-              step="0.01"
+            <CurrencyInput
               value={values.expensesAmount}
-              onChange={(event) =>
-                updateField("expensesAmount", event.target.value)
-              }
+              onChange={(value) => updateField("expensesAmount", value)}
               disabled={isPending}
             />
           </FormField>

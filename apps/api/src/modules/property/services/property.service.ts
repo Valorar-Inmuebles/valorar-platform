@@ -70,23 +70,19 @@ export class PropertyService {
     tenantId: string,
     user: AuthenticatedUser,
   ): Promise<PropertyResponseDto> {
-    const property = await this.propertyRepository.findById(id, tenantId);
+    const where = await this.propertyAccessService.buildListWhere(tenantId, user, {
+      id,
+    });
 
-    if (!property) {
+    const properties = await this.propertyRepository.findMany(tenantId, {
+      where,
+    });
+
+    if (properties.length === 0) {
       throw new NotFoundException(`Property with id "${id}" not found`);
     }
 
-    await this.propertyAccessService.assertCanViewProperty(
-      {
-        id: property.id,
-        tenantId: property.tenantId,
-        createdById: property.createdById,
-        assignedToId: property.assignedToId,
-      },
-      user,
-    );
-
-    return PropertyResponseDto.fromEntity(property);
+    return PropertyResponseDto.fromEntity(properties[0]);
   }
 
   async update(

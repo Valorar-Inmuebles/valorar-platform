@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Badge } from "@repo/ui/badge";
 import { Button } from "@repo/ui/button";
+import { IconCheck, IconCircle } from "@/components/layout/icons";
 import type {
   ListingPublishability,
   PropertyPublishabilitySummary,
@@ -13,7 +14,6 @@ type PropertyPublishabilityPanelProps = {
 };
 
 function ChecklistItem({ item }: { item: PublishabilityCheckItem }) {
-  const icon = item.passed ? "✓" : "○";
   const content = (
     <span
       className={
@@ -24,11 +24,15 @@ function ChecklistItem({ item }: { item: PublishabilityCheckItem }) {
         aria-hidden
         className={
           item.passed
-            ? "mr-2 font-semibold text-emerald-600"
-            : "mr-2 text-muted"
+            ? "mr-2 inline-flex size-[18px] align-middle text-emerald-600"
+            : "mr-2 inline-flex size-[18px] align-middle text-muted"
         }
       >
-        {icon}
+        {item.passed ? (
+          <IconCheck className="size-[1.05rem]" />
+        ) : (
+          <IconCircle className="size-[1.05rem]" />
+        )}
       </span>
       {item.label}
       {!item.passed && item.message ? (

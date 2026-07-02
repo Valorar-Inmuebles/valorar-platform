@@ -3,6 +3,8 @@
 import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
 import type { Currency, PropertyListingType, PropertyType } from "@repo/shared-types";
+import { moneyToInputValue, parseMoneyInput } from "@repo/shared-types/format-money";
+import { CurrencyInput } from "@repo/ui/currency-input";
 import { GeoProvinceCombobox } from "@/components/geo/geo-province-combobox";
 import {
   GeoLocalitySearch,
@@ -67,8 +69,8 @@ function filtersToFormState(
           localityName: filters.city ?? "",
         }
       : null,
-    priceMin: filters.priceMin != null ? String(filters.priceMin) : "",
-    priceMax: filters.priceMax != null ? String(filters.priceMax) : "",
+    priceMin: filters.priceMin != null ? moneyToInputValue(filters.priceMin) : "",
+    priceMax: filters.priceMax != null ? moneyToInputValue(filters.priceMax) : "",
     currency: filters.currency ?? "",
     bedrooms: filters.bedrooms != null ? String(filters.bedrooms) : "",
     bathrooms: filters.bathrooms != null ? String(filters.bathrooms) : "",
@@ -76,9 +78,7 @@ function filtersToFormState(
 }
 
 function parseOptionalNumber(value: string): number | undefined {
-  if (!value.trim()) return undefined;
-  const parsed = Number.parseFloat(value);
-  return Number.isNaN(parsed) ? undefined : parsed;
+  return parseMoneyInput(value);
 }
 
 function parseOptionalIntField(value: string): number | undefined {
@@ -257,22 +257,20 @@ export function PropertyFilters({ onApplied, className = "" }: PropertyFiltersPr
           })}
         </div>
         <div className="mt-2 grid grid-cols-2 gap-2">
-          <input
-            type="number"
-            min="0"
+          <CurrencyInput
+            unstyled
             value={form.priceMin}
-            onChange={(event) =>
-              setForm((current) => ({ ...current, priceMin: event.target.value }))
+            onChange={(value) =>
+              setForm((current) => ({ ...current, priceMin: value }))
             }
             placeholder="Mín."
             className={FILTER_INPUT}
           />
-          <input
-            type="number"
-            min="0"
+          <CurrencyInput
+            unstyled
             value={form.priceMax}
-            onChange={(event) =>
-              setForm((current) => ({ ...current, priceMax: event.target.value }))
+            onChange={(value) =>
+              setForm((current) => ({ ...current, priceMax: value }))
             }
             placeholder="Máx."
             className={FILTER_INPUT}

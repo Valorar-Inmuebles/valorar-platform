@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { IconAlertTriangle } from "@/components/layout/icons";
 import type { DashboardAttentionAlerts } from "@/lib/api/types/dashboard";
 import { buildAttentionListHref } from "@/lib/property/property-list-url";
 import { cn } from "@/lib/cn";
@@ -75,9 +76,12 @@ export function DashboardAttentionAlertsPanel({
                   "hover:bg-zinc-50",
                 )}
               >
-                <span className="text-foreground">
-                  <span aria-hidden className="mr-2">
-                    ⚠
+                <span className="flex min-w-0 items-center gap-2 text-foreground">
+                  <span
+                    aria-hidden
+                    className="flex size-[18px] shrink-0 items-center justify-center text-amber-600"
+                  >
+                    <IconAlertTriangle className="size-[1.05rem]" />
                   </span>
                   {item.label}
                 </span>

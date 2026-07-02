@@ -4,6 +4,7 @@
   "private": true,
   "exports": {
     ".": "./src/index.ts",
+    "./format-money": "./src/format-money.ts",
     "./public-property": "./src/public-property.ts"
   },
   "scripts": {

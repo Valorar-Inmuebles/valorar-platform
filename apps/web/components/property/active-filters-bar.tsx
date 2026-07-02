@@ -4,6 +4,7 @@ import {
   getListingTypeLabel,
   getPropertyTypeLabel,
 } from "@/lib/format/labels";
+import { formatMoney } from "@/lib/format/price";
 import {
   hasActivePropertyListFilters,
   type PropertyListFilters,
@@ -68,17 +69,19 @@ function buildActiveFilterChips(
   }
 
   if (filters.priceMin != null) {
+    const currencyPrefix = filters.currency ? `${filters.currency} ` : "";
     chips.push({
       key: "priceMin",
-      label: `Desde ${filters.priceMin.toLocaleString("es-AR")}`,
+      label: `Desde ${currencyPrefix}${formatMoney(filters.priceMin)}`,
       onRemove: () => applyFilters({ priceMin: undefined }),
     });
   }
 
   if (filters.priceMax != null) {
+    const currencyPrefix = filters.currency ? `${filters.currency} ` : "";
     chips.push({
       key: "priceMax",
-      label: `Hasta ${filters.priceMax.toLocaleString("es-AR")}`,
+      label: `Hasta ${currencyPrefix}${formatMoney(filters.priceMax)}`,
       onRemove: () => applyFilters({ priceMax: undefined }),
     });
   }

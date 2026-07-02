@@ -1,4 +1,5 @@
 import type { PropertyListingType } from "@repo/shared-types";
+import { moneyToInputValue, parseMoneyInput } from "@repo/shared-types/format-money";
 import type {
   AdminPropertyListing,
   CreatePropertyListingPayload,
@@ -22,7 +23,10 @@ export function listingToFormValues(
 ): PropertyListingFormValues {
   return {
     listingType: listing.listingType,
-    expensesAmount: listing.expensesAmount?.toString() ?? "",
+    expensesAmount:
+      listing.expensesAmount != null
+        ? moneyToInputValue(listing.expensesAmount)
+        : "",
     expensesCurrency: listing.expensesCurrency ?? "",
     isFeatured: listing.isFeatured,
     status: listing.status,
@@ -30,10 +34,7 @@ export function listingToFormValues(
 }
 
 function parseOptionalFloat(value: string): number | undefined {
-  const trimmed = value.trim();
-  if (!trimmed) return undefined;
-  const parsed = Number.parseFloat(trimmed);
-  return Number.isNaN(parsed) ? undefined : parsed;
+  return parseMoneyInput(value);
 }
 
 export function validateListingCreateValues(

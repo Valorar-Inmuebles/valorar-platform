@@ -5,6 +5,7 @@ export type {
   GeoProvince,
   PropertyGeoFields,
 } from "./geo";
+export { formatMoney, formatPrice, formatMoneyInput, moneyToInputValue, parseMoneyInput, sanitizeMoneyInput } from "./format-money";
 export type {
   Currency,
   GeocodeAccuracy,

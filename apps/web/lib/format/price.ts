@@ -1,11 +1,8 @@
+import { formatMoney, formatPrice as formatPriceShared } from "@repo/shared-types/format-money";
 import type { Currency } from "@repo/shared-types";
 
-export function formatPrice(amount: number, currency: Currency): string {
-  const formatter = new Intl.NumberFormat("es-AR", {
-    style: "currency",
-    currency,
-    maximumFractionDigits: 0,
-  });
+export { formatMoney };
 
-  return formatter.format(amount);
+export function formatPrice(amount: number, currency: Currency): string {
+  return formatPriceShared(amount, currency);
 }

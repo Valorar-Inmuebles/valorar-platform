@@ -16,6 +16,7 @@ import {
   getListingTypeLabel,
   LISTING_STATUS_LABELS,
 } from "@/lib/format/listing-labels";
+import { formatMoney, formatPrice } from "@/lib/format/price";
 import { cn } from "@/lib/cn";
 
 type PropertyListingTableProps = {
@@ -26,8 +27,10 @@ type PropertyListingTableProps = {
 
 function formatExpenses(listing: AdminPropertyListing): string {
   if (listing.expensesAmount == null) return "—";
-  const currency = listing.expensesCurrency ?? "";
-  return `${currency} ${listing.expensesAmount.toLocaleString("es-AR")}`.trim();
+  if (!listing.expensesCurrency) {
+    return formatMoney(listing.expensesAmount);
+  }
+  return formatPrice(listing.expensesAmount, listing.expensesCurrency);
 }
 
 function formatDate(value: string | null): string {

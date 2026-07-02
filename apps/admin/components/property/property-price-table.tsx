@@ -7,6 +7,7 @@ import { Button } from "@repo/ui/button";
 import { Card, CardContent } from "@repo/ui/card";
 import { ConfirmModal } from "@repo/ui/modal";
 import { useToast } from "@repo/ui/toast";
+import { IconStar } from "@/components/layout/icons";
 import {
   deletePropertyPriceAction,
   markPropertyPricePrimaryAction,
@@ -157,7 +158,12 @@ export function PropertyPriceTable({
                       </td>
                       <td className="px-4 py-3">
                         {price.isPrimary ? (
-                          <Badge variant="info">⭐ Principal</Badge>
+                          <Badge variant="info">
+                            <span className="inline-flex items-center gap-1">
+                              <IconStar className="size-3 shrink-0" aria-hidden />
+                              Principal
+                            </span>
+                          </Badge>
                         ) : (
                           <span className="text-muted">—</span>
                         )}
