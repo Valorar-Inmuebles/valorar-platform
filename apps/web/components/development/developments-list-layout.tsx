@@ -2,9 +2,9 @@ import type { ReactNode } from "react";
 import { Suspense } from "react";
 import { InventoryCoverageProvider } from "@/components/search/inventory-coverage-context";
 import { getInventorySearchCoverage } from "@/lib/inventory/get-inventory-search-coverage";
-import { ActiveFiltersBar } from "./active-filters-bar";
-import { MobileFiltersButton } from "./mobile-filters-button";
-import { PropertyFilters } from "./property-filters";
+import { DevelopmentActiveFiltersBar } from "./development-active-filters-bar";
+import { DevelopmentFilters } from "./development-filters";
+import { DevelopmentMobileFiltersButton } from "./development-mobile-filters-button";
 
 function FiltersSidebarFallback() {
   return (
@@ -12,17 +12,18 @@ function FiltersSidebarFallback() {
       <div className="h-6 w-24 animate-pulse rounded bg-surface-alt" />
       <div className="h-11 w-full animate-pulse rounded-xl bg-surface-alt" />
       <div className="h-11 w-full animate-pulse rounded-xl bg-surface-alt" />
-      <div className="h-11 w-full animate-pulse rounded-xl bg-surface-alt" />
     </div>
   );
 }
 
-type PropertiesListLayoutProps = {
+type DevelopmentsListLayoutProps = {
   children: ReactNode;
 };
 
-export async function PropertiesListLayout({ children }: PropertiesListLayoutProps) {
-  const coverage = await getInventorySearchCoverage("properties");
+export async function DevelopmentsListLayout({
+  children,
+}: DevelopmentsListLayoutProps) {
+  const coverage = await getInventorySearchCoverage("developments");
 
   return (
     <InventoryCoverageProvider coverage={coverage}>
@@ -30,17 +31,17 @@ export async function PropertiesListLayout({ children }: PropertiesListLayoutPro
         <aside className="hidden lg:block">
           <div className="sticky top-24">
             <Suspense fallback={<FiltersSidebarFallback />}>
-              <PropertyFilters />
+              <DevelopmentFilters />
             </Suspense>
           </div>
         </aside>
 
         <div className="min-w-0">
           <Suspense fallback={null}>
-            <MobileFiltersButton />
+            <DevelopmentMobileFiltersButton />
           </Suspense>
           <Suspense fallback={null}>
-            <ActiveFiltersBar />
+            <DevelopmentActiveFiltersBar />
           </Suspense>
           {children}
         </div>

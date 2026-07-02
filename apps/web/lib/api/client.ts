@@ -2,7 +2,11 @@ const DEFAULT_API_URL = "http://localhost:3002";
 const DEFAULT_REVALIDATE_SECONDS = 300;
 
 export function getApiBaseUrl(): string {
-  return process.env.API_URL ?? DEFAULT_API_URL;
+  return (
+    process.env.NEXT_PUBLIC_API_URL ??
+    process.env.API_URL ??
+    DEFAULT_API_URL
+  );
 }
 
 type ApiFetchOptions = RequestInit & {

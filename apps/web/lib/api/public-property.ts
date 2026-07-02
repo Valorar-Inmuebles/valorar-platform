@@ -7,6 +7,7 @@ import type {
   Currency,
 } from "@repo/shared-types";
 import { apiFetch } from "@/lib/api/client";
+import { isDevelopmentProperty } from "@/lib/inventory/is-development-property";
 import { getTenantId } from "@/lib/tenant/get-tenant-id";
 import type { PropertyListFilters } from "@/lib/url/search-params";
 
@@ -116,6 +117,49 @@ export async function getPublicProperties(
       unavailable: true,
     };
   }
+}
+
+export async function getPublicDevelopments(
+  filters: PropertyListFilters,
+): Promise<PublicPropertiesResult> {
+  const developments: PublicPropertyCard[] = [];
+  let page = 1;
+  let totalPages = 1;
+
+  while (page <= totalPages) {
+    const response = await getPublicProperties({
+      ...filters,
+      page,
+      limit: 100,
+    });
+
+    if (response.unavailable) {
+      return {
+        ...emptyListResponse(filters),
+        unavailable: true,
+      };
+    }
+
+    developments.push(...response.data.filter(isDevelopmentProperty));
+    totalPages = response.meta.totalPages;
+    page += 1;
+  }
+
+  const limit = filters.limit;
+  const currentPage = filters.page;
+  const start = (currentPage - 1) * limit;
+  const total = developments.length;
+  const totalPagesForDevelopments = total > 0 ? Math.ceil(total / limit) : 0;
+
+  return {
+    data: developments.slice(start, start + limit),
+    meta: {
+      page: currentPage,
+      limit,
+      total,
+      totalPages: totalPagesForDevelopments,
+    },
+  };
 }
 
 export async function getFeaturedProperties(

@@ -5,13 +5,14 @@ import { useEffect, useState } from "react";
 import type { Currency, PropertyListingType, PropertyType } from "@repo/shared-types";
 import { moneyToInputValue, parseMoneyInput } from "@repo/shared-types/format-money";
 import { CurrencyInput } from "@repo/ui/currency-input";
-import { GeoProvinceCombobox } from "@/components/geo/geo-province-combobox";
 import {
-  GeoLocalitySearch,
-  type SelectedLocality,
-} from "@/components/geo/geo-locality-search";
+  getInitialProvinceId,
+  InventoryLocationFilters,
+} from "@/components/search/inventory-location-filters";
+import { useInventoryCoverage } from "@/components/search/inventory-coverage-context";
 import { FILTER_PROPERTY_TYPE_OPTIONS } from "@/lib/format/labels";
 import { usePropertyFilters } from "@/hooks/use-property-filters";
+import type { SelectedLocality } from "@/components/geo/geo-locality-search";
 
 const LISTING_TYPE_OPTIONS: Array<{
   value: PropertyListingType | "";
@@ -20,7 +21,6 @@ const LISTING_TYPE_OPTIONS: Array<{
   { value: "", label: "Todas" },
   { value: "SALE", label: "Venta" },
   { value: "RENT", label: "Alquiler" },
-  { value: "TEMPORARY_RENT", label: "Temporario" },
 ];
 
 const ROOM_COUNT_OPTIONS = [
@@ -120,15 +120,22 @@ function FilterSection({
 }
 
 export function PropertyFilters({ onApplied, className = "" }: PropertyFiltersProps) {
+  const coverage = useInventoryCoverage();
   const { filters, applyFilters, clearFilters } = usePropertyFilters();
-  const [form, setForm] = useState<FilterFormState>(() => filtersToFormState(filters));
+  const [form, setForm] = useState<FilterFormState>(() => ({
+    ...filtersToFormState(filters),
+    provinceId: filters.provinceId || getInitialProvinceId(coverage),
+  }));
 
   useEffect(() => {
-    const nextForm = filtersToFormState(filters);
+    const nextForm = {
+      ...filtersToFormState(filters),
+      provinceId: filters.provinceId || getInitialProvinceId(coverage),
+    };
     setForm((current) =>
       isSameFormState(current, nextForm) ? current : nextForm,
     );
-  }, [filters]);
+  }, [coverage, filters]);
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -136,7 +143,11 @@ export function PropertyFilters({ onApplied, className = "" }: PropertyFiltersPr
     applyFilters({
       listingType: form.listingType || undefined,
       propertyType: form.propertyType || undefined,
-      provinceId: form.provinceId || form.locality?.provinceId || undefined,
+      provinceId:
+        form.provinceId ||
+        form.locality?.provinceId ||
+        coverage.defaultProvinceId ||
+        undefined,
       localityId: form.locality?.localityId || undefined,
       city: form.locality?.localityName || undefined,
       neighborhood: undefined,
@@ -151,7 +162,10 @@ export function PropertyFilters({ onApplied, className = "" }: PropertyFiltersPr
   };
 
   return (
-    <form onSubmit={handleSubmit} className={`space-y-6 ${className}`}>
+    <form
+      onSubmit={handleSubmit}
+      className={`space-y-6 rounded-2xl border border-border bg-white p-5 shadow-sm ${className}`}
+    >
       <div>
         <h2 className="text-base font-semibold text-foreground">Filtros</h2>
         <p className="mt-1 text-sm text-muted">Refiná por ubicación, operación y precio.</p>
@@ -181,32 +195,23 @@ export function PropertyFilters({ onApplied, className = "" }: PropertyFiltersPr
         </div>
       </FilterSection>
 
-      <FilterSection title="Provincia">
-        <GeoProvinceCombobox
-          value={form.provinceId}
-          onChange={(provinceId) =>
-            setForm((current) => ({ ...current, provinceId, locality: null }))
-          }
-          placeholder="Todas las provincias"
-          inputClassName={FILTER_INPUT}
-        />
-      </FilterSection>
-
-      <FilterSection title="Localidad">
-        <GeoLocalitySearch
-          value={form.locality}
-          provinceId={form.provinceId || undefined}
-          onChange={(locality) =>
-            setForm((current) => ({
-              ...current,
-              locality,
-              provinceId: locality?.provinceId ?? current.provinceId,
-            }))
-          }
-          placeholder="Buscar localidad o barrio"
-          inputClassName={FILTER_INPUT}
-        />
-      </FilterSection>
+      <InventoryLocationFilters
+        coverage={coverage}
+        provinceId={form.provinceId}
+        onProvinceIdChange={(provinceId) =>
+          setForm((current) => ({ ...current, provinceId, locality: null }))
+        }
+        locality={form.locality}
+        onLocalityChange={(locality) =>
+          setForm((current) => ({
+            ...current,
+            locality,
+            provinceId: locality?.provinceId ?? current.provinceId,
+          }))
+        }
+        inputClassName={FILTER_INPUT}
+        provincePlaceholder="Todas las provincias"
+      />
 
       <FilterSection title="Tipo">
         <select

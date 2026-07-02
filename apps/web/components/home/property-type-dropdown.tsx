@@ -17,6 +17,8 @@ type PropertyTypeDropdownProps = {
   onChange: (value: PropertyType | "") => void;
   disabled?: boolean;
   className?: string;
+  compact?: boolean;
+  embedded?: boolean;
 };
 
 type PanelPosition = {
@@ -74,6 +76,8 @@ export function PropertyTypeDropdown({
   onChange,
   disabled = false,
   className = "",
+  compact = false,
+  embedded = false,
 }: PropertyTypeDropdownProps) {
   const [open, setOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -211,7 +215,11 @@ export function PropertyTypeDropdown({
           onClick={() => {
             setOpen((current) => !current);
           }}
-          className="flex h-14 w-full items-center justify-between gap-3 rounded-2xl border border-border-default bg-surface-card px-4 text-left text-sm font-normal text-text-primary transition hover:border-brand-green/30 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action-accent disabled:cursor-not-allowed disabled:opacity-50 md:px-5 md:text-base"
+          className={`flex w-full items-center justify-between gap-3 text-left text-sm font-normal text-text-primary transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action-accent disabled:cursor-not-allowed disabled:opacity-50 md:text-base ${
+            embedded
+              ? "h-12 border-0 bg-transparent px-0 shadow-none hover:border-transparent"
+              : "rounded-2xl border border-border-default bg-surface-card px-4 hover:border-brand-green/30 md:px-5"
+          } ${compact || embedded ? "h-12" : "h-14"}`}
         >
           <span className="flex min-w-0 items-center gap-3">
             <PropertyTypeIcon propertyType={value} />

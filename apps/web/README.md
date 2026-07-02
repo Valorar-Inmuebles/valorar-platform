@@ -46,6 +46,7 @@ Copiar desde `apps/web/.env.example`:
 | -------- | --------- | ----------------- | --- |
 | `TENANT_ID` | Sí | — | Tenant para llamadas a `/public/properties*` |
 | `API_URL` | No | `http://localhost:3002` | Base URL de `apps/api` (server-side) |
+| `NEXT_PUBLIC_API_URL` | No | — | Base URL de `apps/api` para componentes client (geo autocomplete en filtros) |
 | `NEXT_PUBLIC_SITE_URL` | No | `http://localhost:3000` | URL canónica (OG, sitemap) |
 
 ## Documentación

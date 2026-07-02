@@ -1,5 +1,4 @@
 import type { ReactNode } from "react";
-import { Playfair_Display } from "next/font/google";
 import type {
   PublicPropertyDetail,
   PublicPropertyFeature,
@@ -19,12 +18,6 @@ import {
   buildTechnicalSheetItems,
   PROPERTY_METRICS_GRID_KEYS,
 } from "./property-technical-sheet";
-
-const playfair = Playfair_Display({
-  subsets: ["latin"],
-  weight: ["500", "600"],
-  display: "swap",
-});
 
 type PropertyCharacteristicsProps = {
   property: PublicPropertyDetail;
@@ -210,9 +203,7 @@ export function PropertyCharacteristics({
   return (
     <section className="mt-8">
       <div className="rounded-2xl border border-border-default bg-surface-card p-6 md:p-8">
-        <h2
-          className={`${playfair.className} text-2xl font-medium tracking-tight text-text-primary md:text-3xl`}
-        >
+        <h2 className="text-2xl font-semibold tracking-tight text-text-primary md:text-3xl">
           Características
         </h2>
 

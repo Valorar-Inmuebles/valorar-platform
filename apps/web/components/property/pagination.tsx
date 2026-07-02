@@ -8,6 +8,8 @@ type PaginationProps = {
   page: number;
   totalPages: number;
   filters: PropertyListFilters;
+  buildPageUrl?: (filters: Partial<PropertyListFilters>) => string;
+  ariaLabel?: string;
 };
 
 function getVisiblePages(current: number, total: number): number[] {
@@ -22,7 +24,13 @@ function getVisiblePages(current: number, total: number): number[] {
     .sort((a, b) => a - b);
 }
 
-export function Pagination({ page, totalPages, filters }: PaginationProps) {
+export function Pagination({
+  page,
+  totalPages,
+  filters,
+  buildPageUrl = buildPropertyListUrl,
+  ariaLabel = "Paginación de propiedades",
+}: PaginationProps) {
   if (totalPages <= 1) {
     return null;
   }
@@ -31,12 +39,12 @@ export function Pagination({ page, totalPages, filters }: PaginationProps) {
 
   return (
     <nav
-      aria-label="Paginación de propiedades"
+      aria-label={ariaLabel}
       className="mt-10 flex flex-wrap items-center justify-center gap-2"
     >
       {page > 1 ? (
         <Link
-          href={buildPropertyListUrl({ ...filters, page: page - 1 })}
+          href={buildPageUrl({ ...filters, page: page - 1 })}
           className="inline-flex h-10 min-w-10 items-center justify-center rounded-lg border border-border px-3 text-sm font-medium text-foreground transition hover:border-primary hover:text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
         >
           Anterior
@@ -59,7 +67,7 @@ export function Pagination({ page, totalPages, filters }: PaginationProps) {
               </span>
             ) : null}
             <Link
-              href={buildPropertyListUrl({ ...filters, page: pageNumber })}
+              href={buildPageUrl({ ...filters, page: pageNumber })}
               aria-current={pageNumber === page ? "page" : undefined}
               className={`inline-flex h-10 min-w-10 items-center justify-center rounded-lg border px-3 text-sm font-medium transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${
                 pageNumber === page
@@ -75,7 +83,7 @@ export function Pagination({ page, totalPages, filters }: PaginationProps) {
 
       {page < totalPages ? (
         <Link
-          href={buildPropertyListUrl({ ...filters, page: page + 1 })}
+          href={buildPageUrl({ ...filters, page: page + 1 })}
           className="inline-flex h-10 min-w-10 items-center justify-center rounded-lg border border-border px-3 text-sm font-medium text-foreground transition hover:border-primary hover:text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
         >
           Siguiente

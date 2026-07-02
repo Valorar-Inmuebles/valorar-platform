@@ -3,10 +3,15 @@
 import { useEffect, useId, useRef, useState } from "react";
 import type { GeoProvince } from "@repo/shared-types";
 import { getProvinces } from "@/lib/api/geo";
+import type { SearchCoverageProvince } from "@/lib/inventory/search-coverage.types";
 
 type GeoProvinceComboboxProps = {
   value: string;
   onChange: (provinceId: string, province?: GeoProvince) => void;
+  /** When set, only these provinces are shown (published inventory). */
+  provinces?: SearchCoverageProvince[];
+  /** Show "Todas las provincias" clear option. Default true. */
+  allowClear?: boolean;
   disabled?: boolean;
   placeholder?: string;
   className?: string;
@@ -16,6 +21,8 @@ type GeoProvinceComboboxProps = {
 export function GeoProvinceCombobox({
   value,
   onChange,
+  provinces: provincesProp,
+  allowClear = true,
   disabled = false,
   placeholder = "Provincia",
   className = "",
@@ -23,15 +30,20 @@ export function GeoProvinceCombobox({
 }: GeoProvinceComboboxProps) {
   const listId = useId();
   const containerRef = useRef<HTMLDivElement>(null);
-  const [provinces, setProvinces] = useState<GeoProvince[]>([]);
+  const [fetchedProvinces, setFetchedProvinces] = useState<GeoProvince[]>([]);
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
 
+  const provinces = provincesProp ?? fetchedProvinces;
   const selected = provinces.find((province) => province.id === value);
 
   useEffect(() => {
-    getProvinces().then(setProvinces).catch(() => setProvinces([]));
-  }, []);
+    if (provincesProp) {
+      return;
+    }
+
+    getProvinces().then(setFetchedProvinces).catch(() => setFetchedProvinces([]));
+  }, [provincesProp]);
 
   useEffect(() => {
     setQuery(selected?.name ?? "");
@@ -85,20 +97,22 @@ export function GeoProvinceCombobox({
           id={listId}
           className="absolute z-30 mt-1 max-h-56 w-full overflow-y-auto rounded-xl border border-border-default bg-surface-card py-1 shadow-lg"
         >
-          <li>
-            <button
-              type="button"
-              className="flex w-full px-3 py-2 text-left text-sm text-muted hover:bg-surface-alt"
-              onMouseDown={(event) => event.preventDefault()}
-              onClick={() => {
-                onChange("");
-                setQuery("");
-                setOpen(false);
-              }}
-            >
-              Todas las provincias
-            </button>
-          </li>
+          {allowClear ? (
+            <li>
+              <button
+                type="button"
+                className="flex w-full px-3 py-2 text-left text-sm text-muted hover:bg-surface-alt"
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={() => {
+                  onChange("");
+                  setQuery("");
+                  setOpen(false);
+                }}
+              >
+                Todas las provincias
+              </button>
+            </li>
+          ) : null}
           {filtered.length === 0 ? (
             <li className="px-3 py-2 text-sm text-muted">Sin resultados</li>
           ) : (

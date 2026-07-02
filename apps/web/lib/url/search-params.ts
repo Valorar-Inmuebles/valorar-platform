@@ -134,7 +134,8 @@ export function parsePropertyListSearchParams(
   };
 }
 
-export function buildPropertyListUrl(
+export function buildInventoryListUrl(
+  basePath: string,
   filters: Partial<PropertyListFilters>,
 ): string {
   const params = new URLSearchParams();
@@ -193,7 +194,19 @@ export function buildPropertyListUrl(
 
   const query = params.toString();
 
-  return query ? `/propiedades?${query}` : "/propiedades";
+  return query ? `${basePath}?${query}` : basePath;
+}
+
+export function buildPropertyListUrl(
+  filters: Partial<PropertyListFilters>,
+): string {
+  return buildInventoryListUrl("/propiedades", filters);
+}
+
+export function buildDevelopmentListUrl(
+  filters: Partial<PropertyListFilters>,
+): string {
+  return buildInventoryListUrl("/emprendimientos", filters);
 }
 
 export function hasActivePropertyListFilters(
@@ -211,6 +224,17 @@ export function hasActivePropertyListFilters(
       filters.currency ||
       filters.bedrooms != null ||
       filters.bathrooms != null,
+  );
+}
+
+export function hasActiveLocationFilters(
+  filters: PropertyListFilters,
+): boolean {
+  return Boolean(
+    filters.provinceId ||
+      filters.localityId ||
+      filters.city ||
+      filters.neighborhood,
   );
 }
 
