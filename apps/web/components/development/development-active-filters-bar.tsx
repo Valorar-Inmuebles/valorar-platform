@@ -1,7 +1,7 @@
 "use client";
 
 import { useDevelopmentFilters } from "@/hooks/use-list-filters";
-import { hasActiveLocationFilters } from "@/lib/url/search-params";
+import { hasActiveLocationFilters, locationSelectionToListFilters } from "@/lib/url/search-params";
 
 type ActiveLocationFilterChip = {
   key: string;
@@ -19,12 +19,15 @@ function buildLocationFilterChips(
     chips.push({
       key: "locality",
       label: filters.city,
-      onRemove: () =>
-        applyFilters({
-          localityId: undefined,
-          city: undefined,
-          provinceId: undefined,
-        }),
+      onRemove: () => applyFilters(locationSelectionToListFilters(null)),
+    });
+  }
+
+  if (filters.neighborhood) {
+    chips.push({
+      key: "neighborhood",
+      label: filters.neighborhood,
+      onRemove: () => applyFilters(locationSelectionToListFilters(null)),
     });
   }
 

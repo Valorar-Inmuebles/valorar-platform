@@ -14,6 +14,10 @@ import { useInventoryCoverage } from "@/components/search/inventory-coverage-con
 import { FILTER_PROPERTY_TYPE_OPTIONS } from "@/lib/format/labels";
 import { usePropertyFilters } from "@/hooks/use-property-filters";
 import type { SelectedLocality } from "@/components/geo/geo-locality-search";
+import {
+  locationSelectionToListFilters,
+  listFiltersToLocationSelection,
+} from "@/lib/url/search-params";
 
 const LISTING_TYPE_OPTIONS: Array<{
   value: PropertyListingType | "";
@@ -65,18 +69,20 @@ type PropertyFiltersProps = {
 function filtersToFormState(
   filters: ReturnType<typeof usePropertyFilters>["filters"],
 ): FilterFormState {
-  const hasLocalityLabel = Boolean(filters.city);
+  const locationSelection = listFiltersToLocationSelection(filters);
 
   return {
     listingType: filters.listingType ?? "",
     propertyType: filters.propertyType ?? "",
     provinceId: filters.provinceId ?? "",
-    locality: hasLocalityLabel
+    locality: locationSelection
       ? {
-          provinceId: filters.provinceId ?? "",
+          provinceId: locationSelection.provinceId,
           provinceName: "",
-          localityId: filters.localityId ?? "",
-          localityName: filters.city ?? "",
+          localityId: locationSelection.localityId,
+          localityName: locationSelection.localityName,
+          neighborhoodId: locationSelection.neighborhoodId,
+          kind: locationSelection.kind,
         }
       : null,
     priceMin: filters.priceMin != null ? moneyToInputValue(filters.priceMin) : "",
@@ -104,6 +110,8 @@ function isSameFormState(a: FilterFormState, b: FilterFormState): boolean {
     a.provinceId === b.provinceId &&
     a.locality?.localityId === b.locality?.localityId &&
     a.locality?.localityName === b.locality?.localityName &&
+    a.locality?.neighborhoodId === b.locality?.neighborhoodId &&
+    a.locality?.kind === b.locality?.kind &&
     a.priceMin === b.priceMin &&
     a.priceMax === b.priceMax &&
     a.currency === b.currency &&
@@ -153,14 +161,24 @@ export function PropertyFilters({ onApplied, className = "" }: PropertyFiltersPr
     applyFilters({
       listingType: form.listingType || undefined,
       propertyType: form.propertyType || undefined,
-      provinceId:
-        form.provinceId ||
-        form.locality?.provinceId ||
-        coverage.defaultProvinceId ||
-        undefined,
-      localityId: form.locality?.localityId || undefined,
-      city: form.locality?.localityName || undefined,
-      neighborhood: undefined,
+      ...locationSelectionToListFilters(
+        form.locality
+          ? {
+              ...form.locality,
+              provinceId:
+                form.provinceId ||
+                form.locality.provinceId ||
+                coverage.defaultProvinceId ||
+                "",
+            }
+          : form.provinceId || coverage.defaultProvinceId
+            ? {
+                provinceId: form.provinceId || coverage.defaultProvinceId || "",
+                localityName: "",
+                kind: "province" as const,
+              }
+            : null,
+      ),
       priceMin: parseOptionalNumber(form.priceMin),
       priceMax: parseOptionalNumber(form.priceMax),
       currency: form.currency || undefined,

@@ -10,7 +10,7 @@ import {
 } from "@/components/search/inventory-location-filters";
 import { useInventoryCoverage } from "@/components/search/inventory-coverage-context";
 import { useDevelopmentFilters } from "@/hooks/use-list-filters";
-import { hasActiveLocationFilters } from "@/lib/url/search-params";
+import { hasActiveLocationFilters, listFiltersToLocationSelection, locationSelectionToListFilters } from "@/lib/url/search-params";
 
 const FILTER_INPUT =
   "h-11 w-full rounded-xl bg-white px-3 text-sm outline-none ring-1 ring-border-default/80 transition placeholder:text-muted focus:ring-brand-green/40";
@@ -30,16 +30,18 @@ function filtersToFormState(
   filters: ReturnType<typeof useDevelopmentFilters>["filters"],
   defaultProvinceId: string,
 ): LocationFilterFormState {
-  const hasLocalityLabel = Boolean(filters.city);
+  const locationSelection = listFiltersToLocationSelection(filters);
 
   return {
     provinceId: filters.provinceId || defaultProvinceId,
-    locality: hasLocalityLabel
+    locality: locationSelection
       ? {
-          provinceId: filters.provinceId ?? defaultProvinceId,
+          provinceId: locationSelection.provinceId || defaultProvinceId,
           provinceName: "",
-          localityId: filters.localityId ?? undefined,
-          localityName: filters.city ?? "",
+          localityId: locationSelection.localityId,
+          localityName: locationSelection.localityName,
+          neighborhoodId: locationSelection.neighborhoodId,
+          kind: locationSelection.kind,
         }
       : null,
   };
@@ -63,16 +65,26 @@ export function DevelopmentFilters({
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-    applyFilters({
-      provinceId:
-        form.provinceId ||
-        form.locality?.provinceId ||
-        coverage.defaultProvinceId ||
-        undefined,
-      localityId: form.locality?.localityId || undefined,
-      city: form.locality?.localityName || undefined,
-      neighborhood: undefined,
-    });
+    applyFilters(
+      locationSelectionToListFilters(
+        form.locality
+          ? {
+              ...form.locality,
+              provinceId:
+                form.provinceId ||
+                form.locality.provinceId ||
+                coverage.defaultProvinceId ||
+                "",
+            }
+          : form.provinceId || coverage.defaultProvinceId
+            ? {
+                provinceId: form.provinceId || coverage.defaultProvinceId || "",
+                localityName: "",
+                kind: "province" as const,
+              }
+            : null,
+      ),
+    );
 
     onApplied?.();
   };

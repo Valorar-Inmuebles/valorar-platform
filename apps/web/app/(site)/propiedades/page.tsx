@@ -30,8 +30,10 @@ function buildPropertiesDescription(
 ): string {
   const parts = ["Explorá propiedades en venta, alquiler y temporario."];
 
-  if (filters.city) {
-    parts.push(`Resultados en ${filters.city}.`);
+  const location = filters.neighborhood ?? filters.city;
+
+  if (location) {
+    parts.push(`Resultados en ${location}.`);
   }
 
   if (filters.listingType) {

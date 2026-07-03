@@ -64,24 +64,11 @@ export function PropertySearchForm({
   const locationSuggestions = getTopLocationSuggestions(coverage, 5);
 
   const submitSearch = (location = selectedLocation) => {
-    if (location?.kind === "province") {
-      router.push(
-        buildPropertySearchUrl({
-          tab: activeTab,
-          propertyType: propertyType || undefined,
-          provinceId: location.provinceId,
-        }),
-      );
-      return;
-    }
-
     router.push(
       buildPropertySearchUrl({
         tab: activeTab,
         propertyType: propertyType || undefined,
-        provinceId: location?.provinceId || undefined,
-        localityId: location?.localityId,
-        localityName: location?.localityName,
+        location,
       }),
     );
   };

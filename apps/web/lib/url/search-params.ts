@@ -3,12 +3,14 @@ import type {
   PropertyListingType,
   PropertyType,
 } from "@repo/shared-types";
+import type { SearchCoverageLocationKind } from "@/lib/inventory/search-coverage.types";
 
 export type PropertyListFilters = {
   listingType?: PropertyListingType;
   propertyType?: PropertyType;
   provinceId?: string;
   localityId?: string;
+  neighborhoodId?: string;
   city?: string;
   neighborhood?: string;
   priceMin?: number;
@@ -122,6 +124,7 @@ export function parsePropertyListSearchParams(
     propertyType: parsePropertyType(getSingleParam(params, "propertyType")),
     provinceId: getSingleParam(params, "provinceId")?.trim() || undefined,
     localityId: getSingleParam(params, "localityId")?.trim() || undefined,
+    neighborhoodId: getSingleParam(params, "neighborhoodId")?.trim() || undefined,
     city: getSingleParam(params, "city")?.trim() || undefined,
     neighborhood: getSingleParam(params, "neighborhood")?.trim() || undefined,
     priceMin: parseOptionalFloat(getSingleParam(params, "priceMin")),
@@ -154,6 +157,10 @@ export function buildInventoryListUrl(
 
   if (filters.localityId) {
     params.set("localityId", filters.localityId);
+  }
+
+  if (filters.neighborhoodId) {
+    params.set("neighborhoodId", filters.neighborhoodId);
   }
 
   if (filters.city) {
@@ -217,6 +224,7 @@ export function hasActivePropertyListFilters(
       filters.propertyType ||
       filters.provinceId ||
       filters.localityId ||
+      filters.neighborhoodId ||
       filters.city ||
       filters.neighborhood ||
       filters.priceMin != null ||
@@ -233,9 +241,103 @@ export function hasActiveLocationFilters(
   return Boolean(
     filters.provinceId ||
       filters.localityId ||
+      filters.neighborhoodId ||
       filters.city ||
       filters.neighborhood,
   );
+}
+
+export type LocationSelection = {
+  provinceId: string;
+  localityId?: string;
+  localityName: string;
+  neighborhoodId?: string;
+  kind?: SearchCoverageLocationKind;
+};
+
+export type LocationListFilters = Pick<
+  PropertyListFilters,
+  "provinceId" | "localityId" | "neighborhoodId" | "city" | "neighborhood"
+>;
+
+/** Maps a geo/inventory selection to public list URL filter params. */
+export function locationSelectionToListFilters(
+  location: LocationSelection | null | undefined,
+): LocationListFilters {
+  const cleared: LocationListFilters = {
+    provinceId: undefined,
+    localityId: undefined,
+    neighborhoodId: undefined,
+    city: undefined,
+    neighborhood: undefined,
+  };
+
+  if (!location) {
+    return cleared;
+  }
+
+  if (location.kind === "province") {
+    return {
+      ...cleared,
+      provinceId: location.provinceId,
+    };
+  }
+
+  if (location.kind === "neighborhood") {
+    const neighborhood = location.localityName.trim() || undefined;
+
+    return {
+      ...cleared,
+      provinceId: location.provinceId,
+      neighborhoodId: location.neighborhoodId,
+      neighborhood,
+    };
+  }
+
+  return {
+    ...cleared,
+    provinceId: location.provinceId,
+    localityId: location.localityId,
+    city: location.localityName.trim() || undefined,
+  };
+}
+
+/** Restores a location selection from parsed list filters (URL → form). */
+export function listFiltersToLocationSelection(
+  filters: Pick<
+    PropertyListFilters,
+    "provinceId" | "localityId" | "neighborhoodId" | "city" | "neighborhood"
+  >,
+): LocationSelection | null {
+  const label = filters.neighborhood ?? filters.city;
+
+  if (!label && !filters.provinceId) {
+    return null;
+  }
+
+  if (!label) {
+    return {
+      provinceId: filters.provinceId!,
+      localityName: "",
+      kind: "province",
+    };
+  }
+
+  if (filters.neighborhood) {
+    return {
+      provinceId: filters.provinceId ?? "",
+      localityName: filters.neighborhood,
+      neighborhoodId: filters.neighborhoodId,
+      kind: "neighborhood",
+    };
+  }
+
+  return {
+    provinceId: filters.provinceId ?? "",
+    localityId: filters.localityId,
+    localityName: label,
+    kind: "locality",
+  };
 }
 
 export type SearchTab = "sale" | "rent" | "developments";
@@ -243,25 +345,19 @@ export type SearchTab = "sale" | "rent" | "developments";
 export type PropertySearchParams = {
   tab: SearchTab;
   propertyType?: PropertyType;
-  location?: string;
-  provinceId?: string;
-  localityId?: string;
-  localityName?: string;
+  location?: LocationSelection | null;
 };
 
 export function buildPropertySearchUrl({
   tab,
   propertyType,
   location,
-  provinceId,
-  localityId,
-  localityName,
 }: PropertySearchParams): string {
+  const locationFilters = locationSelectionToListFilters(location);
+
   if (tab === "developments") {
     return buildDevelopmentListUrl({
-      provinceId,
-      localityId,
-      city: localityName?.trim() || location?.trim() || undefined,
+      ...locationFilters,
       page: 1,
       limit: DEFAULT_PROPERTY_LIST_FILTERS.limit,
     });
@@ -270,9 +366,7 @@ export function buildPropertySearchUrl({
   return buildPropertyListUrl({
     listingType: tab === "rent" ? "RENT" : "SALE",
     propertyType,
-    provinceId,
-    localityId,
-    city: localityName?.trim() || location?.trim() || undefined,
+    ...locationFilters,
     page: 1,
     limit: DEFAULT_PROPERTY_LIST_FILTERS.limit,
   });

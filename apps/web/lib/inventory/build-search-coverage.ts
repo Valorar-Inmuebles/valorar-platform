@@ -119,6 +119,8 @@ export async function buildSearchCoverage(
     const localityKey = `${province.id}::${normalizeSearchText(localityName)}`;
     const existing = localityMap.get(localityKey);
 
+    const localityKind = isCabaProvince(province) ? "neighborhood" : "locality";
+
     if (!existing) {
       localityMap.set(localityKey, {
         id: item.localityId ?? localityKey,
@@ -128,6 +130,7 @@ export async function buildSearchCoverage(
         neighborhoodId: item.neighborhoodId ?? undefined,
         name: localityName,
         propertyCount: 1,
+        kind: localityKind,
       });
     } else {
       const nextCount = existing.propertyCount + 1;
@@ -139,17 +142,20 @@ export async function buildSearchCoverage(
           localityId: item.localityId,
           neighborhoodId: existing.neighborhoodId ?? item.neighborhoodId ?? undefined,
           propertyCount: nextCount,
+          kind: existing.kind ?? localityKind,
         });
       } else if (!existing.neighborhoodId && item.neighborhoodId) {
         localityMap.set(localityKey, {
           ...existing,
           neighborhoodId: item.neighborhoodId,
           propertyCount: nextCount,
+          kind: existing.kind ?? localityKind,
         });
       } else {
         localityMap.set(localityKey, {
           ...existing,
           propertyCount: nextCount,
+          kind: existing.kind ?? localityKind,
         });
       }
     }

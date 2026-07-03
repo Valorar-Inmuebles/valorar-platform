@@ -41,26 +41,6 @@ type SearchOption =
   | GeoLocalitySearchResult;
 
 function toSelectedLocality(option: SearchOption): SelectedLocality {
-  if ("kind" in option) {
-    if (option.kind === "province") {
-      return {
-        provinceId: option.provinceId,
-        provinceName: option.provinceName,
-        localityName: option.name,
-        kind: option.kind,
-      };
-    }
-
-    return {
-      provinceId: option.provinceId,
-      provinceName: option.provinceName,
-      localityId: option.localityId,
-      localityName: option.name,
-      neighborhoodId: option.neighborhoodId,
-      kind: option.kind,
-    };
-  }
-
   if ("slug" in option) {
     return {
       provinceId: option.provinceId,
@@ -71,13 +51,22 @@ function toSelectedLocality(option: SearchOption): SelectedLocality {
     };
   }
 
+  if (option.kind === "province") {
+    return {
+      provinceId: option.provinceId,
+      provinceName: option.provinceName,
+      localityName: option.name,
+      kind: option.kind,
+    };
+  }
+
   return {
     provinceId: option.provinceId,
     provinceName: option.provinceName,
     localityId: option.localityId,
     localityName: option.name,
     neighborhoodId: option.neighborhoodId,
-    kind: "locality",
+    kind: option.kind ?? "locality",
   };
 }
 
@@ -86,7 +75,7 @@ function getOptionKey(option: SearchOption): string {
 }
 
 function getOptionKind(option: SearchOption): SearchCoverageLocationKind | null {
-  if ("kind" in option) {
+  if ("kind" in option && option.kind) {
     return option.kind;
   }
 

@@ -12,8 +12,10 @@ export function PropertyResultsCount({ total }: PropertyResultsCountProps) {
 }
 
 export function buildPropertiesListTitle(filters: PropertyListFilters): string {
-  if (filters.city) {
-    return `Propiedades en ${filters.city}`;
+  const location = filters.neighborhood ?? filters.city;
+
+  if (location) {
+    return `Propiedades en ${location}`;
   }
 
   return "Propiedades";

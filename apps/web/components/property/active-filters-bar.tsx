@@ -7,6 +7,7 @@ import {
 import { formatMoney } from "@/lib/format/price";
 import {
   hasActivePropertyListFilters,
+  locationSelectionToListFilters,
   type PropertyListFilters,
 } from "@/lib/url/search-params";
 import { usePropertyFilters } from "@/hooks/use-property-filters";
@@ -43,12 +44,7 @@ function buildActiveFilterChips(
     chips.push({
       key: "locality",
       label: filters.city,
-      onRemove: () =>
-        applyFilters({
-          localityId: undefined,
-          city: undefined,
-          provinceId: undefined,
-        }),
+      onRemove: () => applyFilters(locationSelectionToListFilters(null)),
     });
   }
 
@@ -56,7 +52,7 @@ function buildActiveFilterChips(
     chips.push({
       key: "neighborhood",
       label: filters.neighborhood,
-      onRemove: () => applyFilters({ neighborhood: undefined }),
+      onRemove: () => applyFilters(locationSelectionToListFilters(null)),
     });
   }
 

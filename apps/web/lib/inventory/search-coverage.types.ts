@@ -7,6 +7,7 @@ export type SearchCoverageLocality = {
   neighborhoodId?: string;
   name: string;
   propertyCount: number;
+  kind?: SearchCoverageLocationKind;
 };
 
 export type SearchCoverageLocationKind = "province" | "locality" | "neighborhood";

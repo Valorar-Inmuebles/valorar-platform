@@ -83,6 +83,10 @@ function appendFilterParams(
     params.set("localityId", filters.localityId);
   }
 
+  if (filters.neighborhoodId) {
+    params.set("neighborhoodId", filters.neighborhoodId);
+  }
+
   if (filters.city) {
     params.set("city", filters.city);
   }
