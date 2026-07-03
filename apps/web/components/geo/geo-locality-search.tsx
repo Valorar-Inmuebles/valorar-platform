@@ -5,7 +5,11 @@ import type { GeoLocalitySearchResult, GeoProvince } from "@repo/shared-types";
 import { searchLocalities } from "@/lib/api/geo";
 import {
   filterCoverageLocalities,
+  filterCoverageLocations,
+  getLocationKindLabel,
   type SearchCoverageLocality,
+  type SearchCoverageLocation,
+  type SearchCoverageLocationKind,
 } from "@/lib/inventory/search-coverage.types";
 
 export type SelectedLocality = {
@@ -13,6 +17,8 @@ export type SelectedLocality = {
   provinceName: string;
   localityId?: string;
   localityName: string;
+  neighborhoodId?: string;
+  kind?: SearchCoverageLocationKind;
 };
 
 type GeoLocalitySearchProps = {
@@ -21,21 +27,47 @@ type GeoLocalitySearchProps = {
   provinceId?: string;
   /** When set, autocomplete is limited to published inventory (no geo catalog). */
   inventoryLocalities?: SearchCoverageLocality[];
+  /** Unified inventory locations: provinces, localities and neighborhoods. */
+  inventoryLocations?: SearchCoverageLocation[];
   placeholder?: string;
   disabled?: boolean;
   className?: string;
   inputClassName?: string;
 };
 
-function toSelectedLocality(
-  option: SearchCoverageLocality | GeoLocalitySearchResult,
-): SelectedLocality {
+type SearchOption =
+  | SearchCoverageLocation
+  | SearchCoverageLocality
+  | GeoLocalitySearchResult;
+
+function toSelectedLocality(option: SearchOption): SelectedLocality {
+  if ("kind" in option) {
+    if (option.kind === "province") {
+      return {
+        provinceId: option.provinceId,
+        provinceName: option.provinceName,
+        localityName: option.name,
+        kind: option.kind,
+      };
+    }
+
+    return {
+      provinceId: option.provinceId,
+      provinceName: option.provinceName,
+      localityId: option.localityId,
+      localityName: option.name,
+      neighborhoodId: option.neighborhoodId,
+      kind: option.kind,
+    };
+  }
+
   if ("slug" in option) {
     return {
       provinceId: option.provinceId,
       provinceName: option.provinceName,
       localityId: option.id,
       localityName: option.name,
+      kind: "locality",
     };
   }
 
@@ -44,13 +76,21 @@ function toSelectedLocality(
     provinceName: option.provinceName,
     localityId: option.localityId,
     localityName: option.name,
+    neighborhoodId: option.neighborhoodId,
+    kind: "locality",
   };
 }
 
-function getOptionKey(
-  option: SearchCoverageLocality | GeoLocalitySearchResult,
-): string {
+function getOptionKey(option: SearchOption): string {
   return option.id;
+}
+
+function getOptionKind(option: SearchOption): SearchCoverageLocationKind | null {
+  if ("kind" in option) {
+    return option.kind;
+  }
+
+  return "locality";
 }
 
 export function GeoLocalitySearch({
@@ -58,6 +98,7 @@ export function GeoLocalitySearch({
   onChange,
   provinceId,
   inventoryLocalities,
+  inventoryLocations,
   placeholder = "Buscar localidad",
   disabled = false,
   className = "",
@@ -66,12 +107,13 @@ export function GeoLocalitySearch({
   const listId = useId();
   const containerRef = useRef<HTMLDivElement>(null);
   const [query, setQuery] = useState(value?.localityName ?? "");
-  const [options, setOptions] = useState<
-    Array<SearchCoverageLocality | GeoLocalitySearchResult>
-  >([]);
+  const [options, setOptions] = useState<SearchOption[]>([]);
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
-  const usesInventory = inventoryLocalities != null;
+  const usesInventoryLocations = inventoryLocations != null;
+  const usesInventoryLocalities =
+    inventoryLocalities != null && !usesInventoryLocations;
+  const usesInventory = usesInventoryLocations || usesInventoryLocalities;
 
   const scopedInventoryLocalities = useMemo(() => {
     if (!inventoryLocalities) {
@@ -87,9 +129,23 @@ export function GeoLocalitySearch({
     );
   }, [inventoryLocalities, provinceId]);
 
+  const scopedInventoryLocations = useMemo(() => {
+    if (!inventoryLocations) {
+      return [];
+    }
+
+    if (!provinceId) {
+      return inventoryLocations;
+    }
+
+    return inventoryLocations.filter(
+      (location) => location.provinceId === provinceId,
+    );
+  }, [inventoryLocations, provinceId]);
+
   useEffect(() => {
     setQuery(value?.localityName ?? "");
-  }, [value?.localityId, value?.localityName]);
+  }, [value?.localityId, value?.localityName, value?.kind]);
 
   useEffect(() => {
     if (!open) return;
@@ -110,7 +166,13 @@ export function GeoLocalitySearch({
       return;
     }
 
-    if (usesInventory) {
+    if (usesInventoryLocations) {
+      setOptions(filterCoverageLocations(scopedInventoryLocations, query));
+      setLoading(false);
+      return;
+    }
+
+    if (usesInventoryLocalities) {
       setOptions(filterCoverageLocalities(scopedInventoryLocalities, query));
       setLoading(false);
       return;
@@ -140,7 +202,15 @@ export function GeoLocalitySearch({
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [open, provinceId, query, scopedInventoryLocalities, usesInventory]);
+  }, [
+    open,
+    provinceId,
+    query,
+    scopedInventoryLocalities,
+    scopedInventoryLocations,
+    usesInventoryLocations,
+    usesInventoryLocalities,
+  ]);
 
   const showDropdown = open && (usesInventory || query.trim().length >= 1);
 
@@ -168,34 +238,41 @@ export function GeoLocalitySearch({
       {showDropdown ? (
         <ul
           id={listId}
-          className="absolute z-20 mt-1 max-h-56 w-full overflow-y-auto rounded-xl border border-border bg-white py-1 shadow-lg"
+          className="absolute z-50 mt-1 max-h-56 w-full overflow-y-auto rounded-xl border border-border bg-white py-1 shadow-lg"
         >
           {loading ? (
             <li className="px-3 py-2 text-sm text-muted">Buscando…</li>
           ) : options.length === 0 ? (
             <li className="px-3 py-2 text-sm text-muted">Sin resultados</li>
           ) : (
-            options.map((option) => (
-              <li key={getOptionKey(option)}>
-                <button
-                  type="button"
-                  className="flex w-full flex-col items-start px-3 py-2 text-left hover:bg-slate-50"
-                  onMouseDown={(event) => event.preventDefault()}
-                  onClick={() => {
-                    onChange(toSelectedLocality(option));
-                    setQuery(option.name);
-                    setOpen(false);
-                  }}
-                >
-                  <span className="text-sm font-medium text-foreground">
-                    {option.name}
-                  </span>
-                  {!provinceId && "provinceName" in option ? (
-                    <span className="text-xs text-muted">{option.provinceName}</span>
-                  ) : null}
-                </button>
-              </li>
-            ))
+            options.map((option) => {
+              const kind = getOptionKind(option);
+
+              return (
+                <li key={getOptionKey(option)}>
+                  <button
+                    type="button"
+                    className="block w-full px-3 py-2 text-left hover:bg-slate-50"
+                    onMouseDown={(event) => event.preventDefault()}
+                    onClick={() => {
+                      onChange(toSelectedLocality(option));
+                      setQuery(option.name);
+                      setOpen(false);
+                    }}
+                  >
+                    <span className="block text-sm font-medium text-foreground">
+                      {option.name}
+                    </span>
+                    <span className="mt-0.5 block text-xs text-muted">
+                      {kind ? getLocationKindLabel(kind) : "Localidad"}
+                      {kind !== "province" && "provinceName" in option
+                        ? ` · ${option.provinceName}`
+                        : null}
+                    </span>
+                  </button>
+                </li>
+              );
+            })
           )}
         </ul>
       ) : null}

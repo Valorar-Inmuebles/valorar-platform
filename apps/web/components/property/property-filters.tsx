@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import type { Currency, PropertyListingType, PropertyType } from "@repo/shared-types";
 import { moneyToInputValue, parseMoneyInput } from "@repo/shared-types/format-money";
 import { CurrencyInput } from "@repo/ui/currency-input";
+import { FilterOptionCombobox } from "@/components/search/filter-option-combobox";
 import {
   getInitialProvinceId,
   InventoryLocationFilters,
@@ -24,13 +25,22 @@ const LISTING_TYPE_OPTIONS: Array<{
 ];
 
 const ROOM_COUNT_OPTIONS = [
-  { value: "", label: "Cualquiera" },
   { value: "1", label: "1+" },
   { value: "2", label: "2+" },
   { value: "3", label: "3+" },
   { value: "4", label: "4+" },
   { value: "5", label: "5+" },
 ];
+
+const BEDROOM_FILTER_OPTIONS = ROOM_COUNT_OPTIONS.map((option) => ({
+  value: option.value,
+  label: `${option.label} dorm.`,
+}));
+
+const BATHROOM_FILTER_OPTIONS = ROOM_COUNT_OPTIONS.map((option) => ({
+  value: option.value,
+  label: `${option.label} baños`,
+}));
 
 const FILTER_INPUT =
   "h-11 w-full rounded-xl bg-white px-3 text-sm outline-none ring-1 ring-border-default/80 transition placeholder:text-muted focus:ring-brand-green/40";
@@ -214,22 +224,25 @@ export function PropertyFilters({ onApplied, className = "" }: PropertyFiltersPr
       />
 
       <FilterSection title="Tipo">
-        <select
+        <FilterOptionCombobox
           value={form.propertyType}
-          onChange={(event) =>
+          onChange={(propertyType) =>
             setForm((current) => ({
               ...current,
-              propertyType: event.target.value as PropertyType | "",
+              propertyType: propertyType as PropertyType | "",
             }))
           }
-          className={FILTER_INPUT}
-        >
-          {FILTER_PROPERTY_TYPE_OPTIONS.map((option) => (
-            <option key={option.label} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </select>
+          options={FILTER_PROPERTY_TYPE_OPTIONS.filter((option) => option.value).map(
+            (option) => ({
+              value: option.value,
+              label: option.label,
+            }),
+          )}
+          clearLabel="Todos los tipos"
+          placeholder="Todos los tipos"
+          inputClassName={FILTER_INPUT}
+          ariaLabel="Tipo de propiedad"
+        />
       </FilterSection>
 
       <FilterSection title="Precio">
@@ -284,38 +297,31 @@ export function PropertyFilters({ onApplied, className = "" }: PropertyFiltersPr
       </FilterSection>
 
       <FilterSection title="Ambientes">
-        <div className="grid grid-cols-2 gap-2">
-          <select
-            value={form.bedrooms}
-            onChange={(event) =>
-              setForm((current) => ({ ...current, bedrooms: event.target.value }))
-            }
-            className={FILTER_INPUT}
-            aria-label="Dormitorios"
-          >
-            <option value="">Dorm. cualquiera</option>
-            {ROOM_COUNT_OPTIONS.filter((o) => o.value).map((option) => (
-              <option key={option.label} value={option.value}>
-                {option.label.replace("+", "+ dorm.")}
-              </option>
-            ))}
-          </select>
-          <select
-            value={form.bathrooms}
-            onChange={(event) =>
-              setForm((current) => ({ ...current, bathrooms: event.target.value }))
-            }
-            className={FILTER_INPUT}
-            aria-label="Baños"
-          >
-            <option value="">Baños cualquiera</option>
-            {ROOM_COUNT_OPTIONS.filter((o) => o.value).map((option) => (
-              <option key={`bath-${option.label}`} value={option.value}>
-                {option.label.replace("+", "+ baños")}
-              </option>
-            ))}
-          </select>
-        </div>
+        <FilterOptionCombobox
+          value={form.bedrooms}
+          onChange={(bedrooms) =>
+            setForm((current) => ({ ...current, bedrooms }))
+          }
+          options={BEDROOM_FILTER_OPTIONS}
+          clearLabel="Dorm. cualquiera"
+          placeholder="Dorm. cualquiera"
+          inputClassName={FILTER_INPUT}
+          ariaLabel="Ambientes"
+        />
+      </FilterSection>
+
+      <FilterSection title="Baños">
+        <FilterOptionCombobox
+          value={form.bathrooms}
+          onChange={(bathrooms) =>
+            setForm((current) => ({ ...current, bathrooms }))
+          }
+          options={BATHROOM_FILTER_OPTIONS}
+          clearLabel="Baños cualquiera"
+          placeholder="Baños cualquiera"
+          inputClassName={FILTER_INPUT}
+          ariaLabel="Baños"
+        />
       </FilterSection>
 
       <div className="flex flex-col gap-2 pt-1">

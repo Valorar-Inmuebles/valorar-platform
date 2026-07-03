@@ -65,12 +65,7 @@ export function InventoryLocationFilters({
         : "Ej. Palermo, Rosario…");
 
   return (
-    <div
-      className={
-        gridClassName ??
-        (showProvinceField ? "grid gap-3 md:grid-cols-2" : "grid gap-3")
-      }
-    >
+    <div className={gridClassName ?? "space-y-6"}>
       {showProvinceField ? (
         <FilterSection title="Provincia">
           <GeoProvinceCombobox

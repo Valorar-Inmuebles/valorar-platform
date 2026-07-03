@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import type { PublicDevelopmentCard } from "@repo/shared-types";
 import type { SelectedLocality } from "@/components/geo/geo-locality-search";
+import { DevelopmentRecentLinks } from "@/components/development/development-recent-links";
 import {
   getInitialProvinceId,
   InventoryLocationFilters,
@@ -21,6 +23,7 @@ type LocationFilterFormState = {
 type DevelopmentFiltersProps = {
   onApplied?: () => void;
   className?: string;
+  recentDevelopments?: PublicDevelopmentCard[];
 };
 
 function filtersToFormState(
@@ -45,6 +48,7 @@ function filtersToFormState(
 export function DevelopmentFilters({
   onApplied,
   className = "",
+  recentDevelopments = [],
 }: DevelopmentFiltersProps) {
   const coverage = useInventoryCoverage();
   const { filters, applyFilters, clearFilters } = useDevelopmentFilters();
@@ -121,6 +125,8 @@ export function DevelopmentFilters({
           </button>
         ) : null}
       </div>
+
+      <DevelopmentRecentLinks developments={recentDevelopments} />
     </form>
   );
 }

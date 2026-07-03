@@ -44,13 +44,15 @@ function Chevron({ open }: { open: boolean }) {
   return (
     <svg
       viewBox="0 0 16 16"
+      width={16}
+      height={16}
       fill="none"
       stroke="currentColor"
-      strokeWidth="1.5"
+      strokeWidth={1.5}
       strokeLinecap="round"
       aria-hidden="true"
       className={cn(
-        "size-3.5 shrink-0 text-zinc-400 transition-transform duration-150",
+        "h-4 w-4 shrink-0 flex-none text-zinc-400 transition-transform duration-150",
         open && "rotate-180",
       )}
     >

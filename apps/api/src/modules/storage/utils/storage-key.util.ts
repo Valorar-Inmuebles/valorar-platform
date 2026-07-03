@@ -50,6 +50,18 @@ export function buildPropertyImageStorageKey(
   return `${tenantId}/properties/${propertyId}/${randomUUID()}.${extension}`;
 }
 
+export function buildDevelopmentImageStorageKey(
+  tenantId: string,
+  developmentId: string,
+  mimeType: string,
+  filename?: string,
+): string {
+  const normalizedMimeType = assertAllowedImageMimeType(mimeType);
+  const extension = resolveImageExtension(normalizedMimeType, filename);
+
+  return `${tenantId}/developments/${developmentId}/${randomUUID()}.${extension}`;
+}
+
 export function buildGenericUploadStorageKey(
   tenantId: string,
   mimeType: string,

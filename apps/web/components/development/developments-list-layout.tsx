@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { Suspense } from "react";
 import { InventoryCoverageProvider } from "@/components/search/inventory-coverage-context";
+import { getRecentDevelopments } from "@/lib/api/public-development";
 import { getInventorySearchCoverage } from "@/lib/inventory/get-inventory-search-coverage";
 import { DevelopmentActiveFiltersBar } from "./development-active-filters-bar";
 import { DevelopmentFilters } from "./development-filters";
@@ -23,7 +24,11 @@ type DevelopmentsListLayoutProps = {
 export async function DevelopmentsListLayout({
   children,
 }: DevelopmentsListLayoutProps) {
-  const coverage = await getInventorySearchCoverage("developments");
+  const [coverage, recentDevelopmentsResult] = await Promise.all([
+    getInventorySearchCoverage("developments"),
+    getRecentDevelopments(10),
+  ]);
+  const recentDevelopments = recentDevelopmentsResult.data;
 
   return (
     <InventoryCoverageProvider coverage={coverage}>
@@ -31,14 +36,16 @@ export async function DevelopmentsListLayout({
         <aside className="hidden lg:block">
           <div className="sticky top-24">
             <Suspense fallback={<FiltersSidebarFallback />}>
-              <DevelopmentFilters />
+              <DevelopmentFilters recentDevelopments={recentDevelopments} />
             </Suspense>
           </div>
         </aside>
 
         <div className="min-w-0">
           <Suspense fallback={null}>
-            <DevelopmentMobileFiltersButton />
+            <DevelopmentMobileFiltersButton
+              recentDevelopments={recentDevelopments}
+            />
           </Suspense>
           <Suspense fallback={null}>
             <DevelopmentActiveFiltersBar />

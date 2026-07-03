@@ -1,9 +1,16 @@
 "use client";
 
 import { useState } from "react";
+import type { PublicDevelopmentCard } from "@repo/shared-types";
 import { DevelopmentFiltersDrawer } from "./development-filters-drawer";
 
-export function DevelopmentMobileFiltersButton() {
+type DevelopmentMobileFiltersButtonProps = {
+  recentDevelopments?: PublicDevelopmentCard[];
+};
+
+export function DevelopmentMobileFiltersButton({
+  recentDevelopments = [],
+}: DevelopmentMobileFiltersButtonProps) {
   const [isOpen, setIsOpen] = useState(false);
 
   return (
@@ -28,7 +35,11 @@ export function DevelopmentMobileFiltersButton() {
         </svg>
         Filtros
       </button>
-      <DevelopmentFiltersDrawer isOpen={isOpen} onClose={() => setIsOpen(false)} />
+      <DevelopmentFiltersDrawer
+        isOpen={isOpen}
+        onClose={() => setIsOpen(false)}
+        recentDevelopments={recentDevelopments}
+      />
     </>
   );
 }

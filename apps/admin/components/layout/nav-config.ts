@@ -100,6 +100,13 @@ export const navigation: NavSection[] = [
         href: "/propiedades",
         iconId: "building",
       },
+      {
+        id: "emprendimientos",
+        label: "Emprendimientos",
+        href: "/emprendimientos",
+        iconId: "layers",
+        permissions: ["development.read"],
+      },
     ],
   },
   {

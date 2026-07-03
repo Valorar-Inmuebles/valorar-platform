@@ -339,16 +339,21 @@ Pendiente post-MVP: RBAC API, configuración admin, dashboard, `PropertyAgentAcc
 
 Roadmap técnico API: `docs/09-roadmap/property-api-roadmap.md`
 
+### Development Domain D1 (Emprendimientos) ✅
+
+* Entidad independiente de Property: `Development`, `DevelopmentImage`, `DevelopmentFeatureAssignment`, `DevelopmentTypology`
+* API admin: `/developments`, `/development-images`, `/developments/:id/features`, `/development-typologies`
+* API pública: `/public/developments`
+* Admin UI: `/emprendimientos` (listado, ficha ejecutiva, tabs Datos/Comercialización/Características/Imágenes/Tipologías)
+* Web: `/emprendimientos`, `/emprendimientos/[slug]`
+* Migración: `202607020004_development_foundation`
+* Documentación: `docs/03-database/development-domain.md`, `docs/04-modules/developments.md`
+
 ### Lead Domain v1 (lógica de negocio)
 
 * API / Services / Controllers
 * UI admin y formularios web
 * Consolidación de contactos (`Client`, `LeadInterest`) — futuro
-
-### Otros módulos
-
-* Development
-* DevelopmentUnit
 
 ### Infraestructura de desarrollo local ✅
 

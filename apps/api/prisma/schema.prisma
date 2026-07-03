@@ -34,6 +34,11 @@ model Tenant {
   propertyImages             PropertyImage[]
   propertyFeatureAssignments PropertyFeatureAssignment[]
   propertyAgentAccess        PropertyAgentAccess[]
+  developments               Development[]
+  developmentImages          DevelopmentImage[]
+  developmentFeatureAssignments DevelopmentFeatureAssignment[]
+  developmentTypologies      DevelopmentTypology[]
+  developmentTypologyFeatureAssignments DevelopmentTypologyFeatureAssignment[]
 }
 
 enum UserRole {
@@ -70,6 +75,7 @@ model User {
   assignedProperties     Property[]            @relation("PropertyAssignee")
   sharedPropertyAccess   PropertyAgentAccess[] @relation("PropertySharedWith")
   grantedPropertyAccess  PropertyAgentAccess[] @relation("PropertyAccessGrantedBy")
+  createdDevelopments    Development[]         @relation("DevelopmentCreator")
 
   @@index([tenantId])
 }
@@ -390,6 +396,8 @@ model PropertyFeature {
   updatedAt DateTime @updatedAt
 
   assignments PropertyFeatureAssignment[]
+  developmentAssignments DevelopmentFeatureAssignment[]
+  typologyAssignments DevelopmentTypologyFeatureAssignment[]
 
   @@index([category])
 }
@@ -453,6 +461,7 @@ model Country {
   updatedAt DateTime   @updatedAt
   provinces  Province[]
   properties Property[]
+  developments Development[]
 
   @@index([search])
 }
@@ -469,6 +478,7 @@ model Province {
   updatedAt  DateTime   @updatedAt
   localities Locality[]
   properties Property[]
+  developments Development[]
 
   @@unique([countryId, name])
   @@unique([countryId, slug])
@@ -488,6 +498,7 @@ model Locality {
   updatedAt     DateTime       @updatedAt
   neighborhoods Neighborhood[]
   properties    Property[]
+  developments  Development[]
 
   @@unique([provinceId, name])
   @@unique([provinceId, slug])
@@ -505,9 +516,186 @@ model Neighborhood {
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
   properties Property[]
+  developments Development[]
 
   @@unique([localityId, name])
   @@unique([localityId, slug])
   @@index([localityId])
   @@index([search])
+}
+
+enum DevelopmentStatus {
+  IN_PIT
+  UNDER_CONSTRUCTION
+  COMPLETED
+}
+
+model Development {
+  id String @id @default(cuid())
+
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  createdById String
+  createdBy   User   @relation("DevelopmentCreator", fields: [createdById], references: [id])
+
+  slug         String
+  internalCode String?
+  title        String
+  shortDescription String @db.Text
+  description  String  @db.Text
+  status       DevelopmentStatus?
+
+  isActive Boolean @default(true)
+
+  street       String?
+  streetNumber String?
+  neighborhood String?
+  city         String
+  province     String?
+  country      String  @default("AR")
+  countryId      String?
+  provinceId     String?
+  localityId     String?
+  neighborhoodId String?
+  geoCountry     Country?      @relation(fields: [countryId], references: [id], onDelete: SetNull)
+  geoProvince    Province?     @relation(fields: [provinceId], references: [id], onDelete: SetNull)
+  geoLocality    Locality?     @relation(fields: [localityId], references: [id], onDelete: SetNull)
+  geoNeighborhood Neighborhood? @relation(fields: [neighborhoodId], references: [id], onDelete: SetNull)
+  postalCode   String?
+  latitude     Decimal? @db.Decimal(10, 7)
+  longitude    Decimal? @db.Decimal(10, 7)
+  googlePlaceId      String?
+  formattedAddress   String?
+  geocodeSource      GeocodeSource?
+  geocodeAccuracy    GeocodeAccuracy?
+
+  priceFrom            Decimal?  @db.Decimal(14, 2)
+  currency             Currency?
+  hasFinancing         Boolean   @default(false)
+  financingDescription String?   @db.Text
+
+  hasParkingSpaces   Boolean @default(false)
+  parkingSpacesCount Int?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  images             DevelopmentImage[]
+  featureAssignments DevelopmentFeatureAssignment[]
+  typologies         DevelopmentTypology[]
+
+  @@unique([tenantId, slug])
+  @@unique([tenantId, internalCode])
+  @@index([tenantId])
+  @@index([tenantId, createdById])
+  @@index([tenantId, city])
+  @@index([tenantId, province])
+  @@index([tenantId, provinceId])
+  @@index([tenantId, localityId])
+  @@index([countryId])
+  @@index([provinceId])
+  @@index([localityId])
+  @@index([neighborhoodId])
+  @@index([tenantId, status])
+  @@index([tenantId, updatedAt])
+}
+
+model DevelopmentImage {
+  id String @id @default(cuid())
+
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  developmentId String
+  development   Development @relation(fields: [developmentId], references: [id], onDelete: Cascade)
+
+  storageKey String
+  url        String?
+  altText    String?
+  mimeType   String?
+  fileSize   Int?
+
+  sortOrder Int     @default(0)
+  isCover   Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([tenantId])
+  @@index([developmentId, sortOrder])
+}
+
+model DevelopmentFeatureAssignment {
+  id String @id @default(cuid())
+
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  developmentId String
+  development   Development @relation(fields: [developmentId], references: [id], onDelete: Cascade)
+
+  featureId String
+  feature   PropertyFeature @relation(fields: [featureId], references: [id], onDelete: Restrict)
+
+  value String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([developmentId, featureId])
+  @@index([tenantId])
+  @@index([developmentId])
+  @@index([featureId])
+}
+
+model DevelopmentTypology {
+  id String @id @default(cuid())
+
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  developmentId String
+  development   Development @relation(fields: [developmentId], references: [id], onDelete: Cascade)
+
+  name        String
+  description String  @db.Text
+  totalCount       Int?
+  availableCount   Int?
+  surfaceFrom      Decimal? @db.Decimal(10, 2)
+  surfaceTo        Decimal? @db.Decimal(10, 2)
+  priceFrom        Decimal? @db.Decimal(14, 2)
+  currency         Currency?
+  sortOrder        Int      @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  featureAssignments DevelopmentTypologyFeatureAssignment[]
+
+  @@index([tenantId])
+  @@index([developmentId, sortOrder])
+}
+
+model DevelopmentTypologyFeatureAssignment {
+  id String @id @default(cuid())
+
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  typologyId String
+  typology   DevelopmentTypology @relation(fields: [typologyId], references: [id], onDelete: Cascade)
+
+  featureId String
+  feature   PropertyFeature @relation(fields: [featureId], references: [id], onDelete: Restrict)
+
+  value String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([typologyId, featureId])
+  @@index([tenantId])
+  @@index([typologyId])
+  @@index([featureId])
 }

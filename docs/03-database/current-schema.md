@@ -54,7 +54,10 @@ Tenant
 ├── PropertyImages
 ├── PropertyFeatureAssignments
 ├── PropertyAgentAccess
-├── Developments (planificado)
+├── Developments
+├── DevelopmentImages
+├── DevelopmentFeatureAssignments
+├── DevelopmentTypologies
 └── Leads (planificado)
 ```
 

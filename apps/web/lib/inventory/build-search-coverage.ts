@@ -6,6 +6,7 @@ import {
   normalizeSearchText,
   type SearchCoverage,
   type SearchCoverageLocality,
+  type SearchCoverageLocation,
   type SearchCoverageProvince,
 } from "@/lib/inventory/search-coverage.types";
 
@@ -15,6 +16,7 @@ const EMPTY_COVERAGE: SearchCoverage = {
   singleProvince: false,
   isCabaOnly: false,
   topLocalitySuggestions: [],
+  topLocationSuggestions: [],
 };
 
 const CABA_LEGACY_ALIASES = [
@@ -93,6 +95,7 @@ export async function buildSearchCoverage(
   const provinceByName = buildProvinceNameIndex(geoProvinces);
   const provinceMap = new Map<string, SearchCoverageProvince>();
   const localityMap = new Map<string, SearchCoverageLocality>();
+  const neighborhoodMap = new Map<string, SearchCoverageLocation>();
 
   for (const item of items) {
     const province = resolveProvinceFromItem(item, provinceById, provinceByName);
@@ -122,28 +125,66 @@ export async function buildSearchCoverage(
         provinceId: province.id,
         provinceName: province.name,
         localityId: item.localityId ?? undefined,
+        neighborhoodId: item.neighborhoodId ?? undefined,
         name: localityName,
         propertyCount: 1,
       });
-      continue;
+    } else {
+      const nextCount = existing.propertyCount + 1;
+
+      if (!existing.localityId && item.localityId) {
+        localityMap.set(localityKey, {
+          ...existing,
+          id: item.localityId,
+          localityId: item.localityId,
+          neighborhoodId: existing.neighborhoodId ?? item.neighborhoodId ?? undefined,
+          propertyCount: nextCount,
+        });
+      } else if (!existing.neighborhoodId && item.neighborhoodId) {
+        localityMap.set(localityKey, {
+          ...existing,
+          neighborhoodId: item.neighborhoodId,
+          propertyCount: nextCount,
+        });
+      } else {
+        localityMap.set(localityKey, {
+          ...existing,
+          propertyCount: nextCount,
+        });
+      }
     }
 
-    const nextCount = existing.propertyCount + 1;
+    const neighborhoodName =
+      item.neighborhoodName?.trim() || item.neighborhood?.trim() || null;
 
-    if (!existing.localityId && item.localityId) {
-      localityMap.set(localityKey, {
-        ...existing,
-        id: item.localityId,
-        localityId: item.localityId,
-        propertyCount: nextCount,
-      });
-      continue;
+    if (
+      neighborhoodName &&
+      !isCabaProvince(province) &&
+      normalizeSearchText(neighborhoodName) !== normalizeSearchText(localityName)
+    ) {
+      const neighborhoodKey = `${province.id}::nb::${normalizeSearchText(neighborhoodName)}`;
+      const existingNeighborhood = neighborhoodMap.get(neighborhoodKey);
+
+      if (!existingNeighborhood) {
+        neighborhoodMap.set(neighborhoodKey, {
+          id: item.neighborhoodId ?? neighborhoodKey,
+          kind: "neighborhood",
+          name: neighborhoodName,
+          provinceId: province.id,
+          provinceName: province.name,
+          localityId: item.localityId ?? undefined,
+          neighborhoodId: item.neighborhoodId ?? undefined,
+          propertyCount: 1,
+        });
+      } else {
+        neighborhoodMap.set(neighborhoodKey, {
+          ...existingNeighborhood,
+          neighborhoodId:
+            existingNeighborhood.neighborhoodId ?? item.neighborhoodId ?? undefined,
+          propertyCount: existingNeighborhood.propertyCount + 1,
+        });
+      }
     }
-
-    localityMap.set(localityKey, {
-      ...existing,
-      propertyCount: nextCount,
-    });
   }
 
   const provinces = [...provinceMap.values()].sort((a, b) =>
@@ -173,15 +214,64 @@ export async function buildSearchCoverage(
     )
     .slice(0, 5);
 
+  const neighborhoodsByProvince: Record<string, SearchCoverageLocation[]> = {};
+
+  for (const neighborhood of neighborhoodMap.values()) {
+    const bucket = neighborhoodsByProvince[neighborhood.provinceId] ?? [];
+    bucket.push(neighborhood);
+    neighborhoodsByProvince[neighborhood.provinceId] = bucket;
+  }
+
+  for (const provinceId of Object.keys(neighborhoodsByProvince)) {
+    neighborhoodsByProvince[provinceId]?.sort((a, b) =>
+      a.name.localeCompare(b.name, "es"),
+    );
+  }
+
+  const searchableLocations: SearchCoverageLocation[] = [];
+
+  for (const province of provinces) {
+    const provinceLocalities = localitiesByProvince[province.id] ?? [];
+    const isCaba = isCabaProvince(province);
+
+    for (const locality of provinceLocalities) {
+      searchableLocations.push({
+        id: locality.id,
+        kind: isCaba ? "neighborhood" : "locality",
+        name: locality.name,
+        provinceId: locality.provinceId,
+        provinceName: locality.provinceName,
+        localityId: locality.localityId,
+        neighborhoodId: locality.neighborhoodId,
+        propertyCount: locality.propertyCount,
+      });
+    }
+  }
+
+  searchableLocations.push(...neighborhoodMap.values());
+
+  const topLocationSuggestions = searchableLocations
+    .sort(
+      (a, b) =>
+        b.propertyCount - a.propertyCount ||
+        a.name.localeCompare(b.name, "es"),
+    )
+    .slice(0, 5);
+
   const singleProvince = provinces.length === 1;
   const soleProvince = provinces[0];
 
   return {
     provinces,
     localitiesByProvince,
+    neighborhoodsByProvince:
+      Object.keys(neighborhoodsByProvince).length > 0
+        ? neighborhoodsByProvince
+        : undefined,
     singleProvince,
     isCabaOnly: singleProvince && soleProvince != null && isCabaProvince(soleProvince),
     defaultProvinceId: singleProvince ? soleProvince?.id : undefined,
     topLocalitySuggestions,
+    topLocationSuggestions,
   };
 }

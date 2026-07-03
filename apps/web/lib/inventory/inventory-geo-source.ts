@@ -4,6 +4,8 @@ export type InventoryGeoSource = {
   provinceName: string | null;
   localityId: string | null;
   localityName: string | null;
+  neighborhoodId?: string | null;
+  neighborhoodName?: string | null;
   city: string;
   neighborhood: string | null;
 };

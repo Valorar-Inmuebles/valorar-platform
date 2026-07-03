@@ -1,16 +1,19 @@
 "use client";
 
 import { useEffect, useId } from "react";
+import type { PublicDevelopmentCard } from "@repo/shared-types";
 import { DevelopmentFilters } from "./development-filters";
 
 type DevelopmentFiltersDrawerProps = {
   isOpen: boolean;
   onClose: () => void;
+  recentDevelopments?: PublicDevelopmentCard[];
 };
 
 export function DevelopmentFiltersDrawer({
   isOpen,
   onClose,
+  recentDevelopments = [],
 }: DevelopmentFiltersDrawerProps) {
   const panelId = useId();
 
@@ -74,7 +77,11 @@ export function DevelopmentFiltersDrawer({
             </svg>
           </button>
         </div>
-        <DevelopmentFilters onApplied={onClose} className="border-0 p-0 shadow-none" />
+        <DevelopmentFilters
+          onApplied={onClose}
+          className="border-0 p-0 shadow-none"
+          recentDevelopments={recentDevelopments}
+        />
       </div>
     </>
   );

@@ -1,5 +1,6 @@
 "use client";
 
+import { ToastProvider } from "@repo/ui/toast";
 import type { ReactNode } from "react";
 
 type SiteProvidersProps = {
@@ -11,5 +12,5 @@ type SiteProvidersProps = {
  * Extend here when adding theme, analytics, or global client context.
  */
 export function SiteProviders({ children }: SiteProvidersProps) {
-  return children;
+  return <ToastProvider>{children}</ToastProvider>;
 }

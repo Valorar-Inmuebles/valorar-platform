@@ -1,16 +1,12 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
+import { DevelopmentsEditorialSection } from "@/components/development/developments-editorial-section";
+import { DevelopmentsEditorialSkeleton } from "@/components/development/developments-editorial-skeleton";
 import { DevelopmentsListLayout } from "@/components/development/developments-list-layout";
 import { Breadcrumbs } from "@/components/seo/breadcrumbs";
 import { SiteContainer } from "@/components/layout/site-container";
 import { Pagination } from "@/components/property/pagination";
-import { PropertyEmptyState } from "@/components/property/property-empty-state";
-import { PropertyGrid } from "@/components/property/property-grid";
-import { PropertyGridSkeleton } from "@/components/property/property-grid-skeleton";
-import { PropertyResultsCount } from "@/components/property/property-results-count";
-import { PropertyUnavailableState } from "@/components/property/property-unavailable-state";
-import { PublicPropertyCard } from "@/components/property/public-property-card";
-import { getPublicDevelopments } from "@/lib/api/public-property";
+import { getPublicDevelopments } from "@/lib/api/public-development";
 import { createPageMetadata } from "@/lib/seo/metadata";
 import {
   buildDevelopmentListUrl,
@@ -49,59 +45,36 @@ export async function generateMetadata({
 export const revalidate = 60;
 
 function DevelopmentsListFallback() {
-  return (
-    <div className="space-y-6">
-      <PropertyGridSkeleton count={6} columns="listing" />
-    </div>
-  );
+  return <DevelopmentsEditorialSkeleton count={3} />;
 }
 
-async function DevelopmentsResults({
+async function DevelopmentsEditorialList({
   searchParams,
 }: {
   searchParams: Record<string, string | string[] | undefined>;
 }) {
   const filters = parsePropertyListSearchParams(searchParams);
+  const hasActiveFilters = hasActiveLocationFilters(filters);
   const { data, meta, unavailable } = await getPublicDevelopments(filters);
 
   return (
     <>
-      <PropertyResultsCount total={meta.total} />
+      <DevelopmentsEditorialSection
+        developments={data}
+        unavailable={unavailable}
+        hasActiveFilters={hasActiveFilters}
+        total={meta.total}
+      />
 
-      <div className="mt-6">
-        {unavailable ? (
-          <PropertyUnavailableState />
-        ) : data.length === 0 ? (
-          <PropertyEmptyState
-            title={
-              hasActiveLocationFilters(filters)
-                ? "No encontramos emprendimientos con estos filtros"
-                : "No hay emprendimientos disponibles"
-            }
-            description={
-              hasActiveLocationFilters(filters)
-                ? "Probá ajustando los filtros o limpiá la búsqueda."
-                : "Volvé a consultar más tarde para ver nuevos proyectos."
-            }
-          />
-        ) : (
-          <>
-            <PropertyGrid columns="listing">
-              {data.map((property) => (
-                <PublicPropertyCard key={property.id} property={property} />
-              ))}
-            </PropertyGrid>
-
-            <Pagination
-              page={meta.page}
-              totalPages={meta.totalPages}
-              filters={filters}
-              buildPageUrl={buildDevelopmentListUrl}
-              ariaLabel="Paginación de emprendimientos"
-            />
-          </>
-        )}
-      </div>
+      {!unavailable && data.length > 0 ? (
+        <Pagination
+          page={meta.page}
+          totalPages={meta.totalPages}
+          filters={filters}
+          buildPageUrl={buildDevelopmentListUrl}
+          ariaLabel="Paginación de emprendimientos"
+        />
+      ) : null}
     </>
   );
 }
@@ -136,7 +109,7 @@ export default async function DevelopmentsPage({
       <div className="mt-10">
         <Suspense fallback={<DevelopmentsListFallback />}>
           <DevelopmentsListLayout>
-            <DevelopmentsResults searchParams={params} />
+            <DevelopmentsEditorialList searchParams={params} />
           </DevelopmentsListLayout>
         </Suspense>
       </div>

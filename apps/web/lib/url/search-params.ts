@@ -258,7 +258,13 @@ export function buildPropertySearchUrl({
   localityName,
 }: PropertySearchParams): string {
   if (tab === "developments") {
-    return "/emprendimientos";
+    return buildDevelopmentListUrl({
+      provinceId,
+      localityId,
+      city: localityName?.trim() || location?.trim() || undefined,
+      page: 1,
+      limit: DEFAULT_PROPERTY_LIST_FILTERS.limit,
+    });
   }
 
   return buildPropertyListUrl({

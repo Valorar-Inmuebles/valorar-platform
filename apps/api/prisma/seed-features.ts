@@ -71,7 +71,25 @@ export const SEED_PROPERTY_FEATURES: SeedPropertyFeatureSpec[] = [
     category: PropertyFeatureCategory.SERVICE,
     sortOrder: 6,
   },
-  // ROOM
+  // ROOM — typology-eligible (see typology-feature-slugs.ts)
+  {
+    name: 'Baños',
+    slug: 'banos',
+    category: PropertyFeatureCategory.ROOM,
+    sortOrder: 10,
+  },
+  {
+    name: 'Baño en Suite',
+    slug: 'bano-en-suite',
+    category: PropertyFeatureCategory.ROOM,
+    sortOrder: 11,
+  },
+  {
+    name: 'Toilette',
+    slug: 'toilette',
+    category: PropertyFeatureCategory.ROOM,
+    sortOrder: 12,
+  },
   {
     name: 'Living',
     slug: 'living',
@@ -89,6 +107,18 @@ export const SEED_PROPERTY_FEATURES: SeedPropertyFeatureSpec[] = [
     slug: 'cocina',
     category: PropertyFeatureCategory.ROOM,
     sortOrder: 3,
+  },
+  {
+    name: 'Escritorio',
+    slug: 'escritorio',
+    category: PropertyFeatureCategory.ROOM,
+    sortOrder: 13,
+  },
+  {
+    name: 'Dependencia',
+    slug: 'dependencia',
+    category: PropertyFeatureCategory.ROOM,
+    sortOrder: 14,
   },
   {
     name: 'Lavadero',
@@ -119,6 +149,12 @@ export const SEED_PROPERTY_FEATURES: SeedPropertyFeatureSpec[] = [
     slug: 'terraza',
     category: PropertyFeatureCategory.ROOM,
     sortOrder: 8,
+  },
+  {
+    name: 'Baulera',
+    slug: 'baulera',
+    category: PropertyFeatureCategory.ROOM,
+    sortOrder: 15,
   },
   // AMENITY
   {
