@@ -66,24 +66,26 @@ El operador debe responder en **menos de 5 segundos**:
 
 ### KPIs principales
 
-| Widget | Métrica | Destino al click |
-| ------ | ------- | ---------------- |
-| Propiedades | Total inventario tenant | `/propiedades` |
-| Publicadas | Activas publicables en web | `/propiedades?estado=published` |
-| Borradores | Activas sin publicar | `/propiedades?estado=commercial-draft` |
-| Archivadas | `isActive = false` | `/propiedades?estado=archived` |
+Iconografía: `@repo/icons` (misma familia que la Web pública).
+
+| Widget | Métrica | Icono | Destino al click |
+| ------ | ------- | ----- | ---------------- |
+| Propiedades | Total inventario tenant | Casa (`PropertyTypeIcon type="house"`) | `/propiedades` |
+| Publicadas | Activas publicables en web | Publicación (`SystemIcon name="publication"`) | `/propiedades?estado=published` |
+| Borradores | Activas sin publicar | Documento | `/propiedades?estado=commercial-draft` |
+| Archivadas | `isActive = false` | Archivo | `/propiedades?estado=archived` |
 
 ### Estado del catálogo
 
 Solo propiedades **activas**. Cada card enlaza a `/propiedades?atencion={filtro}`.
 
-| Filtro `atencion` | Criterio |
-| ----------------- | -------- |
-| `without-images` | Sin imágenes |
-| `without-commercialization` | Sin ningún listing |
-| `without-description` | Descripción vacía o &lt; 40 caracteres |
-| `without-features` | Sin asignaciones de características |
-| `pending-publication` | Con listings pero ninguno publicable |
+| Filtro `atencion` | Criterio | Icono (`@repo/icons`) |
+| ----------------- | -------- | --------------------- |
+| `without-images` | Sin imágenes | Imagen |
+| `without-commercialization` | Sin ningún listing | Comercialización |
+| `without-description` | Descripción vacía o &lt; 40 caracteres | Documento |
+| `without-features` | Sin asignaciones de características | Lista |
+| `pending-publication` | Con listings pero ninguno publicable | Publicación |
 
 ### Requieren atención
 
@@ -109,6 +111,8 @@ Eventos inferidos de:
 * `Property.isActive = false` + `updatedAt` reciente
 
 Tipos: `property_created`, `property_updated`, `listing_published`, `listing_created`, `images_added`, `property_archived`.
+
+Cada ítem muestra un icono de `@repo/icons` (`ActivityIcon`) según el tipo de movimiento.
 
 Actor: nombre del creador de la propiedad cuando está disponible (`createdBy.name`).
 

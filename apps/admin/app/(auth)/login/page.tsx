@@ -5,12 +5,14 @@ import { LoginForm } from "@/components/auth/login-form";
 
 export default function LoginPage() {
   return (
-    <div className="relative z-10 w-full max-w-[540px]">
-      <Card className="overflow-hidden border-border bg-surface shadow-sm ring-1 ring-black/[0.04]">
-        <div className="px-6 py-7 sm:px-8 sm:py-8">
-          <AdminBrandMark variant="login" />
+    <div className="relative z-10 w-full max-w-[448px]">
+      <div className="mb-8 flex justify-center sm:mb-10">
+        <AdminBrandMark variant="login" />
+      </div>
 
-          <div className="mt-7 space-y-1.5">
+      <Card className="overflow-hidden border-border bg-surface shadow-sm ring-1 ring-black/[0.04]">
+        <div className="px-6 py-9 sm:px-8 sm:py-10">
+          <div className="space-y-2 text-center">
             <h1 className="text-xl font-semibold tracking-tight text-foreground">
               Iniciar sesión
             </h1>
@@ -21,10 +23,12 @@ export default function LoginPage() {
 
           <Suspense
             fallback={
-              <p className="mt-6 text-sm text-muted">Cargando formulario…</p>
+              <p className="mt-10 text-center text-sm text-muted">
+                Cargando formulario…
+              </p>
             }
           >
-            <LoginForm className="mt-6" />
+            <LoginForm className="mt-10" />
           </Suspense>
         </div>
       </Card>

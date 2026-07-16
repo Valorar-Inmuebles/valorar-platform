@@ -12,6 +12,7 @@
     "check-types": "next typegen && tsc --noEmit"
   },
   "dependencies": {
+    "@repo/icons": "*",
     "@repo/property-rules": "*",
     "@repo/rbac": "*",
     "@repo/shared-types": "*",

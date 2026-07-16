@@ -4,7 +4,10 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useToast } from "@repo/ui/toast";
 import { NavIcon } from "@/components/layout/icons";
-import { AdminBrandMark } from "@/components/branding/admin-brand-mark";
+import {
+  DEFAULT_TENANT_NAME,
+  TenantBrandMark,
+} from "@/components/branding/tenant-brand-mark";
 import {
   getVisibleNavigation,
   isNavItemVisible,
@@ -163,6 +166,12 @@ export function MainSidebar({
   const { toast } = useToast();
   const isCollapsed = isMobile ? false : collapsed;
 
+  const activeTenant = tenantOptions.find(
+    (option) => option.id === activeTenantId,
+  );
+  const tenantName = activeTenant?.name ?? DEFAULT_TENANT_NAME;
+  const tenantLogoUrl = activeTenant?.logoUrl ?? null;
+
   const handleNavigate = () => {
     if (isMobile) closeMobile();
   };
@@ -208,19 +217,26 @@ export function MainSidebar({
               href="/"
               onClick={handleNavigate}
               className="rounded-md p-1 transition hover:bg-white/10"
-              title="Admin — Inicio"
-              aria-label="Valorar Admin — Inicio"
+              title={`${tenantName} — Inicio`}
+              aria-label={`${tenantName} — Panel de Administración — Inicio`}
             >
-              <AdminBrandMark variant="sidebar-compact" />
+              <TenantBrandMark
+                name={tenantName}
+                logoUrl={tenantLogoUrl}
+                collapsed
+              />
             </Link>
           ) : (
             <Link
               href="/"
               onClick={handleNavigate}
               className="min-w-0 transition hover:opacity-90"
-              aria-label="Valorar Admin — Inicio"
+              aria-label={`${tenantName} — Panel de Administración — Inicio`}
             >
-              <AdminBrandMark variant="sidebar" />
+              <TenantBrandMark
+                name={tenantName}
+                logoUrl={tenantLogoUrl}
+              />
             </Link>
           )}
         </div>

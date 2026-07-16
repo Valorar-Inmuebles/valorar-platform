@@ -72,6 +72,7 @@ apps/
 └── web
 
 packages/
+├── icons
 ├── ui
 ├── shared-types
 ├── eslint-config

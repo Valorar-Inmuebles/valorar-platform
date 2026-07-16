@@ -6,9 +6,9 @@ import {
   FilterOptionSelect,
   type FilterSelectOption,
 } from "./filter-option-select";
-import { PROPERTY_TYPE_ICONS } from "./property-type-icons";
+import { PROPERTY_TYPE_ICONS } from "@repo/icons";
 
-export { PROPERTY_TYPE_ICONS } from "./property-type-icons";
+export { PROPERTY_TYPE_ICONS } from "@repo/icons";
 
 export const PROPERTY_TYPE_SELECT_TRIGGER_CLASS =
   "h-11 w-full rounded-xl bg-white px-3 text-sm outline-none ring-1 ring-border-default/80 transition placeholder:text-muted focus:ring-brand-green/40";

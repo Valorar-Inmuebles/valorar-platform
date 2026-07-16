@@ -81,6 +81,7 @@ apps/
 └── api
 
 packages/
+├── icons
 ├── ui
 ├── shared-types
 ├── eslint-config

@@ -9,6 +9,7 @@ apps/
 └── web
 
 packages/
+├── icons
 ├── ui
 ├── shared-types
 ├── eslint-config
@@ -69,6 +70,20 @@ Responsabilidades:
 * Emprendimientos.
 * Servicios.
 * Contacto.
+
+---
+
+## packages/icons
+
+Biblioteca compartida de iconografía Valorar (`@repo/icons`).
+
+Fuente de verdad visual:
+
+* Iconos de **tipo de propiedad** del selector público «Tipo de propiedad».
+* Componentes `PropertyTypeIcon`, `SystemIcon`, `ActivityIcon`.
+* Consumido por `apps/web` y `apps/admin` (empezando por el Dashboard).
+
+No duplicar marcas de tipo de propiedad con Heroicons u otras librerías cuando exista el icono oficial.
 
 ---
 

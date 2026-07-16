@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Card, CardContent, CardHeader, CardTitle } from "@repo/ui/card";
 import { IconAlertTriangle } from "@/components/layout/icons";
 import type { DashboardAttentionAlerts } from "@/lib/api/types/dashboard";
 import { buildAttentionListHref } from "@/lib/property/property-list-url";
@@ -51,48 +52,50 @@ export function DashboardAttentionAlertsPanel({
   const visibleAlerts = ALERT_ITEMS.filter((item) => alerts[item.key] > 0);
 
   return (
-    <section className="space-y-2">
-      <div>
-        <h2 className="text-sm font-semibold text-foreground">
+    <Card className="flex h-full min-h-[22rem] flex-col border-border bg-surface shadow-sm ring-1 ring-black/[0.03]">
+      <CardHeader className="flex-col items-start gap-1 border-border px-5 py-4">
+        <CardTitle className="text-sm text-foreground">
           Requieren atención
-        </h2>
+        </CardTitle>
         <p className="text-xs text-muted">
           Acciones prioritarias para mejorar la publicabilidad.
         </p>
-      </div>
+      </CardHeader>
 
-      {visibleAlerts.length === 0 ? (
-        <p className="rounded-lg bg-emerald-50/50 px-3 py-2.5 text-sm text-emerald-800 ring-1 ring-emerald-200/70">
-          Todo en orden. No hay alertas pendientes.
-        </p>
-      ) : (
-        <ul className="divide-y divide-border/70 rounded-lg bg-white ring-1 ring-border/70">
-          {visibleAlerts.map((item) => (
-            <li key={item.key}>
-              <Link
-                href={buildAttentionListHref(item.attentionFilter)}
-                className={cn(
-                  "flex items-center justify-between gap-3 px-3 py-2.5 text-sm transition",
-                  "hover:bg-zinc-50",
-                )}
-              >
-                <span className="flex min-w-0 items-center gap-2 text-foreground">
-                  <span
-                    aria-hidden
-                    className="flex size-[18px] shrink-0 items-center justify-center text-amber-600"
-                  >
-                    <IconAlertTriangle className="size-[1.05rem]" />
+      <CardContent className="flex flex-1 flex-col px-0 py-0">
+        {visibleAlerts.length === 0 ? (
+          <p className="m-5 rounded-lg bg-emerald-50/60 px-4 py-3.5 text-sm text-emerald-800 ring-1 ring-emerald-200/70">
+            Todo en orden. No hay alertas pendientes.
+          </p>
+        ) : (
+          <ul className="divide-y divide-border/70">
+            {visibleAlerts.map((item) => (
+              <li key={item.key}>
+                <Link
+                  href={buildAttentionListHref(item.attentionFilter)}
+                  className={cn(
+                    "flex items-center justify-between gap-3 px-5 py-3.5 text-sm transition",
+                    "hover:bg-surface-alt/70",
+                  )}
+                >
+                  <span className="flex min-w-0 items-center gap-2.5 text-foreground">
+                    <span
+                      aria-hidden
+                      className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-amber-50 text-amber-600 ring-1 ring-amber-200/70"
+                    >
+                      <IconAlertTriangle className="size-[1.05rem]" />
+                    </span>
+                    {item.label}
                   </span>
-                  {item.label}
-                </span>
-                <span className="shrink-0 font-semibold tabular-nums text-amber-700">
-                  {alerts[item.key]}
-                </span>
-              </Link>
-            </li>
-          ))}
-        </ul>
-      )}
-    </section>
+                  <span className="shrink-0 font-semibold tabular-nums text-amber-700">
+                    {alerts[item.key]}
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
+      </CardContent>
+    </Card>
   );
 }

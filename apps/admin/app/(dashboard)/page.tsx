@@ -66,12 +66,12 @@ export default async function DashboardHomePage() {
         <ApiErrorPanel message={errorMessage} />
       ) : summary ? (
         <div className="space-y-8">
-          <section className="space-y-2">
+          <section className="space-y-3">
             <div>
               <h2 className="text-sm font-semibold text-foreground">
                 Resumen
               </h2>
-              <p className="text-xs text-muted">
+              <p className="mt-0.5 text-xs text-muted">
                 Hola {session.user.name}.{" "}
                 {pendingAttention
                   ? `${pendingAttention} alerta${pendingAttention === 1 ? "" : "s"} requieren atención.`
@@ -83,7 +83,7 @@ export default async function DashboardHomePage() {
 
           <DashboardCatalogHealthGrid catalogHealth={summary.catalogHealth} />
 
-          <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
+          <div className="grid items-stretch gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] xl:gap-5">
             <DashboardAttentionAlertsPanel alerts={summary.attentionAlerts} />
             <DashboardRecentActivity items={summary.recentActivity} />
           </div>

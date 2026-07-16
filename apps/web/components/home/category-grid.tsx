@@ -1,8 +1,5 @@
 import Link from "next/link";
-import {
-  DEVELOPMENT_CATEGORY_ICON,
-  PROPERTY_TYPE_ICONS,
-} from "@/components/search/property-type-icons";
+import { PropertyTypeIcon, type PropertyTypeIconAlias } from "@repo/icons";
 import { SiteContainer } from "@/components/layout/site-container";
 
 type CategoryItem = {
@@ -10,7 +7,7 @@ type CategoryItem = {
   description: string;
   href: string;
   label: string;
-  icon: "house" | "apartment" | "development";
+  icon: Extract<PropertyTypeIconAlias, "house" | "apartment" | "development">;
 };
 
 const CATEGORIES: CategoryItem[] = [
@@ -38,27 +35,14 @@ const CATEGORIES: CategoryItem[] = [
 ];
 
 function CategoryIcon({ icon }: { icon: CategoryItem["icon"] }) {
-  const iconProps = {
-    size: 24,
-    strokeWidth: 1.75,
-    className: "text-brand-green/80 transition-colors group-hover:text-brand-green",
-    "aria-hidden": true as const,
-  };
-
-  switch (icon) {
-    case "house": {
-      const Icon = PROPERTY_TYPE_ICONS.HOUSE;
-      return <Icon {...iconProps} />;
-    }
-    case "apartment": {
-      const Icon = PROPERTY_TYPE_ICONS.APARTMENT;
-      return <Icon {...iconProps} />;
-    }
-    case "development": {
-      const Icon = DEVELOPMENT_CATEGORY_ICON;
-      return <Icon {...iconProps} />;
-    }
-  }
+  return (
+    <PropertyTypeIcon
+      type={icon}
+      size={24}
+      strokeWidth={1.75}
+      className="text-brand-green/80 transition-colors group-hover:text-brand-green"
+    />
+  );
 }
 
 export function CategoryGrid() {
