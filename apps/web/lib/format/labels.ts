@@ -57,7 +57,7 @@ export const FEATURE_CATEGORY_ORDER: PropertyFeatureCategory[] = [
   "AMENITY",
 ];
 
-export const SEARCH_PROPERTY_TYPE_OPTIONS: Array<{
+export const FILTER_PROPERTY_TYPE_OPTIONS: Array<{
   value: PropertyType | "";
   label: string;
 }> = [
@@ -66,21 +66,38 @@ export const SEARCH_PROPERTY_TYPE_OPTIONS: Array<{
   { value: "APARTMENT", label: "Departamento" },
   { value: "PH", label: "PH" },
   { value: "OFFICE", label: "Oficina" },
-  { value: "COMMERCIAL", label: "Local" },
-  { value: "LAND", label: "Terreno" },
+  { value: "COMMERCIAL", label: "Local comercial" },
+  { value: "LAND", label: "Terreno / Lote" },
+  { value: "GARAGE", label: "Cochera" },
+  { value: "WAREHOUSE", label: "Depósito / Galpón" },
+  { value: "FIELD", label: "Campo / Chacra" },
   { value: "COUNTRY_HOUSE", label: "Casa quinta" },
+  { value: "INDUSTRIAL", label: "Industrial" },
+  { value: "OTHER", label: "Otro" },
 ];
 
-export const FILTER_PROPERTY_TYPE_OPTIONS: Array<{
-  value: PropertyType | "";
-  label: string;
-}> = [
-  { value: "", label: "Todos los tipos" },
-  ...Object.entries(PROPERTY_TYPE_LABELS).map(([value, label]) => ({
-    value: value as PropertyType,
-    label,
-  })),
-];
+/** @deprecated Use FILTER_PROPERTY_TYPE_OPTIONS — kept as alias for shared order/labels. */
+export const SEARCH_PROPERTY_TYPE_OPTIONS = FILTER_PROPERTY_TYPE_OPTIONS;
+
+/** Ambientes filter options; values map to existing bedrooms query param. */
+export const AMBIENTES_FILTER_OPTIONS = [
+  { value: "1", label: "Monoambiente" },
+  { value: "2", label: "2 ambientes" },
+  { value: "3", label: "3 ambientes" },
+  { value: "4", label: "4 ambientes" },
+  { value: "5", label: "5 ambientes" },
+  { value: "6", label: "Más de 5 ambientes" },
+] as const;
+
+/** Baños filter options; values map to existing bathrooms query param. */
+export const BATHROOMS_FILTER_OPTIONS = [
+  { value: "1", label: "1 baño" },
+  { value: "2", label: "2 baños" },
+  { value: "3", label: "3 baños" },
+  { value: "4", label: "4 baños" },
+  { value: "5", label: "5 baños" },
+  { value: "6", label: "Más de 5 baños" },
+] as const;
 
 const PROPERTY_CONDITION_LABELS: Record<PropertyCondition, string> = {
   NEW: "A estrenar",

@@ -19,6 +19,7 @@ import { createPageMetadata } from "@/lib/seo/metadata";
 import {
   hasActivePropertyListFilters,
   parsePropertyListSearchParams,
+  withDefaultListingType,
 } from "@/lib/url/search-params";
 
 type PropertiesPageProps = {
@@ -75,7 +76,8 @@ async function PropertiesResults({
   searchParams: Record<string, string | string[] | undefined>;
 }) {
   const filters = parsePropertyListSearchParams(searchParams);
-  const { data, meta, unavailable } = await getPublicProperties(filters);
+  const queryFilters = withDefaultListingType(filters);
+  const { data, meta, unavailable } = await getPublicProperties(queryFilters);
 
   return (
     <>
@@ -108,7 +110,7 @@ async function PropertiesResults({
             <Pagination
               page={meta.page}
               totalPages={meta.totalPages}
-              filters={filters}
+              filters={queryFilters}
             />
           </>
         )}

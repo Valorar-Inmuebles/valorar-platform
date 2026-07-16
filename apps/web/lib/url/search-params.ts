@@ -27,6 +27,16 @@ export const DEFAULT_PROPERTY_LIST_FILTERS: PropertyListFilters = {
   limit: 12,
 };
 
+/** Resolves listing type for Propiedades list UX (default: Venta). */
+export function withDefaultListingType(
+  filters: PropertyListFilters,
+): PropertyListFilters {
+  return {
+    ...filters,
+    listingType: filters.listingType ?? "SALE",
+  };
+}
+
 const LISTING_TYPES: PropertyListingType[] = ["SALE", "RENT", "TEMPORARY_RENT"];
 const CURRENCIES: Currency[] = ["ARS", "USD"];
 const PROPERTY_TYPES: PropertyType[] = [

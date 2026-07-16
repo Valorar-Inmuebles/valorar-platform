@@ -17,7 +17,7 @@ import {
   buildPropertySearchUrl,
   type SearchTab,
 } from "@/lib/url/search-params";
-import { PropertyTypeDropdown } from "./property-type-dropdown";
+import { PropertyTypeSelect } from "@/components/search/property-type-select";
 
 const SEARCH_TABS: Array<{ id: SearchTab; label: string }> = [
   { id: "sale", label: "Venta" },
@@ -158,14 +158,11 @@ export function PropertySearchForm({
           }`}
         >
           {!isDevelopmentsTab ? (
-            <div className={`min-w-0 ${FIELD_BOX} md:pb-0`}>
-              <p className={LABEL_CLASS}>Tipo de propiedad</p>
-              <PropertyTypeDropdown
+            <div className="min-w-0">
+              <p className={`${LABEL_CLASS} mb-1.5 px-1`}>Tipo de propiedad</p>
+              <PropertyTypeSelect
                 value={propertyType}
                 onChange={setPropertyType}
-                compact
-                embedded
-                className="w-full"
               />
             </div>
           ) : null}

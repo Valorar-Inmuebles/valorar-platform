@@ -1,10 +1,13 @@
 "use client";
 
+import type { LucideIcon } from "lucide-react";
+import { Check } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 
 export type FilterOption = {
   value: string;
   label: string;
+  icon?: LucideIcon;
 };
 
 type FilterOptionComboboxProps = {
@@ -19,6 +22,11 @@ type FilterOptionComboboxProps = {
   inputClassName?: string;
   ariaLabel?: string;
 };
+
+const OPTION_BASE =
+  "flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm transition-colors";
+const OPTION_IDLE = "text-text-primary hover:bg-surface-alt";
+const OPTION_SELECTED = "bg-brand-green/10 font-medium text-brand-green";
 
 export function FilterOptionCombobox({
   value,
@@ -38,6 +46,7 @@ export function FilterOptionCombobox({
   const [open, setOpen] = useState(false);
 
   const selected = options.find((option) => option.value === value);
+  const isClearSelected = allowClear && !value;
 
   useEffect(() => {
     setQuery(selected?.label ?? "");
@@ -88,13 +97,16 @@ export function FilterOptionCombobox({
       {open && !disabled ? (
         <ul
           id={listId}
+          role="listbox"
           className="absolute z-30 mt-1 max-h-56 w-full overflow-y-auto rounded-xl border border-border-default bg-surface-card py-1 shadow-lg"
         >
           {allowClear ? (
-            <li>
+            <li role="option" aria-selected={isClearSelected}>
               <button
                 type="button"
-                className="flex w-full px-3 py-2 text-left text-sm text-muted hover:bg-surface-alt"
+                className={`${OPTION_BASE} ${
+                  isClearSelected ? OPTION_SELECTED : "text-muted hover:bg-surface-alt"
+                }`}
                 onMouseDown={(event) => event.preventDefault()}
                 onClick={() => {
                   onChange("");
@@ -102,29 +114,56 @@ export function FilterOptionCombobox({
                   setOpen(false);
                 }}
               >
-                {clearLabel}
+                <span>{clearLabel}</span>
+                {isClearSelected ? (
+                  <Check size={16} strokeWidth={2} className="shrink-0" aria-hidden />
+                ) : null}
               </button>
             </li>
           ) : null}
           {filtered.length === 0 ? (
             <li className="px-3 py-2 text-sm text-muted">Sin resultados</li>
           ) : (
-            filtered.map((option) => (
-              <li key={option.value || option.label}>
-                <button
-                  type="button"
-                  className="flex w-full px-3 py-2 text-left text-sm text-text-primary hover:bg-surface-alt"
-                  onMouseDown={(event) => event.preventDefault()}
-                  onClick={() => {
-                    onChange(option.value);
-                    setQuery(option.label);
-                    setOpen(false);
-                  }}
+            filtered.map((option) => {
+              const isSelected = option.value === value;
+              const OptionIcon = option.icon;
+
+              return (
+                <li
+                  key={option.value || option.label}
+                  role="option"
+                  aria-selected={isSelected}
                 >
-                  {option.label}
-                </button>
-              </li>
-            ))
+                  <button
+                    type="button"
+                    className={`${OPTION_BASE} ${
+                      isSelected ? OPTION_SELECTED : OPTION_IDLE
+                    }`}
+                    onMouseDown={(event) => event.preventDefault()}
+                    onClick={() => {
+                      onChange(option.value);
+                      setQuery(option.label);
+                      setOpen(false);
+                    }}
+                  >
+                    <span className="flex min-w-0 items-center gap-2.5">
+                      {OptionIcon ? (
+                        <OptionIcon
+                          size={16}
+                          strokeWidth={1.75}
+                          className="shrink-0"
+                          aria-hidden
+                        />
+                      ) : null}
+                      <span className="truncate">{option.label}</span>
+                    </span>
+                    {isSelected ? (
+                      <Check size={16} strokeWidth={2} className="shrink-0" aria-hidden />
+                    ) : null}
+                  </button>
+                </li>
+              );
+            })
           )}
         </ul>
       ) : null}

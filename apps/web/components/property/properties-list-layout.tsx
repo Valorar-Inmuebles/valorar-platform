@@ -4,6 +4,7 @@ import { InventoryCoverageProvider } from "@/components/search/inventory-coverag
 import { getInventorySearchCoverage } from "@/lib/inventory/get-inventory-search-coverage";
 import { ActiveFiltersBar } from "./active-filters-bar";
 import { MobileFiltersButton } from "./mobile-filters-button";
+import { PropertiesFiltersHelpCta } from "./properties-filters-help-cta";
 import { PropertyFilters } from "./property-filters";
 
 function FiltersSidebarFallback() {
@@ -28,10 +29,11 @@ export async function PropertiesListLayout({ children }: PropertiesListLayoutPro
     <InventoryCoverageProvider coverage={coverage}>
       <div className="grid gap-8 lg:grid-cols-[18rem_minmax(0,1fr)] xl:grid-cols-[20rem_minmax(0,1fr)]">
         <aside className="hidden lg:block">
-          <div className="sticky top-24">
+          <div className="sticky top-24 space-y-4">
             <Suspense fallback={<FiltersSidebarFallback />}>
               <PropertyFilters />
             </Suspense>
+            <PropertiesFiltersHelpCta />
           </div>
         </aside>
 

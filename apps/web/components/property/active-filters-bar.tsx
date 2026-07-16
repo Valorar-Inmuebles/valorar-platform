@@ -1,6 +1,8 @@
 "use client";
 
 import {
+  AMBIENTES_FILTER_OPTIONS,
+  BATHROOMS_FILTER_OPTIONS,
   getListingTypeLabel,
   getPropertyTypeLabel,
 } from "@/lib/format/labels";
@@ -83,17 +85,27 @@ function buildActiveFilterChips(
   }
 
   if (filters.bedrooms != null) {
+    const ambientesLabel =
+      AMBIENTES_FILTER_OPTIONS.find(
+        (option) => option.value === String(filters.bedrooms),
+      )?.label ?? `${filters.bedrooms}+ ambientes`;
+
     chips.push({
       key: "bedrooms",
-      label: `${filters.bedrooms}+ dorm.`,
+      label: ambientesLabel,
       onRemove: () => applyFilters({ bedrooms: undefined }),
     });
   }
 
   if (filters.bathrooms != null) {
+    const bathroomsLabel =
+      BATHROOMS_FILTER_OPTIONS.find(
+        (option) => option.value === String(filters.bathrooms),
+      )?.label ?? `${filters.bathrooms}+ baños`;
+
     chips.push({
       key: "bathrooms",
-      label: `${filters.bathrooms}+ baños`,
+      label: bathroomsLabel,
       onRemove: () => applyFilters({ bathrooms: undefined }),
     });
   }

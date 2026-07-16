@@ -15,10 +15,10 @@ export function HeaderLogo() {
       <Image
         src={BRAND_ASSETS.logo}
         alt={companyName}
-        width={160}
-        height={48}
+        width={200}
+        height={60}
         priority
-        className="h-10 w-auto md:h-11"
+        className="h-12 w-auto md:h-14"
       />
     </Link>
   );

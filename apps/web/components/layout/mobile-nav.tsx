@@ -2,9 +2,19 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import {
+  BriefcaseBusiness,
+  Building,
+  Building2,
+  House,
+  Phone,
+  Scale,
+  Users,
+  type LucideIcon,
+} from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { WhatsappIcon } from "@/components/icons";
+import { WhatsappLogoIcon } from "@/components/icons";
 import { BRAND_ASSETS } from "@/lib/constants/brand";
 import { MAIN_NAV_ITEMS } from "@/lib/constants/navigation";
 import { getWhatsAppUrl } from "@/lib/tenant/get-whatsapp-url";
@@ -17,6 +27,16 @@ type MobileNavProps = {
 };
 
 const DRAWER_TRANSITION_MS = 300;
+
+const NAV_ICONS: Record<string, LucideIcon> = {
+  "/": House,
+  "/propiedades": Building2,
+  "/emprendimientos": Building,
+  "/servicios": BriefcaseBusiness,
+  "/nosotros": Users,
+  "/asesoramiento-juridico": Scale,
+  "/contacto": Phone,
+};
 
 function CloseIcon() {
   return (
@@ -161,7 +181,7 @@ export function MobileNav({
                     alt={companyName}
                     width={160}
                     height={48}
-                    className="h-9 w-auto"
+                    className="h-[46px] w-auto"
                   />
                 </Link>
                 <button
@@ -175,42 +195,42 @@ export function MobileNav({
                 </button>
               </div>
 
-              <nav aria-label="Navegación móvil" className="flex-1 overflow-y-auto px-4 py-4">
-                <ul className="flex flex-col gap-1">
-                  {MAIN_NAV_ITEMS.map((item) => (
-                    <li key={item.href}>
-                      <NavLink
-                        href={item.href}
-                        label={item.label}
-                        onNavigate={closeMenu}
-                        className="block rounded-xl px-4 py-3.5 text-[1.0625rem]"
-                      />
-                    </li>
-                  ))}
+              <nav aria-label="Navegación móvil" className="flex-1 overflow-y-auto px-3 py-3">
+                <ul className="flex flex-col gap-0.5">
+                  {MAIN_NAV_ITEMS.map((item) => {
+                    const Icon = NAV_ICONS[item.href];
+
+                    return (
+                      <li key={item.href}>
+                        <NavLink
+                          href={item.href}
+                          label={item.label}
+                          variant="mobile"
+                          onNavigate={closeMenu}
+                          icon={
+                            Icon ? (
+                              <Icon size={18} strokeWidth={1.75} className="shrink-0" />
+                            ) : undefined
+                          }
+                          className="flex h-[46px] items-center gap-3 rounded-xl px-3 text-[1.0625rem]"
+                        />
+                      </li>
+                    );
+                  })}
                 </ul>
               </nav>
 
               <div className="border-t border-border-default p-4">
-                {whatsappUrl ? (
-                  <a
-                    href={whatsappUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={closeMenu}
-                    className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-brand-green px-4 py-3.5 text-sm font-semibold text-white transition hover:brightness-110 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-green"
-                  >
-                    <WhatsappIcon size={20} className="shrink-0" />
-                    Hablar por WhatsApp
-                  </a>
-                ) : (
-                  <Link
-                    href="/contacto"
-                    onClick={closeMenu}
-                    className="inline-flex w-full items-center justify-center rounded-xl bg-brand-green px-4 py-3.5 text-sm font-semibold text-white transition hover:brightness-110 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-green"
-                  >
-                    Contactar
-                  </Link>
-                )}
+                <a
+                  href={whatsappUrl || "https://wa.me/"}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={closeMenu}
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-brand-green px-4 py-3.5 text-sm font-semibold text-white transition hover:brightness-110 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-green"
+                >
+                  <WhatsappLogoIcon size={20} className="shrink-0" />
+                  WhatsApp
+                </a>
               </div>
             </aside>
           </>,

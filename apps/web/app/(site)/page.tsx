@@ -3,6 +3,8 @@ import { Suspense } from "react";
 import { CategoryGrid } from "@/components/home/category-grid";
 import { FeaturedPropertiesSection } from "@/components/home/featured-properties-section";
 import { HeroSection } from "@/components/home/hero-section";
+import { HomeNextStepCta } from "@/components/home/home-next-step-cta";
+import { HomeSearchHelpCta } from "@/components/home/home-search-help-cta";
 import { RecentPropertiesSection } from "@/components/home/recent-properties-section";
 import { PropertyGridSkeleton } from "@/components/property/property-grid-skeleton";
 import { OrganizationJsonLd } from "@/components/seo/organization-json-ld";
@@ -77,6 +79,8 @@ export default function HomePage() {
         <FeaturedSection />
       </Suspense>
 
+      <HomeSearchHelpCta />
+
       <Suspense
         fallback={
           <section className="bg-surface-alt py-16 md:py-20">
@@ -90,6 +94,8 @@ export default function HomePage() {
       </Suspense>
 
       <CategoryGrid />
+
+      <HomeNextStepCta />
     </>
   );
 }

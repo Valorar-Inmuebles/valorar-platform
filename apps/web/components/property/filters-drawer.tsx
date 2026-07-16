@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useId } from "react";
+import { PropertiesFiltersHelpCta } from "./properties-filters-help-cta";
 import { PropertyFilters } from "./property-filters";
 
 type FiltersDrawerProps = {
@@ -72,6 +73,9 @@ export function FiltersDrawer({ isOpen, onClose }: FiltersDrawerProps) {
           </button>
         </div>
         <PropertyFilters onApplied={onClose} className="border-0 p-0 shadow-none" />
+        <div className="mt-4">
+          <PropertiesFiltersHelpCta />
+        </div>
       </div>
     </>
   );

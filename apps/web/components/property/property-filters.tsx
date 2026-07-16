@@ -5,13 +5,20 @@ import { useEffect, useState } from "react";
 import type { Currency, PropertyListingType, PropertyType } from "@repo/shared-types";
 import { moneyToInputValue, parseMoneyInput } from "@repo/shared-types/format-money";
 import { CurrencyInput } from "@repo/ui/currency-input";
-import { FilterOptionCombobox } from "@/components/search/filter-option-combobox";
+import {
+  AMBIENTES_FILTER_OPTIONS,
+  BATHROOMS_FILTER_OPTIONS,
+} from "@/lib/format/labels";
+import { FilterOptionSelect } from "@/components/search/filter-option-select";
+import {
+  PropertyTypeSelect,
+  PROPERTY_TYPE_SELECT_TRIGGER_CLASS,
+} from "@/components/search/property-type-select";
 import {
   getInitialProvinceId,
   InventoryLocationFilters,
 } from "@/components/search/inventory-location-filters";
 import { useInventoryCoverage } from "@/components/search/inventory-coverage-context";
-import { FILTER_PROPERTY_TYPE_OPTIONS } from "@/lib/format/labels";
 import { usePropertyFilters } from "@/hooks/use-property-filters";
 import type { SelectedLocality } from "@/components/geo/geo-locality-search";
 import {
@@ -20,37 +27,39 @@ import {
 } from "@/lib/url/search-params";
 
 const LISTING_TYPE_OPTIONS: Array<{
-  value: PropertyListingType | "";
+  value: PropertyListingType;
   label: string;
 }> = [
-  { value: "", label: "Todas" },
   { value: "SALE", label: "Venta" },
   { value: "RENT", label: "Alquiler" },
 ];
 
-const ROOM_COUNT_OPTIONS = [
-  { value: "1", label: "1+" },
-  { value: "2", label: "2+" },
-  { value: "3", label: "3+" },
-  { value: "4", label: "4+" },
-  { value: "5", label: "5+" },
+const CURRENCY_OPTIONS: Array<{
+  value: Currency;
+  label: string;
+}> = [
+  { value: "USD", label: "USD" },
+  { value: "ARS", label: "ARS" },
 ];
 
-const BEDROOM_FILTER_OPTIONS = ROOM_COUNT_OPTIONS.map((option) => ({
-  value: option.value,
-  label: `${option.label} dorm.`,
-}));
+const AMENITY_OPTIONS = [
+  { id: "brandNew", label: "A estrenar" },
+  { id: "professionalUse", label: "Apto profesional" },
+  { id: "garage", label: "Cochera" },
+  { id: "balcony", label: "Balcón" },
+  { id: "terrace", label: "Terraza" },
+  { id: "patio", label: "Patio" },
+] as const;
 
-const BATHROOM_FILTER_OPTIONS = ROOM_COUNT_OPTIONS.map((option) => ({
-  value: option.value,
-  label: `${option.label} baños`,
-}));
+type AmenityId = (typeof AMENITY_OPTIONS)[number]["id"];
 
-const FILTER_INPUT =
-  "h-11 w-full rounded-xl bg-white px-3 text-sm outline-none ring-1 ring-border-default/80 transition placeholder:text-muted focus:ring-brand-green/40";
+const FILTER_INPUT = PROPERTY_TYPE_SELECT_TRIGGER_CLASS;
+
+const CHECKBOX_CLASS =
+  "size-4 shrink-0 rounded border-border-default accent-brand-green text-brand-green checked:border-brand-green focus:ring-brand-green/30";
 
 type FilterFormState = {
-  listingType: PropertyListingType | "";
+  listingType: PropertyListingType;
   propertyType: PropertyType | "";
   provinceId: string;
   locality: SelectedLocality | null;
@@ -72,7 +81,7 @@ function filtersToFormState(
   const locationSelection = listFiltersToLocationSelection(filters);
 
   return {
-    listingType: filters.listingType ?? "",
+    listingType: filters.listingType ?? "SALE",
     propertyType: filters.propertyType ?? "",
     provinceId: filters.provinceId ?? "",
     locality: locationSelection
@@ -137,6 +146,64 @@ function FilterSection({
   );
 }
 
+function FilterCheckbox({
+  label,
+  checked,
+  onChange,
+}: {
+  label: string;
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+}) {
+  return (
+    <label className="flex cursor-pointer items-center gap-2.5 text-sm text-text-primary">
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(event) => onChange(event.target.checked)}
+        className={CHECKBOX_CLASS}
+      />
+      <span>{label}</span>
+    </label>
+  );
+}
+
+function FilterSegmentControl<T extends string>({
+  options,
+  value,
+  onChange,
+}: {
+  options: Array<{ value: T; label: string }>;
+  value: T | "";
+  onChange: (value: T) => void;
+}) {
+  return (
+    <div className="flex flex-wrap gap-2">
+      {options.map((option) => {
+        const isActive = value === option.value;
+        return (
+          <button
+            key={option.label}
+            type="button"
+            onClick={() => onChange(option.value)}
+            className={`rounded-full px-3 py-1.5 text-sm font-medium transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-green ${
+              isActive
+                ? "bg-brand-green text-white"
+                : "bg-surface-alt text-text-primary hover:bg-surface-base"
+            }`}
+          >
+            {option.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+const INITIAL_AMENITIES = Object.fromEntries(
+  AMENITY_OPTIONS.map((option) => [option.id, false]),
+) as Record<AmenityId, boolean>;
+
 export function PropertyFilters({ onApplied, className = "" }: PropertyFiltersProps) {
   const coverage = useInventoryCoverage();
   const { filters, applyFilters, clearFilters } = usePropertyFilters();
@@ -144,6 +211,8 @@ export function PropertyFilters({ onApplied, className = "" }: PropertyFiltersPr
     ...filtersToFormState(filters),
     provinceId: filters.provinceId || getInitialProvinceId(coverage),
   }));
+  const [creditEligible, setCreditEligible] = useState(false);
+  const [amenities, setAmenities] = useState<Record<AmenityId, boolean>>(INITIAL_AMENITIES);
 
   useEffect(() => {
     const nextForm = {
@@ -159,7 +228,7 @@ export function PropertyFilters({ onApplied, className = "" }: PropertyFiltersPr
     event.preventDefault();
 
     applyFilters({
-      listingType: form.listingType || undefined,
+      listingType: form.listingType,
       propertyType: form.propertyType || undefined,
       ...locationSelectionToListFilters(
         form.locality
@@ -196,31 +265,19 @@ export function PropertyFilters({ onApplied, className = "" }: PropertyFiltersPr
     >
       <div>
         <h2 className="text-base font-semibold text-foreground">Filtros</h2>
-        <p className="mt-1 text-sm text-muted">Refiná por ubicación, operación y precio.</p>
+        <p className="mt-1 text-sm text-muted">
+          Seleccioná los filtros para encontrar la propiedad que buscás.
+        </p>
       </div>
 
-      <FilterSection title="Operación">
-        <div className="flex flex-wrap gap-2">
-          {LISTING_TYPE_OPTIONS.map((option) => {
-            const isActive = form.listingType === option.value;
-            return (
-              <button
-                key={option.label}
-                type="button"
-                onClick={() =>
-                  setForm((current) => ({ ...current, listingType: option.value }))
-                }
-                className={`rounded-full px-3 py-1.5 text-sm font-medium transition ${
-                  isActive
-                    ? "bg-text-primary text-white"
-                    : "bg-surface-alt text-text-primary hover:bg-surface-base"
-                }`}
-              >
-                {option.label}
-              </button>
-            );
-          })}
-        </div>
+      <FilterSection title="Tipo de operación">
+        <FilterSegmentControl
+          options={LISTING_TYPE_OPTIONS}
+          value={form.listingType}
+          onChange={(listingType) =>
+            setForm((current) => ({ ...current, listingType }))
+          }
+        />
       </FilterSection>
 
       <InventoryLocationFilters
@@ -241,65 +298,37 @@ export function PropertyFilters({ onApplied, className = "" }: PropertyFiltersPr
         provincePlaceholder="Todas las provincias"
       />
 
-      <FilterSection title="Tipo">
-        <FilterOptionCombobox
+      <FilterSection title="Tipo de propiedad">
+        <PropertyTypeSelect
           value={form.propertyType}
           onChange={(propertyType) =>
             setForm((current) => ({
               ...current,
-              propertyType: propertyType as PropertyType | "",
+              propertyType,
             }))
           }
-          options={FILTER_PROPERTY_TYPE_OPTIONS.filter((option) => option.value).map(
-            (option) => ({
-              value: option.value,
-              label: option.label,
-            }),
-          )}
-          clearLabel="Todos los tipos"
-          placeholder="Todos los tipos"
-          inputClassName={FILTER_INPUT}
-          ariaLabel="Tipo de propiedad"
+        />
+      </FilterSection>
+
+      <FilterSection title="Moneda">
+        <FilterSegmentControl
+          options={CURRENCY_OPTIONS}
+          value={form.currency}
+          onChange={(currency) =>
+            setForm((current) => ({ ...current, currency }))
+          }
         />
       </FilterSection>
 
       <FilterSection title="Precio">
-        <div className="flex flex-wrap gap-2">
-          {[
-            { value: "", label: "Todas" },
-            { value: "ARS", label: "ARS" },
-            { value: "USD", label: "USD" },
-          ].map((option) => {
-            const isActive = form.currency === option.value;
-            return (
-              <button
-                key={option.label}
-                type="button"
-                onClick={() =>
-                  setForm((current) => ({
-                    ...current,
-                    currency: option.value as Currency | "",
-                  }))
-                }
-                className={`rounded-full px-3 py-1.5 text-sm font-medium transition ${
-                  isActive
-                    ? "bg-text-primary text-white"
-                    : "bg-surface-alt text-text-primary hover:bg-surface-base"
-                }`}
-              >
-                {option.label}
-              </button>
-            );
-          })}
-        </div>
-        <div className="mt-2 grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-2 gap-2">
           <CurrencyInput
             unstyled
             value={form.priceMin}
             onChange={(value) =>
               setForm((current) => ({ ...current, priceMin: value }))
             }
-            placeholder="Mín."
+            placeholder="Desde"
             className={FILTER_INPUT}
           />
           <CurrencyInput
@@ -308,54 +337,81 @@ export function PropertyFilters({ onApplied, className = "" }: PropertyFiltersPr
             onChange={(value) =>
               setForm((current) => ({ ...current, priceMax: value }))
             }
-            placeholder="Máx."
+            placeholder="Hasta"
             className={FILTER_INPUT}
+          />
+        </div>
+        <div className="pt-1">
+          <FilterCheckbox
+            label="Apto crédito"
+            checked={creditEligible}
+            onChange={setCreditEligible}
           />
         </div>
       </FilterSection>
 
       <FilterSection title="Ambientes">
-        <FilterOptionCombobox
+        <FilterOptionSelect
           value={form.bedrooms}
           onChange={(bedrooms) =>
             setForm((current) => ({ ...current, bedrooms }))
           }
-          options={BEDROOM_FILTER_OPTIONS}
-          clearLabel="Dorm. cualquiera"
-          placeholder="Dorm. cualquiera"
-          inputClassName={FILTER_INPUT}
+          options={[...AMBIENTES_FILTER_OPTIONS]}
+          clearLabel="Cualquier cantidad"
+          placeholder="Cualquier cantidad"
+          triggerClassName={FILTER_INPUT}
           ariaLabel="Ambientes"
         />
       </FilterSection>
 
       <FilterSection title="Baños">
-        <FilterOptionCombobox
+        <FilterOptionSelect
           value={form.bathrooms}
           onChange={(bathrooms) =>
             setForm((current) => ({ ...current, bathrooms }))
           }
-          options={BATHROOM_FILTER_OPTIONS}
-          clearLabel="Baños cualquiera"
-          placeholder="Baños cualquiera"
-          inputClassName={FILTER_INPUT}
+          options={[...BATHROOMS_FILTER_OPTIONS]}
+          clearLabel="Cualquier cantidad"
+          placeholder="Cualquier cantidad"
+          triggerClassName={FILTER_INPUT}
           ariaLabel="Baños"
         />
+      </FilterSection>
+
+      <FilterSection title="Comodidades">
+        <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+          {AMENITY_OPTIONS.map((option) => (
+            <FilterCheckbox
+              key={option.id}
+              label={option.label}
+              checked={amenities[option.id]}
+              onChange={(checked) =>
+                setAmenities((current) => ({
+                  ...current,
+                  [option.id]: checked,
+                }))
+              }
+            />
+          ))}
+        </div>
       </FilterSection>
 
       <div className="flex flex-col gap-2 pt-1">
         <button
           type="submit"
-          className="inline-flex h-11 items-center justify-center rounded-xl bg-text-primary px-4 text-sm font-semibold text-white transition hover:opacity-90"
+          className="inline-flex h-11 items-center justify-center rounded-xl bg-brand-green px-4 text-sm font-semibold text-white transition hover:brightness-110 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-green"
         >
-          Aplicar filtros
+          Buscar propiedad
         </button>
         <button
           type="button"
           onClick={() => {
             clearFilters();
+            setCreditEligible(false);
+            setAmenities(INITIAL_AMENITIES);
             onApplied?.();
           }}
-          className="inline-flex h-11 items-center justify-center rounded-xl text-sm font-medium text-text-secondary transition hover:text-text-primary"
+          className="inline-flex h-11 items-center justify-center rounded-xl text-sm font-medium text-text-secondary transition hover:text-brand-green focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-green"
         >
           Limpiar filtros
         </button>

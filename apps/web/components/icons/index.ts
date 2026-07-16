@@ -8,4 +8,4 @@ export { ApartmentIcon } from "./apartment-icon";
 export { BuildingIcon } from "./building-icon";
 export { DevelopmentIcon } from "./development-icon";
 export { LocationIcon } from "./location-icon";
-export { WhatsappIcon } from "./whatsapp-icon";
+export { WhatsappIcon, WhatsappLogoIcon } from "./whatsapp-icon";

@@ -1,9 +1,8 @@
 import Link from "next/link";
 import {
-  ApartmentIcon,
-  BuildingIcon,
-  HouseIcon,
-} from "@/components/icons";
+  DEVELOPMENT_CATEGORY_ICON,
+  PROPERTY_TYPE_ICONS,
+} from "@/components/search/property-type-icons";
 import { SiteContainer } from "@/components/layout/site-container";
 
 type CategoryItem = {
@@ -40,23 +39,31 @@ const CATEGORIES: CategoryItem[] = [
 
 function CategoryIcon({ icon }: { icon: CategoryItem["icon"] }) {
   const iconProps = {
-    size: 28,
+    size: 24,
+    strokeWidth: 1.75,
     className: "text-brand-green/80 transition-colors group-hover:text-brand-green",
+    "aria-hidden": true as const,
   };
 
   switch (icon) {
-    case "house":
-      return <HouseIcon {...iconProps} />;
-    case "apartment":
-      return <ApartmentIcon {...iconProps} />;
-    case "development":
-      return <BuildingIcon {...iconProps} />;
+    case "house": {
+      const Icon = PROPERTY_TYPE_ICONS.HOUSE;
+      return <Icon {...iconProps} />;
+    }
+    case "apartment": {
+      const Icon = PROPERTY_TYPE_ICONS.APARTMENT;
+      return <Icon {...iconProps} />;
+    }
+    case "development": {
+      const Icon = DEVELOPMENT_CATEGORY_ICON;
+      return <Icon {...iconProps} />;
+    }
   }
 }
 
 export function CategoryGrid() {
   return (
-    <section className="border-t border-border-default bg-surface-base py-16 md:py-20">
+    <section className="border-t border-border-default bg-surface-base pt-16 pb-5 md:pt-20 md:pb-5">
       <SiteContainer>
         <div className="mb-10">
           <h2 className="text-2xl font-semibold tracking-tight text-text-primary md:text-3xl">
