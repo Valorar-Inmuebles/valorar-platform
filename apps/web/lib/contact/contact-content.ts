@@ -15,37 +15,44 @@ export type ContactOffice = {
   address: string;
   phones: string[];
   whatsappPhone: string;
+  whatsappDisplay: string;
+  latitude: number;
+  longitude: number;
 };
 
 export const CONTACT_OFFICES: ContactOffice[] = [
   {
     id: "casa-central",
     title: "Casa Central",
-    address: "Cnel. Ramón L. Falcón 1695, CP. 1424, Capital Federal",
+    address: "Cnel. Ramón L. Falcón 1695, CP 1424\nCapital Federal",
     phones: ["4926-0880", "4902-8557"],
-    whatsappPhone: "5491149260880",
+    whatsappPhone: "5491144736714",
+    whatsappDisplay: "114-473-6714",
+    latitude: -34.6206,
+    longitude: -58.4418,
   },
   {
     id: "sucursal-flores",
     title: "Sucursal Flores",
-    address: "Av. Directorio 2093, CP. 1406, Capital Federal",
+    address: "Av. Directorio 2093, CP 1406\nCapital Federal",
     phones: ["6060-5107"],
-    whatsappPhone: "5491160605107",
+    whatsappPhone: "5491124591701",
+    whatsappDisplay: "112-459-1701",
+    latitude: -34.6348,
+    longitude: -58.4629,
   },
 ];
 
 export const CONTACT_EMAIL = "info@valorarinmuebles.com.ar";
 
 export const CONTACT_HOURS = {
-  weekdays: "Lunes a Viernes: 9:00 a 18:00",
-  saturday: "Sábados: 9:00 a 13:00",
+  weekdays: "Lun. a Vie. de 10 a 19 hs.",
+  saturday: "Sáb. de 10 a 13 hs.",
 };
 
 export const CONTACT_MAP = {
-  title: "Mapa de ubicación",
-  description:
-    "Próximamente integraremos el mapa interactivo de nuestra Casa Central.",
-  locationLabel: "Casa Central — Caballito, Capital Federal",
+  title: "Nuestras sucursales",
+  description: "Encontrá Casa Central y Sucursal Flores en el mapa.",
 };
 
 export const CONTACT_BENEFITS = [

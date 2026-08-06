@@ -1,3 +1,4 @@
+import { Phone } from "lucide-react";
 import { LocationIcon, WhatsappIcon } from "@/components/icons";
 import {
   CONTACT_EMAIL,
@@ -13,6 +14,10 @@ function formatPhoneHref(phone: string): string {
 function formatPhoneDisplay(phone: string): string {
   return `+54 11 ${phone}`;
 }
+
+const ROW_CLASS = "flex items-start gap-2";
+const ICON_CLASS = "mt-0.5 shrink-0 text-brand-green";
+const LINK_CLASS = "transition-colors hover:text-brand-green";
 
 type ContactInfoCardsProps = {
   whatsappFallbackPhone?: string;
@@ -45,43 +50,38 @@ export function ContactInfoCards({
               {office.title}
             </h3>
 
-            <div className="mt-4 space-y-3 text-sm text-text-secondary">
-              <p className="inline-flex items-start gap-2">
-                <LocationIcon
-                  size={18}
-                  className="mt-0.5 shrink-0 text-brand-green"
-                />
-                <span>{office.address}</span>
-              </p>
-
-              <div className="space-y-1">
-                <p className="text-xs font-medium uppercase tracking-wide text-text-primary">
-                  Teléfono
-                </p>
-                {office.phones.map((phone) => (
-                  <p key={phone}>
-                    <a
-                      href={formatPhoneHref(phone)}
-                      className="transition-colors hover:text-brand-green"
-                    >
-                      {formatPhoneDisplay(phone)}
-                    </a>
-                  </p>
-                ))}
+            <div className="mt-4 flex flex-col gap-3 text-sm text-text-secondary">
+              <div className={ROW_CLASS}>
+                <LocationIcon size={18} className={ICON_CLASS} />
+                <span className="whitespace-pre-line">{office.address}</span>
               </div>
 
+              {office.phones.map((phone) => (
+                <div key={phone} className={ROW_CLASS}>
+                  <Phone
+                    size={18}
+                    strokeWidth={1.75}
+                    className={ICON_CLASS}
+                    aria-hidden
+                  />
+                  <a href={formatPhoneHref(phone)} className={LINK_CLASS}>
+                    {formatPhoneDisplay(phone)}
+                  </a>
+                </div>
+              ))}
+
               {whatsappUrl ? (
-                <p>
+                <div className={ROW_CLASS}>
+                  <WhatsappIcon size={18} className={ICON_CLASS} />
                   <a
                     href={whatsappUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-2 font-medium text-brand-green transition hover:underline"
+                    className={`${LINK_CLASS} font-medium text-brand-green`}
                   >
-                    <WhatsappIcon size={18} />
-                    WhatsApp
+                    WhatsApp {office.whatsappDisplay}
                   </a>
-                </p>
+                </div>
               ) : null}
             </div>
           </article>

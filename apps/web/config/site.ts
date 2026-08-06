@@ -26,7 +26,7 @@ export function getSiteConfig(): SiteConfig {
       process.env.PUBLIC_SITE_DESCRIPTION ??
       "Inmuebles, alquileres, ventas y emprendimientos.",
     whatsapp: process.env.PUBLIC_WHATSAPP ?? "",
-    email: process.env.PUBLIC_EMAIL ?? "contacto@inmobiliaria.com",
+    email: process.env.PUBLIC_EMAIL ?? "info@valorarinmuebles.com.ar",
     phone: process.env.PUBLIC_PHONE ?? "+54 11 0000-0000",
     address:
       process.env.PUBLIC_ADDRESS ?? "Av. Ejemplo 1234, Buenos Aires, Argentina",

@@ -47,6 +47,8 @@ export type ServiceItem = {
   icon: ServiceIconName;
   title: string;
   description: string;
+  href?: string;
+  ctaLabel?: string;
 };
 
 export const SERVICES_ITEMS: ServiceItem[] = [
@@ -54,7 +56,7 @@ export const SERVICES_ITEMS: ServiceItem[] = [
     icon: "rental-admin",
     title: "Administración de alquileres",
     description:
-      "Gestionamos la búsqueda y selección de inquilinos, el cobro de rentas y el seguimiento del contrato. Validamos ingresos, garantías e informes para que obtengas una renta segura sin perder tiempo.",
+      "Búsqueda del perfil de un inquilino a base de demostración de ingresos, garantía adecuada, informes pertinentes, etc. Obtenga una renta segura y sin pérdida de tiempo con depósitos en su cuenta.",
   },
   {
     icon: "buy-sell",
@@ -66,36 +68,38 @@ export const SERVICES_ITEMS: ServiceItem[] = [
     icon: "accounting",
     title: "Asesoramiento contable",
     description:
-      "Orientamos en transacciones desde el exterior, fideicomisos y trámites vinculados a tu operación. Te asesoramos sobre COTI, ITI y demás requisitos cuando aplican.",
+      "Cumplimiento de la Ley 19.550 de Sociedades y la Ley 24.441 de Fideicomisos en general.",
   },
   {
     icon: "legal",
-    title: "Asesoramiento jurídico / notarial",
+    title: "Asesoramiento Jurídico",
     description:
-      "Sucesiones, inhibiciones, estudios de título, escrituras, boletos y contratos. Contamos con profesionales para resolver cada etapa legal y notarial con seguridad.",
+      "Brindamos asesoramiento jurídico integral en busca de una mejor eficiencia en la toma de decisiones, con enfoque en derecho inmobiliario, sucesiones, contratos, previsional, accidentes de tránsito, consumidor y derecho administrativo.",
+    href: "/asesoramiento-juridico",
+    ctaLabel: "Más información →",
   },
   {
     icon: "credit",
     title: "Asesoramiento crediticio",
     description:
-      "Información actualizada sobre condiciones y requisitos para calificar ante entidades bancarias de primera línea. Te ayudamos a evaluar opciones de financiación acordes a tu perfil.",
+      "Si desea obtener información sobre condiciones vigentes y requisitos para calificar, consúltenos.",
   },
   {
     icon: "architecture",
     title: "Arquitectura",
     description:
-      "Si querés reciclar una propiedad o refaccionar para vender, te asesoramos en el potencial del inmueble y en las mejoras que maximizan su valor en el mercado.",
+      "Si desea comprar una propiedad para reciclar con el objetivo de modernizarla para luego revenderla y obtener una ganancia, contamos con un equipo de profesionales idóneos en la materia.",
   },
   {
     icon: "consortium",
     title: "Administración de consorcios",
     description:
-      "Orientación sobre la administración de consorcios y el cumplimiento normativo vigente. Te asesoramos para optimizar la gestión con buenas prácticas y criterio.",
+      "Asesoramiento tanto a propietarios como administradores sobre los alcances de las normas de propiedad horizontal y decretos reglamentarios.",
   },
   {
     icon: "developers",
     title: "Servicios para desarrolladores y constructoras",
     description:
-      "Búsqueda de terrenos, análisis de mercado, vinculación con inversores y comercialización del proyecto en cada etapa. Acompañamos a constructoras con visión integral del negocio.",
+      "Búsqueda de terrenos. Análisis de mercado. Futuros inversores. Comercialización del proyecto en sus distintas etapas y asesoramiento integral.",
   },
 ];

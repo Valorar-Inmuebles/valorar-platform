@@ -1,40 +1,28 @@
 import Image from "next/image";
 import Link from "next/link";
-import { Clock, Mail } from "lucide-react";
-import { WhatsappIcon } from "@/components/icons";
 import {
-  FOOTER_CONTACT,
   FOOTER_DESCRIPTION,
-  FOOTER_INSTITUTIONAL_ITEMS,
-  FOOTER_NAV_ITEMS,
   FOOTER_SOCIAL_LINKS,
+  FOOTER_USEFUL_ITEMS,
 } from "@/lib/constants/navigation";
 import { BRAND_ASSETS } from "@/lib/constants/brand";
+import { CONTACT_OFFICES } from "@/lib/contact/contact-content";
 import { getPublicSiteConfig } from "@/lib/tenant/site-config";
-import { getWhatsAppUrl } from "@/lib/tenant/get-whatsapp-url";
 import { FooterCopyright } from "./footer-copyright";
 import { FooterNav } from "./footer-nav";
+import { FooterOffice } from "./footer-office";
 import { FooterSocial } from "./footer-social";
 import { SiteContainer } from "./site-container";
 
-const CONTACT_ICON_CLASS = "mt-0.5 size-[18px] shrink-0 text-brand-green";
-const CONTACT_ROW_CLASS = "flex items-start gap-2.5";
-const CONTACT_LINK_CLASS =
-  "transition-colors hover:text-brand-green focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-green";
+const FOOTER_CTA_LINK_CLASS =
+  "text-sm font-medium text-brand-green transition-colors hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-green";
 
 export function Footer() {
   const site = getPublicSiteConfig();
-
-  const contact = {
-    whatsappPhone: site.whatsapp || FOOTER_CONTACT.whatsapp,
-    whatsappDisplay: FOOTER_CONTACT.whatsapp,
-    email: FOOTER_CONTACT.email,
-    hours: FOOTER_CONTACT.hours,
-  };
-  const whatsappUrl = getWhatsAppUrl({
-    phone: contact.whatsappPhone,
-    message: "Hola, me gustaría realizar una consulta.",
-  });
+  const casaCentral = CONTACT_OFFICES.find((office) => office.id === "casa-central");
+  const sucursalFlores = CONTACT_OFFICES.find(
+    (office) => office.id === "sucursal-flores",
+  );
 
   const socialLinks = FOOTER_SOCIAL_LINKS.map((link) => {
     const envUrl =
@@ -54,68 +42,36 @@ export function Footer() {
     <footer className="border-t border-border-default bg-surface-alt text-text-primary">
       <SiteContainer className="py-12 lg:py-16">
         <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-4">
-          <div className="sm:col-span-2 lg:col-span-1">
+          <div>
             <Link href="/" className="inline-flex">
               <Image
                 src={BRAND_ASSETS.logo}
                 alt={site.companyName}
-                width={192}
-                height={58}
-                className="h-12 w-auto"
+                width={220}
+                height={66}
+                className="h-14 w-auto"
               />
             </Link>
-            <p className="mt-4 max-w-sm text-sm leading-relaxed text-text-secondary">
+            <p className="mt-4 max-w-sm whitespace-pre-line text-sm leading-relaxed text-text-secondary">
               {FOOTER_DESCRIPTION}
+            </p>
+            <p className="mt-4">
+              <Link href="/nosotros" className={FOOTER_CTA_LINK_CLASS}>
+                Leer más →
+              </Link>
             </p>
           </div>
 
-          <FooterNav title="EXPLORAR" items={FOOTER_NAV_ITEMS} />
-          <FooterNav title="INSTITUCIONAL" items={FOOTER_INSTITUTIONAL_ITEMS} />
+          {casaCentral ? <FooterOffice office={casaCentral} /> : null}
+          {sucursalFlores ? <FooterOffice office={sucursalFlores} /> : null}
 
           <div>
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-text-primary">
-              CONTACTO
-            </h2>
-            <ul className="mt-4 space-y-3 text-sm text-text-secondary">
-              <li className={CONTACT_ROW_CLASS}>
-                <WhatsappIcon size={18} className={CONTACT_ICON_CLASS} />
-                {whatsappUrl ? (
-                  <a
-                    href={whatsappUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className={CONTACT_LINK_CLASS}
-                  >
-                    {contact.whatsappDisplay}
-                  </a>
-                ) : (
-                  <span>{contact.whatsappDisplay}</span>
-                )}
-              </li>
-              <li className={CONTACT_ROW_CLASS}>
-                <Mail
-                  size={18}
-                  strokeWidth={1.75}
-                  className={CONTACT_ICON_CLASS}
-                  aria-hidden
-                />
-                <a
-                  href={`mailto:${contact.email}`}
-                  className={CONTACT_LINK_CLASS}
-                >
-                  {contact.email}
-                </a>
-              </li>
-              <li className={CONTACT_ROW_CLASS}>
-                <Clock
-                  size={18}
-                  strokeWidth={1.75}
-                  className={CONTACT_ICON_CLASS}
-                  aria-hidden
-                />
-                <span className="whitespace-pre-line">{contact.hours}</span>
-              </li>
-            </ul>
+            <FooterNav title="Información útil" items={FOOTER_USEFUL_ITEMS} />
+            <p className="mt-4">
+              <Link href="/contacto" className={FOOTER_CTA_LINK_CLASS}>
+                Contáctenos →
+              </Link>
+            </p>
           </div>
         </div>
 

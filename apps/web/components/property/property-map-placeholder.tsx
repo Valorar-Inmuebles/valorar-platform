@@ -1,4 +1,5 @@
 import { LocationIcon } from "@/components/icons";
+import { Map } from "@/components/map";
 import { PropertyDetailSection } from "./property-detail-section";
 
 type PropertyMapPlaceholderProps = {
@@ -8,16 +9,41 @@ type PropertyMapPlaceholderProps = {
   longitude?: number | null;
 };
 
-function buildOpenStreetMapEmbedUrl(latitude: number, longitude: number): string {
-  const delta = 0.012;
-  const bbox = [
-    longitude - delta,
-    latitude - delta,
-    longitude + delta,
-    latitude + delta,
-  ].join("%2C");
+type LocationMapEmbedProps = {
+  latitude: number;
+  longitude: number;
+  title: string;
+  className?: string;
+  heightClassName?: string;
+  footerNote?: string;
+};
 
-  return `https://www.openstreetmap.org/export/embed.html?bbox=${bbox}&layer=mapnik&marker=${latitude}%2C${longitude}`;
+/**
+ * Shared map shell for property/development detail.
+ * Uses the project Map (Leaflet + Carto Positron) — no iframes.
+ */
+export function LocationMapEmbed({
+  latitude,
+  longitude,
+  title,
+  className = "",
+  heightClassName = "h-80 w-full md:h-96",
+  footerNote,
+}: LocationMapEmbedProps) {
+  return (
+    <div className={className}>
+      <Map
+        center={[latitude, longitude]}
+        zoom={15}
+        marker={{ position: [latitude, longitude], title }}
+        className={heightClassName}
+        ariaLabel={title}
+      />
+      {footerNote ? (
+        <p className="mt-3 text-xs text-text-secondary">{footerNote}</p>
+      ) : null}
+    </div>
+  );
 }
 
 export function PropertyMapPlaceholder({
@@ -39,21 +65,12 @@ export function PropertyMapPlaceholder({
       ) : null}
 
       {hasCoordinates ? (
-        <div className="overflow-hidden rounded-2xl border border-border-default bg-surface-card">
-          <iframe
-            title={`Mapa aproximado de ${location || city}`}
-            src={buildOpenStreetMapEmbedUrl(latitude, longitude)}
-            className="h-80 w-full border-0 md:h-96"
-            loading="lazy"
-            referrerPolicy="no-referrer-when-downgrade"
-          />
-          <div className="border-t border-border-default px-4 py-3">
-            <p className="text-xs text-text-secondary">
-              Ubicación aproximada. La dirección exacta no se publica por
-              privacidad.
-            </p>
-          </div>
-        </div>
+        <LocationMapEmbed
+          latitude={latitude}
+          longitude={longitude}
+          title={`Mapa aproximado de ${location || city}`}
+          footerNote="Ubicación aproximada. La dirección exacta no se publica por privacidad."
+        />
       ) : (
         <div
           className="overflow-hidden rounded-2xl bg-surface-alt ring-1 ring-border-default/80"

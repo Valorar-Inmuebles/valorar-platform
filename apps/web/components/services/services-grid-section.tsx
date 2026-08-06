@@ -1,6 +1,10 @@
+import Link from "next/link";
 import { SiteContainer } from "@/components/layout/site-container";
 import { SERVICES_ITEMS } from "@/lib/services/services-content";
 import { ServiceIcon } from "./service-icon";
+
+const SECONDARY_CTA_CLASS =
+  "mt-5 inline-flex h-10 items-center justify-center rounded-xl border border-brand-green bg-transparent px-4 text-sm font-semibold text-brand-green transition hover:bg-brand-green hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-green";
 
 export function ServicesGridSection() {
   return (
@@ -33,6 +37,11 @@ export function ServicesGridSection() {
               <p className="mt-2 flex-1 text-sm leading-relaxed text-text-secondary">
                 {service.description}
               </p>
+              {service.href && service.ctaLabel ? (
+                <Link href={service.href} className={SECONDARY_CTA_CLASS}>
+                  {service.ctaLabel}
+                </Link>
+              ) : null}
             </article>
           ))}
         </div>
