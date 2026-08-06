@@ -31,7 +31,7 @@ export function FooterOffice({ office }: FooterOfficeProps) {
       <ul className="mt-4 space-y-3 text-sm text-text-secondary">
         <li className={ROW_CLASS}>
           <LocationIcon size={18} className={ICON_CLASS} />
-          <span>{office.address}</span>
+          <span className="whitespace-pre-line">{office.address}</span>
         </li>
         <li className={ROW_CLASS}>
           <Phone size={18} strokeWidth={1.75} className={ICON_CLASS} aria-hidden />

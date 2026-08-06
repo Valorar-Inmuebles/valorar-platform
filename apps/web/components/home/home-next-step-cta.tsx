@@ -11,11 +11,11 @@ export function HomeNextStepCta() {
         description="Ya sea para comprar, vender, alquilar o invertir en un emprendimiento, nuestro equipo puede acompañarte durante todo el proceso."
         primaryAction={{
           href: "/contacto",
-          label: "Contactanos",
+          label: "Solicitar asesoramiento",
         }}
         secondaryAction={{
-          href: "/servicios",
-          label: "Conocer nuestros servicios",
+          href: "/contacto",
+          label: "Tasá tu propiedad",
         }}
       />
     </HomeCtaBand>

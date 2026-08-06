@@ -5,13 +5,49 @@ export const ABOUT_YEARS_EXPERIENCE = SERVICES_YEARS_EXPERIENCE;
 export const ABOUT_HERO_INTRO =
   "Somos una inmobiliaria de raíz porteña, con un equipo que combina experiencia de mercado y trato humano en cada operación.";
 
-export const ABOUT_HISTORY_PARAGRAPHS = [
-  "Comenzamos en Caballito en 1999, siendo testigos del crecimiento de nuestro barrio y de la evolución del mercado inmobiliario en la zona.",
-  "Desde entonces, Christian A. Marani y su equipo recorren sus calles, visitan hogares y conocen los deseos de quienes confían en nosotros para cumplirlos.",
-  "Construimos un trato directo, cercano y de mutua confianza con nuestros clientes — algo que nos diferencia y nos gratifica. Dimos la bienvenida a muchos vecinos que hoy siguen eligiéndonos, y mantenemos vínculos estrechos con quienes se mudaron fuera del barrio.",
-  "Nuestro trabajo es claro y preciso; con el mismo entusiasmo del primer día seguimos creciendo. En 2007 dimos un paso decisivo con la fundación de Valorar Inmuebles, el nombre que hoy nos identifica.",
-  "Contamos con profesionales destacados en contabilidad, área jurídica y notarial para responder cada consulta con el respaldo que merecés.",
-] as const;
+export type AboutHistoryTextPart = {
+  text: string;
+  emphasis?: boolean;
+};
+
+export type AboutHistoryParagraph = {
+  parts: AboutHistoryTextPart[];
+};
+
+export const ABOUT_HISTORY_PARAGRAPHS: AboutHistoryParagraph[] = [
+  {
+    parts: [
+      {
+        text: "Desde 1999 Christian Ariel Marani junto a su equipo recorren las calles del barrio porteño de Caballito en la búsqueda constante de nuevas oportunidades.",
+      },
+    ],
+  },
+  {
+    parts: [
+      {
+        text: "Sin embargo, fue en 2007, con una visión clara y vocación de crecimiento, cuando decidimos dar un paso fundamental: iniciar nuestro propio proyecto, ",
+      },
+      { text: "VALORAR INMUEBLES", emphasis: true },
+      {
+        text: ", concebido con el objetivo de brindar un servicio integral, profesional y orientado a las necesidades de cada cliente.",
+      },
+    ],
+  },
+  {
+    parts: [
+      {
+        text: "Nuestra modalidad de trabajo se basa en la cercanía, la confianza y el compromiso con cada cliente. Nuestra propuesta es clara: acompañarlo en la concreción de sus sueños, construyendo vínculos que trascienden lo meramente comercial.",
+      },
+    ],
+  },
+  {
+    parts: [
+      {
+        text: "Asimismo, además de contar con sólidos conocimientos en las áreas jurídica y notarial, entendemos que la confianza de nuestros clientes constituye el motor que impulsa nuestra mejora continua y el fortalecimiento permanente de nuestro compromiso profesional.",
+      },
+    ],
+  },
+];
 
 export type AboutWorkStyleIconName =
   | "experience"
@@ -56,18 +92,16 @@ export const ABOUT_COMMITMENT = {
 };
 
 export const ABOUT_DIRECTOR = {
-  name: "Christian Marani",
-  roles: [
-    "Martillero Público Nacional",
-    "Corredor Inmobiliario",
-    "Tasador",
-  ],
+  name: "Christian Ariel Marani",
+  roles: ["Martillero, Corredor Público y Tasador."],
   credentials: [
-    "Corredor Inmobiliario MN° 3686 CUCICBA",
-    "Abogado UPFA",
-    "Tomo 154 Folio 51 CPACF",
+    "Matrícula CPI 3686.",
+    "Abogado – IUPFA.",
+    "Tomo 154 · Folio 51 · CPACF.",
   ],
   initials: "CM",
+  photoSrc: "/valorar-inmuebles-christian-marani.jpeg",
+  photoAlt: "Christian Ariel Marani — Valorar Inmuebles",
 };
 
 export const ABOUT_CTA = {

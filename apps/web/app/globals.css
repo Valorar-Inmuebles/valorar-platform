@@ -77,3 +77,21 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
+
+/* Leaflet brand marker — sizes/color driven by components/map/map-marker.ts */
+.valorar-map-marker {
+  background: transparent;
+  border: none;
+}
+
+.valorar-map-marker__pin {
+  display: block;
+  width: 23px;
+  height: 23px;
+  margin: 7px 6px 0;
+  border: 2.5px solid #ffffff;
+  border-radius: 50% 50% 50% 0;
+  background: #15361e;
+  box-shadow: 0 2px 10px rgb(21 54 30 / 0.4);
+  transform: rotate(-45deg);
+}

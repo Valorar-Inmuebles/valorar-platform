@@ -13,16 +13,7 @@ export const MAIN_NAV_ITEMS: NavItem[] = [
   { label: "Contacto", href: "/contacto" },
 ];
 
-export const FOOTER_NAV_ITEMS: NavItem[] = [
-  { label: "Propiedades", href: "/propiedades" },
-  { label: "Emprendimientos", href: "/emprendimientos" },
-  { label: "Servicios", href: "/servicios" },
-  { label: "Asesoramiento Jurídico", href: "/asesoramiento-juridico" },
-];
-
-export const FOOTER_INSTITUTIONAL_ITEMS: NavItem[] = [
-  { label: "Nosotros", href: "/nosotros" },
-  { label: "Contacto", href: "/contacto" },
+export const FOOTER_USEFUL_ITEMS: NavItem[] = [
   { label: "Cumplimiento de la Ley N° 5115", href: "/ley-5115" },
   { label: "Cumplimiento de la Ley N° 5859", href: "/ley-5859" },
 ];
@@ -35,19 +26,9 @@ export type SocialLink = {
 
 export const FOOTER_SOCIAL_LINKS: SocialLink[] = [
   {
-    label: "Facebook",
-    href: "https://facebook.com/",
-    icon: "facebook",
-  },
-  {
     label: "Instagram",
-    href: "https://instagram.com/",
+    href: "https://www.instagram.com/valorarinmuebles/",
     icon: "instagram",
-  },
-  {
-    label: "LinkedIn",
-    href: "https://linkedin.com/",
-    icon: "linkedin",
   },
 ];
 
@@ -58,4 +39,4 @@ export const FOOTER_CONTACT = {
 };
 
 export const FOOTER_DESCRIPTION =
-  "Desde 1999 siendo testigos del crecimiento de nuestro barrio. Nuestro trabajo es claro y preciso, nuestro dinamismo hará su sueño realidad.";
+  "Desde 1999 siendo testigos del crecimiento de nuestro barrio.\nNuestro trabajo es claro y preciso, nuestro dinamismo hará su sueño realidad.";

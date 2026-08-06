@@ -159,15 +159,19 @@ export function PropertySearchForm({
         >
           {!isDevelopmentsTab ? (
             <div className="min-w-0">
-              <p className={`${LABEL_CLASS} mb-1.5 px-1`}>Tipo de propiedad</p>
-              <PropertyTypeSelect
-                value={propertyType}
-                onChange={setPropertyType}
-              />
+              <div className={FIELD_BOX}>
+                <p className={LABEL_CLASS}>Tipo de propiedad</p>
+                <PropertyTypeSelect
+                  value={propertyType}
+                  onChange={setPropertyType}
+                  triggerClassName={INPUT_CLASS}
+                />
+              </div>
             </div>
           ) : null}
 
           <div className={FIELD_BOX}>
+            <p className={LABEL_CLASS}>Ubicación</p>
             <GeoLocalitySearch
               value={selectedLocation}
               inventoryLocations={inventoryLocations}

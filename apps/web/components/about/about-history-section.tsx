@@ -16,12 +16,23 @@ export function AboutHistorySection() {
           </div>
 
           <div className="space-y-5">
-            {ABOUT_HISTORY_PARAGRAPHS.map((paragraph) => (
+            {ABOUT_HISTORY_PARAGRAPHS.map((paragraph, index) => (
               <p
-                key={paragraph}
+                key={index}
                 className="text-base leading-relaxed text-text-secondary"
               >
-                {paragraph}
+                {paragraph.parts.map((part, partIndex) =>
+                  part.emphasis ? (
+                    <strong
+                      key={partIndex}
+                      className="font-semibold text-text-primary"
+                    >
+                      {part.text}
+                    </strong>
+                  ) : (
+                    <span key={partIndex}>{part.text}</span>
+                  ),
+                )}
               </p>
             ))}
           </div>
