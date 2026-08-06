@@ -168,7 +168,6 @@ export function PropertySearchForm({
           ) : null}
 
           <div className={FIELD_BOX}>
-            <p className={LABEL_CLASS}>Ubicación</p>
             <GeoLocalitySearch
               value={selectedLocation}
               inventoryLocations={inventoryLocations}

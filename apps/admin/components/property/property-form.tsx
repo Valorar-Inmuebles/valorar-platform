@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition, type FormEvent } from "react";
+import { GARAGE_TYPE_ATTRIBUTE } from "@repo/shared-types";
 import { Button } from "@repo/ui/button";
 import {
   Card,
@@ -24,8 +25,13 @@ import {
   createPropertyAction,
   updatePropertyAction,
 } from "@/lib/api/property-actions";
+import { replacePropertyFeatureAssignmentsAction } from "@/lib/api/property-feature-actions";
 import type { AssignableUserOption } from "@/lib/api/types/organization";
 import type { AdminProperty } from "@/lib/api/types/property";
+import type {
+  AdminPropertyFeature,
+  AdminPropertyFeatureAssignment,
+} from "@/lib/api/types/property-feature";
 import {
   ORIENTATION_OPTIONS,
   PROPERTY_BRIGHTNESS_OPTIONS,
@@ -51,17 +57,33 @@ type PropertyFormProps = {
   mode: "create" | "edit";
   property?: AdminProperty;
   assignableUsers?: AssignableUserOption[];
+  featureCatalog?: AdminPropertyFeature[];
+  featureAssignments?: AdminPropertyFeatureAssignment[];
 };
+
+const SPECIFIC_ATTRIBUTE_SLUGS = new Set<string>(
+  GARAGE_TYPE_ATTRIBUTE.options.map((option) => option.slug),
+);
 
 export function PropertyForm({
   mode,
   property,
   assignableUsers = [],
+  featureCatalog = [],
+  featureAssignments = [],
 }: PropertyFormProps) {
   const router = useRouter();
   const { toast } = useToast();
   const [values, setValues] = useState<PropertyFormValues>(() =>
     property ? propertyToFormValues(property) : emptyPropertyFormValues(),
+  );
+  const [selectedGarageTypeSlugs, setSelectedGarageTypeSlugs] = useState<Set<string>>(
+    () =>
+      new Set(
+        featureAssignments
+          .filter((assignment) => SPECIFIC_ATTRIBUTE_SLUGS.has(assignment.slug))
+          .map((assignment) => assignment.slug),
+      ),
   );
   const [error, setError] = useState<string | null>(null);
   const [slugTouched, setSlugTouched] = useState(mode === "edit");
@@ -72,6 +94,52 @@ export function PropertyForm({
     value: PropertyFormValues[K],
   ) => {
     setValues((current) => ({ ...current, [key]: value }));
+  };
+
+  const updatePropertyType = (propertyType: PropertyFormValues["propertyType"]) => {
+    setValues((current) => ({ ...current, propertyType }));
+    if (propertyType !== GARAGE_TYPE_ATTRIBUTE.propertyType) {
+      setSelectedGarageTypeSlugs(new Set());
+    }
+  };
+
+  const toggleGarageType = (slug: string, checked: boolean) => {
+    setSelectedGarageTypeSlugs((current) => {
+      const next = new Set(current);
+      if (checked) {
+        next.add(slug);
+      } else {
+        next.delete(slug);
+      }
+      return next;
+    });
+  };
+
+  const saveSpecificAttributes = async (propertyId: string) => {
+    const featureBySlug = new Map(featureCatalog.map((feature) => [feature.slug, feature]));
+    const selectedFeatures = Array.from(selectedGarageTypeSlugs)
+      .map((slug) => featureBySlug.get(slug))
+      .filter((feature): feature is AdminPropertyFeature => Boolean(feature));
+
+    const shouldReplace =
+      values.propertyType === GARAGE_TYPE_ATTRIBUTE.propertyType ||
+      featureAssignments.some((assignment) => SPECIFIC_ATTRIBUTE_SLUGS.has(assignment.slug));
+
+    if (!shouldReplace) {
+      return { ok: true as const };
+    }
+
+    return replacePropertyFeatureAssignmentsAction(propertyId, {
+      features: [
+        ...featureAssignments
+          .filter((assignment) => !SPECIFIC_ATTRIBUTE_SLUGS.has(assignment.slug))
+          .map((assignment) => ({
+            featureId: assignment.featureId,
+            ...(assignment.value ? { value: assignment.value } : {}),
+          })),
+        ...selectedFeatures.map((feature) => ({ featureId: feature.id })),
+      ],
+    });
   };
 
   const handleTitleChange = (title: string) => {
@@ -127,6 +195,13 @@ export function PropertyForm({
           return;
         }
 
+        const attributeResult = await saveSpecificAttributes(result.id);
+        if (!attributeResult.ok) {
+          setError(attributeResult.error);
+          toast.error(attributeResult.error);
+          return;
+        }
+
         toast.success("Propiedad creada correctamente.");
         router.push(`/propiedades/${result.id}`);
         router.refresh();
@@ -143,6 +218,13 @@ export function PropertyForm({
       if (!result.ok) {
         setError(result.error);
         toast.error(result.error);
+        return;
+      }
+
+      const attributeResult = await saveSpecificAttributes(property.id);
+      if (!attributeResult.ok) {
+        setError(attributeResult.error);
+        toast.error(attributeResult.error);
         return;
       }
 
@@ -187,7 +269,7 @@ export function PropertyForm({
             <Select
               value={values.propertyType || undefined}
               onChange={(value) =>
-                updateField("propertyType", value as PropertyFormValues["propertyType"])
+                updatePropertyType(value as PropertyFormValues["propertyType"])
               }
               placeholder="Seleccionar tipo"
               disabled={isPending}
@@ -240,6 +322,53 @@ export function PropertyForm({
           </FormField>
         </CardContent>
       </Card>
+
+      {values.propertyType === GARAGE_TYPE_ATTRIBUTE.propertyType ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>{GARAGE_TYPE_ATTRIBUTE.title}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+              {GARAGE_TYPE_ATTRIBUTE.options.map((option) => {
+                const feature = featureCatalog.find(
+                  (item) => item.slug === option.slug && item.isActive,
+                );
+                const checked = selectedGarageTypeSlugs.has(option.slug);
+
+                return (
+                  <label
+                    key={option.slug}
+                    className="flex items-center gap-3 rounded-lg border border-border px-3 py-2.5 text-sm text-foreground"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      disabled={isPending || !feature}
+                      onChange={(event) =>
+                        toggleGarageType(option.slug, event.target.checked)
+                      }
+                      className="size-4 rounded border-border text-primary focus:ring-primary/20 disabled:opacity-50"
+                    />
+                    <span className="font-medium">{option.label}</span>
+                  </label>
+                );
+              })}
+            </div>
+            {GARAGE_TYPE_ATTRIBUTE.options.some(
+              (option) =>
+                !featureCatalog.some(
+                  (feature) => feature.slug === option.slug && feature.isActive,
+                ),
+            ) ? (
+              <HelperText>
+                Algunas opciones no están disponibles porque faltan en el catálogo
+                global de características.
+              </HelperText>
+            ) : null}
+          </CardContent>
+        </Card>
+      ) : null}
 
       <Card>
         <CardHeader>

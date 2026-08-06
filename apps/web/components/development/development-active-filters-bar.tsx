@@ -1,7 +1,11 @@
 "use client";
 
+import { getDevelopmentStatusLabel } from "@repo/shared-types";
 import { useDevelopmentFilters } from "@/hooks/use-list-filters";
-import { hasActiveLocationFilters, locationSelectionToListFilters } from "@/lib/url/search-params";
+import {
+  hasActiveDevelopmentListFilters,
+  locationSelectionToListFilters,
+} from "@/lib/url/search-params";
 
 type ActiveLocationFilterChip = {
   key: string;
@@ -31,13 +35,21 @@ function buildLocationFilterChips(
     });
   }
 
+  if (filters.developmentStatus) {
+    chips.push({
+      key: "developmentStatus",
+      label: getDevelopmentStatusLabel(filters.developmentStatus),
+      onRemove: () => applyFilters({ developmentStatus: undefined }),
+    });
+  }
+
   return chips;
 }
 
 export function DevelopmentActiveFiltersBar() {
   const { filters, applyFilters, clearFilters } = useDevelopmentFilters();
 
-  if (!hasActiveLocationFilters(filters)) {
+  if (!hasActiveDevelopmentListFilters(filters)) {
     return null;
   }
 

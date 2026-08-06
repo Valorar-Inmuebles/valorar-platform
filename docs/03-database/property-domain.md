@@ -270,3 +270,22 @@ Compartición entre agentes del mismo tenant.
 * `city`, `neighborhood`
 * Rango de precio (`PropertyPrice`)
 * Características (`PropertyFeatureAssignment`)
+
+### Atributos específicos por tipo
+
+Los atributos específicos de un tipo de inmueble deben reutilizar el catálogo global `PropertyFeature` y la asignación `PropertyFeatureAssignment` siempre que representen características seleccionables.
+
+Para `PropertyType.GARAGE` (Cochera), el bloque **Tipo de cochera** se modela como features globales:
+
+```txt
+cochera-fija
+cochera-movil
+cochera-superior
+cochera-cubierta
+cochera-semicubierta
+cochera-descubierta
+cochera-planta-baja
+cochera-subsuelo
+```
+
+El filtro público puede consultar estas asignaciones por slug sin agregar columnas específicas al modelo `Property`.

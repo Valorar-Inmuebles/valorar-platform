@@ -1,10 +1,8 @@
 import type {
-  PublicDevelopmentCard,
   PublicDevelopmentDetail,
   PublicDevelopmentImage,
   PublicDevelopmentListResponse,
   Currency,
-  DevelopmentStatus,
 } from "@repo/shared-types";
 import { apiFetch } from "@/lib/api/client";
 import { getTenantId } from "@/lib/tenant/get-tenant-id";
@@ -105,6 +103,10 @@ function appendFilterParams(
 
   if (filters.currency) {
     params.set("currency", filters.currency);
+  }
+
+  if (filters.developmentStatus) {
+    params.set("status", filters.developmentStatus);
   }
 }
 

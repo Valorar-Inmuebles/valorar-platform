@@ -1,7 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { PublicDevelopmentCard } from "@repo/shared-types";
+import {
+  DEVELOPMENT_STATUS_OPTIONS,
+  type DevelopmentStatus,
+  type PublicDevelopmentCard,
+} from "@repo/shared-types";
 import type { SelectedLocality } from "@/components/geo/geo-locality-search";
 import { DevelopmentRecentLinks } from "@/components/development/development-recent-links";
 import {
@@ -10,7 +14,11 @@ import {
 } from "@/components/search/inventory-location-filters";
 import { useInventoryCoverage } from "@/components/search/inventory-coverage-context";
 import { useDevelopmentFilters } from "@/hooks/use-list-filters";
-import { hasActiveLocationFilters, listFiltersToLocationSelection, locationSelectionToListFilters } from "@/lib/url/search-params";
+import {
+  hasActiveDevelopmentListFilters,
+  listFiltersToLocationSelection,
+  locationSelectionToListFilters,
+} from "@/lib/url/search-params";
 
 const FILTER_INPUT =
   "h-11 w-full rounded-xl bg-white px-3 text-sm outline-none ring-1 ring-border-default/80 transition placeholder:text-muted focus:ring-brand-green/40";
@@ -18,6 +26,7 @@ const FILTER_INPUT =
 type LocationFilterFormState = {
   provinceId: string;
   locality: SelectedLocality | null;
+  developmentStatus: DevelopmentStatus | "";
 };
 
 type DevelopmentFiltersProps = {
@@ -34,6 +43,7 @@ function filtersToFormState(
 
   return {
     provinceId: filters.provinceId || defaultProvinceId,
+    developmentStatus: filters.developmentStatus ?? "",
     locality: locationSelection
       ? {
           provinceId: locationSelection.provinceId || defaultProvinceId,
@@ -66,24 +76,27 @@ export function DevelopmentFilters({
     event.preventDefault();
 
     applyFilters(
-      locationSelectionToListFilters(
-        form.locality
-          ? {
-              ...form.locality,
-              provinceId:
-                form.provinceId ||
-                form.locality.provinceId ||
-                coverage.defaultProvinceId ||
-                "",
-            }
-          : form.provinceId || coverage.defaultProvinceId
+      {
+        ...locationSelectionToListFilters(
+          form.locality
             ? {
-                provinceId: form.provinceId || coverage.defaultProvinceId || "",
-                localityName: "",
-                kind: "province" as const,
+                ...form.locality,
+                provinceId:
+                  form.provinceId ||
+                  form.locality.provinceId ||
+                  coverage.defaultProvinceId ||
+                  "",
               }
-            : null,
-      ),
+            : form.provinceId || coverage.defaultProvinceId
+              ? {
+                  provinceId: form.provinceId || coverage.defaultProvinceId || "",
+                  localityName: "",
+                  kind: "province" as const,
+                }
+              : null,
+        ),
+        developmentStatus: form.developmentStatus || undefined,
+      },
     );
 
     onApplied?.();
@@ -117,6 +130,40 @@ export function DevelopmentFilters({
         provincePlaceholder="Todas las provincias"
       />
 
+      <div className="space-y-2.5">
+        <p className="text-xs font-medium uppercase tracking-wide text-text-secondary">
+          Estado de la obra
+        </p>
+        <div className="flex flex-wrap gap-2">
+          {DEVELOPMENT_STATUS_OPTIONS.map((option) => {
+            const isActive = form.developmentStatus === option.value;
+
+            return (
+              <button
+                key={option.value}
+                type="button"
+                onClick={() =>
+                  setForm((current) => ({
+                    ...current,
+                    developmentStatus:
+                      current.developmentStatus === option.value
+                        ? ""
+                        : option.value,
+                  }))
+                }
+                className={`rounded-full px-3 py-1.5 text-sm font-medium transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-green ${
+                  isActive
+                    ? "bg-text-primary text-white"
+                    : "bg-surface-alt text-text-primary hover:bg-surface-base"
+                }`}
+              >
+                {option.label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
       <div className="flex flex-col gap-2 pt-1">
         <button
           type="submit"
@@ -124,11 +171,12 @@ export function DevelopmentFilters({
         >
           Aplicar filtros
         </button>
-        {hasActiveLocationFilters(filters) ? (
+        {hasActiveDevelopmentListFilters(filters) ? (
           <button
             type="button"
             onClick={() => {
               clearFilters();
+              setForm((current) => ({ ...current, developmentStatus: "" }));
               onApplied?.();
             }}
             className="inline-flex h-11 items-center justify-center rounded-xl text-sm font-medium text-text-secondary transition hover:text-text-primary"

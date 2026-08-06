@@ -4,8 +4,9 @@ import {
   PropertyListingType,
   PropertyType,
 } from '../../../../generated/prisma/client';
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import {
+  IsArray,
   IsEnum,
   IsInt,
   IsNotEmpty,
@@ -14,6 +15,21 @@ import {
   IsString,
   Min,
 } from 'class-validator';
+
+function parseStringList(value: unknown): string[] | undefined {
+  if (value === undefined || value === null || value === '') {
+    return undefined;
+  }
+
+  const rawValues = Array.isArray(value) ? value : [value];
+  const values = rawValues
+    .filter((item): item is string => typeof item === 'string')
+    .flatMap((item) => item.split(','))
+    .map((item) => item.trim())
+    .filter((item) => item.length > 0);
+
+  return values.length > 0 ? Array.from(new Set(values)) : undefined;
+}
 
 export class PublicPropertyTenantQueryDto {
   @ApiProperty({ description: 'Tenant identifier' })
@@ -90,6 +106,16 @@ export class ListPublicPropertiesQueryDto extends PublicPropertyTenantQueryDto {
   @IsInt()
   @Min(0)
   bathrooms?: number;
+
+  @ApiPropertyOptional({
+    description: 'Comma-separated or repeated property feature slugs',
+    type: [String],
+  })
+  @IsOptional()
+  @Transform(({ value }: { value: unknown }) => parseStringList(value))
+  @IsArray()
+  @IsString({ each: true })
+  featureSlugs?: string[];
 
   @ApiPropertyOptional({ default: 1, minimum: 1 })
   @IsOptional()

@@ -67,6 +67,12 @@ Ruta base: `/public/developments` — solo lectura, sin JWT.
 | GET | `/public/developments` | Listado paginado |
 | GET | `/public/developments/:slug` | Detalle público |
 
+Filtros del listado público:
+
+* Ubicación (`provinceId`, `localityId`, `neighborhoodId`, `city`)
+* Rango de precio (`priceMin`, `priceMax`, `currency`)
+* Estado de la obra (`status`): Pozo, En construcción, Terminado
+
 ---
 
 ## Admin UI
@@ -91,6 +97,7 @@ Tabs: Datos / Comercialización / Características / Imágenes / Tipologías.
 
 * Listado: `/emprendimientos`
 * Detalle: `/emprendimientos/[slug]`
+* Filtro dinámico **Estado de la obra** por `Development.status`.
 
 Secciones del detalle: Hero, Descripción, Amenidades, Ubicación, Tipologías.
 

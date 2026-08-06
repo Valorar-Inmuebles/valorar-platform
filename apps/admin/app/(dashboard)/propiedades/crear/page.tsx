@@ -5,6 +5,7 @@ import { ApiErrorPanel } from "@/components/shared/api-error-panel";
 import { PageShell } from "@/components/shared/page-shell";
 import { SuperAdminTenantEmptyState } from "@/components/shared/super-admin-tenant-empty-state";
 import { listUsers } from "@/lib/api/users";
+import { listPropertyFeatures } from "@/lib/api/property-feature";
 import type { AssignableUserOption } from "@/lib/api/types/organization";
 import { mapUnknownError } from "@/lib/api/error-map";
 import { resolveActiveTenantGate } from "@/lib/auth/require-active-tenant";
@@ -40,7 +41,11 @@ export default async function PropiedadCrearPage() {
   }
 
   try {
-    const assignableUsers = toAssignableUsers(await listUsers());
+    const [users, featureCatalog] = await Promise.all([
+      listUsers(),
+      listPropertyFeatures({ isActive: true }),
+    ]);
+    const assignableUsers = toAssignableUsers(users);
 
     return (
       <PageShell
@@ -53,7 +58,11 @@ export default async function PropiedadCrearPage() {
           </Link>
         }
       >
-        <PropertyForm mode="create" assignableUsers={assignableUsers} />
+        <PropertyForm
+          mode="create"
+          assignableUsers={assignableUsers}
+          featureCatalog={featureCatalog}
+        />
       </PageShell>
     );
   } catch (error) {

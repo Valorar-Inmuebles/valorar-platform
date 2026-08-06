@@ -305,6 +305,23 @@ Pileta, Parrilla, Quincho, Seguridad, Aire acondicionado
 
 Solo `SUPER_ADMIN` gestiona el catálogo global.
 
+### Atributos específicos por tipo
+
+Los atributos específicos se agregan mediante configuración de UI + `PropertyFeatureAssignment`, evitando campos ad hoc por cada tipo.
+
+Para `Cochera` (`GARAGE`) el admin muestra **Tipo de cochera** con selección múltiple:
+
+* Fija
+* Móvil
+* Superior
+* Cubierta
+* Semicubierta
+* Descubierta
+* Planta Baja (PB)
+* Subsuelo
+
+Estas opciones se guardan como features globales (`cochera-*`) asignadas a la propiedad. La web pública expone el mismo grupo como filtro dinámico cuando `propertyType = GARAGE`.
+
 ---
 
 ## Ownership y compartición
@@ -341,5 +358,6 @@ Solo `SUPER_ADMIN` gestiona el catálogo global.
 * Lista propiedades con `isActive = true` y `PropertyListing` con `status = ACTIVE` a nivel tenant.
 * Detalle por `slug` de la propiedad.
 * Filtros por tipo, condición, operación, ubicación, precio y características.
+* Si el tipo seleccionado es `Cochera`, muestra el filtro **Tipo de cochera** y filtra por slugs de `PropertyFeatureAssignment`.
 * Listados recientes, sitemap e ISR ordenados por `updatedAt`.
 * No depende del agente creador.

@@ -6,9 +6,10 @@ import { PropertyPageShell } from "@/components/property/property-page-shell";
 import { PropertyPublishabilityPanel } from "@/components/property/property-publishability-panel";
 import { ApiErrorPanel } from "@/components/shared/api-error-panel";
 import { ApiError } from "@/lib/api/client";
+import { listPropertyFeatureAssignments } from "@/lib/api/property-feature-assignment";
+import { listPropertyFeatures } from "@/lib/api/property-feature";
 import { listUsers } from "@/lib/api/users";
 import type { AssignableUserOption } from "@/lib/api/types/organization";
-import { mapUnknownError } from "@/lib/api/error-map";
 import { loadPropertyExecutiveContext } from "@/lib/property/load-property-executive-context";
 
 function toAssignableUsers(
@@ -29,10 +30,13 @@ export default async function PropiedadDetallePage({
   const { id } = await params;
 
   try {
-    const [{ property, publishability }, users] = await Promise.all([
-      loadPropertyExecutiveContext(id),
-      listUsers(),
-    ]);
+    const [{ property, publishability }, users, featureCatalog, featureAssignments] =
+      await Promise.all([
+        loadPropertyExecutiveContext(id),
+        listUsers(),
+        listPropertyFeatures({ isActive: true }),
+        listPropertyFeatureAssignments(id),
+      ]);
     const assignableUsers = toAssignableUsers(users);
 
     return (
@@ -56,6 +60,8 @@ export default async function PropiedadDetallePage({
             mode="edit"
             property={property}
             assignableUsers={assignableUsers}
+            featureCatalog={featureCatalog}
+            featureAssignments={featureAssignments}
           />
 
           <PropertyPublishabilityPanel summary={publishability} />

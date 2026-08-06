@@ -1,7 +1,7 @@
 import type { DevelopmentStatus } from "@repo/shared-types";
 
 export const DEVELOPMENT_STATUS_LABELS: Record<DevelopmentStatus, string> = {
-  IN_PIT: "En pozo",
+  IN_PIT: "Pozo",
   UNDER_CONSTRUCTION: "En construcción",
   COMPLETED: "Terminado",
 };

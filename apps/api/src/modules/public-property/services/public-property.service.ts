@@ -65,6 +65,7 @@ export class PublicPropertyService {
           currency: query.currency,
           bedrooms: query.bedrooms,
           bathrooms: query.bathrooms,
+          featureSlugs: query.featureSlugs,
         },
         { page, limit },
       );

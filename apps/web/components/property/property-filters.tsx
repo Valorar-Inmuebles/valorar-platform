@@ -2,7 +2,12 @@
 
 import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
-import type { Currency, PropertyListingType, PropertyType } from "@repo/shared-types";
+import {
+  GARAGE_TYPE_ATTRIBUTE,
+  type Currency,
+  type PropertyListingType,
+  type PropertyType,
+} from "@repo/shared-types";
 import { moneyToInputValue, parseMoneyInput } from "@repo/shared-types/format-money";
 import { CurrencyInput } from "@repo/ui/currency-input";
 import {
@@ -68,6 +73,7 @@ type FilterFormState = {
   currency: Currency | "";
   bedrooms: string;
   bathrooms: string;
+  featureSlugs: string[];
 };
 
 type PropertyFiltersProps = {
@@ -99,6 +105,7 @@ function filtersToFormState(
     currency: filters.currency ?? "",
     bedrooms: filters.bedrooms != null ? String(filters.bedrooms) : "",
     bathrooms: filters.bathrooms != null ? String(filters.bathrooms) : "",
+    featureSlugs: filters.featureSlugs ?? [],
   };
 }
 
@@ -125,7 +132,8 @@ function isSameFormState(a: FilterFormState, b: FilterFormState): boolean {
     a.priceMax === b.priceMax &&
     a.currency === b.currency &&
     a.bedrooms === b.bedrooms &&
-    a.bathrooms === b.bathrooms
+    a.bathrooms === b.bathrooms &&
+    a.featureSlugs.join(",") === b.featureSlugs.join(",")
   );
 }
 
@@ -204,6 +212,14 @@ const INITIAL_AMENITIES = Object.fromEntries(
   AMENITY_OPTIONS.map((option) => [option.id, false]),
 ) as Record<AmenityId, boolean>;
 
+function toggleSlug(slugs: string[], slug: string, checked: boolean): string[] {
+  if (checked) {
+    return slugs.includes(slug) ? slugs : [...slugs, slug];
+  }
+
+  return slugs.filter((item) => item !== slug);
+}
+
 export function PropertyFilters({ onApplied, className = "" }: PropertyFiltersProps) {
   const coverage = useInventoryCoverage();
   const { filters, applyFilters, clearFilters } = usePropertyFilters();
@@ -253,6 +269,10 @@ export function PropertyFilters({ onApplied, className = "" }: PropertyFiltersPr
       currency: form.currency || undefined,
       bedrooms: parseOptionalIntField(form.bedrooms),
       bathrooms: parseOptionalIntField(form.bathrooms),
+      featureSlugs:
+        form.propertyType === GARAGE_TYPE_ATTRIBUTE.propertyType
+          ? form.featureSlugs
+          : undefined,
     });
 
     onApplied?.();
@@ -305,10 +325,38 @@ export function PropertyFilters({ onApplied, className = "" }: PropertyFiltersPr
             setForm((current) => ({
               ...current,
               propertyType,
+              featureSlugs:
+                propertyType === GARAGE_TYPE_ATTRIBUTE.propertyType
+                  ? current.featureSlugs
+                  : [],
             }))
           }
         />
       </FilterSection>
+
+      {form.propertyType === GARAGE_TYPE_ATTRIBUTE.propertyType ? (
+        <FilterSection title={GARAGE_TYPE_ATTRIBUTE.title}>
+          <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+            {GARAGE_TYPE_ATTRIBUTE.options.map((option) => (
+              <FilterCheckbox
+                key={option.slug}
+                label={option.label}
+                checked={form.featureSlugs.includes(option.slug)}
+                onChange={(checked) =>
+                  setForm((current) => ({
+                    ...current,
+                    featureSlugs: toggleSlug(
+                      current.featureSlugs,
+                      option.slug,
+                      checked,
+                    ),
+                  }))
+                }
+              />
+            ))}
+          </div>
+        </FilterSection>
+      ) : null}
 
       <FilterSection title="Moneda">
         <FilterSegmentControl

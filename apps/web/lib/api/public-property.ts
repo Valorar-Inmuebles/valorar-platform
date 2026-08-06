@@ -93,6 +93,10 @@ function appendFilterParams(
     params.set("bathrooms", String(filters.bathrooms));
   }
 
+  if (filters.featureSlugs && filters.featureSlugs.length > 0) {
+    params.set("featureSlugs", filters.featureSlugs.join(","));
+  }
+
   params.set("page", String(filters.page));
   params.set("limit", String(filters.limit));
 }

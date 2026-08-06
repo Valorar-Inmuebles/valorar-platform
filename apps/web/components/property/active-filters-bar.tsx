@@ -1,5 +1,6 @@
 "use client";
 
+import { GARAGE_TYPE_ATTRIBUTE } from "@repo/shared-types";
 import {
   AMBIENTES_FILTER_OPTIONS,
   BATHROOMS_FILTER_OPTIONS,
@@ -38,8 +39,28 @@ function buildActiveFilterChips(
     chips.push({
       key: "propertyType",
       label: getPropertyTypeLabel(filters.propertyType),
-      onRemove: () => applyFilters({ propertyType: undefined }),
+      onRemove: () =>
+        applyFilters({ propertyType: undefined, featureSlugs: undefined }),
     });
+  }
+
+  if (
+    filters.propertyType === GARAGE_TYPE_ATTRIBUTE.propertyType &&
+    filters.featureSlugs &&
+    filters.featureSlugs.length > 0
+  ) {
+    for (const slug of filters.featureSlugs) {
+      const option = GARAGE_TYPE_ATTRIBUTE.options.find((item) => item.slug === slug);
+
+      chips.push({
+        key: `featureSlugs:${slug}`,
+        label: option?.label ?? slug,
+        onRemove: () =>
+          applyFilters({
+            featureSlugs: filters.featureSlugs?.filter((item) => item !== slug),
+          }),
+      });
+    }
   }
 
   if (filters.city) {

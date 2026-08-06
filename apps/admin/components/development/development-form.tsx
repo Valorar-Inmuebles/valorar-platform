@@ -182,7 +182,7 @@ export function DevelopmentForm({ mode, development }: DevelopmentFormProps) {
           </FormField>
 
           <FormField>
-            <Label>Estado de obra</Label>
+            <Label>Estado de la obra</Label>
             <Select
               value={values.status || undefined}
               onChange={(value) =>

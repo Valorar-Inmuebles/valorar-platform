@@ -1,5 +1,6 @@
 import type {
   Currency,
+  DevelopmentStatus,
   PropertyListingType,
   PropertyType,
 } from "@repo/shared-types";
@@ -18,6 +19,8 @@ export type PropertyListFilters = {
   currency?: Currency;
   bedrooms?: number;
   bathrooms?: number;
+  featureSlugs?: string[];
+  developmentStatus?: DevelopmentStatus;
   page: number;
   limit: number;
 };
@@ -39,6 +42,11 @@ export function withDefaultListingType(
 
 const LISTING_TYPES: PropertyListingType[] = ["SALE", "RENT", "TEMPORARY_RENT"];
 const CURRENCIES: Currency[] = ["ARS", "USD"];
+const DEVELOPMENT_STATUSES: DevelopmentStatus[] = [
+  "IN_PIT",
+  "UNDER_CONSTRUCTION",
+  "COMPLETED",
+];
 const PROPERTY_TYPES: PropertyType[] = [
   "HOUSE",
   "APARTMENT",
@@ -65,6 +73,19 @@ function getSingleParam(
   }
 
   return value;
+}
+
+function getMultiParam(
+  params: Record<string, string | string[] | undefined>,
+  key: string,
+): string[] {
+  const value = params[key];
+
+  if (Array.isArray(value)) {
+    return value;
+  }
+
+  return value ? [value] : [];
 }
 
 function parseOptionalInt(value: string | undefined): number | undefined {
@@ -123,15 +144,37 @@ function parseCurrency(value: string | undefined): Currency | undefined {
   return CURRENCIES.includes(value as Currency) ? (value as Currency) : undefined;
 }
 
+function parseDevelopmentStatus(
+  value: string | undefined,
+): DevelopmentStatus | undefined {
+  if (!value) {
+    return undefined;
+  }
+
+  return DEVELOPMENT_STATUSES.includes(value as DevelopmentStatus)
+    ? (value as DevelopmentStatus)
+    : undefined;
+}
+
+function parseFeatureSlugs(values: string[]): string[] | undefined {
+  const slugs = values
+    .flatMap((value) => value.split(","))
+    .map((value) => value.trim())
+    .filter((value) => value.length > 0);
+
+  return slugs.length > 0 ? Array.from(new Set(slugs)) : undefined;
+}
+
 export function parsePropertyListSearchParams(
   params: Record<string, string | string[] | undefined>,
 ): PropertyListFilters {
   const page = parseOptionalInt(getSingleParam(params, "page")) ?? 1;
   const limit = parseOptionalInt(getSingleParam(params, "limit")) ?? 12;
+  const propertyType = parsePropertyType(getSingleParam(params, "propertyType"));
 
   return {
     listingType: parseListingType(getSingleParam(params, "listingType")),
-    propertyType: parsePropertyType(getSingleParam(params, "propertyType")),
+    propertyType,
     provinceId: getSingleParam(params, "provinceId")?.trim() || undefined,
     localityId: getSingleParam(params, "localityId")?.trim() || undefined,
     neighborhoodId: getSingleParam(params, "neighborhoodId")?.trim() || undefined,
@@ -142,6 +185,13 @@ export function parsePropertyListSearchParams(
     currency: parseCurrency(getSingleParam(params, "currency")),
     bedrooms: parseOptionalInt(getSingleParam(params, "bedrooms")),
     bathrooms: parseOptionalInt(getSingleParam(params, "bathrooms")),
+    featureSlugs:
+      propertyType === "GARAGE"
+        ? parseFeatureSlugs(getMultiParam(params, "featureSlugs"))
+        : undefined,
+    developmentStatus: parseDevelopmentStatus(
+      getSingleParam(params, "developmentStatus"),
+    ),
     page: page > 0 ? page : 1,
     limit: limit > 0 && limit <= 100 ? limit : 12,
   };
@@ -201,6 +251,18 @@ export function buildInventoryListUrl(
     params.set("bathrooms", String(filters.bathrooms));
   }
 
+  if (
+    filters.propertyType === "GARAGE" &&
+    filters.featureSlugs &&
+    filters.featureSlugs.length > 0
+  ) {
+    params.set("featureSlugs", filters.featureSlugs.join(","));
+  }
+
+  if (filters.developmentStatus) {
+    params.set("developmentStatus", filters.developmentStatus);
+  }
+
   if (filters.page && filters.page > 1) {
     params.set("page", String(filters.page));
   }
@@ -241,8 +303,17 @@ export function hasActivePropertyListFilters(
       filters.priceMax != null ||
       filters.currency ||
       filters.bedrooms != null ||
-      filters.bathrooms != null,
+      filters.bathrooms != null ||
+      (filters.propertyType === "GARAGE" &&
+        filters.featureSlugs &&
+        filters.featureSlugs.length > 0),
   );
+}
+
+export function hasActiveDevelopmentListFilters(
+  filters: PropertyListFilters,
+): boolean {
+  return Boolean(hasActiveLocationFilters(filters) || filters.developmentStatus);
 }
 
 export function hasActiveLocationFilters(

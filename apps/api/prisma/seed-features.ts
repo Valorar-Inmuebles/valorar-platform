@@ -34,6 +34,54 @@ export const SEED_PROPERTY_FEATURES: SeedPropertyFeatureSpec[] = [
     category: PropertyFeatureCategory.GENERAL,
     sortOrder: 4,
   },
+  {
+    name: 'Cochera fija',
+    slug: 'cochera-fija',
+    category: PropertyFeatureCategory.GENERAL,
+    sortOrder: 20,
+  },
+  {
+    name: 'Cochera móvil',
+    slug: 'cochera-movil',
+    category: PropertyFeatureCategory.GENERAL,
+    sortOrder: 21,
+  },
+  {
+    name: 'Cochera superior',
+    slug: 'cochera-superior',
+    category: PropertyFeatureCategory.GENERAL,
+    sortOrder: 22,
+  },
+  {
+    name: 'Cochera cubierta',
+    slug: 'cochera-cubierta',
+    category: PropertyFeatureCategory.GENERAL,
+    sortOrder: 23,
+  },
+  {
+    name: 'Cochera semicubierta',
+    slug: 'cochera-semicubierta',
+    category: PropertyFeatureCategory.GENERAL,
+    sortOrder: 24,
+  },
+  {
+    name: 'Cochera descubierta',
+    slug: 'cochera-descubierta',
+    category: PropertyFeatureCategory.GENERAL,
+    sortOrder: 25,
+  },
+  {
+    name: 'Cochera planta baja (PB)',
+    slug: 'cochera-planta-baja',
+    category: PropertyFeatureCategory.GENERAL,
+    sortOrder: 26,
+  },
+  {
+    name: 'Cochera subsuelo',
+    slug: 'cochera-subsuelo',
+    category: PropertyFeatureCategory.GENERAL,
+    sortOrder: 27,
+  },
   // SERVICE
   {
     name: 'Agua corriente',

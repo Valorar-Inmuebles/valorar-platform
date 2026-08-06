@@ -23,6 +23,7 @@ export interface FindManyPublicPropertiesFilters {
   currency?: Currency;
   bedrooms?: number;
   bathrooms?: number;
+  featureSlugs?: string[];
   featuredOnly?: boolean;
 }
 
@@ -209,6 +210,21 @@ export class PublicPropertyRepository {
         : {}),
       ...(filters.bathrooms !== undefined
         ? { bathrooms: { gte: filters.bathrooms } }
+        : {}),
+      ...(filters.featureSlugs && filters.featureSlugs.length > 0
+        ? {
+            AND: filters.featureSlugs.map((slug) => ({
+              featureAssignments: {
+                some: {
+                  tenantId,
+                  feature: {
+                    slug,
+                    isActive: true,
+                  },
+                },
+              },
+            })),
+          }
         : {}),
     };
   }
