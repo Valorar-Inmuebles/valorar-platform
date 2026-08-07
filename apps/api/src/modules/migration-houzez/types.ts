@@ -122,6 +122,8 @@ export type DatasetManifestReport = {
   version?: number;
   fragmentCount?: number;
   checkedFiles?: string[];
+  /** Canonical fragment digests from the versioned manifest (for fingerprint binding). */
+  fragmentDigests?: Array<{ fileName: string; sha256: string; bytes: number }>;
   errors?: string[];
 };
 
@@ -159,6 +161,14 @@ export type DryRunReport = {
   batchId: string;
   wpId: number;
   sourceSystem: string;
+  /** Bound at dry-run time for import fingerprint / CLI matching. */
+  tenantSlug: string;
+  ownerEmail: string;
+  /**
+   * SHA256 of the normalized fingerprint payload.
+   * Import recalculates and must match — prevents silent report tampering.
+   */
+  reportFingerprint: string;
   /** Phase-A safety summary (no secrets / URLs). */
   safety: MigrationSafetyReportSection;
   datasetManifest: DatasetManifestReport;
@@ -187,6 +197,13 @@ export type DryRunReport = {
     components: Record<string, string | null>;
     notes: string[];
   };
+  /**
+   * Planned plan/report items for this property (NOT a 1:1 list of writer DB inserts).
+   * Contract (WP 5312 happy path): 12 entries =
+   * property + listing + price + 7 images + feature_assignment + batch_manifest.
+   * `batch_manifest` is a planning/traceability artifact only (not a Prisma table write).
+   * Writer additionally persists PropertyAgentAccess + MigrationSourceRef.
+   */
   plannedEntities: PlannedEntity[];
   idempotency: IdempotencyCheck;
   warnings: WarningRecord[];

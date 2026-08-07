@@ -1,5 +1,6 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { IMPORT_CONFIRM_TARGET, IMPORT_CONFIRM_WRITE } from '../constants';
 
 /**
  * Architectural guard: migrate CLI must never open Prisma with DATABASE_URL.
@@ -22,18 +23,12 @@ describe('migrate CLI isolation', () => {
     expect(source).not.toMatch(
       /connectionString:\s*process\.env\.DATABASE_URL/,
     );
-    // Cleanup target may appear in help as "not used"; must not be read from env.
     expect(source).not.toMatch(/env\.HOUZEZ_CLEANUP_TARGET/);
     expect(source).not.toMatch(/HOUZEZ_CLEANUP_TARGET\s*=/);
   });
 
   it('--skip-db path does not call validateMigrationSafetyEnv before connect', () => {
     const source = fs.readFileSync(scriptPath, 'utf8');
-    const skipIdx = source.indexOf('if (options.skipDb)');
-    const resolveIdx = source.indexOf('resolveStagingDbOrExit');
-    expect(skipIdx).toBeGreaterThan(-1);
-    expect(resolveIdx).toBeGreaterThan(-1);
-    // skip-db branch appears before resolveStagingDbOrExit usage in dry-run
     const dryRunIdx = source.indexOf("command === 'dry-run'");
     expect(dryRunIdx).toBeGreaterThan(-1);
     const skipInDryRun = source.indexOf('if (options.skipDb)', dryRunIdx);
@@ -45,10 +40,26 @@ describe('migrate CLI isolation', () => {
     expect(resolveInDryRun).toBeGreaterThan(skipInDryRun);
   });
 
-  it('import/write remain disabled and wouldWrite stays false in console summary', () => {
+  it('import requires dual confirmations and dry-run binding; audit/dry-run stay wouldWrite false', () => {
     const source = fs.readFileSync(scriptPath, 'utf8');
-    expect(source).toMatch(/Write\/import mode is disabled/);
+    expect(source).toMatch(/parseImportCliArgs/);
+    expect(source).toMatch(/runImport/);
+    expect(source).toContain(IMPORT_CONFIRM_WRITE);
+    expect(source).toContain(IMPORT_CONFIRM_TARGET);
+    expect(source).toMatch(/dry-run-report/);
     expect(source).toMatch(/wouldWrite:\s*false/);
+    // write alias remains rejected
+    expect(source).toMatch(/Use "import" \(not "write"\)/);
+  });
+
+  it('import path refuses DATABASE_URL and constructs store only after gates', () => {
+    const source = fs.readFileSync(scriptPath, 'utf8');
+    const importIdx = source.indexOf("command === 'import'");
+    expect(importIdx).toBeGreaterThan(-1);
+    const importSlice = source.slice(importIdx, importIdx + 2500);
+    expect(importSlice).toMatch(/resolveStagingDbOrExit/);
+    expect(importSlice).toMatch(/createConfiguredObjectStore/);
+    expect(importSlice).not.toMatch(/process\.env\.DATABASE_URL/);
   });
 });
 
@@ -60,5 +71,14 @@ describe('dry-run report path sanitization', () => {
     expect(source).toMatch(/sanitizeImagesForReport/);
     expect(source).toMatch(/sanitizeSourceDirForReport/);
     expect(source).toMatch(/absolutePath:\s*null/);
+    expect(source).toMatch(/computeDryRunFingerprint/);
+    expect(source).toMatch(/reportFingerprint/);
+  });
+
+  it('audit and dry-run exports never set wouldWrite true', () => {
+    const source = fs.readFileSync(runnerPath, 'utf8');
+    expect(source).toMatch(/wouldWrite:\s*false/);
+    // import report uses wouldWrite: true only inside ImportReport type path
+    expect(source).toMatch(/export async function runImport/);
   });
 });

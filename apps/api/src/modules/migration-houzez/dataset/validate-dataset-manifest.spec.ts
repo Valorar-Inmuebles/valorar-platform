@@ -63,6 +63,10 @@ describe('dataset manifest validation', () => {
       if (result.ok) {
         expect(result.manifestId).toBe(HOUZEZ_DATASET_MANIFEST_ID);
         expect(result.checkedFiles).toHaveLength(6);
+        expect(result.fragmentDigests).toHaveLength(6);
+        expect(result.fragmentDigests[0].fileName).toBe(
+          HOUZEZ_SQL_FRAGMENTS[0],
+        );
       }
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });

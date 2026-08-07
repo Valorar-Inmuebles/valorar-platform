@@ -795,11 +795,13 @@ Base de datos y código en inglés. Interfaz en español.
 
 Migración: `202608070001_migration_source_ref` — **archivo SQL listo; no ejecutado** sobre ninguna base en la fase actual.
 
-Trazabilidad de imports externos (`sourceSystem` + `sourceId` + `migrationBatchId`).
+Trazabilidad e idempotencia de imports externos (`sourceSystem` + `sourceId` + `entityType`).
 
 * Unique: `(tenantId, sourceSystem, sourceId, entityType)`
 * FK solo a `Tenant` (`onDelete: Cascade`)
 * `entityId` **no** es FK polimórfica (limitación PostgreSQL documentada)
+* Campos adicionales ya en schema: `migrationBatchId`, `metadata` (JSON)
+* Writer Houzez (local): inserta `entityType=property` en la misma transacción del árbol Property
 
 Documentación: `docs/04-modules/houzez-migration.md`.
 

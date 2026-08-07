@@ -25,6 +25,11 @@ export type DatasetManifestValidation =
       version: number;
       fragmentCount: number;
       checkedFiles: string[];
+      fragmentDigests: Array<{
+        fileName: string;
+        sha256: string;
+        bytes: number;
+      }>;
     }
   | {
       ok: false;
@@ -157,5 +162,10 @@ export async function validateDatasetManifest(input: {
     version: manifest.version,
     fragmentCount: manifest.fragments.length,
     checkedFiles,
+    fragmentDigests: manifest.fragments.map((f) => ({
+      fileName: f.fileName,
+      sha256: f.sha256,
+      bytes: f.bytes,
+    })),
   };
 }

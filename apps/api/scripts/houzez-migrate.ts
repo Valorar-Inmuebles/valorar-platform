@@ -1,7 +1,7 @@
 /**
- * Houzez migration CLI — audit / dry-run only (no writes).
+ * Houzez migration CLI — audit / dry-run / single-property import.
  *
- * DB access (dry-run without --skip-db) requires:
+ * DB access requires:
  *   HOUZEZ_STAGING_DATABASE_URL
  *   HOUZEZ_STAGING_DB_HOST
  *   HOUZEZ_MIGRATION_TARGET=staging-houzez
@@ -11,28 +11,39 @@
  * Usage:
  *   npx tsx scripts/houzez-migrate.ts audit --source-dir <path> --report-dir <path>
  *   npx tsx scripts/houzez-migrate.ts dry-run --wp-id=5312 --tenant=demo --owner-email=admin@demo.valorar.dev
- *   npx tsx scripts/houzez-migrate.ts dry-run --skip-db ...
+ *   npx tsx scripts/houzez-migrate.ts import --wp-id=5312 --tenant=demo --owner-email=... --source-dir=... --dry-run-report=... --confirm-target=staging-houzez --confirm-write=IMPORT_ONE_HOUZEZ_PROPERTY
  */
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { config as loadEnv } from 'dotenv';
+import { S3Client } from '@aws-sdk/client-s3';
 import {
   DEFAULT_OWNER_EMAIL,
   DEFAULT_TENANT_SLUG,
+  IMPORT_CONFIRM_TARGET,
+  IMPORT_CONFIRM_WRITE,
   PILOT_WP_ID,
   REQUIRED_MIGRATION_TARGET,
 } from '../src/modules/migration-houzez/constants';
 import {
   DatasetManifestValidationError,
+  ImportValidationError,
   runAudit,
   runDryRun,
+  runImport,
   type CliOptions,
+  type ImportCliOptions,
 } from '../src/modules/migration-houzez/services/houzez-runner.service';
 import {
   readMigrationSafetyEnvFromProcess,
   validateMigrationSafetyEnv,
   type MigrationSafetyReport,
 } from '../src/modules/migration-houzez/safety/migration-safety';
+import { parseImportCliArgs } from '../src/modules/migration-houzez/writer/import-cli-args';
+import { createS3MigrationObjectStore } from '../src/modules/migration-houzez/writer/s3-migration-object-store';
+import type { MigrationObjectStore } from '../src/modules/migration-houzez/writer/migration-object-store';
+import type { WriterPrisma } from '../src/modules/migration-houzez/writer/houzez-property-writer';
+import { getStorageConfig } from '../src/modules/storage/storage.config';
 
 type Args = Record<string, string | boolean>;
 
@@ -58,7 +69,6 @@ function parseArgs(argv: string[]): { command: string; args: Args } {
       args[body.slice(0, eq)] = body.slice(eq + 1);
     }
   }
-  // Positional fallback: audit|dry-run <sourceDir> [reportDir]
   if (!args['source-dir'] && positionals[0])
     args['source-dir'] = positionals[0];
   if (!args['report-dir'] && positionals[1])
@@ -92,7 +102,6 @@ function loadApiEnv(): void {
  * Never reads process.env.DATABASE_URL.
  */
 function createStagingPrismaClient(connectionUrl: string): PrismaBundle {
-  // Dynamic requires keep the CLI runnable via tsx without ESM extension friction.
   // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-unsafe-assignment
   const { PrismaClient } = require('../generated/prisma/client');
   // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-unsafe-assignment
@@ -126,14 +135,36 @@ async function disconnectPrisma(bundle: PrismaBundle | null) {
   }
 }
 
+function createConfiguredObjectStore(): MigrationObjectStore {
+  // Reuse the same STORAGE_* contract as apps/api StorageModule (no parallel R2 config).
+  const config = getStorageConfig();
+
+  const client = new S3Client({
+    region: config.region,
+    endpoint: config.endpoint,
+    credentials: {
+      accessKeyId: config.accessKeyId,
+      secretAccessKey: config.secretAccessKey,
+    },
+    forcePathStyle: true,
+  });
+
+  return createS3MigrationObjectStore({
+    client,
+    bucket: config.bucket,
+    publicUrlBase: config.publicUrl,
+  });
+}
+
 function printHelp() {
-  console.log(`Houzez migration CLI (read-only modes)
+  console.log(`Houzez migration CLI
 
 Commands:
   audit      Stream-dump audit report (validates dataset manifest; no DB)
   dry-run    Plan transform for one WP property (default --wp-id=${PILOT_WP_ID})
+  import     Write exactly one property (requires dual confirmations + approved dry-run)
 
-Options:
+Options (audit/dry-run):
   --source-dir=PATH     Folder with valorar-houzez-00N.sql + uploads/
   --report-dir=PATH     Output JSON reports (default migration-data/reports)
   --tenant=SLUG         Tenant slug (default ${DEFAULT_TENANT_SLUG})
@@ -141,17 +172,24 @@ Options:
   --wp-id=ID            WordPress property ID for dry-run
   --statuses=a,b        Optional status allow-list (protected; publish recommended)
   --batch-id=ID         Optional batch id
-  --skip-db             Skip staging DB lookups (no HOUZEZ_STAGING_* required)
+  --skip-db             Skip staging DB lookups (audit/dry-run only; refused by import)
 
-DB access (dry-run without --skip-db) requires env:
+Import-required options (no defaults for identity):
+  --wp-id=ID
+  --tenant=SLUG
+  --owner-email=EMAIL
+  --source-dir=PATH
+  --dry-run-report=PATH
+  --confirm-target=${IMPORT_CONFIRM_TARGET}
+  --confirm-write=${IMPORT_CONFIRM_WRITE}
+
+DB access (dry-run/import without --skip-db) requires env:
   HOUZEZ_STAGING_DATABASE_URL   direct Neon endpoint (no -pooler)
   HOUZEZ_STAGING_DB_HOST        full hostname allowlist (must match URL host)
   HOUZEZ_MIGRATION_TARGET=${REQUIRED_MIGRATION_TARGET}
 
 DATABASE_URL is never used as migration destination or fallback.
 HOUZEZ_CLEANUP_TARGET is not used by this CLI.
-
-Write/import mode is NOT available in this phase.
 `);
 }
 
@@ -201,11 +239,91 @@ async function main() {
     return;
   }
 
-  if (command === 'import' || command === 'write') {
+  if (command === 'write') {
     console.error(
-      'Write/import mode is disabled in this phase. Use audit or dry-run.',
+      'Use "import" (not "write"). Import requires dual confirmations and an approved dry-run report.',
     );
     process.exitCode = 2;
+    return;
+  }
+
+  if (command === 'import') {
+    const parsed = parseImportCliArgs({ args });
+    if (!parsed.ok) {
+      for (const err of parsed.errors) console.error(err);
+      process.exitCode = 2;
+      return;
+    }
+
+    let bundle: PrismaBundle | null = null;
+    try {
+      const resolved = resolveStagingDbOrExit();
+      if (!resolved) return;
+      bundle = resolved.bundle;
+
+      const objectStore = createConfiguredObjectStore();
+      const options: ImportCliOptions = {
+        mode: 'import',
+        sourceDir: parsed.sourceDir,
+        reportDir: parsed.reportDir,
+        tenantSlug: parsed.tenantSlug,
+        ownerEmail: parsed.ownerEmail,
+        wpId: parsed.wpId,
+        statuses: parsed.statuses,
+        batchId: parsed.batchId,
+        skipDb: false,
+        safety: resolved.safety,
+        dryRunReportPath: parsed.dryRunReportPath,
+        confirmTarget: parsed.confirmTarget,
+        confirmWrite: parsed.confirmWrite,
+      };
+
+      const report = await runImport(
+        options,
+        bundle.prisma as WriterPrisma,
+        objectStore,
+      );
+      console.log(
+        JSON.stringify(
+          {
+            mode: report.mode,
+            wpId: report.wpId,
+            wrote: report.wrote,
+            propertyId: report.propertyId,
+            domainEntityCount: report.domainEntityCount,
+            controlEntityCount: report.controlEntityCount,
+            blockers: report.blockers,
+            error: report.error,
+            compensation: {
+              uploadedKeys: report.compensation.uploadedKeys.length,
+              compensatedKeys: report.compensation.compensatedKeys.length,
+              pendingKeys: report.compensation.pendingKeys.length,
+              compensationFailed: report.compensation.compensationFailed,
+            },
+            dryRunFingerprint: report.dryRunFingerprint,
+            wouldWrite: true,
+          },
+          null,
+          2,
+        ),
+      );
+      if (!report.wrote || report.blockers.length) process.exitCode = 1;
+    } catch (error) {
+      if (error instanceof DatasetManifestValidationError) {
+        console.error(error.message);
+        process.exitCode = 2;
+        return;
+      }
+      if (error instanceof ImportValidationError) {
+        for (const err of error.errors) console.error(err);
+        process.exitCode = 2;
+        return;
+      }
+      console.error(error instanceof Error ? error.message : error);
+      process.exitCode = 1;
+    } finally {
+      await disconnectPrisma(bundle);
+    }
     return;
   }
 
@@ -268,7 +386,6 @@ async function main() {
       process.exitCode = 2;
       return;
     }
-    // Default protect: only publish unless explicitly overridden with publish in list
     if (!options.statuses) options.statuses = ['publish'];
 
     let bundle: PrismaBundle | null = null;
@@ -299,6 +416,7 @@ async function main() {
             ),
             wpId: report.wpId,
             batchId: report.batchId,
+            reportFingerprint: report.reportFingerprint,
             safety: report.safety,
             datasetManifest: {
               manifestId: report.datasetManifest.manifestId,
@@ -312,6 +430,7 @@ async function main() {
               propertyTreeEmpty: report.preflight.propertyTreeEmpty,
               migrationSourceRefExists:
                 report.preflight.migrationSourceRefExists,
+              pilotBlockers: report.preflight.pilotBlockers,
               importBlockers: report.preflight.importBlockers,
             },
             imageSummary: report.imageSummary,

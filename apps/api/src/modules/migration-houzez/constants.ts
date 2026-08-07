@@ -26,6 +26,15 @@ export const PILOT_WP_ID = 5312;
 export const DEFAULT_OWNER_EMAIL = 'admin@demo.valorar.dev';
 export const DEFAULT_TENANT_SLUG = 'demo';
 
+/** Required exact value for CLI `--confirm-write` on import. */
+export const IMPORT_CONFIRM_WRITE = 'IMPORT_ONE_HOUZEZ_PROPERTY' as const;
+
+/** Required exact value for CLI `--confirm-target` on import (same as migration target). */
+export const IMPORT_CONFIRM_TARGET = REQUIRED_MIGRATION_TARGET;
+
+/** MigrationSourceRef.entityType for the Property root identity. */
+export const MIGRATION_ENTITY_TYPE_PROPERTY = 'property' as const;
+
 export type MigrationEntityType =
   | 'property'
   | 'property_listing'

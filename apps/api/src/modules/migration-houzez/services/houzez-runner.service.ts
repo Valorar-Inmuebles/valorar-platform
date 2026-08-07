@@ -15,7 +15,6 @@ import type {
   DatasetManifestReport,
   DryRunReport,
   MigrationSafetyReportSection,
-  PlannedEntity,
   StagingPreflightReportSection,
 } from '../types';
 import { transformPublishProperty } from '../transform/publish-rules';
@@ -35,9 +34,21 @@ import {
   type PreflightPrisma,
   type StagingPreflightResult,
 } from '../preflight/staging-preflight';
+import {
+  assertLiveFingerprintMatchesApprovedReport,
+  buildPlannedEntitiesForPlan,
+  computeDryRunFingerprint,
+} from '../writer/dry-run-fingerprint';
+import { validateDryRunReportForImport } from '../writer/validate-dry-run-report';
+import type { MigrationObjectStore } from '../writer/migration-object-store';
+import {
+  writeOneHouzezProperty,
+  type ImportReport,
+  type WriterPrisma,
+} from '../writer/houzez-property-writer';
 
 export type CliOptions = {
-  mode: 'audit' | 'dry-run';
+  mode: 'audit' | 'dry-run' | 'import';
   sourceDir: string;
   reportDir: string;
   tenantSlug: string;
@@ -48,6 +59,18 @@ export type CliOptions = {
   skipDb?: boolean;
   /** Populated by CLI after staging gates (never includes connection URL). */
   safety?: MigrationSafetyReport;
+  /** Absolute or relative path to an approved dry-run JSON report (import only). */
+  dryRunReportPath?: string;
+  confirmTarget?: string;
+  confirmWrite?: string;
+};
+
+export type ImportCliOptions = CliOptions & {
+  mode: 'import';
+  wpId: number;
+  dryRunReportPath: string;
+  confirmTarget: string;
+  confirmWrite: string;
 };
 
 export class DatasetManifestValidationError extends Error {
@@ -56,6 +79,13 @@ export class DatasetManifestValidationError extends Error {
       `Dataset manifest validation failed (${validation.manifestId}): ${(validation.errors ?? []).join('; ')}`,
     );
     this.name = 'DatasetManifestValidationError';
+  }
+}
+
+export class ImportValidationError extends Error {
+  constructor(public readonly errors: string[]) {
+    super(`Import validation failed: ${errors.join('; ')}`);
+    this.name = 'ImportValidationError';
   }
 }
 
@@ -75,6 +105,7 @@ function toDatasetReport(
       version: result.version,
       fragmentCount: result.fragmentCount,
       checkedFiles: result.checkedFiles,
+      fragmentDigests: result.fragmentDigests,
     };
   }
   return {
@@ -334,11 +365,13 @@ export async function runDryRun(
     });
     warnings.push(...traceability.warnings);
 
-    const empty: DryRunReport = {
+    const emptyBase: Omit<DryRunReport, 'reportFingerprint'> = {
       mode: 'dry-run',
       batchId,
       wpId,
       sourceSystem: HOUZEZ_SOURCE_SYSTEM,
+      tenantSlug: options.tenantSlug,
+      ownerEmail: options.ownerEmail,
       safety,
       datasetManifest,
       preflight,
@@ -368,6 +401,13 @@ export async function runDryRun(
       warnings,
       blockers,
       wouldWrite: false,
+    };
+    const empty: DryRunReport = {
+      ...emptyBase,
+      reportFingerprint: computeDryRunFingerprint({
+        ...emptyBase,
+        reportFingerprint: '',
+      }),
     };
     writeReport(options.reportDir, `houzez-dry-run-${wpId}.json`, empty);
     return empty;
@@ -453,73 +493,24 @@ export async function runDryRun(
     });
   }
 
-  const plannedEntities: PlannedEntity[] = [];
-  if (blockers.length === 0) {
-    plannedEntities.push({
-      entityType: 'property',
-      provisionalKey: `property:${wpId}`,
-      sourceId: String(wpId),
-      payload: {
-        ...transform.property,
-        createdById: owner.userId,
-        assignedToId: owner.userId,
-        tenantId: owner.tenantId,
-      },
-    });
-    plannedEntities.push({
-      entityType: 'property_listing',
-      provisionalKey: `listing:${wpId}:SALE`,
-      sourceId: String(wpId),
-      payload: transform.listing,
-    });
-    if (transform.price) {
-      plannedEntities.push({
-        entityType: 'property_price',
-        provisionalKey: `price:${wpId}:primary`,
-        sourceId: String(wpId),
-        payload: transform.price,
-      });
-    }
-    for (const image of gallery.images) {
-      plannedEntities.push({
-        entityType: 'property_image',
-        provisionalKey: `image:${wpId}:${image.attachmentId}`,
-        sourceId: String(image.attachmentId),
-        payload: {
-          sortOrder: image.sortOrder,
-          isCover: image.isCover,
-          proposedFilename: image.proposedFilename,
-          sha256: image.sha256,
-        },
-      });
-    }
-    for (const cat of catalogs) {
-      if (cat.key.startsWith('feature:') && cat.status === 'resolved') {
-        plannedEntities.push({
-          entityType: 'property_feature_assignment',
-          provisionalKey: `feature:${wpId}:${cat.key}`,
-          sourceId: String(wpId),
-          payload: cat.value as Record<string, unknown>,
-        });
-      }
-    }
-    plannedEntities.push({
-      entityType: 'batch_manifest',
-      provisionalKey: `batch:${batchId}`,
-      sourceId: batchId,
-      payload: {
-        wpId,
-        oldUrl,
-        inferences: transform.inferences,
-      },
-    });
-  }
+  const plannedEntities = buildPlannedEntitiesForPlan({
+    wpId,
+    batchId,
+    owner,
+    transform,
+    catalogs,
+    images: gallery.images,
+    oldUrl,
+    blockersEmpty: blockers.length === 0,
+  });
 
-  const report: DryRunReport = {
+  const reportBase: Omit<DryRunReport, 'reportFingerprint'> = {
     mode: 'dry-run',
     batchId,
     wpId,
     sourceSystem: HOUZEZ_SOURCE_SYSTEM,
+    tenantSlug: options.tenantSlug,
+    ownerEmail: options.ownerEmail,
     safety,
     datasetManifest,
     preflight,
@@ -551,6 +542,13 @@ export async function runDryRun(
     blockers,
     wouldWrite: false,
   };
+  const report: DryRunReport = {
+    ...reportBase,
+    reportFingerprint: computeDryRunFingerprint({
+      ...reportBase,
+      reportFingerprint: '',
+    }),
+  };
 
   writeReport(options.reportDir, `houzez-dry-run-${wpId}.json`, report);
   return report;
@@ -563,4 +561,240 @@ function writeReport(reportDir: string, filename: string, data: unknown) {
     JSON.stringify(data, null, 2),
     'utf8',
   );
+}
+
+function loadDryRunReportFile(reportPath: string): DryRunReport {
+  if (!fs.existsSync(reportPath) || !fs.statSync(reportPath).isFile()) {
+    throw new ImportValidationError([
+      `Dry-run report not found at --dry-run-report path (missing or not a file).`,
+    ]);
+  }
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(fs.readFileSync(reportPath, 'utf8'));
+  } catch {
+    throw new ImportValidationError(['Dry-run report is not valid JSON.']);
+  }
+  return parsed as DryRunReport;
+}
+
+/**
+ * Import exactly one Houzez property.
+ * Requires approved dry-run report + dual confirmations + staging safety gates.
+ * Never uses DATABASE_URL. Never imports more than one WP id.
+ */
+export async function runImport(
+  options: ImportCliOptions,
+  prisma: WriterPrisma,
+  objectStore: MigrationObjectStore,
+): Promise<ImportReport> {
+  if (!options.wpId || !Number.isFinite(options.wpId)) {
+    throw new ImportValidationError([
+      'Import requires an explicit --wp-id (no default).',
+    ]);
+  }
+  if (options.skipDb) {
+    throw new ImportValidationError([
+      'Import refuses --skip-db (staging DB access is mandatory).',
+    ]);
+  }
+  if (!options.safety?.gatesSatisfied || !options.safety.dbAccessEnabled) {
+    throw new ImportValidationError([
+      'Import refuses to proceed without satisfied staging safety gates.',
+    ]);
+  }
+
+  const datasetManifest = await requireValidDataset(options.sourceDir);
+  const dryRunReport = loadDryRunReportFile(options.dryRunReportPath);
+  const bound = validateDryRunReportForImport({
+    report: dryRunReport,
+    wpId: options.wpId,
+    tenantSlug: options.tenantSlug,
+    ownerEmail: options.ownerEmail,
+  });
+  if (!bound.ok) {
+    throw new ImportValidationError(bound.errors);
+  }
+
+  if (
+    bound.report.datasetManifest.manifestId !== datasetManifest.manifestId ||
+    !datasetManifest.ok
+  ) {
+    throw new ImportValidationError([
+      'Live dataset manifest does not match the approved dry-run report manifest.',
+    ]);
+  }
+  const liveDigests = datasetManifest.fragmentDigests ?? [];
+  const reportDigests = bound.report.datasetManifest.fragmentDigests ?? [];
+  for (const live of liveDigests) {
+    const match = reportDigests.find((d) => d.fileName === live.fileName);
+    if (
+      !match ||
+      match.sha256.toLowerCase() !== live.sha256.toLowerCase() ||
+      match.bytes !== live.bytes
+    ) {
+      throw new ImportValidationError([
+        `Manifest fragment digest mismatch vs dry-run report for ${live.fileName}.`,
+      ]);
+    }
+  }
+
+  const preflightResult = await runStagingPreflight({
+    prisma: prisma as unknown as PreflightPrisma,
+    tenantSlug: options.tenantSlug,
+    ownerEmail: options.ownerEmail,
+  });
+  if (preflightResult.pilotBlockers.length) {
+    throw new ImportValidationError(
+      preflightResult.pilotBlockers.map((b) => `${b.code}: ${b.message}`),
+    );
+  }
+  if (preflightResult.importBlockers.length) {
+    throw new ImportValidationError(
+      preflightResult.importBlockers.map((b) => `${b.code}: ${b.message}`),
+    );
+  }
+  if (!preflightResult.propertyTreeEmpty) {
+    throw new ImportValidationError([
+      'Property tree baseline is not empty — refusing import.',
+    ]);
+  }
+  if (!preflightResult.migrationSourceRef.exists) {
+    throw new ImportValidationError([
+      'IDEMPOTENCY_SCHEMA_REQUIRED_FOR_IMPORT: MigrationSourceRef table missing.',
+    ]);
+  }
+
+  const owner = preflightResult.owner.ok
+    ? preflightResult.owner
+    : await resolveOwner({
+        prisma: prisma as never,
+        tenantSlug: options.tenantSlug,
+        ownerEmail: options.ownerEmail,
+      });
+  if (!owner.ok) {
+    throw new ImportValidationError(owner.errors);
+  }
+
+  const dump = await extractWordpressDump(options.sourceDir);
+  const property = dump.properties.get(options.wpId);
+  if (!property) {
+    throw new ImportValidationError([
+      `WP property id ${options.wpId} not found in dump.`,
+    ]);
+  }
+  if (options.statuses?.length && !options.statuses.includes(property.status)) {
+    throw new ImportValidationError([
+      `Property status "${property.status}" not in allowed statuses.`,
+    ]);
+  }
+
+  const transform = transformPublishProperty(property);
+  if (transform.blockers.length) {
+    throw new ImportValidationError(
+      transform.blockers.map((b) => `${b.code}: ${b.message}`),
+    );
+  }
+
+  const uploadsDir = path.join(options.sourceDir, 'uploads');
+  const gallery = buildGalleryPlan({
+    property,
+    attachments: dump.attachments,
+    uploadsDir,
+    tenantIdPlaceholder: owner.tenantId ?? '{tenantId}',
+    computeHash: true,
+  });
+  if (gallery.blockers.length) {
+    throw new ImportValidationError(
+      gallery.blockers.map((b) => `${b.code}: ${b.message}`),
+    );
+  }
+
+  const catalogs = await resolveCatalogsForTransform({
+    prisma: prisma as never,
+    transform,
+  });
+
+  const oldUrl = reconstructOldUrl({
+    site: dump.siteOptions,
+    slug: property.slug,
+    postDate: property.postDate,
+  });
+
+  const liveFingerprintCheck = assertLiveFingerprintMatchesApprovedReport({
+    approvedFingerprint: bound.fingerprint,
+    live: {
+      wpId: options.wpId,
+      sourceSystem: HOUZEZ_SOURCE_SYSTEM,
+      tenantSlug: options.tenantSlug,
+      ownerEmail: options.ownerEmail,
+      batchId: bound.report.batchId,
+      owner,
+      transform,
+      catalogs,
+      images: gallery.images,
+      imageSummary: {
+        galleryCount: gallery.galleryCount,
+        uniqueCount: gallery.uniqueCount,
+        coverAttachmentId: gallery.coverAttachmentId,
+        coverInGallery: gallery.coverInGallery,
+        coverPrepended: gallery.coverPrepended,
+        allOriginalsExist: gallery.allOriginalsExist,
+        exceedsImageLimit: gallery.exceedsImageLimit,
+        imageLimit: gallery.imageLimit,
+      },
+      oldUrl,
+      datasetManifest: bound.report.datasetManifest,
+      blockers: [],
+      pilotBlockers: [],
+    },
+  });
+  if (!liveFingerprintCheck.ok) {
+    throw new ImportValidationError(liveFingerprintCheck.errors);
+  }
+
+  const batchId = createBatchId(options.batchId);
+  const importReport = await writeOneHouzezProperty({
+    prisma,
+    objectStore,
+    dryRun: bound.report,
+    transform,
+    catalogs,
+    images: gallery.images,
+    owner,
+    batchId,
+    fingerprint: bound.fingerprint,
+  });
+
+  writeReport(
+    options.reportDir,
+    `houzez-import-${options.wpId}.json`,
+    sanitizeImportReportForPersist(importReport),
+  );
+  return importReport;
+}
+
+/** Strip absolute paths if any leaked into notes/errors before disk persist. */
+function sanitizeImportReportForPersist(report: ImportReport): ImportReport {
+  const scrub = (s: string) =>
+    s
+      .replace(/[A-Za-z]:\\[^\s"']+/g, '[path]')
+      .replace(/\/(?:home|Users|cursor)\/[^\s"']+/g, '[path]');
+  return {
+    ...report,
+    error: report.error,
+    notes: report.notes.map(scrub),
+    blockers: report.blockers.map((b) => ({
+      ...b,
+      message: scrub(b.message),
+    })),
+    warnings: report.warnings.map((w) => ({
+      ...w,
+      message: scrub(w.message),
+    })),
+    compensation: {
+      ...report.compensation,
+      compensationErrors: report.compensation.compensationErrors.map(scrub),
+    },
+  };
 }
