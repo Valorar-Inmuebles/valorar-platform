@@ -79,3 +79,7 @@ temp/
 # TypeScript
 
 *.tsbuildinfo
+
+# Local migration dumps / reports / backups (never commit)
+migration-data/
+backups/

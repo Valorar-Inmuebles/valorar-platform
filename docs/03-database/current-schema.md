@@ -791,6 +791,18 @@ Listados recientes, sitemap e ISR: `@@index([tenantId, updatedAt])`.
 
 Base de datos y código en inglés. Interfaz en español.
 
+## MigrationSourceRef (preparado, no aplicado)
+
+Migración: `202608070001_migration_source_ref` — **archivo SQL listo; no ejecutado** sobre ninguna base en la fase actual.
+
+Trazabilidad de imports externos (`sourceSystem` + `sourceId` + `migrationBatchId`).
+
+* Unique: `(tenantId, sourceSystem, sourceId, entityType)`
+* FK solo a `Tenant` (`onDelete: Cascade`)
+* `entityId` **no** es FK polimórfica (limitación PostgreSQL documentada)
+
+Documentación: `docs/04-modules/houzez-migration.md`.
+
 ## Documentación
 
 Toda migración Prisma debe actualizar este documento.
