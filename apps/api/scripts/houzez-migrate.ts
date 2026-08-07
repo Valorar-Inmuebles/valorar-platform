@@ -1,9 +1,17 @@
 /**
  * Houzez migration CLI — audit / dry-run only (no writes).
  *
+ * DB access (dry-run without --skip-db) requires:
+ *   HOUZEZ_STAGING_DATABASE_URL
+ *   HOUZEZ_STAGING_DB_HOST
+ *   HOUZEZ_MIGRATION_TARGET=staging-houzez
+ *
+ * Never uses DATABASE_URL as destination or fallback.
+ *
  * Usage:
  *   npx tsx scripts/houzez-migrate.ts audit --source-dir <path> --report-dir <path>
  *   npx tsx scripts/houzez-migrate.ts dry-run --wp-id=5312 --tenant=demo --owner-email=admin@demo.valorar.dev
+ *   npx tsx scripts/houzez-migrate.ts dry-run --skip-db ...
  */
 import * as fs from 'node:fs';
 import * as path from 'node:path';
@@ -12,14 +20,26 @@ import {
   DEFAULT_OWNER_EMAIL,
   DEFAULT_TENANT_SLUG,
   PILOT_WP_ID,
+  REQUIRED_MIGRATION_TARGET,
 } from '../src/modules/migration-houzez/constants';
 import {
+  DatasetManifestValidationError,
   runAudit,
   runDryRun,
   type CliOptions,
 } from '../src/modules/migration-houzez/services/houzez-runner.service';
+import {
+  readMigrationSafetyEnvFromProcess,
+  validateMigrationSafetyEnv,
+  type MigrationSafetyReport,
+} from '../src/modules/migration-houzez/safety/migration-safety';
 
 type Args = Record<string, string | boolean>;
+
+type PrismaBundle = {
+  prisma: object;
+  pool: { end: () => Promise<void> };
+};
 
 function parseArgs(argv: string[]): { command: string; args: Args } {
   const [command = 'help', ...rest] = argv;
@@ -60,54 +80,39 @@ function resolveDefaultSourceDir(): string {
   return candidates[0] ?? path.resolve(process.cwd(), '../../migration-data');
 }
 
-function createPrismaClient(): object | null {
-  try {
-    const envPath = path.resolve(process.cwd(), '.env');
-    if (fs.existsSync(envPath)) loadEnv({ path: envPath });
-    else {
-      const sibling = path.resolve(
-        process.cwd(),
-        '../../../valorar-platform/apps/api/.env',
-      );
-      if (fs.existsSync(sibling)) loadEnv({ path: sibling });
-      const alt = 'C:/cursor/valorar-platform/apps/api/.env';
-      if (fs.existsSync(alt)) loadEnv({ path: alt });
-    }
-
-    if (!process.env.DATABASE_URL) {
-      console.error('DATABASE_URL not set — continuing without DB lookups.');
-      return null;
-    }
-
-    // Dynamic requires keep the CLI runnable via tsx without ESM extension friction.
-    // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-unsafe-assignment
-    const { PrismaClient } = require('../generated/prisma/client');
-    // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-unsafe-assignment
-    const { PrismaPg } = require('@prisma/adapter-pg');
-    // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-unsafe-assignment
-    const { Pool } = require('pg');
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-assignment
-    const pool = new Pool({ connectionString: process.env.DATABASE_URL });
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-assignment
-    const prisma = new PrismaClient({ adapter: new PrismaPg(pool) });
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-    (prisma as { __pool?: { end: () => Promise<void> } }).__pool = pool;
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
-    return prisma;
-  } catch (error) {
-    console.error(
-      'Prisma client unavailable:',
-      error instanceof Error ? error.message : error,
-    );
-    return null;
+function loadApiEnv(): void {
+  const envPath = path.resolve(process.cwd(), '.env');
+  if (fs.existsSync(envPath)) {
+    loadEnv({ path: envPath });
   }
 }
 
-async function disconnectPrisma(prisma: object | null) {
-  if (!prisma || typeof prisma !== 'object') return;
-  const client = prisma as {
+/**
+ * Create Prisma client with an already-validated staging connection URL.
+ * Never reads process.env.DATABASE_URL.
+ */
+function createStagingPrismaClient(connectionUrl: string): PrismaBundle {
+  // Dynamic requires keep the CLI runnable via tsx without ESM extension friction.
+  // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-unsafe-assignment
+  const { PrismaClient } = require('../generated/prisma/client');
+  // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-unsafe-assignment
+  const { PrismaPg } = require('@prisma/adapter-pg');
+  // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-unsafe-assignment
+  const { Pool } = require('pg');
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-assignment
+  const pool = new Pool({ connectionString: connectionUrl });
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-assignment
+  const prisma = new PrismaClient({ adapter: new PrismaPg(pool) });
+  return {
+    prisma: prisma as object,
+    pool: pool as { end: () => Promise<void> },
+  };
+}
+
+async function disconnectPrisma(bundle: PrismaBundle | null) {
+  if (!bundle) return;
+  const client = bundle.prisma as {
     $disconnect?: () => Promise<void>;
-    __pool?: { end: () => Promise<void> };
   };
   try {
     await client.$disconnect?.();
@@ -115,7 +120,7 @@ async function disconnectPrisma(prisma: object | null) {
     /* ignore */
   }
   try {
-    await client.__pool?.end();
+    await bundle.pool.end();
   } catch {
     /* ignore */
   }
@@ -125,7 +130,7 @@ function printHelp() {
   console.log(`Houzez migration CLI (read-only modes)
 
 Commands:
-  audit      Stream-dump audit report
+  audit      Stream-dump audit report (validates dataset manifest; no DB)
   dry-run    Plan transform for one WP property (default --wp-id=${PILOT_WP_ID})
 
 Options:
@@ -136,10 +141,57 @@ Options:
   --wp-id=ID            WordPress property ID for dry-run
   --statuses=a,b        Optional status allow-list (protected; publish recommended)
   --batch-id=ID         Optional batch id
-  --skip-db             Skip Neon/Prisma lookups
+  --skip-db             Skip staging DB lookups (no HOUZEZ_STAGING_* required)
+
+DB access (dry-run without --skip-db) requires env:
+  HOUZEZ_STAGING_DATABASE_URL   direct Neon endpoint (no -pooler)
+  HOUZEZ_STAGING_DB_HOST        full hostname allowlist (must match URL host)
+  HOUZEZ_MIGRATION_TARGET=${REQUIRED_MIGRATION_TARGET}
+
+DATABASE_URL is never used as migration destination or fallback.
+HOUZEZ_CLEANUP_TARGET is not used by this CLI.
 
 Write/import mode is NOT available in this phase.
 `);
+}
+
+function resolveStagingDbOrExit(): {
+  bundle: PrismaBundle;
+  safety: MigrationSafetyReport;
+} | null {
+  loadApiEnv();
+  const gates = validateMigrationSafetyEnv(readMigrationSafetyEnvFromProcess());
+  if (!gates.ok) {
+    for (const err of gates.errors) {
+      console.error(err);
+    }
+    console.error(
+      `Aborting before any DB connection (target must be ${REQUIRED_MIGRATION_TARGET}).`,
+    );
+    process.exitCode = 2;
+    return null;
+  }
+
+  try {
+    const bundle = createStagingPrismaClient(gates.connectionUrl);
+    return {
+      bundle,
+      safety: {
+        migrationTarget: gates.migrationTarget,
+        dbHostMasked: gates.dbHostMasked,
+        gatesSatisfied: true,
+        dbAccessEnabled: true,
+        skipDb: false,
+      },
+    };
+  } catch (error) {
+    console.error(
+      'Failed to create staging Prisma client:',
+      error instanceof Error ? error.message : error,
+    );
+    process.exitCode = 2;
+    return null;
+  }
 }
 
 async function main() {
@@ -180,21 +232,31 @@ async function main() {
   };
 
   if (command === 'audit') {
-    const report = await runAudit(options);
-    console.log(
-      JSON.stringify(
-        {
-          mode: report.mode,
-          reportFile: path.join(reportDir, 'houzez-audit.json'),
-          propertyCountByStatus: report.dump.propertyCountByStatus,
-          permalink: report.dump.permalink,
-          galleryLimitBlocked: report.dump.galleryLimitBlocked,
-          wouldWrite: false,
-        },
-        null,
-        2,
-      ),
-    );
+    try {
+      const report = await runAudit(options);
+      console.log(
+        JSON.stringify(
+          {
+            mode: report.mode,
+            reportFile: path.join(reportDir, 'houzez-audit.json'),
+            datasetManifest: report.datasetManifest,
+            propertyCountByStatus: report.dump.propertyCountByStatus,
+            permalink: report.dump.permalink,
+            galleryLimitBlocked: report.dump.galleryLimitBlocked,
+            wouldWrite: false,
+          },
+          null,
+          2,
+        ),
+      );
+    } catch (error) {
+      if (error instanceof DatasetManifestValidationError) {
+        console.error(error.message);
+        process.exitCode = 2;
+        return;
+      }
+      throw error;
+    }
     return;
   }
 
@@ -209,9 +271,24 @@ async function main() {
     // Default protect: only publish unless explicitly overridden with publish in list
     if (!options.statuses) options.statuses = ['publish'];
 
-    const prisma = options.skipDb ? null : createPrismaClient();
+    let bundle: PrismaBundle | null = null;
+    if (options.skipDb) {
+      options.safety = {
+        migrationTarget: null,
+        dbHostMasked: null,
+        gatesSatisfied: false,
+        dbAccessEnabled: false,
+        skipDb: true,
+      };
+    } else {
+      const resolved = resolveStagingDbOrExit();
+      if (!resolved) return;
+      bundle = resolved.bundle;
+      options.safety = resolved.safety;
+    }
+
     try {
-      const report = await runDryRun(options, prisma);
+      const report = await runDryRun(options, bundle?.prisma ?? null);
       console.log(
         JSON.stringify(
           {
@@ -222,9 +299,21 @@ async function main() {
             ),
             wpId: report.wpId,
             batchId: report.batchId,
+            safety: report.safety,
+            datasetManifest: {
+              manifestId: report.datasetManifest.manifestId,
+              ok: report.datasetManifest.ok,
+            },
             ownerOk: report.owner.ok,
             blockers: report.blockers,
             warnings: report.warnings,
+            preflight: {
+              performed: report.preflight.performed,
+              propertyTreeEmpty: report.preflight.propertyTreeEmpty,
+              migrationSourceRefExists:
+                report.preflight.migrationSourceRefExists,
+              importBlockers: report.preflight.importBlockers,
+            },
             imageSummary: report.imageSummary,
             oldUrl: report.oldUrl,
             catalogs: report.catalogs.map((c) => ({
@@ -233,7 +322,13 @@ async function main() {
               detail: c.detail,
             })),
             plannedEntityCount: report.plannedEntities.length,
-            idempotency: report.idempotency,
+            idempotency: {
+              idempotencySchemaAvailable:
+                report.idempotency.idempotencySchemaAvailable,
+              idempotencyDbCheckPerformed:
+                report.idempotency.idempotencyDbCheckPerformed,
+              note: report.idempotency.note,
+            },
             wouldWrite: false,
           },
           null,
@@ -241,8 +336,15 @@ async function main() {
         ),
       );
       if (report.blockers.length) process.exitCode = 1;
+    } catch (error) {
+      if (error instanceof DatasetManifestValidationError) {
+        console.error(error.message);
+        process.exitCode = 2;
+        return;
+      }
+      throw error;
     } finally {
-      await disconnectPrisma(prisma);
+      await disconnectPrisma(bundle);
     }
     return;
   }
@@ -252,6 +354,6 @@ async function main() {
 }
 
 main().catch((error) => {
-  console.error(error);
+  console.error(error instanceof Error ? error.message : error);
   process.exitCode = 1;
 });

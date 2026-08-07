@@ -3,13 +3,21 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import {
   GALLERY_LIMIT_BLOCKED_WP_IDS,
+  HOUZEZ_DATASET_MANIFEST_ID,
   HOUZEZ_SOURCE_SYSTEM,
   MIGRATION_MAX_PROPERTY_IMAGES,
   PILOT_WP_ID,
 } from '../constants';
 import { extractWordpressDump } from '../wordpress/extract-properties';
 import { reconstructOldUrl } from '../wordpress/permalink';
-import type { AuditReport, DryRunReport, PlannedEntity } from '../types';
+import type {
+  AuditReport,
+  DatasetManifestReport,
+  DryRunReport,
+  MigrationSafetyReportSection,
+  PlannedEntity,
+  StagingPreflightReportSection,
+} from '../types';
 import { transformPublishProperty } from '../transform/publish-rules';
 import { buildGalleryPlan } from '../images/gallery-plan';
 import { resolveCatalogsForTransform } from '../catalog/resolve-catalogs';
@@ -18,6 +26,15 @@ import {
   detectTraceabilitySchema,
 } from '../traceability/idempotency';
 import { resolveOwner } from './owner-resolution.service';
+import { validateDatasetManifest } from '../dataset/validate-dataset-manifest';
+import type { MigrationSafetyReport } from '../safety/migration-safety';
+import {
+  evaluateTraceabilityForMode,
+  runStagingPreflight,
+  skippedStagingPreflight,
+  type PreflightPrisma,
+  type StagingPreflightResult,
+} from '../preflight/staging-preflight';
 
 export type CliOptions = {
   mode: 'audit' | 'dry-run';
@@ -29,14 +46,126 @@ export type CliOptions = {
   statuses?: string[];
   batchId?: string;
   skipDb?: boolean;
+  /** Populated by CLI after staging gates (never includes connection URL). */
+  safety?: MigrationSafetyReport;
 };
+
+export class DatasetManifestValidationError extends Error {
+  constructor(public readonly validation: DatasetManifestReport) {
+    super(
+      `Dataset manifest validation failed (${validation.manifestId}): ${(validation.errors ?? []).join('; ')}`,
+    );
+    this.name = 'DatasetManifestValidationError';
+  }
+}
 
 function createBatchId(explicit?: string): string {
   if (explicit?.trim()) return explicit.trim();
   return `houzez_${new Date().toISOString().replace(/[:.]/g, '-')}_${crypto.randomBytes(4).toString('hex')}`;
 }
 
+function toDatasetReport(
+  result: Awaited<ReturnType<typeof validateDatasetManifest>>,
+): DatasetManifestReport {
+  if (result.ok) {
+    return {
+      manifestId: result.manifestId,
+      ok: true,
+      datasetId: result.datasetId,
+      version: result.version,
+      fragmentCount: result.fragmentCount,
+      checkedFiles: result.checkedFiles,
+    };
+  }
+  return {
+    manifestId: result.manifestId,
+    ok: false,
+    errors: result.errors,
+  };
+}
+
+function defaultSafety(options: CliOptions): MigrationSafetyReportSection {
+  if (options.safety) {
+    return {
+      migrationTarget: options.safety.migrationTarget,
+      dbHostMasked: options.safety.dbHostMasked,
+      gatesSatisfied: options.safety.gatesSatisfied,
+      dbAccessEnabled: options.safety.dbAccessEnabled,
+      skipDb: options.safety.skipDb,
+    };
+  }
+  if (options.skipDb) {
+    return {
+      migrationTarget: null,
+      dbHostMasked: null,
+      gatesSatisfied: false,
+      dbAccessEnabled: false,
+      skipDb: true,
+    };
+  }
+  return {
+    migrationTarget: null,
+    dbHostMasked: null,
+    gatesSatisfied: false,
+    dbAccessEnabled: false,
+    skipDb: false,
+  };
+}
+
+function toPreflightSection(
+  result: StagingPreflightResult,
+): StagingPreflightReportSection {
+  return {
+    performed: result.performed,
+    propertyTreeEmpty: result.propertyTreeEmpty,
+    propertyTreeCounts: result.propertyTreeCounts,
+    pilotFeaturePresent: result.pilotFeature.present,
+    geoOk:
+      result.geo.countryAr &&
+      result.geo.provinceCount > 0 &&
+      result.geo.localityCount > 0,
+    migrationSourceRefExists: result.migrationSourceRef.exists,
+    baseline: {
+      userCount: result.baseline.userCount,
+      developmentCount: result.baseline.developmentCount,
+    },
+    pilotBlockers: result.pilotBlockers,
+    informativeWarnings: result.informativeWarnings,
+    importBlockers: result.importBlockers,
+  };
+}
+
+async function requireValidDataset(
+  sourceDir: string,
+): Promise<DatasetManifestReport> {
+  const validation = toDatasetReport(
+    await validateDatasetManifest({ sourceDir }),
+  );
+  if (!validation.ok) {
+    throw new DatasetManifestValidationError(validation);
+  }
+  return validation;
+}
+
+/** Avoid embedding workstation-absolute paths in persisted reports. */
+function sanitizeSourceDirForReport(sourceDir: string): string {
+  const normalized = sourceDir.replace(/\\/g, '/');
+  const parts = normalized.split('/').filter(Boolean);
+  if (parts.length === 0) return '(source-dir)';
+  return parts.slice(-2).join('/');
+}
+
+function sanitizeImagesForReport(
+  images: DryRunReport['images'],
+): DryRunReport['images'] {
+  return images.map((img) => ({
+    ...img,
+    absolutePath: null,
+  }));
+}
+
 export async function runAudit(options: CliOptions): Promise<AuditReport> {
+  const datasetManifest = await requireValidDataset(options.sourceDir);
   const dump = await extractWordpressDump(options.sourceDir);
   const byStatus: Record<string, number> = {};
   const taxType: Record<string, number> = {};
@@ -67,7 +196,8 @@ export async function runAudit(options: CliOptions): Promise<AuditReport> {
 
   const report: AuditReport = {
     mode: 'audit',
-    sourceDir: options.sourceDir,
+    sourceDir: sanitizeSourceDirForReport(options.sourceDir),
+    datasetManifest,
     dump: {
       tablePrefix: dump.tablePrefix,
       fragmentFiles: [
@@ -91,6 +221,7 @@ export async function runAudit(options: CliOptions): Promise<AuditReport> {
       multiCommercialStatusCount: multiCommercial,
       notes: [
         'Read-only audit. No DB writes. No image processing/upload.',
+        `Dataset manifest ${HOUZEZ_DATASET_MANIFEST_ID} validated before parse.`,
         `Known product-blocked oversized galleries until MAX raised: ${GALLERY_LIMIT_BLOCKED_WP_IDS.join(', ')}.`,
         `Pilot WP id: ${PILOT_WP_ID}.`,
       ],
@@ -130,11 +261,28 @@ export async function runDryRun(
 ): Promise<DryRunReport> {
   const wpId = options.wpId ?? PILOT_WP_ID;
   const batchId = createBatchId(options.batchId);
-  const dump = await extractWordpressDump(options.sourceDir);
-  const property = dump.properties.get(wpId) ?? null;
-
+  const safety = defaultSafety(options);
   const warnings: DryRunReport['warnings'] = [];
   const blockers: DryRunReport['blockers'] = [];
+
+  const datasetManifest = await requireValidDataset(options.sourceDir);
+
+  let preflightResult: StagingPreflightResult;
+  if (options.skipDb || !prisma) {
+    preflightResult = skippedStagingPreflight();
+  } else {
+    preflightResult = await runStagingPreflight({
+      prisma: prisma as PreflightPrisma,
+      tenantSlug: options.tenantSlug,
+      ownerEmail: options.ownerEmail,
+    });
+  }
+  const preflight = toPreflightSection(preflightResult);
+  warnings.push(...preflightResult.informativeWarnings);
+  blockers.push(...preflightResult.pilotBlockers);
+
+  const dump = await extractWordpressDump(options.sourceDir);
+  const property = dump.properties.get(wpId) ?? null;
 
   let owner: DryRunReport['owner'] = {
     ok: false,
@@ -145,22 +293,28 @@ export async function runDryRun(
     owner = {
       ok: false,
       errors: [
-        'Owner/tenant resolution skipped (no DB client or --skip-db). Dry-run cannot validate ownership.',
+        'Owner/tenant resolution skipped (--skip-db or no staging DB client). Dry-run cannot validate ownership against staging-houzez.',
       ],
     };
-    blockers.push({
-      code: 'OWNER_UNVALIDATED',
-      message: 'Cannot validate tenant/owner without DB read access.',
-    });
+    if (!blockers.some((b) => b.code === 'PREFLIGHT_SKIPPED')) {
+      blockers.push({
+        code: 'OWNER_UNVALIDATED',
+        message: 'Cannot validate tenant/owner without staging DB read access.',
+      });
+    }
   } else {
-    owner = await resolveOwner({
-      prisma: prisma as never,
-      tenantSlug: options.tenantSlug,
-      ownerEmail: options.ownerEmail,
-    });
+    owner = preflightResult.owner.ok
+      ? preflightResult.owner
+      : await resolveOwner({
+          prisma: prisma as never,
+          tenantSlug: options.tenantSlug,
+          ownerEmail: options.ownerEmail,
+        });
     if (!owner.ok) {
       for (const err of owner.errors) {
-        blockers.push({ code: 'OWNER_RESOLUTION', message: err });
+        if (!blockers.some((b) => b.message === err)) {
+          blockers.push({ code: 'OWNER_RESOLUTION', message: err });
+        }
       }
     }
   }
@@ -170,11 +324,24 @@ export async function runDryRun(
       code: 'PROPERTY_NOT_FOUND',
       message: `WP property id ${wpId} not found in dump.`,
     });
+    const schema =
+      options.skipDb || !prisma
+        ? ({ available: false as const, reason: 'DB skipped.' } as const)
+        : await detectTraceabilitySchema(prisma);
+    const traceability = evaluateTraceabilityForMode({
+      mode: 'dry-run',
+      schema,
+    });
+    warnings.push(...traceability.warnings);
+
     const empty: DryRunReport = {
       mode: 'dry-run',
       batchId,
       wpId,
       sourceSystem: HOUZEZ_SOURCE_SYSTEM,
+      safety,
+      datasetManifest,
+      preflight,
       owner,
       source: null,
       transformed: null,
@@ -192,12 +359,11 @@ export async function runDryRun(
       },
       plannedEntities: [],
       idempotency: {
-        schema: {
-          available: false,
-          reason: 'Skipped due to missing property.',
-        },
+        schema,
         existingPropertyRef: null,
         note: 'n/a',
+        idempotencySchemaAvailable: traceability.idempotencySchemaAvailable,
+        idempotencyDbCheckPerformed: false,
       },
       warnings,
       blockers,
@@ -256,6 +422,14 @@ export async function runDryRun(
         }
       : await detectTraceabilitySchema(prisma);
 
+  const traceability = evaluateTraceabilityForMode({
+    mode: 'dry-run',
+    schema,
+  });
+  for (const w of traceability.warnings) {
+    if (!warnings.some((x) => x.code === w.code)) warnings.push(w);
+  }
+
   const idempotency = owner.tenantId
     ? await checkPropertyIdempotency({
         prisma: prisma ?? {},
@@ -267,6 +441,8 @@ export async function runDryRun(
         schema,
         existingPropertyRef: null,
         note: 'Tenant unresolved — idempotency DB check incomplete.',
+        idempotencySchemaAvailable: traceability.idempotencySchemaAvailable,
+        idempotencyDbCheckPerformed: false,
       };
 
   if (idempotency.existingPropertyRef) {
@@ -344,6 +520,9 @@ export async function runDryRun(
     batchId,
     wpId,
     sourceSystem: HOUZEZ_SOURCE_SYSTEM,
+    safety,
+    datasetManifest,
+    preflight,
     owner,
     source: property,
     transformed: {
@@ -354,7 +533,7 @@ export async function runDryRun(
     },
     inferences: transform.inferences,
     catalogs,
-    images: gallery.images,
+    images: sanitizeImagesForReport(gallery.images),
     imageSummary: {
       galleryCount: gallery.galleryCount,
       uniqueCount: gallery.uniqueCount,

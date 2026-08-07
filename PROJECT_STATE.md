@@ -292,14 +292,16 @@ Pendiente admin: RBAC API (v1.1), configuración (usuarios/inmobiliaria/tenants)
 
 ## Módulos Pendientes
 
-### Migración Houzez → Valorar (infra audit/dry-run)
+### Migración Houzez → Valorar (infra audit/dry-run + hardening staging)
 
 * Documentación: `docs/04-modules/houzez-migration.md`
 * Rama: `feature/houzez-migration`
-* CLI: `npm run migration:houzez -- audit|dry-run` (sin escritura)
-* Schema `MigrationSourceRef` preparado (`202608070001_migration_source_ref`) — **no aplicado**
+* CLI: `npm run migration:houzez -- audit|dry-run` (sin escritura; `import`/`write` deshabilitados)
+* DB dry-run: solo `HOUZEZ_STAGING_*` + `HOUZEZ_MIGRATION_TARGET=staging-houzez` (nunca `DATABASE_URL`)
+* Dataset manifest versionado: `houzez-sql-dump-v1` (SHA256 de 6 fragmentos; dumps fuera de Git)
+* Schema `MigrationSourceRef` preparado (`202608070001_migration_source_ref`) — **no aplicado** (warning en dry-run; blocker para import)
 * Piloto WP `5312`: 7 imágenes únicas (cover prepend si ∉ galería); feature Pavimento omitida con warning
-* Pendiente: backup + `migrate deploy` + piloto write WP `5312`
+* Pendiente: dry-run autorizado post Fase A; backup + `migrate deploy` + piloto write WP `5312`
 
 ### Auth Foundation v1.1 (RBAC API)
 

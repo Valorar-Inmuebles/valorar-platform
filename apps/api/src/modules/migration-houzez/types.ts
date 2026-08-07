@@ -109,6 +109,42 @@ export type IdempotencyCheck = {
     migrationBatchId: string;
   } | null;
   note: string;
+  /** Explicit: table available for source-ref identity. */
+  idempotencySchemaAvailable: boolean;
+  /** Explicit: whether a DB lookup against MigrationSourceRef ran. */
+  idempotencyDbCheckPerformed: boolean;
+};
+
+export type DatasetManifestReport = {
+  manifestId: string;
+  ok: boolean;
+  datasetId?: string;
+  version?: number;
+  fragmentCount?: number;
+  checkedFiles?: string[];
+  errors?: string[];
+};
+
+export type MigrationSafetyReportSection = {
+  migrationTarget: string | null;
+  dbHostMasked: string | null;
+  gatesSatisfied: boolean;
+  dbAccessEnabled: boolean;
+  skipDb: boolean;
+};
+
+export type StagingPreflightReportSection = {
+  performed: boolean;
+  propertyTreeEmpty: boolean;
+  propertyTreeCounts: Record<string, number>;
+  pilotFeaturePresent: boolean;
+  geoOk: boolean;
+  migrationSourceRefExists: boolean;
+  baseline: { userCount: number; developmentCount: number };
+  pilotBlockers: BlockerRecord[];
+  informativeWarnings: WarningRecord[];
+  /** Reserved hard failures for a future import/write mode. */
+  importBlockers: BlockerRecord[];
 };
 
 export type PlannedEntity = {
@@ -123,6 +159,10 @@ export type DryRunReport = {
   batchId: string;
   wpId: number;
   sourceSystem: string;
+  /** Phase-A safety summary (no secrets / URLs). */
+  safety: MigrationSafetyReportSection;
+  datasetManifest: DatasetManifestReport;
+  preflight: StagingPreflightReportSection;
   owner: OwnerResolution;
   source: WordpressPropertyRaw | null;
   transformed: Record<string, unknown> | null;
@@ -157,6 +197,7 @@ export type DryRunReport = {
 export type AuditReport = {
   mode: 'audit';
   sourceDir: string;
+  datasetManifest: DatasetManifestReport;
   dump: DumpAuditSummary;
   pilotContract: Record<string, unknown>;
   galleryLimitPolicy: Record<string, unknown>;

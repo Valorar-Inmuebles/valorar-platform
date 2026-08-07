@@ -1,5 +1,8 @@
 export const HOUZEZ_SOURCE_SYSTEM = 'wordpress-houzez' as const;
 
+/** Neon branch / procedure target for migration CLI (distinct from HOUZEZ_CLEANUP_TARGET). */
+export const REQUIRED_MIGRATION_TARGET = 'staging-houzez' as const;
+
 export const HOUZEZ_SQL_FRAGMENTS = [
   'valorar-houzez-001.sql',
   'valorar-houzez-002.sql',
@@ -8,6 +11,9 @@ export const HOUZEZ_SQL_FRAGMENTS = [
   'valorar-houzez-005.sql',
   'valorar-houzez-006.sql',
 ] as const;
+
+/** Versioned dataset manifest id (SQL fragments only; dumps not stored in git). */
+export const HOUZEZ_DATASET_MANIFEST_ID = 'houzez-sql-dump-v1' as const;
 
 /** Matches apps/api storage.constants MAX_PROPERTY_IMAGES — do not raise here without product approval. */
 export const MIGRATION_MAX_PROPERTY_IMAGES = 30;

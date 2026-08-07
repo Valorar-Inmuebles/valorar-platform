@@ -1,0 +1,38 @@
+{
+  "manifestId": "houzez-sql-dump-v1",
+  "datasetId": "valorar-houzez-wordpress-dump",
+  "version": 1,
+  "description": "Six-fragment Houzez MySQL dump for Valorar migration. Dump files and uploads live outside git; only this manifest is versioned.",
+  "fragments": [
+    {
+      "fileName": "valorar-houzez-001.sql",
+      "sha256": "0c49fe834085a0dc57d82b1c23b40a081c21c2f73fb8d2a0db76e674db65e99b",
+      "bytes": 47541550
+    },
+    {
+      "fileName": "valorar-houzez-002.sql",
+      "sha256": "86deb8a5ba3c49c84dbceda1d7de943afda1d95ca93ea4d315635ece9a36c85e",
+      "bytes": 60590740
+    },
+    {
+      "fileName": "valorar-houzez-003.sql",
+      "sha256": "89d8c59a29a57bbb6c38dd121fa9d82c43edca551ade4d561796fb1eeca2101b",
+      "bytes": 77227352
+    },
+    {
+      "fileName": "valorar-houzez-004.sql",
+      "sha256": "7534dde980ace4ddb7a2d004e307f088ff65d87b572e33038a1d7bcc326acf1f",
+      "bytes": 69357029
+    },
+    {
+      "fileName": "valorar-houzez-005.sql",
+      "sha256": "4b77a9f3e1da2beb4e87b0266867b1636c49f38fa93f0ca771bdf8d6b53680d6",
+      "bytes": 62646347
+    },
+    {
+      "fileName": "valorar-houzez-006.sql",
+      "sha256": "74ba71acb9dfb028fca2a7b61b2bb4bf7fe5b10ed11a730a542e4d0092ac361c",
+      "bytes": 57732149
+    }
+  ]
+}

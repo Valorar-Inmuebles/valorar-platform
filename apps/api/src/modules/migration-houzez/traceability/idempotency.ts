@@ -75,7 +75,9 @@ export async function checkPropertyIdempotency(input: {
     return {
       schema: input.schema,
       existingPropertyRef: null,
-      note: 'DB idempotency check pending — traceability schema not available. Deterministic sourceSystem/sourceId rules still apply in planning.',
+      note: 'Idempotency schema not available — DB source-ref check omitted. Deterministic sourceSystem/sourceId rules still apply in planning. Required before any import/write.',
+      idempotencySchemaAvailable: false,
+      idempotencyDbCheckPerformed: false,
     };
   }
 
@@ -98,6 +100,8 @@ export async function checkPropertyIdempotency(input: {
     note: ref
       ? 'Existing MigrationSourceRef found for this tenant/sourceSystem/sourceId/entityType=property.'
       : 'No existing property source ref for this identity.',
+    idempotencySchemaAvailable: true,
+    idempotencyDbCheckPerformed: true,
   };
 }
 

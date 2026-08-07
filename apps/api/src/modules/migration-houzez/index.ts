@@ -9,4 +9,8 @@ export * from './traceability/idempotency';
 export * from './catalog/resolve-catalogs';
 export * from './services/owner-resolution.service';
 export * from './services/houzez-runner.service';
+export * from './safety/db-host';
+export * from './safety/migration-safety';
+export * from './dataset/validate-dataset-manifest';
+export * from './preflight/staging-preflight';
 export * from './migration-houzez.module';

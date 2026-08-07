@@ -16,7 +16,9 @@ describe('traceability idempotency', () => {
       sourceId: '5312',
     });
     expect(result.existingPropertyRef).toBeNull();
-    expect(result.note).toMatch(/pending/i);
+    expect(result.idempotencySchemaAvailable).toBe(false);
+    expect(result.idempotencyDbCheckPerformed).toBe(false);
+    expect(result.note).toMatch(/omitted|not available/i);
   });
 
   it('returns existing ref on first-tenant hit', async () => {
@@ -41,6 +43,8 @@ describe('traceability idempotency', () => {
       entityId: 'prop_1',
       migrationBatchId: 'batch_1',
     });
+    expect(result.idempotencySchemaAvailable).toBe(true);
+    expect(result.idempotencyDbCheckPerformed).toBe(true);
   });
 
   it('allows same sourceId on another tenant conceptually', () => {
