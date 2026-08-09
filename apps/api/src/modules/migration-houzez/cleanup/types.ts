@@ -11,6 +11,7 @@ export type ParsedCleanupArgs = {
   mode: CleanupMode | null;
   tenantSlug: string | null;
   confirmToken: string | null;
+  confirmTarget: string | null;
   manifestPath: string | null;
   approvedHash: string | null;
   allowAnomalousKey: boolean;

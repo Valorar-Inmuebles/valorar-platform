@@ -1,17 +1,21 @@
 /**
  * Houzez migration CLI — audit / dry-run / single-property import.
  *
- * DB access requires:
- *   HOUZEZ_STAGING_DATABASE_URL
- *   HOUZEZ_STAGING_DB_HOST
+ * Staging DB access:
+ *   HOUZEZ_STAGING_DATABASE_URL / HOUZEZ_STAGING_DB_HOST
  *   HOUZEZ_MIGRATION_TARGET=staging-houzez
+ *
+ * Production DB access:
+ *   HOUZEZ_PRODUCTION_DATABASE_URL / HOUZEZ_PRODUCTION_DB_HOST
+ *   HOUZEZ_PRODUCTION_NEON_PROJECT_ID / BRANCH_ID / ENDPOINT_ID
+ *   HOUZEZ_MIGRATION_TARGET=production
  *
  * Never uses DATABASE_URL as destination or fallback.
  *
  * Usage:
  *   npx tsx scripts/houzez-migrate.ts audit --source-dir <path> --report-dir <path>
  *   npx tsx scripts/houzez-migrate.ts dry-run --wp-id=5312 --tenant=demo --owner-email=admin@demo.valorar.dev
- *   npx tsx scripts/houzez-migrate.ts import --wp-id=5312 --tenant=demo --owner-email=... --source-dir=... --dry-run-report=... --confirm-target=staging-houzez --confirm-write=IMPORT_ONE_HOUZEZ_PROPERTY
+ *   npx tsx scripts/houzez-migrate.ts import --wp-id=5312 --tenant=demo --owner-email=... --source-dir=... --dry-run-report=... --confirm-target=production --confirm-write=IMPORT_ONE_HOUZEZ_PROPERTY_PRODUCTION
  */
 import * as fs from 'node:fs';
 import * as path from 'node:path';
@@ -20,10 +24,11 @@ import { S3Client } from '@aws-sdk/client-s3';
 import {
   DEFAULT_OWNER_EMAIL,
   DEFAULT_TENANT_SLUG,
-  IMPORT_CONFIRM_TARGET,
-  IMPORT_CONFIRM_WRITE,
+  IMPORT_CONFIRM_WRITE_PRODUCTION,
+  IMPORT_CONFIRM_WRITE_STAGING,
   PILOT_WP_ID,
-  REQUIRED_MIGRATION_TARGET,
+  PRODUCTION_MIGRATION_TARGET,
+  STAGING_MIGRATION_TARGET,
 } from '../src/modules/migration-houzez/constants';
 import {
   DatasetManifestValidationError,
@@ -172,7 +177,7 @@ Options (audit/dry-run):
   --wp-id=ID            WordPress property ID for dry-run
   --statuses=a,b        Optional status allow-list (protected; publish recommended)
   --batch-id=ID         Optional batch id
-  --skip-db             Skip staging DB lookups (audit/dry-run only; refused by import)
+  --skip-db             Skip DB lookups (audit/dry-run only; refused by import)
 
 Import-required options (no defaults for identity):
   --wp-id=ID
@@ -180,20 +185,24 @@ Import-required options (no defaults for identity):
   --owner-email=EMAIL
   --source-dir=PATH
   --dry-run-report=PATH
-  --confirm-target=${IMPORT_CONFIRM_TARGET}
-  --confirm-write=${IMPORT_CONFIRM_WRITE}
+  --confirm-target=${STAGING_MIGRATION_TARGET}|${PRODUCTION_MIGRATION_TARGET}
+  --confirm-write=${IMPORT_CONFIRM_WRITE_STAGING}|${IMPORT_CONFIRM_WRITE_PRODUCTION}
 
-DB access (dry-run/import without --skip-db) requires env:
-  HOUZEZ_STAGING_DATABASE_URL   direct Neon endpoint (no -pooler)
-  HOUZEZ_STAGING_DB_HOST        full hostname allowlist (must match URL host)
-  HOUZEZ_MIGRATION_TARGET=${REQUIRED_MIGRATION_TARGET}
+Staging env:
+  HOUZEZ_STAGING_DATABASE_URL / HOUZEZ_STAGING_DB_HOST
+  HOUZEZ_MIGRATION_TARGET=${STAGING_MIGRATION_TARGET}
+
+Production env:
+  HOUZEZ_PRODUCTION_DATABASE_URL / HOUZEZ_PRODUCTION_DB_HOST
+  HOUZEZ_PRODUCTION_NEON_PROJECT_ID / BRANCH_ID / ENDPOINT_ID
+  HOUZEZ_MIGRATION_TARGET=${PRODUCTION_MIGRATION_TARGET}
 
 DATABASE_URL is never used as migration destination or fallback.
-HOUZEZ_CLEANUP_TARGET is not used by this CLI.
+Staging dry-run reports cannot authorize production import (fingerprint v2 + target bind).
 `);
 }
 
-function resolveStagingDbOrExit(): {
+function resolveMigrationDbOrExit(): {
   bundle: PrismaBundle;
   safety: MigrationSafetyReport;
 } | null {
@@ -204,7 +213,7 @@ function resolveStagingDbOrExit(): {
       console.error(err);
     }
     console.error(
-      `Aborting before any DB connection (target must be ${REQUIRED_MIGRATION_TARGET}).`,
+      `Aborting before any DB connection (target must be ${STAGING_MIGRATION_TARGET} or ${PRODUCTION_MIGRATION_TARGET}).`,
     );
     process.exitCode = 2;
     return null;
@@ -220,11 +229,12 @@ function resolveStagingDbOrExit(): {
         gatesSatisfied: true,
         dbAccessEnabled: true,
         skipDb: false,
+        neonIdentityVerified: null,
       },
     };
   } catch (error) {
     console.error(
-      'Failed to create staging Prisma client:',
+      'Failed to create migration Prisma client:',
       error instanceof Error ? error.message : error,
     );
     process.exitCode = 2;
@@ -257,7 +267,7 @@ async function main() {
 
     let bundle: PrismaBundle | null = null;
     try {
-      const resolved = resolveStagingDbOrExit();
+      const resolved = resolveMigrationDbOrExit();
       if (!resolved) return;
       bundle = resolved.bundle;
 
@@ -398,7 +408,7 @@ async function main() {
         skipDb: true,
       };
     } else {
-      const resolved = resolveStagingDbOrExit();
+      const resolved = resolveMigrationDbOrExit();
       if (!resolved) return;
       bundle = resolved.bundle;
       options.safety = resolved.safety;

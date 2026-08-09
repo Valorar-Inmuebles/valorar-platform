@@ -10,8 +10,16 @@ export type PutObjectResult = {
   preexisting: boolean;
 };
 
+export type HeadObjectMeta = {
+  exists: boolean;
+  contentType: string | null;
+  contentLength: number | null;
+};
+
 export type MigrationObjectStore = {
   objectExists(key: string): Promise<boolean>;
+  /** Read-only HEAD for preexisting validation (never mutates). */
+  headObject(key: string): Promise<HeadObjectMeta>;
   putObject(input: {
     key: string;
     body: Buffer;
@@ -39,6 +47,22 @@ export class InMemoryMigrationObjectStore implements MigrationObjectStore {
 
   objectExists(key: string): Promise<boolean> {
     return Promise.resolve(this.objects.has(key));
+  }
+
+  headObject(key: string): Promise<HeadObjectMeta> {
+    const obj = this.objects.get(key);
+    if (!obj) {
+      return Promise.resolve({
+        exists: false,
+        contentType: null,
+        contentLength: null,
+      });
+    }
+    return Promise.resolve({
+      exists: true,
+      contentType: obj.contentType,
+      contentLength: obj.body.length,
+    });
   }
 
   putObject(input: {
@@ -82,7 +106,8 @@ export class InMemoryMigrationObjectStore implements MigrationObjectStore {
   seedPreexisting(
     key: string,
     body: Buffer = Buffer.from('preexisting'),
+    contentType = 'application/octet-stream',
   ): void {
-    this.objects.set(key, { body, contentType: 'application/octet-stream' });
+    this.objects.set(key, { body, contentType });
   }
 }

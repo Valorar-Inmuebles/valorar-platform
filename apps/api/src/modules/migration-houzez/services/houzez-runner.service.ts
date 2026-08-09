@@ -7,6 +7,9 @@ import {
   HOUZEZ_SOURCE_SYSTEM,
   MIGRATION_MAX_PROPERTY_IMAGES,
   PILOT_WP_ID,
+  PRODUCTION_MIGRATION_TARGET,
+  confirmWriteForTarget,
+  isHouzezMigrationTarget,
 } from '../constants';
 import { extractWordpressDump } from '../wordpress/extract-properties';
 import { reconstructOldUrl } from '../wordpress/permalink';
@@ -21,12 +24,17 @@ import { transformPublishProperty } from '../transform/publish-rules';
 import { buildGalleryPlan } from '../images/gallery-plan';
 import { resolveCatalogsForTransform } from '../catalog/resolve-catalogs';
 import {
+  catalogsIncludeExactFlores,
+  resolveExactFloresLocality,
+} from '../catalog/assert-flores-locality';
+import {
   checkPropertyIdempotency,
   detectTraceabilitySchema,
 } from '../traceability/idempotency';
 import { resolveOwner } from './owner-resolution.service';
 import { validateDatasetManifest } from '../dataset/validate-dataset-manifest';
 import type { MigrationSafetyReport } from '../safety/migration-safety';
+import { assertProductionNeonIdentity } from '../safety/neon-identity';
 import {
   evaluateTraceabilityForMode,
   runStagingPreflight,
@@ -41,6 +49,7 @@ import {
 } from '../writer/dry-run-fingerprint';
 import { validateDryRunReportForImport } from '../writer/validate-dry-run-report';
 import type { MigrationObjectStore } from '../writer/migration-object-store';
+import { validatePilotPreexistingR2Objects } from '../writer/preexisting-r2';
 import {
   writeOneHouzezProperty,
   type ImportReport,
@@ -123,6 +132,7 @@ function defaultSafety(options: CliOptions): MigrationSafetyReportSection {
       gatesSatisfied: options.safety.gatesSatisfied,
       dbAccessEnabled: options.safety.dbAccessEnabled,
       skipDb: options.safety.skipDb,
+      neonIdentityVerified: options.safety.neonIdentityVerified ?? null,
     };
   }
   if (options.skipDb) {
@@ -132,6 +142,7 @@ function defaultSafety(options: CliOptions): MigrationSafetyReportSection {
       gatesSatisfied: false,
       dbAccessEnabled: false,
       skipDb: true,
+      neonIdentityVerified: null,
     };
   }
   return {
@@ -140,6 +151,7 @@ function defaultSafety(options: CliOptions): MigrationSafetyReportSection {
     gatesSatisfied: false,
     dbAccessEnabled: false,
     skipDb: false,
+    neonIdentityVerified: null,
   };
 }
 
@@ -311,6 +323,32 @@ export async function runDryRun(
   const preflight = toPreflightSection(preflightResult);
   warnings.push(...preflightResult.informativeWarnings);
   blockers.push(...preflightResult.pilotBlockers);
+
+  if (
+    !options.skipDb &&
+    prisma &&
+    safety.migrationTarget === PRODUCTION_MIGRATION_TARGET
+  ) {
+    const neon = await assertProductionNeonIdentity(
+      prisma as {
+        $queryRawUnsafe: (q: string) => Promise<unknown>;
+      },
+    );
+    if (!neon.ok) {
+      for (const message of neon.errors) {
+        blockers.push({ code: 'PRODUCTION_NEON_IDENTITY', message });
+      }
+    } else {
+      safety.neonIdentityVerified = true;
+    }
+
+    const flores = await resolveExactFloresLocality(prisma as never);
+    if (!flores.ok) {
+      for (const message of flores.errors) {
+        blockers.push({ code: 'FLORES_LOCALITY', message });
+      }
+    }
+  }
 
   const dump = await extractWordpressDump(options.sourceDir);
   const property = dump.properties.get(wpId) ?? null;
@@ -595,13 +633,41 @@ export async function runImport(
   }
   if (options.skipDb) {
     throw new ImportValidationError([
-      'Import refuses --skip-db (staging DB access is mandatory).',
+      'Import refuses --skip-db (DB access is mandatory).',
     ]);
   }
   if (!options.safety?.gatesSatisfied || !options.safety.dbAccessEnabled) {
     throw new ImportValidationError([
-      'Import refuses to proceed without satisfied staging safety gates.',
+      'Import refuses to proceed without satisfied migration safety gates.',
     ]);
+  }
+
+  const migrationTarget = options.safety.migrationTarget;
+  if (!migrationTarget || !isHouzezMigrationTarget(migrationTarget)) {
+    throw new ImportValidationError([
+      'Import requires a valid safety.migrationTarget (staging-houzez | production).',
+    ]);
+  }
+  if (options.confirmTarget !== migrationTarget) {
+    throw new ImportValidationError([
+      `--confirm-target=${options.confirmTarget} does not match HOUZEZ_MIGRATION_TARGET/safety target ${migrationTarget}.`,
+    ]);
+  }
+  if (options.confirmWrite !== confirmWriteForTarget(migrationTarget)) {
+    throw new ImportValidationError([
+      `--confirm-write does not match the required token for target ${migrationTarget}.`,
+    ]);
+  }
+
+  if (migrationTarget === PRODUCTION_MIGRATION_TARGET) {
+    const neon = await assertProductionNeonIdentity(
+      prisma as unknown as {
+        $queryRawUnsafe: (q: string) => Promise<unknown>;
+      },
+    );
+    if (!neon.ok) {
+      throw new ImportValidationError(neon.errors);
+    }
   }
 
   const datasetManifest = await requireValidDataset(options.sourceDir);
@@ -611,6 +677,7 @@ export async function runImport(
     wpId: options.wpId,
     tenantSlug: options.tenantSlug,
     ownerEmail: options.ownerEmail,
+    migrationTarget,
   });
   if (!bound.ok) {
     throw new ImportValidationError(bound.errors);
@@ -715,6 +782,28 @@ export async function runImport(
     transform,
   });
 
+  if (migrationTarget === PRODUCTION_MIGRATION_TARGET) {
+    const flores = await resolveExactFloresLocality(prisma as never);
+    if (!flores.ok) {
+      throw new ImportValidationError(flores.errors);
+    }
+    if (!catalogsIncludeExactFlores(catalogs, flores.locality.id)) {
+      throw new ImportValidationError([
+        `Catalog localityId must resolve exactly to Flores under Capital Federal (id=${flores.locality.id}, slug=flores).`,
+      ]);
+    }
+
+    const r2Check = await validatePilotPreexistingR2Objects({
+      objectStore,
+      tenantId: owner.tenantId!,
+      sourceId: String(options.wpId),
+      images: gallery.images,
+    });
+    if (!r2Check.ok) {
+      throw new ImportValidationError(r2Check.errors);
+    }
+  }
+
   const oldUrl = reconstructOldUrl({
     site: dump.siteOptions,
     slug: property.slug,
@@ -728,6 +817,7 @@ export async function runImport(
       sourceSystem: HOUZEZ_SOURCE_SYSTEM,
       tenantSlug: options.tenantSlug,
       ownerEmail: options.ownerEmail,
+      migrationTarget,
       batchId: bound.report.batchId,
       owner,
       transform,

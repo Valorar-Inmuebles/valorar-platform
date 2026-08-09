@@ -2,6 +2,10 @@ import { loadBundledDatasetManifest } from '../dataset/validate-dataset-manifest
 import type { DryRunReport, OwnerResolution } from '../types';
 import type { PublishTransformResult } from '../transform/publish-rules';
 import {
+  PRODUCTION_MIGRATION_TARGET,
+  STAGING_MIGRATION_TARGET,
+} from '../constants';
+import {
   assertLiveFingerprintMatchesApprovedReport,
   computeDryRunFingerprint,
   computeLivePlanFingerprint,
@@ -23,7 +27,7 @@ function makeMinimalDryRun(
     tenantSlug: 'demo',
     ownerEmail: 'admin@demo.valorar.dev',
     safety: {
-      migrationTarget: 'staging-houzez',
+      migrationTarget: STAGING_MIGRATION_TARGET,
       dbHostMasked: '***',
       gatesSatisfied: true,
       dbAccessEnabled: true,
@@ -130,6 +134,7 @@ function makeMinimalDryRun(
   const merged = {
     ...base,
     ...overrides,
+    safety: overrides.safety ?? base.safety,
   } as Omit<DryRunReport, 'reportFingerprint'>;
   return {
     ...merged,
@@ -177,12 +182,40 @@ function makeTransform(): PublishTransformResult {
   };
 }
 
+const stagingImportIdentity = {
+  wpId: 5312,
+  tenantSlug: 'demo',
+  ownerEmail: 'admin@demo.valorar.dev',
+  migrationTarget: STAGING_MIGRATION_TARGET,
+};
+
 describe('dry-run fingerprint', () => {
   it('is stable for identical payloads', () => {
     const a = makeMinimalDryRun();
     const b = makeMinimalDryRun();
     expect(a.reportFingerprint).toBe(b.reportFingerprint);
     expect(a.reportFingerprint).toMatch(/^[a-f0-9]{64}$/);
+  });
+
+  it('includes v:2 and migrationTarget in payload', () => {
+    const report = makeMinimalDryRun();
+    const payload = buildDryRunFingerprintPayload(report);
+    expect(payload.v).toBe(2);
+    expect(payload.migrationTarget).toBe(STAGING_MIGRATION_TARGET);
+  });
+
+  it('changes when migrationTarget changes', () => {
+    const a = makeMinimalDryRun();
+    const b = makeMinimalDryRun({
+      safety: {
+        migrationTarget: PRODUCTION_MIGRATION_TARGET,
+        dbHostMasked: '***',
+        gatesSatisfied: true,
+        dbAccessEnabled: true,
+        skipDb: false,
+      },
+    });
+    expect(a.reportFingerprint).not.toBe(b.reportFingerprint);
   });
 
   it('changes when transformed payload changes', () => {
@@ -204,6 +237,7 @@ describe('dry-run fingerprint', () => {
     const flipped: typeof payload = {
       wouldWrite: payload.wouldWrite,
       v: payload.v,
+      migrationTarget: payload.migrationTarget,
       wpId: payload.wpId,
       mode: payload.mode,
       sourceSystem: payload.sourceSystem,
@@ -243,9 +277,7 @@ describe('validateDryRunReportForImport', () => {
     const report = makeMinimalDryRun();
     const result = validateDryRunReportForImport({
       report,
-      wpId: 5312,
-      tenantSlug: 'demo',
-      ownerEmail: 'admin@demo.valorar.dev',
+      ...stagingImportIdentity,
     });
     expect(result.ok).toBe(true);
   });
@@ -262,9 +294,7 @@ describe('validateDryRunReportForImport', () => {
     report.reportFingerprint = originalFp;
     const result = validateDryRunReportForImport({
       report,
-      wpId: 5312,
-      tenantSlug: 'demo',
-      ownerEmail: 'admin@demo.valorar.dev',
+      ...stagingImportIdentity,
     });
     expect(result.ok).toBe(false);
     if (result.ok) return;
@@ -280,13 +310,11 @@ describe('validateDryRunReportForImport', () => {
         featureNames: [],
       },
     });
-    // Fingerprint matches forged payload — report-only check passes.
+    // Fingerprint matches forged payload � report-only check passes.
     expect(
       validateDryRunReportForImport({
         report: forged,
-        wpId: 5312,
-        tenantSlug: 'demo',
-        ownerEmail: 'admin@demo.valorar.dev',
+        ...stagingImportIdentity,
       }).ok,
     ).toBe(true);
   });
@@ -299,6 +327,7 @@ describe('validateDryRunReportForImport', () => {
         wpId: 9999,
         tenantSlug: 'demo',
         ownerEmail: 'admin@demo.valorar.dev',
+        migrationTarget: STAGING_MIGRATION_TARGET,
       }).ok,
     ).toBe(false);
     expect(
@@ -307,6 +336,7 @@ describe('validateDryRunReportForImport', () => {
         wpId: 5312,
         tenantSlug: 'other',
         ownerEmail: 'admin@demo.valorar.dev',
+        migrationTarget: STAGING_MIGRATION_TARGET,
       }).ok,
     ).toBe(false);
     expect(
@@ -315,8 +345,45 @@ describe('validateDryRunReportForImport', () => {
         wpId: 5312,
         tenantSlug: 'demo',
         ownerEmail: 'other@demo.valorar.dev',
+        migrationTarget: STAGING_MIGRATION_TARGET,
       }).ok,
     ).toBe(false);
+  });
+
+  it('rejects staging report for production target', () => {
+    const report = makeMinimalDryRun();
+    const result = validateDryRunReportForImport({
+      report,
+      wpId: 5312,
+      tenantSlug: 'demo',
+      ownerEmail: 'admin@demo.valorar.dev',
+      migrationTarget: PRODUCTION_MIGRATION_TARGET,
+    });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.errors.some((e) => /Cross-target/i.test(e))).toBe(true);
+  });
+
+  it('rejects report missing safety.migrationTarget', () => {
+    const report = makeMinimalDryRun({
+      safety: {
+        migrationTarget: null as unknown as string,
+        dbHostMasked: '***',
+        gatesSatisfied: true,
+        dbAccessEnabled: true,
+        skipDb: false,
+      },
+    });
+    // Fingerprint includes empty migrationTarget; import still rejects missing target.
+    const result = validateDryRunReportForImport({
+      report,
+      ...stagingImportIdentity,
+    });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(
+      result.errors.some((e) => /missing safety\.migrationTarget/i.test(e)),
+    ).toBe(true);
   });
 
   it('rejects pilot blockers / blockers / wrong manifest', () => {
@@ -330,9 +397,7 @@ describe('validateDryRunReportForImport', () => {
     expect(
       validateDryRunReportForImport({
         report: withBlockers,
-        wpId: 5312,
-        tenantSlug: 'demo',
-        ownerEmail: 'admin@demo.valorar.dev',
+        ...stagingImportIdentity,
       }).ok,
     ).toBe(false);
 
@@ -352,9 +417,7 @@ describe('validateDryRunReportForImport', () => {
     expect(
       validateDryRunReportForImport({
         report: badManifest,
-        wpId: 5312,
-        tenantSlug: 'demo',
-        ownerEmail: 'admin@demo.valorar.dev',
+        ...stagingImportIdentity,
       }).ok,
     ).toBe(false);
   });
@@ -377,6 +440,8 @@ describe('live fingerprint recompute (independent of report blob)', () => {
       sourceSystem: report.sourceSystem,
       tenantSlug: report.tenantSlug,
       ownerEmail: report.ownerEmail,
+      migrationTarget:
+        report.safety.migrationTarget ?? STAGING_MIGRATION_TARGET,
       batchId: report.batchId,
       owner,
       transform: makeTransform(),
@@ -402,14 +467,12 @@ describe('live fingerprint recompute (independent of report blob)', () => {
     expect(
       validateDryRunReportForImport({
         report: forged,
-        wpId: 5312,
-        tenantSlug: 'demo',
-        ownerEmail: 'admin@demo.valorar.dev',
+        ...stagingImportIdentity,
       }).ok,
     ).toBe(true);
 
     const live = liveFromReport(forged);
-    // Live transform still says LAND/Lote — must not match forged fingerprint.
+    // Live transform still says LAND/Lote � must not match forged fingerprint.
     const check = assertLiveFingerprintMatchesApprovedReport({
       approvedFingerprint: forged.reportFingerprint,
       live,
@@ -426,8 +489,6 @@ describe('live fingerprint recompute (independent of report blob)', () => {
         sha256: 'c'.repeat(64),
       },
     ];
-    // Align transformed so only images differ relative to a matching baseline:
-    // Use fingerprint of report (which has sha256 aaa...) vs live with ccc...
     const check = assertLiveFingerprintMatchesApprovedReport({
       approvedFingerprint: report.reportFingerprint,
       live,
@@ -460,7 +521,6 @@ describe('live fingerprint recompute (independent of report blob)', () => {
         featureNames: transform.featureNames,
       },
     });
-    // Rebuild fingerprint after setting transformed to match live transform shape
     report.reportFingerprint = computeDryRunFingerprint({
       ...report,
       reportFingerprint: '',
@@ -468,8 +528,6 @@ describe('live fingerprint recompute (independent of report blob)', () => {
 
     const live = liveFromReport(report);
     live.transform = transform;
-    // Live fingerprint uses plannedEntities rebuilt from transform; report may have empty plannedEntities.
-    // For a true match, report must include the same planned plan — compute via live helper equality path:
     const liveFp = computeLivePlanFingerprint(live);
     const check = assertLiveFingerprintMatchesApprovedReport({
       approvedFingerprint: liveFp,

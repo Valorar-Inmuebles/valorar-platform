@@ -1,4 +1,11 @@
 import type { CleanupMode, ParsedCleanupArgs } from './types';
+import {
+  confirmTokenForCleanupTarget,
+  isHouzezCleanupTarget,
+  PRODUCTION_CLEANUP_TARGET,
+  STAGING_CLEANUP_TARGET,
+  type HouzezCleanupTarget,
+} from './constants';
 
 /**
  * Parse CLI argv after the script name.
@@ -10,6 +17,7 @@ export function parseCleanupArgs(argv: string[]): ParsedCleanupArgs {
     'execute',
     'tenant',
     'confirm-token',
+    'confirm-target',
     'manifest',
     'approved-hash',
     'allow-anomalous-key',
@@ -56,6 +64,10 @@ export function parseCleanupArgs(argv: string[]): ParsedCleanupArgs {
   const confirmToken =
     typeof tokenRaw === 'string' && tokenRaw.trim() ? tokenRaw.trim() : null;
 
+  const targetRaw = flags['confirm-target'];
+  const confirmTarget =
+    typeof targetRaw === 'string' && targetRaw.trim() ? targetRaw.trim() : null;
+
   const manifestRaw = flags.manifest;
   const manifestPath =
     typeof manifestRaw === 'string' && manifestRaw.trim()
@@ -70,6 +82,7 @@ export function parseCleanupArgs(argv: string[]): ParsedCleanupArgs {
     mode: dryRun && execute ? null : mode,
     tenantSlug,
     confirmToken,
+    confirmTarget,
     manifestPath,
     approvedHash,
     allowAnomalousKey: Boolean(flags['allow-anomalous-key']),
@@ -82,11 +95,13 @@ export function parseCleanupArgs(argv: string[]): ParsedCleanupArgs {
 }
 
 export type ModeValidation =
-  | { ok: true; mode: CleanupMode }
+  | { ok: true; mode: CleanupMode; cleanupTarget: HouzezCleanupTarget }
   | { ok: false; errors: string[] };
 
 export function validateCleanupModeAndTenant(
   args: ParsedCleanupArgs,
+  /** From HOUZEZ_CLEANUP_TARGET env after safety gates (optional cross-check). */
+  envCleanupTarget?: string | null,
 ): ModeValidation {
   const errors: string[] = [];
 
@@ -112,11 +127,25 @@ export function validateCleanupModeAndTenant(
     );
   }
 
+  let cleanupTarget: HouzezCleanupTarget | null = null;
   if (args.mode === 'execute') {
-    if (args.confirmToken !== 'DELETE-DEMO-PROPERTIES-STAGING') {
+    if (!args.confirmTarget || !isHouzezCleanupTarget(args.confirmTarget)) {
       errors.push(
-        'Execute requires --confirm-token=DELETE-DEMO-PROPERTIES-STAGING.',
+        `Execute requires --confirm-target=${STAGING_CLEANUP_TARGET} or --confirm-target=${PRODUCTION_CLEANUP_TARGET}.`,
       );
+    } else {
+      cleanupTarget = args.confirmTarget;
+      const expectedToken = confirmTokenForCleanupTarget(cleanupTarget);
+      if (args.confirmToken !== expectedToken) {
+        errors.push(
+          `Execute requires --confirm-token=${expectedToken} for --confirm-target=${cleanupTarget}.`,
+        );
+      }
+      if (envCleanupTarget && envCleanupTarget !== cleanupTarget) {
+        errors.push(
+          `CLI --confirm-target=${cleanupTarget} does not match HOUZEZ_CLEANUP_TARGET=${envCleanupTarget}.`,
+        );
+      }
     }
     if (!args.manifestPath) {
       errors.push(
@@ -128,6 +157,14 @@ export function validateCleanupModeAndTenant(
         'Execute requires --approved-hash=<64-hex sha256 of approved manifest>.',
       );
     }
+  } else if (args.mode === 'dry-run') {
+    if (args.confirmTarget && isHouzezCleanupTarget(args.confirmTarget)) {
+      cleanupTarget = args.confirmTarget;
+    } else if (envCleanupTarget && isHouzezCleanupTarget(envCleanupTarget)) {
+      cleanupTarget = envCleanupTarget;
+    } else {
+      cleanupTarget = STAGING_CLEANUP_TARGET;
+    }
   }
 
   if (args.allowAnomalousKey) {
@@ -136,9 +173,9 @@ export function validateCleanupModeAndTenant(
     );
   }
 
-  if (errors.length || !args.mode) {
+  if (errors.length || !args.mode || !cleanupTarget) {
     return { ok: false, errors };
   }
 
-  return { ok: true, mode: args.mode };
+  return { ok: true, mode: args.mode, cleanupTarget };
 }

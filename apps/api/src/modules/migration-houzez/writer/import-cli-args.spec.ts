@@ -1,4 +1,11 @@
-import { IMPORT_CONFIRM_TARGET, IMPORT_CONFIRM_WRITE } from '../constants';
+import {
+  IMPORT_CONFIRM_TARGET,
+  IMPORT_CONFIRM_WRITE,
+  IMPORT_CONFIRM_WRITE_PRODUCTION,
+  IMPORT_CONFIRM_WRITE_STAGING,
+  PRODUCTION_MIGRATION_TARGET,
+  STAGING_MIGRATION_TARGET,
+} from '../constants';
 import { parseImportCliArgs } from './import-cli-args';
 
 describe('parseImportCliArgs', () => {
@@ -18,7 +25,59 @@ describe('parseImportCliArgs', () => {
     if (!result.ok) return;
     expect(result.wpId).toBe(5312);
     expect(result.tenantSlug).toBe('demo');
-    expect(result.confirmWrite).toBe(IMPORT_CONFIRM_WRITE);
+    expect(result.confirmTarget).toBe(STAGING_MIGRATION_TARGET);
+    expect(result.confirmWrite).toBe(IMPORT_CONFIRM_WRITE_STAGING);
+  });
+
+  it('accepts production confirm-target with production confirm-write', () => {
+    const result = parseImportCliArgs({
+      args: {
+        ...base,
+        'confirm-target': PRODUCTION_MIGRATION_TARGET,
+        'confirm-write': IMPORT_CONFIRM_WRITE_PRODUCTION,
+      },
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.confirmTarget).toBe(PRODUCTION_MIGRATION_TARGET);
+    expect(result.confirmWrite).toBe(IMPORT_CONFIRM_WRITE_PRODUCTION);
+  });
+
+  it('rejects staging confirm-write with production target', () => {
+    const result = parseImportCliArgs({
+      args: {
+        ...base,
+        'confirm-target': PRODUCTION_MIGRATION_TARGET,
+        'confirm-write': IMPORT_CONFIRM_WRITE_STAGING,
+      },
+    });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.errors.some((e) => /confirm-write/i.test(e))).toBe(true);
+  });
+
+  it('rejects production target with staging write token', () => {
+    const result = parseImportCliArgs({
+      args: {
+        ...base,
+        'confirm-target': PRODUCTION_MIGRATION_TARGET,
+        'confirm-write': IMPORT_CONFIRM_WRITE,
+      },
+    });
+    expect(result.ok).toBe(false);
+  });
+
+  it('rejects production confirm-write with staging target', () => {
+    const result = parseImportCliArgs({
+      args: {
+        ...base,
+        'confirm-target': STAGING_MIGRATION_TARGET,
+        'confirm-write': IMPORT_CONFIRM_WRITE_PRODUCTION,
+      },
+    });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.errors.some((e) => /confirm-write/i.test(e))).toBe(true);
   });
 
   it('rejects missing --wp-id (no default)', () => {

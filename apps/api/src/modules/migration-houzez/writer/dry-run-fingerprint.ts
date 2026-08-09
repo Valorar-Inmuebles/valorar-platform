@@ -14,8 +14,10 @@ import type { PublishTransformResult } from '../transform/publish-rules';
  * Includes batch_manifest content but import live-compare reuses the approved report batchId.
  */
 export type DryRunFingerprintPayload = {
-  v: 1;
+  v: 2;
   mode: 'dry-run';
+  /** Bound target — staging-houzez | production. Prevents cross-target import. */
+  migrationTarget: string;
   wpId: number;
   sourceSystem: string;
   tenantSlug: string;
@@ -68,8 +70,9 @@ export function buildDryRunFingerprintPayload(
   report: DryRunReport,
 ): DryRunFingerprintPayload {
   return {
-    v: 1,
+    v: 2,
     mode: 'dry-run',
+    migrationTarget: report.safety?.migrationTarget ?? '',
     wpId: report.wpId,
     sourceSystem: report.sourceSystem,
     tenantSlug: report.tenantSlug,
@@ -155,6 +158,8 @@ export type LivePlanForFingerprint = {
   sourceSystem: string;
   tenantSlug: string;
   ownerEmail: string;
+  /** Must match dry-run safety.migrationTarget (staging-houzez | production). */
+  migrationTarget: string;
   /** Reuse approved report batchId so ephemeral id does not break binding. */
   batchId: string;
   owner: OwnerResolution;
@@ -275,7 +280,7 @@ export function computeLivePlanFingerprint(
     ownerEmail: live.ownerEmail,
     reportFingerprint: '',
     safety: {
-      migrationTarget: null,
+      migrationTarget: live.migrationTarget,
       dbHostMasked: null,
       gatesSatisfied: true,
       dbAccessEnabled: true,

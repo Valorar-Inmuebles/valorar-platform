@@ -16,6 +16,8 @@ export function validateDryRunReportForImport(input: {
   wpId: number;
   tenantSlug: string;
   ownerEmail: string;
+  /** Current CLI/env migration target — must match the report. */
+  migrationTarget: string;
 }): DryRunReportValidation {
   const errors: string[] = [];
   const { report } = input;
@@ -51,6 +53,17 @@ export function validateDryRunReportForImport(input: {
   }
   if (report.owner.tenantSlug && report.owner.tenantSlug !== input.tenantSlug) {
     errors.push('Dry-run report owner.tenantSlug does not match --tenant.');
+  }
+
+  const reportTarget = report.safety?.migrationTarget ?? null;
+  if (!reportTarget) {
+    errors.push(
+      'Dry-run report is missing safety.migrationTarget (staging reports without a target cannot authorize production import).',
+    );
+  } else if (reportTarget !== input.migrationTarget) {
+    errors.push(
+      `Dry-run report target "${reportTarget}" does not match current migration target "${input.migrationTarget}". Cross-target import refused.`,
+    );
   }
 
   if (!report.datasetManifest?.ok) {

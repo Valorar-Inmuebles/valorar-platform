@@ -1,11 +1,41 @@
 /** Procedure id for manifests / reports (bump on contract changes). */
-export const CLEANUP_PROCEDURE_VERSION = 'houzez-cleanup-demo-properties-v2';
+export const CLEANUP_PROCEDURE_VERSION = 'houzez-cleanup-demo-properties-v3';
 
 export const ALLOWED_TENANT_SLUG = 'demo' as const;
 
-export const REQUIRED_CLEANUP_TARGET = 'staging-houzez' as const;
+export const STAGING_CLEANUP_TARGET = 'staging-houzez' as const;
+export const PRODUCTION_CLEANUP_TARGET = 'production' as const;
 
-export const EXECUTE_CONFIRM_TOKEN = 'DELETE-DEMO-PROPERTIES-STAGING' as const;
+export type HouzezCleanupTarget =
+  | typeof STAGING_CLEANUP_TARGET
+  | typeof PRODUCTION_CLEANUP_TARGET;
+
+/** @deprecated Prefer STAGING_CLEANUP_TARGET / PRODUCTION_CLEANUP_TARGET. */
+export const REQUIRED_CLEANUP_TARGET = STAGING_CLEANUP_TARGET;
+
+export const EXECUTE_CONFIRM_TOKEN_STAGING =
+  'DELETE-DEMO-PROPERTIES-STAGING' as const;
+export const EXECUTE_CONFIRM_TOKEN_PRODUCTION =
+  'DELETE-DEMO-PROPERTIES-PRODUCTION' as const;
+
+/** @deprecated Prefer EXECUTE_CONFIRM_TOKEN_STAGING. */
+export const EXECUTE_CONFIRM_TOKEN = EXECUTE_CONFIRM_TOKEN_STAGING;
+
+export function isHouzezCleanupTarget(
+  value: string | undefined | null,
+): value is HouzezCleanupTarget {
+  return (
+    value === STAGING_CLEANUP_TARGET || value === PRODUCTION_CLEANUP_TARGET
+  );
+}
+
+export function confirmTokenForCleanupTarget(
+  target: HouzezCleanupTarget,
+): string {
+  return target === PRODUCTION_CLEANUP_TARGET
+    ? EXECUTE_CONFIRM_TOKEN_PRODUCTION
+    : EXECUTE_CONFIRM_TOKEN_STAGING;
+}
 
 export const ANOMALOUS_STORAGE_KEY = 'demo/key.jpg' as const;
 
@@ -15,7 +45,10 @@ export const SEED_STORAGE_KEY_PREFIX = 'tenants/demo/properties/' as const;
 /** Exact prefix for demo seed relative URLs (closed match). */
 export const SEED_URL_PATH_PREFIX = '/seed/properties/' as const;
 
-/** Tenant-scoped counts that must match before any execute path. */
+/**
+ * Tenant-scoped counts that must match before any execute path.
+ * Aligned with E.5 production inventory (demo seeds + audit fixtures).
+ */
 export const EXPECTED_DEMO_COUNTS = {
   Property: 33,
   PropertyListing: 36,
@@ -30,6 +63,7 @@ export type ExpectedDemoCountKey = keyof typeof EXPECTED_DEMO_COUNTS;
 /**
  * Approved storage policy counts for this cleanup wave (after HeadObject).
  * Must match exactly for storagePolicySatisfied / readyForExecute.
+ * Does NOT include Houzez migration keys under …/migrations/wordpress-houzez/.
  */
 export const EXPECTED_STORAGE_POLICY = {
   r2ObjectsAuthorized: 8,
@@ -42,7 +76,8 @@ export const EXPECTED_STORAGE_POLICY = {
 /**
  * Documented CASCADE coverage for DELETE FROM "Property" WHERE tenantId = …
  * Verified against prisma/schema.prisma (Property children onDelete: Cascade;
- * PropertyPrice via PropertyListing).
+ * PropertyPrice via PropertyListing). Does not touch MigrationSourceRef rows
+ * (table may be absent until E.7) and never deletes wordpress-houzez R2 keys.
  */
 export const PROPERTY_TREE_CASCADE_COVERAGE = [
   'PropertyListing',
@@ -50,6 +85,17 @@ export const PROPERTY_TREE_CASCADE_COVERAGE = [
   'PropertyImage',
   'PropertyFeatureAssignment',
   'PropertyAgentAccess',
+] as const;
+
+export const CLEANUP_PRESERVES = [
+  'Tenant',
+  'User',
+  'Country',
+  'Province',
+  'Locality',
+  'Neighborhood',
+  'PropertyFeature',
+  'TenantSetting',
 ] as const;
 
 export const CLEANUP_IMAGE_STATUSES = [

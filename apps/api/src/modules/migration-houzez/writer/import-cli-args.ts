@@ -1,7 +1,9 @@
 import {
-  IMPORT_CONFIRM_TARGET,
-  IMPORT_CONFIRM_WRITE,
-  REQUIRED_MIGRATION_TARGET,
+  PRODUCTION_MIGRATION_TARGET,
+  STAGING_MIGRATION_TARGET,
+  confirmWriteForTarget,
+  isHouzezMigrationTarget,
+  type HouzezMigrationTarget,
 } from '../constants';
 
 export type ImportArgParseResult =
@@ -13,7 +15,7 @@ export type ImportArgParseResult =
       sourceDir: string;
       reportDir: string;
       dryRunReportPath: string;
-      confirmTarget: string;
+      confirmTarget: HouzezMigrationTarget;
       confirmWrite: string;
       batchId?: string;
       statuses?: string[];
@@ -22,11 +24,11 @@ export type ImportArgParseResult =
 
 /**
  * Strict import CLI contract: single --wp-id, no defaults for identity fields,
- * dual confirmations, mandatory dry-run report path. Rejects multi/mass selection.
+ * dual confirmations (staging or production pair), mandatory dry-run report path.
+ * Rejects multi/mass selection. Rejects mismatched staging/production confirms.
  */
 export function parseImportCliArgs(input: {
   args: Record<string, string | boolean>;
-  /** Only used when --source-dir is present validation-wise; caller still supplies resolved path. */
   resolvedSourceDir?: string;
   resolvedReportDir?: string;
 }): ImportArgParseResult {
@@ -87,20 +89,34 @@ export function parseImportCliArgs(input: {
       'Import requires --dry-run-report pointing at an approved dry-run JSON.',
     );
   }
+
+  let confirmTarget: HouzezMigrationTarget | null = null;
   if (!args['confirm-target'] || args['confirm-target'] === true) {
-    errors.push(`Import requires --confirm-target=${IMPORT_CONFIRM_TARGET}.`);
-  } else if (String(args['confirm-target']) !== IMPORT_CONFIRM_TARGET) {
     errors.push(
-      `--confirm-target must be exactly "${IMPORT_CONFIRM_TARGET}" (same as ${REQUIRED_MIGRATION_TARGET}).`,
+      `Import requires --confirm-target=${STAGING_MIGRATION_TARGET} or --confirm-target=${PRODUCTION_MIGRATION_TARGET}.`,
     );
-  }
-  if (!args['confirm-write'] || args['confirm-write'] === true) {
-    errors.push(`Import requires --confirm-write=${IMPORT_CONFIRM_WRITE}.`);
-  } else if (String(args['confirm-write']) !== IMPORT_CONFIRM_WRITE) {
-    errors.push(`--confirm-write must be exactly "${IMPORT_CONFIRM_WRITE}".`);
+  } else if (!isHouzezMigrationTarget(String(args['confirm-target']))) {
+    errors.push(
+      `--confirm-target must be exactly "${STAGING_MIGRATION_TARGET}" or "${PRODUCTION_MIGRATION_TARGET}".`,
+    );
+  } else {
+    confirmTarget = String(args['confirm-target']) as HouzezMigrationTarget;
   }
 
-  if (errors.length) {
+  if (!args['confirm-write'] || args['confirm-write'] === true) {
+    errors.push(
+      'Import requires --confirm-write matching the chosen target (staging and production tokens differ).',
+    );
+  } else if (confirmTarget) {
+    const expectedWrite = confirmWriteForTarget(confirmTarget);
+    if (String(args['confirm-write']) !== expectedWrite) {
+      errors.push(
+        `--confirm-write must be exactly "${expectedWrite}" for --confirm-target=${confirmTarget}.`,
+      );
+    }
+  }
+
+  if (errors.length || !confirmTarget) {
     return { ok: false, errors };
   }
 
@@ -117,7 +133,7 @@ export function parseImportCliArgs(input: {
     sourceDir,
     reportDir,
     dryRunReportPath: String(args['dry-run-report']),
-    confirmTarget: String(args['confirm-target']),
+    confirmTarget,
     confirmWrite: String(args['confirm-write']),
     batchId: args['batch-id'] ? String(args['batch-id']) : undefined,
     statuses: args.statuses

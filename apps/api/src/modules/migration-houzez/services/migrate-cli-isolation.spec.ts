@@ -1,6 +1,11 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { IMPORT_CONFIRM_TARGET, IMPORT_CONFIRM_WRITE } from '../constants';
+import {
+  IMPORT_CONFIRM_WRITE_PRODUCTION,
+  IMPORT_CONFIRM_WRITE_STAGING,
+  PRODUCTION_MIGRATION_TARGET,
+  STAGING_MIGRATION_TARGET,
+} from '../constants';
 
 /**
  * Architectural guard: migrate CLI must never open Prisma with DATABASE_URL.
@@ -33,7 +38,7 @@ describe('migrate CLI isolation', () => {
     expect(dryRunIdx).toBeGreaterThan(-1);
     const skipInDryRun = source.indexOf('if (options.skipDb)', dryRunIdx);
     const resolveInDryRun = source.indexOf(
-      'resolveStagingDbOrExit()',
+      'resolveMigrationDbOrExit()',
       dryRunIdx,
     );
     expect(skipInDryRun).toBeGreaterThan(-1);
@@ -44,11 +49,12 @@ describe('migrate CLI isolation', () => {
     const source = fs.readFileSync(scriptPath, 'utf8');
     expect(source).toMatch(/parseImportCliArgs/);
     expect(source).toMatch(/runImport/);
-    expect(source).toContain(IMPORT_CONFIRM_WRITE);
-    expect(source).toContain(IMPORT_CONFIRM_TARGET);
+    expect(source).toContain(IMPORT_CONFIRM_WRITE_STAGING);
+    expect(source).toContain(IMPORT_CONFIRM_WRITE_PRODUCTION);
+    expect(source).toContain(STAGING_MIGRATION_TARGET);
+    expect(source).toContain(PRODUCTION_MIGRATION_TARGET);
     expect(source).toMatch(/dry-run-report/);
     expect(source).toMatch(/wouldWrite:\s*false/);
-    // write alias remains rejected
     expect(source).toMatch(/Use "import" \(not "write"\)/);
   });
 
@@ -57,7 +63,7 @@ describe('migrate CLI isolation', () => {
     const importIdx = source.indexOf("command === 'import'");
     expect(importIdx).toBeGreaterThan(-1);
     const importSlice = source.slice(importIdx, importIdx + 2500);
-    expect(importSlice).toMatch(/resolveStagingDbOrExit/);
+    expect(importSlice).toMatch(/resolveMigrationDbOrExit/);
     expect(importSlice).toMatch(/createConfiguredObjectStore/);
     expect(importSlice).not.toMatch(/process\.env\.DATABASE_URL/);
   });
@@ -78,7 +84,6 @@ describe('dry-run report path sanitization', () => {
   it('audit and dry-run exports never set wouldWrite true', () => {
     const source = fs.readFileSync(runnerPath, 'utf8');
     expect(source).toMatch(/wouldWrite:\s*false/);
-    // import report uses wouldWrite: true only inside ImportReport type path
     expect(source).toMatch(/export async function runImport/);
   });
 });

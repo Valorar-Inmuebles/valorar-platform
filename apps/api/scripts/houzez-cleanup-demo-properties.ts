@@ -41,22 +41,29 @@ function loadApiEnv(): void {
 }
 
 function printHelp(): void {
-  console.log(`Houzez demo-property cleanup (staging-houzez only)
+  console.log(`Houzez demo-property cleanup (staging-houzez | production)
 
 Usage:
   --dry-run --tenant=demo
-  --execute --tenant=demo --confirm-token=DELETE-DEMO-PROPERTIES-STAGING --manifest=<path> --approved-hash=<sha256>
+  --execute --tenant=demo --confirm-target=staging-houzez --confirm-token=DELETE-DEMO-PROPERTIES-STAGING --manifest=<path> --approved-hash=<sha256>
+  --execute --tenant=demo --confirm-target=production --confirm-token=DELETE-DEMO-PROPERTIES-PRODUCTION --manifest=<path> --approved-hash=<sha256>
 
 Safety:
   Default (no mode flag): refuse and exit (no remote writes).
   --dry-run: DB + R2 reads only; writes local manifest/report under backups/.
-  --execute: requires confirm token + approved dry-run manifesto path + approved hash.
+  --execute: requires confirm-target + confirm-token + approved dry-run manifesto + hash.
 
-Env (required):
-  HOUZEZ_STAGING_DATABASE_URL
-  HOUZEZ_STAGING_DB_HOST          full hostname allowlist (no -pooler)
+Env (staging):
+  HOUZEZ_STAGING_DATABASE_URL / HOUZEZ_STAGING_DB_HOST
   HOUZEZ_CLEANUP_TARGET=staging-houzez
 
+Env (production):
+  HOUZEZ_PRODUCTION_DATABASE_URL / HOUZEZ_PRODUCTION_DB_HOST
+  HOUZEZ_PRODUCTION_NEON_PROJECT_ID / BRANCH_ID / ENDPOINT_ID
+  HOUZEZ_CLEANUP_TARGET=production
+
+Deletes only the demo Property tree (CASCADE) + allowlisted seed R2 keys.
+Preserves Tenant/User/geo/features/settings. Never deletes wordpress-houzez/5312 R2 keys.
 Never falls back to DATABASE_URL. Never targets HOUZEZ_CHECKPOINT_DATABASE_URL.
 `);
 }
@@ -105,7 +112,10 @@ async function main(): Promise<void> {
     return;
   }
 
-  const modeResult = validateCleanupModeAndTenant(args);
+  const modeResult = validateCleanupModeAndTenant(
+    args,
+    process.env.HOUZEZ_CLEANUP_TARGET,
+  );
   if (!modeResult.ok) {
     for (const err of modeResult.errors) {
       console.error(err);

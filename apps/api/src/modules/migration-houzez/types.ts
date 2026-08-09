@@ -133,6 +133,8 @@ export type MigrationSafetyReportSection = {
   gatesSatisfied: boolean;
   dbAccessEnabled: boolean;
   skipDb: boolean;
+  /** Set when production Neon GUC fingerprint was verified live. */
+  neonIdentityVerified?: boolean | null;
 };
 
 export type StagingPreflightReportSection = {

@@ -38,6 +38,26 @@ export function createS3MigrationObjectStore(
       }
     },
 
+    async headObject(key: string) {
+      try {
+        const head = await config.client.send(
+          new HeadObjectCommand({ Bucket: config.bucket, Key: key }),
+        );
+        return {
+          exists: true,
+          contentType: head.ContentType ?? null,
+          contentLength:
+            typeof head.ContentLength === 'number' ? head.ContentLength : null,
+        };
+      } catch {
+        return {
+          exists: false,
+          contentType: null,
+          contentLength: null,
+        };
+      }
+    },
+
     async putObject(input: {
       key: string;
       body: Buffer;
