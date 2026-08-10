@@ -54,8 +54,10 @@ Toda inferencia se registra en el reporte (`inferences[]`) con origen y regla.
 - **7 imágenes únicas** (galería Houzez = 6; `_thumbnail_id=5315` es una 7.ª fuera de la galería → se antepone como portada)
 - Features: importar solo matches (`Uso Comercial`); omitir `Pavimento` con warning; no crear catálogo
 - Sin geocodificación
-- Keys R2 determinísticas (ya existentes desde E.3; **reutilizar**, no sobrescribir ni borrar):
-  `{tenantId}/migrations/wordpress-houzez/5312/00-wp5315.jpg` … `06-wp8965.jpg`
+- Optimización de imágenes (**houzez-webp-v1**): autorotación EXIF → fit inside 1600×1200 sin ampliar → WebP quality 82 / effort 4 → strip metadata. Dry-run e import comparten el mismo transformador; el import sube únicamente bytes WebP validados.
+- Keys R2 determinísticas (siempre `.webp`; no reutilizar keys históricas `.jpg`/`.png` del passthrough):
+  `{tenantId}/migrations/wordpress-houzez/5312/00-wp5315.webp` … `06-wp8965.webp`
+- `PropertyImage` persiste `storageKey`, `mimeType=image/webp`, `fileSize` del WebP final (el schema no tiene width/height; dimensiones viven en el plan/reporte).
 
 ### Conteo `plannedEntities` (contrato dry-run)
 

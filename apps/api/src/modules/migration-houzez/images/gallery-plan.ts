@@ -233,6 +233,7 @@ function planOneImage(input: {
         ? fs.statSync(resolved.absolutePath).size
         : (att?.filesize ?? null),
     sha256,
+    sourceSha256: sha256,
     proposedStorageKeyPattern: `${input.tenantId}/properties/${input.propertyId}/{uuid}.${ext}`,
     proposedFilename,
   };

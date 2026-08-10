@@ -1,6 +1,7 @@
 import * as path from 'node:path';
 import * as os from 'node:os';
 import * as fs from 'node:fs';
+import sharp from 'sharp';
 import { HOUZEZ_SOURCE_SYSTEM } from '../constants';
 import { loadBundledDatasetManifest } from '../dataset/validate-dataset-manifest';
 import type {
@@ -18,6 +19,7 @@ import {
   type WriterPrismaTx,
 } from './houzez-property-writer';
 import { buildHouzezMigrationImageKey } from './storage-keys';
+import { applyImageOptimizationPlan } from '../images/optimize-pipeline';
 
 type Row = Record<string, unknown>;
 
@@ -236,7 +238,10 @@ function makeCatalogs(): CatalogResolution[] {
   ];
 }
 
-function makeDryRun(plannedCount = 12): DryRunReport {
+function makeDryRun(
+  images: ImagePlanEntry[],
+  plannedCount = 12,
+): DryRunReport {
   const manifest = loadBundledDatasetManifest();
   const base: Omit<DryRunReport, 'reportFingerprint'> = {
     mode: 'dry-run',
@@ -285,8 +290,17 @@ function makeDryRun(plannedCount = 12): DryRunReport {
     transformed: null,
     inferences: [],
     catalogs: makeCatalogs(),
-    images: [],
-    imageSummary: null,
+    images: images.map((img) => ({ ...img, absolutePath: null })),
+    imageSummary: {
+      galleryCount: 6,
+      uniqueCount: images.length,
+      coverAttachmentId: images[0]?.attachmentId ?? null,
+      coverInGallery: false,
+      coverPrepended: true,
+      allOriginalsExist: true,
+      exceedsImageLimit: false,
+      imageLimit: 30,
+    },
     oldUrl: {
       status: 'verified',
       oldSlug: 'x',
@@ -297,7 +311,7 @@ function makeDryRun(plannedCount = 12): DryRunReport {
     },
     plannedEntities: Array.from({ length: plannedCount }, (_, i) => ({
       entityType: 'property' as const,
-      provisionalKey: `p:${i}`,
+      provisionalKey: 'p:' + String(i),
       sourceId: '5312',
       payload: {},
     })),
@@ -321,28 +335,48 @@ function makeDryRun(plannedCount = 12): DryRunReport {
   };
 }
 
-function makeImages(tmpDir: string, count = 7): ImagePlanEntry[] {
-  const images: ImagePlanEntry[] = [];
+async function makeImages(
+  tmpDir: string,
+  count = 7,
+): Promise<{ source: ImagePlanEntry[]; optimized: ImagePlanEntry[] }> {
+  const source: ImagePlanEntry[] = [];
   for (let i = 0; i < count; i++) {
-    const file = path.join(tmpDir, `img-${i}.jpg`);
-    fs.writeFileSync(file, Buffer.from(`image-bytes-${i}`));
-    images.push({
+    const file = path.join(tmpDir, 'img-' + i + '.jpg');
+    const buf = await sharp({
+      create: {
+        width: 120 + i * 10,
+        height: 90 + i * 5,
+        channels: 3,
+        background: { r: 40 + i * 20, g: 80, b: 120 },
+      },
+    })
+      .jpeg({ quality: 90 })
+      .toBuffer();
+    fs.writeFileSync(file, buf);
+    source.push({
       sortOrder: i,
       attachmentId: 5315 + i,
       isCover: i === 0,
-      relativePath: `img-${i}.jpg`,
+      relativePath: 'img-' + i + '.jpg',
       absolutePath: file,
       exists: true,
       mimeType: 'image/jpeg',
-      width: 800,
-      height: 600,
-      fileSizeBytes: fs.statSync(file).size,
-      sha256: `hash-${i}`,
+      width: 120 + i * 10,
+      height: 90 + i * 5,
+      fileSizeBytes: buf.length,
+      sha256: null,
+      sourceSha256: null,
       proposedStorageKeyPattern: 'x',
-      proposedFilename: `${String(i).padStart(2, '0')}-wp${5315 + i}.jpg`,
+      proposedFilename:
+        String(i).padStart(2, '0') + '-wp' + String(5315 + i) + '.jpg',
     });
   }
-  return images;
+  const optimized = await applyImageOptimizationPlan({
+    images: source,
+    tenantId: 'tenant-demo',
+    sourceId: '5312',
+  });
+  return { source, optimized: optimized.images };
 }
 
 describe('writeOneHouzezProperty', () => {
@@ -361,20 +395,21 @@ describe('writeOneHouzezProperty', () => {
   });
 
   async function runHappy() {
+    const { source, optimized } = await makeImages(tmpDir, 7);
     return writeOneHouzezProperty({
       prisma,
       objectStore: store,
-      dryRun: makeDryRun(12),
+      dryRun: makeDryRun(optimized, 12),
       transform: makeTransform(),
       catalogs: makeCatalogs(),
-      images: makeImages(tmpDir, 7),
+      images: source,
       owner: makeOwner(),
       batchId: 'batch-happy',
       fingerprint: 'abc',
     });
   }
 
-  it('imports the full domain tree with ordered cover images + control ref', async () => {
+  it('imports optimized WebP bytes with ordered cover images + control ref', async () => {
     const report = await runHappy();
     expect(report.wrote).toBe(true);
     expect(report.error).toBeNull();
@@ -385,13 +420,19 @@ describe('writeOneHouzezProperty', () => {
     expect(prisma.features).toHaveLength(1);
     expect(prisma.agentAccess).toHaveLength(1);
     expect(prisma.refs.size).toBe(1);
-    expect(report.domainEntityCount).toBe(12); // 1+1+1+7+1+1 agent
+    expect(report.domainEntityCount).toBe(12);
     expect(report.controlEntityCount).toBe(1);
     expect(prisma.images[0].isCover).toBe(true);
     expect(prisma.images.map((i) => i.sortOrder)).toEqual([
       0, 1, 2, 3, 4, 5, 6,
     ]);
     expect(store.objects.size).toBe(7);
+    for (const key of store.objects.keys()) {
+      expect(key.endsWith('.webp')).toBe(true);
+    }
+    for (const [, obj] of store.objects) {
+      expect(obj.contentType).toBe('image/webp');
+    }
     expect(JSON.stringify(report)).not.toMatch(
       /C:\\|HOUZEZ_STAGING_DATABASE_URL|postgresql:\/\//,
     );
@@ -440,15 +481,16 @@ describe('writeOneHouzezProperty', () => {
       prisma = new FakeWriterPrisma();
       store = new InMemoryMigrationObjectStore();
       prisma.failOn = stage;
+      const { source, optimized } = await makeImages(tmpDir, 7);
       const report = await writeOneHouzezProperty({
         prisma,
         objectStore: store,
-        dryRun: makeDryRun(12),
+        dryRun: makeDryRun(optimized, 12),
         transform: makeTransform(),
         catalogs: makeCatalogs(),
-        images: makeImages(tmpDir, 7),
+        images: source,
         owner: makeOwner(),
-        batchId: `batch-${stage}`,
+        batchId: 'batch-' + stage,
         fingerprint: 'abc',
       });
       expect(report.wrote).toBe(false);
@@ -461,22 +503,22 @@ describe('writeOneHouzezProperty', () => {
   });
 
   it('does not open DB transaction when an upload fails; compensates wrote keys', async () => {
-    const images = makeImages(tmpDir, 7);
+    const { source, optimized } = await makeImages(tmpDir, 7);
     const failKey = buildHouzezMigrationImageKey({
       tenantId: 'tenant-demo',
       sourceId: '5312',
       sortOrder: 2,
-      attachmentId: images[2].attachmentId,
-      extension: 'jpg',
+      attachmentId: source[2].attachmentId,
+      extension: 'webp',
     });
     store.failPutOnKey = failKey;
     const report = await writeOneHouzezProperty({
       prisma,
       objectStore: store,
-      dryRun: makeDryRun(12),
+      dryRun: makeDryRun(optimized, 12),
       transform: makeTransform(),
       catalogs: makeCatalogs(),
-      images,
+      images: source,
       owner: makeOwner(),
       batchId: 'batch-upload-fail',
       fingerprint: 'abc',
@@ -487,24 +529,49 @@ describe('writeOneHouzezProperty', () => {
     expect(store.objects.size).toBe(0);
   });
 
+  it('aborts before PutObject when approved dry-run hashes disagree', async () => {
+    const { source, optimized } = await makeImages(tmpDir, 7);
+    const tampered = optimized.map((img, i) =>
+      i === 0 ? { ...img, sha256: '0'.repeat(64) } : img,
+    );
+    const report = await writeOneHouzezProperty({
+      prisma,
+      objectStore: store,
+      dryRun: makeDryRun(tampered, 12),
+      transform: makeTransform(),
+      catalogs: makeCatalogs(),
+      images: source,
+      owner: makeOwner(),
+      batchId: 'batch-hash-mismatch',
+      fingerprint: 'abc',
+    });
+    expect(report.wrote).toBe(false);
+    expect(report.error).toBe('IMAGE_PREPARE_FAILED');
+    expect(
+      report.blockers.some((b) => b.code === 'IMAGE_OPTIMIZE_PLAN_MISMATCH'),
+    ).toBe(true);
+    expect(store.objects.size).toBe(0);
+    expect(prisma.properties).toHaveLength(0);
+  });
+
   it('reports pending keys when compensation fails after DB error', async () => {
     prisma.failOn = 'listing';
-    const images = makeImages(tmpDir, 2);
+    const { source, optimized } = await makeImages(tmpDir, 2);
     const key0 = buildHouzezMigrationImageKey({
       tenantId: 'tenant-demo',
       sourceId: '5312',
       sortOrder: 0,
-      attachmentId: images[0].attachmentId,
-      extension: 'jpg',
+      attachmentId: source[0].attachmentId,
+      extension: 'webp',
     });
     store.failDeleteOnKey = key0;
     const report = await writeOneHouzezProperty({
       prisma,
       objectStore: store,
-      dryRun: makeDryRun(12),
+      dryRun: makeDryRun(optimized, 12),
       transform: makeTransform(),
       catalogs: makeCatalogs(),
-      images,
+      images: source,
       owner: makeOwner(),
       batchId: 'batch-comp-fail',
       fingerprint: 'abc',
@@ -517,23 +584,23 @@ describe('writeOneHouzezProperty', () => {
   });
 
   it('does not delete preexisting R2 objects on retry', async () => {
-    const images = makeImages(tmpDir, 2);
+    const { source, optimized } = await makeImages(tmpDir, 2);
     const key0 = buildHouzezMigrationImageKey({
       tenantId: 'tenant-demo',
       sourceId: '5312',
       sortOrder: 0,
-      attachmentId: images[0].attachmentId,
-      extension: 'jpg',
+      attachmentId: source[0].attachmentId,
+      extension: 'webp',
     });
-    store.seedPreexisting(key0, Buffer.from('old'));
+    store.seedPreexisting(key0, Buffer.from('old'), 'image/webp');
     prisma.failOn = 'property';
     const report = await writeOneHouzezProperty({
       prisma,
       objectStore: store,
-      dryRun: makeDryRun(12),
+      dryRun: makeDryRun(optimized, 12),
       transform: makeTransform(),
       catalogs: makeCatalogs(),
-      images,
+      images: source,
       owner: makeOwner(),
       batchId: 'batch-preexisting',
       fingerprint: 'abc',

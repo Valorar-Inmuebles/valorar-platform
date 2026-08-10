@@ -109,13 +109,16 @@ export const MIGRATION_ENTITY_TYPES: MigrationEntityType[] = [
   'batch_manifest',
 ];
 
-/** Expected pilot R2 keys under the deterministic migration prefix (relative). */
+/**
+ * Expected pilot object keys under the deterministic migration prefix (relative).
+ * All outputs are WebP after houzez-webp-v1 optimization (no JPEG/PNG finals).
+ */
 export const PILOT_5312_EXPECTED_RELATIVE_KEYS = [
-  '00-wp5315.jpg',
-  '01-wp6927.png',
-  '02-wp8967.jpg',
-  '03-wp8966.jpg',
-  '04-wp5314.jpg',
-  '05-wp6928.png',
-  '06-wp8965.jpg',
+  '00-wp5315.webp',
+  '01-wp6927.webp',
+  '02-wp8967.webp',
+  '03-wp8966.webp',
+  '04-wp5314.webp',
+  '05-wp6928.webp',
+  '06-wp8965.webp',
 ] as const;

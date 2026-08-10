@@ -1,5 +1,4 @@
 import * as crypto from 'node:crypto';
-import * as fs from 'node:fs';
 import {
   HOUZEZ_SOURCE_SYSTEM,
   MIGRATION_ENTITY_TYPE_PROPERTY,
@@ -18,10 +17,12 @@ import {
   detectTraceabilitySchema,
 } from '../traceability/idempotency';
 import type { MigrationObjectStore } from './migration-object-store';
+import { buildHouzezMigrationImageKey } from './storage-keys';
 import {
-  buildHouzezMigrationImageKey,
-  extensionFromMimeOrFilename,
-} from './storage-keys';
+  IMAGE_OPTIMIZE_PARAMS,
+  applyImageOptimizationPlan,
+  assertOptimizedPlanMatchesApproved,
+} from '../images/optimize-pipeline';
 
 export type WriterCreatedIds = {
   propertyId: string;
@@ -116,7 +117,8 @@ export type WriterPrisma = {
 
 export type PreparedUpload = {
   key: string;
-  absolutePath: string;
+  /** Optimized WebP bytes ready for PutObject (never original JPEG/PNG). */
+  body: Buffer;
   contentType: string;
   sortOrder: number;
   attachmentId: number;
@@ -124,6 +126,8 @@ export type PreparedUpload = {
   altText: string | null;
   fileSize: number | null;
   mimeType: string | null;
+  sha256: string;
+  sourceSha256: string | null;
 };
 
 export class HouzezImportError extends Error {
@@ -188,60 +192,111 @@ function resolvedFeatureIds(catalogs: CatalogResolution[]): string[] {
   return ids;
 }
 
-export function prepareImageUploads(input: {
+export async function prepareImageUploads(input: {
   images: ImagePlanEntry[];
   tenantId: string;
   sourceId: string;
-}): PreparedUpload[] {
-  const prepared: PreparedUpload[] = [];
-  for (const image of input.images) {
-    if (!image.absolutePath || !image.exists) {
+  /**
+   * When provided (import), re-optimize live sources and require an exact match
+   * against the approved dry-run plan before any PutObject.
+   */
+  approvedImages?: ImagePlanEntry[];
+  /** Optional precomputed optimized bodies keyed by attachmentId (local prep reuse). */
+  optimizedBodies?: Map<number, Buffer>;
+}): Promise<{ uploads: PreparedUpload[]; images: ImagePlanEntry[] }> {
+  const { images: optimizedImages, optimizedBodies } =
+    input.optimizedBodies && input.images.every((i) => i.optimization)
+      ? {
+          images: input.images,
+          optimizedBodies: input.optimizedBodies,
+        }
+      : await applyImageOptimizationPlan({
+          images: input.images,
+          tenantId: input.tenantId,
+          sourceId: input.sourceId,
+        });
+
+  if (input.approvedImages) {
+    const match = assertOptimizedPlanMatchesApproved({
+      live: optimizedImages,
+      approved: input.approvedImages,
+    });
+    if (!match.ok) {
       throw new HouzezImportError(
-        `Image original missing for attachment ${image.attachmentId}.`,
-        'IMAGE_ORIGINAL_MISSING',
+        match.errors.join(' '),
+        'IMAGE_OPTIMIZE_PLAN_MISMATCH',
+        { errors: match.errors },
       );
     }
-    const ext = extensionFromMimeOrFilename(
-      image.mimeType,
-      image.proposedFilename,
-    );
-    const key = buildHouzezMigrationImageKey({
-      tenantId: input.tenantId,
-      sourceId: input.sourceId,
-      sortOrder: image.sortOrder,
-      attachmentId: image.attachmentId,
-      extension: ext,
-    });
+  }
+
+  const prepared: PreparedUpload[] = [];
+  for (const image of optimizedImages) {
+    const body = optimizedBodies.get(image.attachmentId);
+    if (!body || !image.sha256 || !image.optimization) {
+      throw new HouzezImportError(
+        `Optimized bytes missing for attachment ${image.attachmentId}.`,
+        'IMAGE_OPTIMIZE_BYTES_MISSING',
+      );
+    }
+    if (image.mimeType !== IMAGE_OPTIMIZE_PARAMS.contentType) {
+      throw new HouzezImportError(
+        `Refusing non-WebP optimized mime for attachment ${image.attachmentId}.`,
+        'IMAGE_OUTPUT_MIME_MISMATCH',
+      );
+    }
+    const key =
+      image.optimization.output.storageKey ||
+      buildHouzezMigrationImageKey({
+        tenantId: input.tenantId,
+        sourceId: input.sourceId,
+        sortOrder: image.sortOrder,
+        attachmentId: image.attachmentId,
+        extension: IMAGE_OPTIMIZE_PARAMS.extension,
+      });
+    if (!key.endsWith('.webp')) {
+      throw new HouzezImportError(
+        `Storage key must end with .webp (got ${key}).`,
+        'IMAGE_STORAGE_KEY_EXTENSION',
+      );
+    }
     prepared.push({
       key,
-      absolutePath: image.absolutePath,
-      contentType: image.mimeType ?? 'application/octet-stream',
+      body,
+      contentType: IMAGE_OPTIMIZE_PARAMS.contentType,
       sortOrder: image.sortOrder,
       attachmentId: image.attachmentId,
       isCover: image.isCover,
       altText: null,
       fileSize: image.fileSizeBytes,
-      mimeType: image.mimeType,
+      mimeType: IMAGE_OPTIMIZE_PARAMS.contentType,
+      sha256: image.sha256,
+      sourceSha256: image.sourceSha256 ?? null,
     });
   }
-  return prepared;
+  return { uploads: prepared, images: optimizedImages };
 }
 
 export async function uploadPreparedImages(input: {
   uploads: PreparedUpload[];
   objectStore: MigrationObjectStore;
-  readFile?: (absolutePath: string) => Buffer;
 }): Promise<{ uploadedKeys: string[]; skippedPreexistingKeys: string[] }> {
-  const readFile = input.readFile ?? ((p: string) => fs.readFileSync(p));
   const uploadedKeys: string[] = [];
   const skippedPreexistingKeys: string[] = [];
 
   try {
     for (const upload of input.uploads) {
-      const body = readFile(upload.absolutePath);
+      if (!upload.body?.length) {
+        throw new Error(
+          `Refusing empty upload body for key=${upload.key} attachment=${upload.attachmentId}.`,
+        );
+      }
+      if (upload.contentType !== IMAGE_OPTIMIZE_PARAMS.contentType) {
+        throw new Error(`Refusing non-WebP contentType for key=${upload.key}.`);
+      }
       const result = await input.objectStore.putObject({
         key: upload.key,
-        body,
+        body: upload.body,
         contentType: upload.contentType,
       });
       if (result.wrote) {
@@ -304,7 +359,6 @@ export async function writeOneHouzezProperty(input: {
   owner: OwnerResolution;
   batchId: string;
   fingerprint: string;
-  readFile?: (absolutePath: string) => Buffer;
 }): Promise<ImportReport> {
   const wpId = input.dryRun.wpId;
   const warnings: WarningRecord[] = [];
@@ -384,11 +438,13 @@ export async function writeOneHouzezProperty(input: {
 
   let prepared: PreparedUpload[];
   try {
-    prepared = prepareImageUploads({
+    const preparedResult = await prepareImageUploads({
       images: input.images,
       tenantId: input.owner.tenantId,
       sourceId: String(wpId),
+      approvedImages: input.dryRun.images,
     });
+    prepared = preparedResult.uploads;
   } catch (error) {
     const report = baseReport();
     report.blockers.push({
@@ -408,7 +464,6 @@ export async function writeOneHouzezProperty(input: {
     const uploadResult = await uploadPreparedImages({
       uploads: prepared,
       objectStore: input.objectStore,
-      readFile: input.readFile,
     });
     uploadedKeys = uploadResult.uploadedKeys;
     skippedPreexistingKeys = uploadResult.skippedPreexistingKeys;

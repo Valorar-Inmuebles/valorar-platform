@@ -12,9 +12,11 @@ import type { PublishTransformResult } from '../transform/publish-rules';
  * Canonical subset of a dry-run report used for tamper detection.
  * Excludes ephemeral fields (safety host masks, absolute paths).
  * Includes batch_manifest content but import live-compare reuses the approved report batchId.
+ *
+ * v3: binds the WebP optimization pipeline (params + source/output hashes + storage keys).
  */
 export type DryRunFingerprintPayload = {
-  v: 2;
+  v: 3;
   mode: 'dry-run';
   /** Bound target — staging-houzez | production. Prevents cross-target import. */
   migrationTarget: string;
@@ -44,12 +46,32 @@ export type DryRunFingerprintPayload = {
     payload: Record<string, unknown>;
   }>;
   imageSummary: DryRunReport['imageSummary'];
+  imageOptimizePipeline: {
+    version: string | null;
+    format: string;
+    quality: number | null;
+    maxWidth: number | null;
+    maxHeight: number | null;
+    resizeFit: string | null;
+    withoutEnlargement: boolean | null;
+    orientationPolicy: string | null;
+    metadataPolicy: string | null;
+  };
   images: Array<{
     sortOrder: number;
     attachmentId: number;
     isCover: boolean;
+    sourceSha256: string | null;
+    /** Output (WebP) SHA-256 — bytes that will be uploaded. */
     sha256: string | null;
     proposedFilename: string;
+    mimeType: string | null;
+    width: number | null;
+    height: number | null;
+    fileSizeBytes: number | null;
+    storageKey: string | null;
+    hasAlphaSource: boolean | null;
+    hasAlphaOutput: boolean | null;
   }>;
   catalogs: Array<{
     key: string;
@@ -69,8 +91,9 @@ export type DryRunFingerprintPayload = {
 export function buildDryRunFingerprintPayload(
   report: DryRunReport,
 ): DryRunFingerprintPayload {
+  const firstOpt = report.images.find((i) => i.optimization)?.optimization;
   return {
-    v: 2,
+    v: 3,
     mode: 'dry-run',
     migrationTarget: report.safety?.migrationTarget ?? '',
     wpId: report.wpId,
@@ -101,12 +124,34 @@ export function buildDryRunFingerprintPayload(
       payload: e.payload,
     })),
     imageSummary: report.imageSummary,
+    imageOptimizePipeline: {
+      version: firstOpt?.pipelineVersion ?? null,
+      format: 'webp',
+      quality: firstOpt?.quality ?? null,
+      maxWidth: firstOpt?.maxWidth ?? null,
+      maxHeight: firstOpt?.maxHeight ?? null,
+      resizeFit: firstOpt?.resizeFit ?? null,
+      withoutEnlargement: firstOpt?.withoutEnlargement ?? null,
+      orientationPolicy: firstOpt?.orientationPolicy ?? null,
+      metadataPolicy: firstOpt?.metadataPolicy ?? null,
+    },
     images: report.images.map((img) => ({
       sortOrder: img.sortOrder,
       attachmentId: img.attachmentId,
       isCover: img.isCover,
+      sourceSha256: img.sourceSha256 ?? img.optimization?.source.sha256 ?? null,
       sha256: img.sha256,
       proposedFilename: img.proposedFilename,
+      mimeType: img.mimeType,
+      width: img.width,
+      height: img.height,
+      fileSizeBytes: img.fileSizeBytes,
+      storageKey:
+        img.optimization?.output.storageKey ??
+        img.proposedStorageKeyPattern ??
+        null,
+      hasAlphaSource: img.optimization?.source.hasAlpha ?? null,
+      hasAlphaOutput: img.optimization?.output.hasAlpha ?? null,
     })),
     catalogs: report.catalogs.map((c) => ({
       key: c.key,
@@ -225,7 +270,17 @@ export function buildPlannedEntitiesForPlan(input: {
         sortOrder: image.sortOrder,
         isCover: image.isCover,
         proposedFilename: image.proposedFilename,
+        mimeType: image.mimeType,
+        storageKey:
+          image.optimization?.output.storageKey ??
+          image.proposedStorageKeyPattern,
+        fileSizeBytes: image.fileSizeBytes,
+        width: image.width,
+        height: image.height,
+        sourceSha256: image.sourceSha256 ?? null,
         sha256: image.sha256,
+        pipelineVersion: image.optimization?.pipelineVersion ?? null,
+        quality: image.optimization?.quality ?? null,
       },
     });
   }

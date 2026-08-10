@@ -23,15 +23,10 @@ export type PreexistingR2Validation = {
   preexistingKeys: string[];
 };
 
-function expectedMime(filename: string): string {
-  if (filename.endsWith('.png')) return 'image/png';
-  if (filename.endsWith('.webp')) return 'image/webp';
-  return 'image/jpeg';
-}
-
 /**
- * HEAD the seven deterministic pilot keys. Reuse when present and compatible;
- * abort on size/type mismatch. Never delete or overwrite.
+ * HEAD the seven deterministic pilot WebP keys.
+ * - Missing keys are allowed (fresh PutObject will create them).
+ * - Present keys must match planned content-type + size (never overwrite).
  */
 export async function validatePilotPreexistingR2Objects(input: {
   objectStore: MigrationObjectStore;
@@ -75,7 +70,7 @@ export async function validatePilotPreexistingR2Objects(input: {
     }
 
     preexistingKeys.push(key);
-    const expectedType = plan?.mimeType ?? expectedMime(relative);
+    const expectedType = plan?.mimeType ?? 'image/webp';
     const expectedSize = plan?.fileSizeBytes ?? null;
 
     let incompatible = false;
@@ -108,11 +103,11 @@ export async function validatePilotPreexistingR2Objects(input: {
     }
   }
 
-  // Missing is allowed only when the plan will upload fresh bytes for that key.
-  // For production pilot, E.5 proved all seven exist — require all seven present & compatible.
-  if (missingKeys.length) {
+  // Missing keys are fine: import will PutObject optimized WebP bytes for them.
+  // Incompatible preexisting keys remain hard failures (no overwrite).
+  if (incompatibleKeys.length) {
     errors.push(
-      `Expected preexisting R2 keys missing under ${HOUZEZ_SOURCE_SYSTEM}/${sourceId}: ${missingKeys.join(', ')}.`,
+      `Refusing import: ${incompatibleKeys.length} preexisting key(s) under ${HOUZEZ_SOURCE_SYSTEM}/${sourceId} are incompatible with the optimized plan.`,
     );
   }
 

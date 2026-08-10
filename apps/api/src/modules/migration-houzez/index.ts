@@ -5,6 +5,8 @@ export * from './wordpress/extract-properties';
 export * from './wordpress/permalink';
 export * from './transform/publish-rules';
 export * from './images/gallery-plan';
+export * from './images/optimize-pipeline';
+export * from './images/prepare-local';
 export * from './traceability/idempotency';
 export * from './catalog/resolve-catalogs';
 export * from './catalog/assert-flores-locality';

@@ -90,13 +90,46 @@ function makeMinimalDryRun(
         relativePath: 'a.jpg',
         absolutePath: null,
         exists: true,
-        mimeType: 'image/jpeg',
+        mimeType: 'image/webp',
         width: 1,
         height: 1,
         fileSizeBytes: 10,
         sha256: 'a'.repeat(64),
-        proposedStorageKeyPattern: 'x',
-        proposedFilename: '00-wp5315.jpg',
+        sourceSha256: 'b'.repeat(64),
+        proposedStorageKeyPattern:
+          'tenant/migrations/wordpress-houzez/5312/00-wp5315.webp',
+        proposedFilename: '00-wp5315.webp',
+        optimization: {
+          pipelineVersion: 'houzez-webp-v1',
+          quality: 82,
+          maxWidth: 1600,
+          maxHeight: 1200,
+          resizeFit: 'inside',
+          withoutEnlargement: true,
+          orientationPolicy: 'exif-autorotate',
+          metadataPolicy: 'strip-all',
+          orientationApplied: false,
+          source: {
+            mimeType: 'image/jpeg',
+            format: 'jpeg',
+            width: 10,
+            height: 10,
+            bytes: 20,
+            sha256: 'b'.repeat(64),
+            hasAlpha: false,
+          },
+          output: {
+            filename: '00-wp5315.webp',
+            mimeType: 'image/webp',
+            width: 1,
+            height: 1,
+            bytes: 10,
+            sha256: 'a'.repeat(64),
+            hasAlpha: false,
+            storageKey:
+              'tenant/migrations/wordpress-houzez/5312/00-wp5315.webp',
+          },
+        },
       },
     ],
     imageSummary: {
@@ -197,10 +230,10 @@ describe('dry-run fingerprint', () => {
     expect(a.reportFingerprint).toMatch(/^[a-f0-9]{64}$/);
   });
 
-  it('includes v:2 and migrationTarget in payload', () => {
+  it('includes v:3 and migrationTarget in payload', () => {
     const report = makeMinimalDryRun();
     const payload = buildDryRunFingerprintPayload(report);
-    expect(payload.v).toBe(2);
+    expect(payload.v).toBe(3);
     expect(payload.migrationTarget).toBe(STAGING_MIGRATION_TARGET);
   });
 
@@ -249,6 +282,7 @@ describe('dry-run fingerprint', () => {
       transformed: payload.transformed,
       plannedEntities: payload.plannedEntities,
       imageSummary: payload.imageSummary,
+      imageOptimizePipeline: payload.imageOptimizePipeline,
       images: payload.images,
       catalogs: payload.catalogs,
       owner: payload.owner,

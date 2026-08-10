@@ -17,11 +17,16 @@ import type {
   AuditReport,
   DatasetManifestReport,
   DryRunReport,
+  ImagePlanEntry,
   MigrationSafetyReportSection,
   StagingPreflightReportSection,
 } from '../types';
 import { transformPublishProperty } from '../transform/publish-rules';
 import { buildGalleryPlan } from '../images/gallery-plan';
+import {
+  ImageOptimizeError,
+  applyImageOptimizationPlan,
+} from '../images/optimize-pipeline';
 import { resolveCatalogsForTransform } from '../catalog/resolve-catalogs';
 import {
   catalogsIncludeExactFlores,
@@ -473,6 +478,27 @@ export async function runDryRun(
   warnings.push(...gallery.warnings.map((w) => ({ ...w, wpId })));
   blockers.push(...gallery.blockers.map((b) => ({ ...b, wpId })));
 
+  let plannedImages = gallery.images;
+  if (gallery.blockers.length === 0 && gallery.allOriginalsExist) {
+    try {
+      const optimized = await applyImageOptimizationPlan({
+        images: gallery.images,
+        tenantId: owner.tenantId ?? '{tenantId}',
+        sourceId: String(wpId),
+      });
+      plannedImages = optimized.images;
+    } catch (error) {
+      blockers.push({
+        code:
+          error instanceof ImageOptimizeError
+            ? error.code
+            : 'IMAGE_OPTIMIZE_FAILED',
+        message: error instanceof Error ? error.message : String(error),
+        wpId,
+      });
+    }
+  }
+
   const catalogs = await resolveCatalogsForTransform({
     prisma: options.skipDb || !prisma ? null : (prisma as never),
     transform,
@@ -537,7 +563,7 @@ export async function runDryRun(
     owner,
     transform,
     catalogs,
-    images: gallery.images,
+    images: plannedImages,
     oldUrl,
     blockersEmpty: blockers.length === 0,
   });
@@ -562,7 +588,7 @@ export async function runDryRun(
     },
     inferences: transform.inferences,
     catalogs,
-    images: sanitizeImagesForReport(gallery.images),
+    images: sanitizeImagesForReport(plannedImages),
     imageSummary: {
       galleryCount: gallery.galleryCount,
       uniqueCount: gallery.uniqueCount,
@@ -777,6 +803,22 @@ export async function runImport(
     );
   }
 
+  let optimizedImages: ImagePlanEntry[];
+  try {
+    const optimized = await applyImageOptimizationPlan({
+      images: gallery.images,
+      tenantId: owner.tenantId!,
+      sourceId: String(options.wpId),
+    });
+    optimizedImages = optimized.images;
+  } catch (error) {
+    throw new ImportValidationError([
+      error instanceof ImageOptimizeError
+        ? `${error.code}: ${error.message}`
+        : `IMAGE_OPTIMIZE_FAILED: ${error instanceof Error ? error.message : String(error)}`,
+    ]);
+  }
+
   const catalogs = await resolveCatalogsForTransform({
     prisma: prisma as never,
     transform,
@@ -797,7 +839,7 @@ export async function runImport(
       objectStore,
       tenantId: owner.tenantId!,
       sourceId: String(options.wpId),
-      images: gallery.images,
+      images: optimizedImages,
     });
     if (!r2Check.ok) {
       throw new ImportValidationError(r2Check.errors);
@@ -822,7 +864,7 @@ export async function runImport(
       owner,
       transform,
       catalogs,
-      images: gallery.images,
+      images: optimizedImages,
       imageSummary: {
         galleryCount: gallery.galleryCount,
         uniqueCount: gallery.uniqueCount,

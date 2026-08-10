@@ -65,6 +65,41 @@ export type DumpAuditSummary = {
   notes: string[];
 };
 
+/**
+ * Optimization contract recorded per image after the shared WebP pipeline runs.
+ * Dry-run, local prep, and import must emit identical values for the same source.
+ */
+export type ImageOptimizationMeta = {
+  pipelineVersion: string;
+  quality: number;
+  maxWidth: number;
+  maxHeight: number;
+  resizeFit: 'inside';
+  withoutEnlargement: boolean;
+  orientationPolicy: string;
+  metadataPolicy: string;
+  orientationApplied: boolean;
+  source: {
+    mimeType: string | null;
+    format: string | null;
+    width: number | null;
+    height: number | null;
+    bytes: number;
+    sha256: string;
+    hasAlpha: boolean;
+  };
+  output: {
+    filename: string;
+    mimeType: 'image/webp';
+    width: number;
+    height: number;
+    bytes: number;
+    sha256: string;
+    hasAlpha: boolean;
+    storageKey: string;
+  };
+};
+
 export type ImagePlanEntry = {
   sortOrder: number;
   attachmentId: number;
@@ -72,13 +107,23 @@ export type ImagePlanEntry = {
   relativePath: string | null;
   absolutePath: string | null;
   exists: boolean;
+  /** Output MIME after optimization (image/webp). Source MIME lives in optimization.source. */
   mimeType: string | null;
+  /** Output width after optimization. */
   width: number | null;
+  /** Output height after optimization. */
   height: number | null;
+  /** Output byte size after optimization. */
   fileSizeBytes: number | null;
+  /** Output SHA-256 after optimization (bytes uploaded to object storage). */
   sha256: string | null;
+  /** Source original SHA-256 (pre-optimization). */
+  sourceSha256?: string | null;
+  /** Deterministic migration storage key (…/NN-wp{id}.webp) after optimization. */
   proposedStorageKeyPattern: string;
   proposedFilename: string;
+  /** Present after applyImageOptimizationPlan. */
+  optimization?: ImageOptimizationMeta;
 };
 
 export type CatalogResolution = {
