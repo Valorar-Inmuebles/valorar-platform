@@ -88,6 +88,7 @@ export type CleanupManifest = {
   statusSummary: Record<string, number>;
   existingCount: number;
   expectedSeedNotFoundCount: number;
+  expectedUploadNotFoundCount: number;
   unexpectedNotFoundCount: number;
   anomalousCount: number;
   accessOrNetworkFailureCount: number;

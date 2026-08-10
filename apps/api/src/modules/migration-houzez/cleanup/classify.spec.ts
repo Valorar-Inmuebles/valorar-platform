@@ -3,8 +3,17 @@ import {
   classifyPropertyImage,
   evaluateCleanupSemantics,
   isExpectedSeedReference,
+  isExpectedStaleUploadReference,
 } from './classify';
+import { EXPECTED_STORAGE_POLICY } from './constants';
 import type { PropertyImageManifestRow } from './types';
+
+const TENANT_ID = 'cmqgnlvda0000ywus410xbnce';
+const PROPERTY_ID = 'cmqgsdbuy0000lous3rnifwl8';
+const PUBLIC_HOST = 'pub-220b22089f6147499f7bf4e7e315b174.r2.dev';
+const UUID_JPG = '2539928a-9b7f-41aa-8f79-9bdf75c3ee10.jpg';
+const STALE_KEY = `${TENANT_ID}/properties/${PROPERTY_ID}/${UUID_JPG}`;
+const STALE_URL = `https://${PUBLIC_HOST}/${STALE_KEY}`;
 
 function baseImage(
   overrides: Partial<{
@@ -66,14 +75,74 @@ describe('isExpectedSeedReference', () => {
   });
 });
 
+describe('isExpectedStaleUploadReference', () => {
+  const ok = {
+    tenantId: TENANT_ID,
+    propertyId: PROPERTY_ID,
+    storageKey: STALE_KEY,
+    url: STALE_URL,
+    publicUrlHost: PUBLIC_HOST,
+    isAnomalousKey: false,
+  };
+
+  it('accepts closed stale upload attributes', () => {
+    expect(isExpectedStaleUploadReference(ok)).toBe(true);
+  });
+
+  it('rejects similar pattern not bound to the row propertyId', () => {
+    expect(
+      isExpectedStaleUploadReference({
+        ...ok,
+        propertyId: 'other-property-id',
+      }),
+    ).toBe(false);
+  });
+
+  it('rejects wrong tenantId', () => {
+    expect(
+      isExpectedStaleUploadReference({
+        ...ok,
+        tenantId: 'other-tenant-id',
+      }),
+    ).toBe(false);
+  });
+
+  it('rejects wrong public host', () => {
+    expect(
+      isExpectedStaleUploadReference({
+        ...ok,
+        publicUrlHost: 'other.r2.dev',
+      }),
+    ).toBe(false);
+  });
+
+  it('rejects non-uuid filename and wordpress-houzez keys', () => {
+    expect(
+      isExpectedStaleUploadReference({
+        ...ok,
+        storageKey: `${TENANT_ID}/properties/${PROPERTY_ID}/not-a-uuid.jpg`,
+      }),
+    ).toBe(false);
+    expect(
+      isExpectedStaleUploadReference({
+        ...ok,
+        storageKey: `${TENANT_ID}/migrations/wordpress-houzez/5312/00-wp5315.jpg`,
+        url: `https://${PUBLIC_HOST}/${TENANT_ID}/migrations/wordpress-houzez/5312/00-wp5315.jpg`,
+      }),
+    ).toBe(false);
+  });
+});
+
 describe('classifyPropertyImage', () => {
   it('marks existing HeadObject as storage_verified and deleteAuthorized', () => {
     const row = classifyPropertyImage({
       tenantSlug: 'demo',
+      tenantId: TENANT_ID,
+      publicUrlHost: PUBLIC_HOST,
       image: baseImage({
-        storageKey:
-          'cmqgnlvda0000ywus410xbnce/properties/p1/2539928a-9b7f-41aa-8f79-9bdf75c3ee10.jpg',
-        url: 'https://pub.example.r2.dev/key.jpg',
+        propertyId: PROPERTY_ID,
+        storageKey: STALE_KEY,
+        url: STALE_URL,
       }),
       head: { ok: true, exists: true, etag: 'abc' },
     });
@@ -86,6 +155,8 @@ describe('classifyPropertyImage', () => {
   it('marks exact seed + not_found as expected_seed_not_found unauthorized', () => {
     const row = classifyPropertyImage({
       tenantSlug: 'demo',
+      tenantId: TENANT_ID,
+      publicUrlHost: PUBLIC_HOST,
       image: baseImage(),
       head: { ok: true, exists: false, etag: null },
     });
@@ -94,9 +165,58 @@ describe('classifyPropertyImage', () => {
     expect(row.deleteAuthorized).toBe(false);
   });
 
+  it('marks known stale upload + not_found as expected_upload_not_found', () => {
+    const row = classifyPropertyImage({
+      tenantSlug: 'demo',
+      tenantId: TENANT_ID,
+      publicUrlHost: PUBLIC_HOST,
+      image: baseImage({
+        propertyId: PROPERTY_ID,
+        storageKey: STALE_KEY,
+        url: STALE_URL,
+      }),
+      head: { ok: true, exists: false, etag: null },
+    });
+    expect(row.classification).toBe('expected_upload_not_found');
+    expect(row.status).toBe('not_found');
+    expect(row.deleteAuthorized).toBe(false);
+  });
+
+  it('rejects stale-looking key with wrong propertyId as unexpected', () => {
+    const row = classifyPropertyImage({
+      tenantSlug: 'demo',
+      tenantId: TENANT_ID,
+      publicUrlHost: PUBLIC_HOST,
+      image: baseImage({
+        propertyId: 'cmqgvbh020000gcusikcgle4x',
+        storageKey: STALE_KEY,
+        url: STALE_URL,
+      }),
+      head: { ok: true, exists: false, etag: null },
+    });
+    expect(row.classification).toBe('unexpected_not_found');
+  });
+
+  it('rejects wrong public host as unexpected', () => {
+    const row = classifyPropertyImage({
+      tenantSlug: 'demo',
+      tenantId: TENANT_ID,
+      publicUrlHost: PUBLIC_HOST,
+      image: baseImage({
+        propertyId: PROPERTY_ID,
+        storageKey: STALE_KEY,
+        url: `https://other.r2.dev/${STALE_KEY}`,
+      }),
+      head: { ok: true, exists: false, etag: null },
+    });
+    expect(row.classification).toBe('unexpected_not_found');
+  });
+
   it('marks non-seed not_found as unexpected and unauthorized', () => {
     const row = classifyPropertyImage({
       tenantSlug: 'demo',
+      tenantId: TENANT_ID,
+      publicUrlHost: PUBLIC_HOST,
       image: baseImage({
         storageKey: 'orphan/path/file.jpg',
         url: 'https://example.com/file.jpg',
@@ -111,6 +231,8 @@ describe('classifyPropertyImage', () => {
   it('blocks demo/key.jpg as anomalous', () => {
     const row = classifyPropertyImage({
       tenantSlug: 'demo',
+      tenantId: TENANT_ID,
+      publicUrlHost: PUBLIC_HOST,
       image: baseImage({
         storageKey: 'demo/key.jpg',
         url: 'https://example.com/key.jpg',
@@ -123,12 +245,15 @@ describe('classifyPropertyImage', () => {
     expect(row.isAnomalousKey).toBe(true);
   });
 
-  it('marks HeadObject failures as access_or_network_failure', () => {
+  it('marks HeadObject failures as access_or_network_failure (not absence)', () => {
     const row = classifyPropertyImage({
       tenantSlug: 'demo',
+      tenantId: TENANT_ID,
+      publicUrlHost: PUBLIC_HOST,
       image: baseImage({
-        storageKey: 'any/key.jpg',
-        url: null,
+        propertyId: PROPERTY_ID,
+        storageKey: STALE_KEY,
+        url: STALE_URL,
       }),
       head: {
         ok: false,
@@ -142,6 +267,23 @@ describe('classifyPropertyImage', () => {
     expect(row.status).toBe('failed');
     expect(row.deleteAuthorized).toBe(false);
   });
+
+  it('never classifies wordpress-houzez pilot keys as expected_upload_not_found', () => {
+    const key = `${TENANT_ID}/migrations/wordpress-houzez/5312/00-wp5315.jpg`;
+    const row = classifyPropertyImage({
+      tenantSlug: 'demo',
+      tenantId: TENANT_ID,
+      publicUrlHost: PUBLIC_HOST,
+      image: baseImage({
+        propertyId: PROPERTY_ID,
+        storageKey: key,
+        url: `https://${PUBLIC_HOST}/${key}`,
+      }),
+      head: { ok: true, exists: false, etag: null },
+    });
+    expect(row.classification).toBe('unexpected_not_found');
+    expect(row.deleteAuthorized).toBe(false);
+  });
 });
 
 function rowFromClassify(
@@ -150,25 +292,33 @@ function rowFromClassify(
   return partial;
 }
 
-describe('evaluateCleanupSemantics + allowlist', () => {
+describe('evaluateCleanupSemantics + allowlist (v4 policy)', () => {
   function buildPolicyRows() {
-    const r2 = Array.from({ length: 8 }, (_, i) =>
-      rowFromClassify(
+    const uploads = Array.from({ length: 8 }, (_, i) => {
+      const propertyId = `prop${String(i).padStart(4, '0')}aaaaaaaaaaaaaaaa`;
+      const uuid = `2539928a-9b7f-41aa-8f79-9bdf75c3ee${String(i).padStart(2, '0')}`;
+      const storageKey = `${TENANT_ID}/properties/${propertyId}/${uuid}.jpg`;
+      return rowFromClassify(
         classifyPropertyImage({
           tenantSlug: 'demo',
+          tenantId: TENANT_ID,
+          publicUrlHost: PUBLIC_HOST,
           image: baseImage({
-            id: `r2-${i}`,
-            storageKey: `tenant/properties/p/${i}.jpg`,
-            url: `https://r2.dev/${i}.jpg`,
+            id: `up-${i}`,
+            propertyId,
+            storageKey,
+            url: `https://${PUBLIC_HOST}/${storageKey}`,
           }),
-          head: { ok: true, exists: true, etag: `e${i}` },
+          head: { ok: true, exists: false, etag: null },
         }),
-      ),
-    );
+      );
+    });
     const seeds = Array.from({ length: 120 }, (_, i) =>
       rowFromClassify(
         classifyPropertyImage({
           tenantSlug: 'demo',
+          tenantId: TENANT_ID,
+          publicUrlHost: PUBLIC_HOST,
           image: baseImage({
             id: `seed-${i}`,
             storageKey: `tenants/demo/properties/slug-${i}/cover.webp`,
@@ -181,6 +331,8 @@ describe('evaluateCleanupSemantics + allowlist', () => {
     const anomalous = rowFromClassify(
       classifyPropertyImage({
         tenantSlug: 'demo',
+        tenantId: TENANT_ID,
+        publicUrlHost: PUBLIC_HOST,
         image: baseImage({
           id: 'anom',
           storageKey: 'demo/key.jpg',
@@ -189,26 +341,31 @@ describe('evaluateCleanupSemantics + allowlist', () => {
         head: { ok: true, exists: false, etag: null },
       }),
     );
-    return [...r2, ...seeds, anomalous];
+    return [...uploads, ...seeds, anomalous];
   }
 
-  it('satisfies approved policy and builds allowlist of exactly 8', () => {
+  it('satisfies approved policy 0/120/8/1/0 with empty allowlist', () => {
     const images = buildPolicyRows();
+    expect(images).toHaveLength(129);
     const evalResult = evaluateCleanupSemantics({
       countDiffs: [],
       images,
       headObjectChecksPerformed: 129,
       fatalHeadErrors: [],
     });
+    expect(evalResult.classificationSummary).toMatchObject({
+      expected_upload_not_found: 8,
+      expected_seed_not_found: 120,
+      anomalous: 1,
+    });
+    expect(evalResult.classificationSummary.r2_object ?? 0).toBe(0);
+    expect(evalResult.classificationSummary.unexpected_not_found ?? 0).toBe(0);
     expect(evalResult.storagePolicySatisfied).toBe(true);
     expect(evalResult.readyForExecute).toBe(true);
-    expect(evalResult.authorizedKeys).toHaveLength(8);
-    expect(buildR2DeleteAllowlist(images)).toHaveLength(8);
-    expect(
-      buildR2DeleteAllowlist(images).every(
-        (k) => !k.startsWith('tenants/demo/'),
-      ),
-    ).toBe(true);
+    expect(evalResult.authorizedKeys).toHaveLength(
+      EXPECTED_STORAGE_POLICY.r2ObjectsAuthorized,
+    );
+    expect(buildR2DeleteAllowlist(images)).toHaveLength(0);
     expect(buildR2DeleteAllowlist(images)).not.toContain('demo/key.jpg');
   });
 
@@ -221,6 +378,8 @@ describe('evaluateCleanupSemantics + allowlist', () => {
       rowFromClassify(
         classifyPropertyImage({
           tenantSlug: 'demo',
+          tenantId: TENANT_ID,
+          publicUrlHost: PUBLIC_HOST,
           image: baseImage({
             id: 'bad',
             storageKey: 'unexpected/key.jpg',
@@ -240,11 +399,39 @@ describe('evaluateCleanupSemantics + allowlist', () => {
     expect(evalResult.readyForExecute).toBe(false);
   });
 
+  it('fails policy when a wordpress-houzez key appears', () => {
+    const images = [
+      ...buildPolicyRows().slice(0, 128),
+      rowFromClassify(
+        classifyPropertyImage({
+          tenantSlug: 'demo',
+          tenantId: TENANT_ID,
+          publicUrlHost: PUBLIC_HOST,
+          image: baseImage({
+            id: 'wp',
+            storageKey: `${TENANT_ID}/migrations/wordpress-houzez/5312/00-wp5315.jpg`,
+            url: `https://${PUBLIC_HOST}/${TENANT_ID}/migrations/wordpress-houzez/5312/00-wp5315.jpg`,
+          }),
+          head: { ok: true, exists: false, etag: null },
+        }),
+      ),
+    ];
+    const evalResult = evaluateCleanupSemantics({
+      countDiffs: [],
+      images,
+      headObjectChecksPerformed: images.length,
+      fatalHeadErrors: [],
+    });
+    expect(evalResult.storagePolicySatisfied).toBe(false);
+  });
+
   it('fails on auth/network HeadObject fatals', () => {
     const images = [
       rowFromClassify(
         classifyPropertyImage({
           tenantSlug: 'demo',
+          tenantId: TENANT_ID,
+          publicUrlHost: PUBLIC_HOST,
           image: baseImage({ storageKey: 'k', url: null }),
           head: {
             ok: false,
@@ -278,18 +465,33 @@ describe('evaluateCleanupSemantics + allowlist', () => {
     expect(evalResult.readyForExecute).toBe(false);
   });
 
-  it('allowlist never includes not_found entries', () => {
+  it('allowlist never includes not_found / upload_not_found / anomalous', () => {
     const images = buildPolicyRows();
     const allow = new Set(buildR2DeleteAllowlist(images));
+    expect(allow.size).toBe(0);
     for (const img of images) {
-      if (img.status === 'not_found' || img.r2.exists !== true) {
-        expect(allow.has(img.storageKey)).toBe(false);
-      }
+      expect(allow.has(img.storageKey)).toBe(false);
     }
   });
 
-  it('anomalous never enters allowlist', () => {
-    const images = buildPolicyRows();
-    expect(buildR2DeleteAllowlist(images)).not.toContain('demo/key.jpg');
+  it('allowlist never includes wordpress-houzez even if marked authorized', () => {
+    const key = `${TENANT_ID}/migrations/wordpress-houzez/5312/00-wp5315.jpg`;
+    const rogue: PropertyImageManifestRow = {
+      id: 'rogue',
+      propertyId: PROPERTY_ID,
+      storageKey: key,
+      url: `https://${PUBLIC_HOST}/${key}`,
+      mimeType: 'image/jpeg',
+      fileSize: 1,
+      isCover: true,
+      sortOrder: 0,
+      r2: { exists: true, etag: 'e', error: null },
+      classification: 'r2_object',
+      status: 'storage_verified',
+      isAnomalousKey: false,
+      deleteAuthorized: true,
+      authorizationReason: 'should-be-blocked',
+    };
+    expect(buildR2DeleteAllowlist([rogue])).toEqual([]);
   });
 });

@@ -5,6 +5,8 @@ import {
   ANOMALOUS_STORAGE_KEY,
   CLEANUP_PROCEDURE_VERSION,
   EXPECTED_DEMO_COUNTS,
+  EXPECTED_STORAGE_POLICY,
+  WORDPRESS_HOUZEZ_KEY_MARKER,
 } from './constants';
 import {
   countPropertyTreeByTenant,
@@ -206,10 +208,32 @@ export async function runCleanupExecute(options: {
   }
 
   const allowlist = buildR2DeleteAllowlist(manifest.images);
-  if (allowlist.length !== 8) {
+  if (allowlist.length !== EXPECTED_STORAGE_POLICY.r2ObjectsAuthorized) {
     return fail(
       'failed',
-      [`Allowlist size must be exactly 8 (got ${allowlist.length}).`],
+      [
+        `Allowlist size must be exactly ${EXPECTED_STORAGE_POLICY.r2ObjectsAuthorized} (got ${allowlist.length}).`,
+      ],
+      null,
+    );
+  }
+  if (allowlist.some((k) => k.includes(WORDPRESS_HOUZEZ_KEY_MARKER))) {
+    return fail(
+      'failed',
+      ['wordpress-houzez keys must never enter DeleteObject allowlist.'],
+      null,
+    );
+  }
+  if (
+    manifest.images.some((img) =>
+      img.storageKey.includes(WORDPRESS_HOUZEZ_KEY_MARKER),
+    )
+  ) {
+    return fail(
+      'failed',
+      [
+        'Manifest contains wordpress-houzez storage keys — refusing cleanup of migration pilot objects.',
+      ],
       null,
     );
   }
@@ -221,6 +245,22 @@ export async function runCleanupExecute(options: {
       'failed',
       [
         'Seed policy mismatch: expected 120 unauthorized expected_seed_not_found.',
+      ],
+      null,
+    );
+  }
+  const uploadNotFoundRows = manifest.images.filter(
+    (img) => img.classification === 'expected_upload_not_found',
+  );
+  if (
+    uploadNotFoundRows.length !==
+      EXPECTED_STORAGE_POLICY.expectedUploadNotFound ||
+    uploadNotFoundRows.some((r) => r.deleteAuthorized)
+  ) {
+    return fail(
+      'failed',
+      [
+        `Upload not_found policy mismatch: expected ${EXPECTED_STORAGE_POLICY.expectedUploadNotFound} unauthorized expected_upload_not_found.`,
       ],
       null,
     );
@@ -246,6 +286,15 @@ export async function runCleanupExecute(options: {
   }
   if (allowlist.some((k) => seedRows.some((s) => s.storageKey === k))) {
     return fail('failed', ['Seed not_found key leaked into allowlist.'], null);
+  }
+  if (
+    allowlist.some((k) => uploadNotFoundRows.some((s) => s.storageKey === k))
+  ) {
+    return fail(
+      'failed',
+      ['Upload not_found key leaked into allowlist.'],
+      null,
+    );
   }
 
   const tenant = await resolveExactDemoTenant(
@@ -349,7 +398,7 @@ export async function runCleanupExecute(options: {
   }
 
   messages.push(
-    `Preflight OK: staging matches manifesto (33 properties, 129 images, allowlist=8).`,
+    `Preflight OK: target matches manifesto (33 properties, 129 images, allowlist=${allowlist.length}).`,
   );
 
   const relatedDeleted = {
@@ -497,7 +546,7 @@ export async function runCleanupExecute(options: {
   ).length;
 
   messages.push(
-    `R2 phase: deleted=${r2DeletedCount}, requires_retry=${r2RequiresRetryCount}, seed_skipped=${seedRows.length}, anomalous_skipped=1, DeleteObject attempts=${deleteObjectAttempts}.`,
+    `R2 phase: deleted=${r2DeletedCount}, requires_retry=${r2RequiresRetryCount}, seed_skipped=${seedRows.length}, upload_nf_skipped=${uploadNotFoundRows.length}, anomalous_skipped=1, DeleteObject attempts=${deleteObjectAttempts}.`,
   );
 
   const postCounts = await countPropertyTreeByTenant(options.prisma, tenant.id);
@@ -517,7 +566,12 @@ export async function runCleanupExecute(options: {
     postCounts.PropertyAgentAccess === 0;
 
   let finalStatus: ExecuteReport['finalStatus'] = 'failed';
-  if (dbClean && r2RequiresRetryCount === 0 && r2DeletedCount === 8) {
+  if (
+    dbClean &&
+    r2RequiresRetryCount === 0 &&
+    r2DeletedCount === allowlist.length &&
+    deleteObjectAttempts === allowlist.length
+  ) {
     finalStatus = 'completed';
   } else if (dbClean && r2RequiresRetryCount > 0) {
     finalStatus = 'requires_retry';
@@ -564,7 +618,7 @@ export async function runCleanupExecute(options: {
     },
     finalStatus,
     errors,
-    note: 'Execute used approved dry-run manifesto only. Seed not_found and anomalous keys were not DeleteObject targets. No ListObjects/PutObject.',
+    note: 'Execute used approved dry-run manifesto only. Seed not_found, upload not_found, and anomalous keys were not DeleteObject targets. No ListObjects/PutObject.',
   };
 
   const reportPath = writeExecuteReport(options.reportRoot, report);

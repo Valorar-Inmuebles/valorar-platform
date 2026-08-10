@@ -62,7 +62,7 @@ Env (production):
   HOUZEZ_PRODUCTION_NEON_PROJECT_ID / BRANCH_ID / ENDPOINT_ID
   HOUZEZ_CLEANUP_TARGET=production
 
-Deletes only the demo Property tree (CASCADE) + allowlisted seed R2 keys.
+Deletes only the demo Property tree (CASCADE) + allowlisted existing R2 keys (none in v4).
 Preserves Tenant/User/geo/features/settings. Never deletes wordpress-houzez/5312 R2 keys.
 Never falls back to DATABASE_URL. Never targets HOUZEZ_CHECKPOINT_DATABASE_URL.
 `);
@@ -249,14 +249,21 @@ async function main(): Promise<void> {
             PropertyFeatureAssignment: 104,
             PropertyAgentAccess: 0,
           },
-          r2AuthorizedObjects: 8,
+          r2AuthorizedObjects: 0,
           seedNotFoundExcluded: 120,
+          uploadNotFoundExcluded: 8,
           anomalousExcluded: 1,
           manifestPath,
           approvedHashAbbreviated: `${approvedHash.slice(0, 12)}…${approvedHash.slice(-12)}`,
-          confirmTokenRequired: 'DELETE-DEMO-PROPERTIES-STAGING',
+          confirmTokenRequired:
+            process.env.HOUZEZ_CLEANUP_TARGET === 'production'
+              ? 'DELETE-DEMO-PROPERTIES-PRODUCTION'
+              : 'DELETE-DEMO-PROPERTIES-STAGING',
           notFoundKeysInAllowlist: false,
-          note: 'Proceeding to single authorized execute against staging only.',
+          note:
+            process.env.HOUZEZ_CLEANUP_TARGET === 'production'
+              ? 'Proceeding to single authorized execute against production only.'
+              : 'Proceeding to single authorized execute against staging-houzez only.',
         },
         null,
         2,

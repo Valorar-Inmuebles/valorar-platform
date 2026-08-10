@@ -1,6 +1,10 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { classifyPropertyImage, evaluateCleanupSemantics } from './classify';
+import {
+  classifyPropertyImage,
+  evaluateCleanupSemantics,
+  extractPublicUrlHost,
+} from './classify';
 import {
   CLEANUP_PROCEDURE_VERSION,
   EXPECTED_DEMO_COUNTS,
@@ -19,6 +23,7 @@ import {
   summarizeStatuses,
 } from './manifest';
 import type { CleanupR2Reader } from './r2-verify';
+import { getStorageConfig } from '../../storage/storage.config';
 import type {
   CleanupManifest,
   CleanupSemantics,
@@ -71,6 +76,7 @@ export async function runCleanupDryRun(options: {
   );
   const countDiffs = diffExpectedCounts(preCountsByTenant, expected);
 
+  const publicUrlHost = extractPublicUrlHost(getStorageConfig().publicUrl);
   const imagesRaw = await loadDemoPropertyImages(options.prisma, tenant.id);
   const rows: PropertyImageManifestRow[] = [];
   const fatalErrors: string[] = [];
@@ -84,6 +90,8 @@ export async function runCleanupDryRun(options: {
       classifyPropertyImage({
         image,
         tenantSlug: tenant.slug,
+        tenantId: tenant.id,
+        publicUrlHost,
         head,
       }),
     );
@@ -104,7 +112,7 @@ export async function runCleanupDryRun(options: {
   const errorSummary: string[] = [...countDiffs, ...fatalErrors];
   if (!evaluation.storagePolicySatisfied) {
     errorSummary.push(
-      `Storage policy not satisfied (expected r2=${EXPECTED_STORAGE_POLICY.r2ObjectsAuthorized}, seed_nf=${EXPECTED_STORAGE_POLICY.expectedSeedNotFound}, anomalous=${EXPECTED_STORAGE_POLICY.anomalousBlocked}, unexpected_nf=${EXPECTED_STORAGE_POLICY.unexpectedNotFound}).`,
+      `Storage policy not satisfied (expected r2=${EXPECTED_STORAGE_POLICY.r2ObjectsAuthorized}, seed_nf=${EXPECTED_STORAGE_POLICY.expectedSeedNotFound}, upload_nf=${EXPECTED_STORAGE_POLICY.expectedUploadNotFound}, anomalous=${EXPECTED_STORAGE_POLICY.anomalousBlocked}, unexpected_nf=${EXPECTED_STORAGE_POLICY.unexpectedNotFound}).`,
     );
   }
 
@@ -125,6 +133,8 @@ export async function runCleanupDryRun(options: {
   const existingCount = evaluation.classificationSummary.r2_object ?? 0;
   const expectedSeedNotFoundCount =
     evaluation.classificationSummary.expected_seed_not_found ?? 0;
+  const expectedUploadNotFoundCount =
+    evaluation.classificationSummary.expected_upload_not_found ?? 0;
   const unexpectedNotFoundCount =
     evaluation.classificationSummary.unexpected_not_found ?? 0;
   const anomalousCount = evaluation.classificationSummary.anomalous ?? 0;
@@ -149,6 +159,7 @@ export async function runCleanupDryRun(options: {
     statusSummary,
     existingCount,
     expectedSeedNotFoundCount,
+    expectedUploadNotFoundCount,
     unexpectedNotFoundCount,
     anomalousCount,
     accessOrNetworkFailureCount,
@@ -191,6 +202,7 @@ export async function runCleanupDryRun(options: {
     headObjectChecksPerformed: rows.length,
     existingCount,
     expectedSeedNotFoundCount,
+    expectedUploadNotFoundCount,
     unexpectedNotFoundCount,
     anomalousCount,
     accessOrNetworkFailureCount,

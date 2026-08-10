@@ -4,6 +4,8 @@ import {
   EXPECTED_STORAGE_POLICY,
   SEED_STORAGE_KEY_PREFIX,
   SEED_URL_PATH_PREFIX,
+  STALE_UPLOAD_KEY_UUID_JPG,
+  WORDPRESS_HOUZEZ_KEY_MARKER,
   type CleanupClassification,
   type CleanupImageStatus,
 } from './constants';
@@ -24,6 +26,25 @@ export type ClassifyImageInput = {
   isCover: boolean;
   sortOrder: number;
 };
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/**
+ * Hostname of STORAGE_PUBLIC_URL (no path/query). Empty if unparseable.
+ */
+export function extractPublicUrlHost(
+  publicUrl: string | null | undefined,
+): string {
+  const raw = publicUrl?.trim();
+  if (!raw) return '';
+  try {
+    return new URL(raw).hostname.toLowerCase();
+  } catch {
+    return '';
+  }
+}
 
 /**
  * Conservative closed-match seed detector.
@@ -52,12 +73,56 @@ export function isExpectedSeedReference(input: {
   return true;
 }
 
+/**
+ * Closed stale-upload detector for known absent production objects.
+ * Requires ALL of:
+ * - storageKey exactly `{tenantId}/properties/{propertyId}/{uuid}.jpg`
+ * - tenantId / propertyId match the PropertyImage row + resolved demo tenant
+ * - url absolute host equals configured STORAGE_PUBLIC_URL host
+ * - not anomalous / not wordpress-houzez
+ * Caller must only invoke after HeadObject returned ok + not_found.
+ */
+export function isExpectedStaleUploadReference(input: {
+  tenantId: string;
+  propertyId: string;
+  storageKey: string;
+  url: string | null;
+  publicUrlHost: string;
+  isAnomalousKey: boolean;
+}): boolean {
+  if (input.isAnomalousKey) return false;
+  if (!input.tenantId || !input.propertyId) return false;
+  if (!input.publicUrlHost) return false;
+  if (input.storageKey.includes(WORDPRESS_HOUZEZ_KEY_MARKER)) return false;
+
+  const pattern = new RegExp(
+    `^${escapeRegExp(input.tenantId)}/properties/${escapeRegExp(input.propertyId)}/([^/]+)$`,
+  );
+  const match = pattern.exec(input.storageKey);
+  if (!match) return false;
+  const filename = match[1] ?? '';
+  if (!STALE_UPLOAD_KEY_UUID_JPG.test(filename)) return false;
+
+  const url = input.url?.trim() ?? '';
+  if (!url) return false;
+  let urlHost: string;
+  try {
+    urlHost = new URL(url).hostname.toLowerCase();
+  } catch {
+    return false;
+  }
+  if (urlHost !== input.publicUrlHost.toLowerCase()) return false;
+  return true;
+}
+
 export function classifyPropertyImage(input: {
   image: ClassifyImageInput;
   tenantSlug: string;
+  tenantId: string;
+  publicUrlHost: string;
   head: HeadObjectResult;
 }): PropertyImageManifestRow {
-  const { image, tenantSlug, head } = input;
+  const { image, tenantSlug, tenantId, publicUrlHost, head } = input;
   const isAnomalousKey = image.storageKey === ANOMALOUS_STORAGE_KEY;
 
   const base = {
@@ -110,7 +175,7 @@ export function classifyPropertyImage(input: {
     };
   }
 
-  // not_found — only accept as expected seed when closed attributes match.
+  // not_found — only accept as expected when closed attributes match.
   const seed = isExpectedSeedReference({
     tenantSlug,
     storageKey: image.storageKey,
@@ -132,6 +197,28 @@ export function classifyPropertyImage(input: {
     };
   }
 
+  const staleUpload = isExpectedStaleUploadReference({
+    tenantId,
+    propertyId: image.propertyId,
+    storageKey: image.storageKey,
+    url: image.url,
+    publicUrlHost,
+    isAnomalousKey: false,
+  });
+
+  if (staleUpload) {
+    return {
+      ...base,
+      r2: { exists: false, etag: null, error: 'not_found' },
+      classification: 'expected_upload_not_found',
+      status: 'not_found',
+      isAnomalousKey: false,
+      deleteAuthorized: false,
+      authorizationReason:
+        'Expected stale admin-upload key ({tenantId}/properties/{propertyId}/{uuid}.jpg) with matching public host; object already absent. No DeleteObject required; CASCADE removes the DB row.',
+    };
+  }
+
   return {
     ...base,
     r2: { exists: false, etag: null, error: 'not_found' },
@@ -140,7 +227,7 @@ export function classifyPropertyImage(input: {
     isAnomalousKey: false,
     deleteAuthorized: false,
     authorizationReason:
-      'not_found without closed seed attributes; blocked from DeleteObject allowlist and fails storage policy.',
+      'not_found without closed seed/upload attributes; blocked from DeleteObject allowlist and fails storage policy.',
   };
 }
 
@@ -157,6 +244,7 @@ function headToR2(head: HeadObjectResult): PropertyImageManifestRow['r2'] {
 /**
  * Future execute allowlist: ONLY verified existing R2 objects that are authorized.
  * not_found / blocked_anomalous / failed / requires_retry never enter automatically.
+ * wordpress-houzez keys never enter.
  */
 export function buildR2DeleteAllowlist(
   images: PropertyImageManifestRow[],
@@ -165,6 +253,7 @@ export function buildR2DeleteAllowlist(
   for (const img of images) {
     if (img.isAnomalousKey) continue;
     if (img.storageKey === ANOMALOUS_STORAGE_KEY) continue;
+    if (img.storageKey.includes(WORDPRESS_HOUZEZ_KEY_MARKER)) continue;
     if (!img.deleteAuthorized) continue;
     if (img.status !== 'storage_verified') continue;
     if (img.classification !== 'r2_object') continue;
@@ -205,13 +294,20 @@ export function evaluateCleanupSemantics(input: {
 
   const r2Authorized = buildR2DeleteAllowlist(input.images);
   const expectedSeed = classificationSummary.expected_seed_not_found ?? 0;
+  const expectedUpload = classificationSummary.expected_upload_not_found ?? 0;
   const anomalous = classificationSummary.anomalous ?? 0;
   const unexpected = classificationSummary.unexpected_not_found ?? 0;
 
+  const hasWordpressHouzezKey = input.images.some((img) =>
+    img.storageKey.includes(WORDPRESS_HOUZEZ_KEY_MARKER),
+  );
+
   const storagePolicySatisfied =
     storageChecksCompleted &&
+    !hasWordpressHouzezKey &&
     r2Authorized.length === EXPECTED_STORAGE_POLICY.r2ObjectsAuthorized &&
     expectedSeed === EXPECTED_STORAGE_POLICY.expectedSeedNotFound &&
+    expectedUpload === EXPECTED_STORAGE_POLICY.expectedUploadNotFound &&
     anomalous === EXPECTED_STORAGE_POLICY.anomalousBlocked &&
     unexpected === EXPECTED_STORAGE_POLICY.unexpectedNotFound &&
     accessFailures === EXPECTED_STORAGE_POLICY.accessOrNetworkFailures;
@@ -248,6 +344,8 @@ export function expectedStatusForClassification(
     case 'r2_object':
       return 'storage_verified';
     case 'expected_seed_not_found':
+      return 'not_found';
+    case 'expected_upload_not_found':
       return 'not_found';
     case 'anomalous':
       return 'blocked_anomalous';
