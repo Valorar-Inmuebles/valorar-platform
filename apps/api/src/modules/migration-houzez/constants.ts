@@ -111,7 +111,8 @@ export const MIGRATION_ENTITY_TYPES: MigrationEntityType[] = [
 
 /**
  * Expected pilot object keys under the deterministic migration prefix (relative).
- * All outputs are WebP after houzez-webp-v1 optimization (no JPEG/PNG finals).
+ * All outputs are WebP after houzez-webp-v2 optimization (no JPEG/PNG finals).
+ * Natural aspect retained; conservative edge-fill trim may remove letterbox padding.
  */
 export const PILOT_5312_EXPECTED_RELATIVE_KEYS = [
   '00-wp5315.webp',

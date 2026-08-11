@@ -41,7 +41,7 @@ function GalleryImage({
       fill
       unoptimized
       priority={priority}
-      className="object-cover transition duration-500 hover:scale-[1.02]"
+      className="object-cover object-center transition duration-500 hover:scale-[1.02]"
       sizes="(max-width: 768px) 100vw, 70vw"
     />
   );
@@ -51,7 +51,7 @@ function GalleryImage({
       <button
         type="button"
         onClick={onClick}
-        className={`relative overflow-hidden bg-surface-alt ${className}`}
+        className={`relative overflow-hidden bg-neutral-900 ${className}`}
         aria-label={`Ver imagen: ${alt}`}
       >
         {content}
@@ -60,7 +60,7 @@ function GalleryImage({
   }
 
   return (
-    <div className={`relative overflow-hidden bg-surface-alt ${className}`}>
+    <div className={`relative overflow-hidden bg-neutral-900 ${className}`}>
       {content}
     </div>
   );
@@ -226,7 +226,7 @@ export function PropertyGallery({ images, title }: PropertyGalleryProps) {
       <SiteContainer className="pt-3 pb-2 md:pt-4 md:pb-3">
         <div className="w-full">
           <div className="md:hidden">
-            <div className="relative aspect-[4/3] overflow-hidden rounded-2xl bg-surface-alt">
+            <div className="relative aspect-video overflow-hidden rounded-2xl bg-neutral-900">
               {activeImage ? (
                 <GalleryImage
                   image={activeImage}
@@ -266,7 +266,7 @@ export function PropertyGallery({ images, title }: PropertyGalleryProps) {
             </div>
           </div>
 
-          <div className="hidden overflow-hidden rounded-2xl md:grid md:h-[clamp(260px,40vw,460px)] md:grid-cols-4 md:grid-rows-2 md:gap-2">
+          <div className="hidden overflow-hidden rounded-2xl bg-neutral-900 md:grid md:h-[clamp(260px,40vw,460px)] md:grid-cols-4 md:grid-rows-2 md:gap-2">
             <div className="relative col-span-2 row-span-2 min-h-0 overflow-hidden">
               <GalleryImage
                 image={sortedImages[0]!}
@@ -343,7 +343,7 @@ export function PropertyGallery({ images, title }: PropertyGalleryProps) {
                 alt={activeImage.altText ?? title}
                 fill
                 unoptimized
-                className="object-contain"
+                className="object-contain object-center"
                 sizes="100vw"
               />
             ) : (

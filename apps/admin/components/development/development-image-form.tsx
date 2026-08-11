@@ -77,7 +77,7 @@ export function DevelopmentImageForm({
             <img
               src={image.url}
               alt={image.altText ?? image.storageKey}
-              className="aspect-[4/3] w-full object-cover"
+              className="aspect-video w-full object-cover object-center"
             />
           </div>
         ) : (

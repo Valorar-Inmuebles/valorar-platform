@@ -1,10 +1,12 @@
 # Migración Houzez → Valorar
 
-Estado: **E.6 implementada en código** — target `production` + staging, gates Neon, cleanup dual, fingerprint v2, R2 preexisting.
+Estado: **piloto WP 5312 importado en production** + pipeline **houzez-webp-v2** (trim conservador de letterbox + presentación 16:9 en UI).
 Rama: `feature/houzez-migration` (desde `main`).
 
 **E.5 (cerrada):** preflight read-only de production (33 props demo, MSR ausente, 7 keys R2 del piloto).
-**E.6 (este documento / código):** preparación segura del flujo production — **sin** aplicar migraciones, cleanup, dry-run remoto ni import.
+**E.6 (cerrada en código):** target production, gates Neon, cleanup dual, fingerprint v2, R2 preexisting.
+**Import piloto:** WP 5312 escrito en production (13 filas + 7 WebP). Re-import bloqueado por idempotencia.
+**Pendiente autorizado:** re-procesar/reemplazar imágenes del piloto tras v2 (trim) — **no automático**; requiere autorización explícita.
 
 ---
 
@@ -54,10 +56,18 @@ Toda inferencia se registra en el reporte (`inferences[]`) con origen y regla.
 - **7 imágenes únicas** (galería Houzez = 6; `_thumbnail_id=5315` es una 7.ª fuera de la galería → se antepone como portada)
 - Features: importar solo matches (`Uso Comercial`); omitir `Pavimento` con warning; no crear catálogo
 - Sin geocodificación
-- Optimización de imágenes (**houzez-webp-v1**): autorotación EXIF → fit inside 1600×1200 sin ampliar → WebP quality 82 / effort 4 → strip metadata. Dry-run e import comparten el mismo transformador; el import sube únicamente bytes WebP validados.
+- Optimización de imágenes (**houzez-webp-v2**):
+  1. autorotación EXIF
+  2. recorte conservador de relleno blanco/casi-blanco en bordes externos (`edge-fill-v1`, fail-closed)
+  3. fit inside 1600×1200 sin ampliar
+  4. WebP quality 82 / effort 4 + strip metadata
+  - Dry-run e import comparten el mismo transformador; el import sube únicamente bytes WebP validados.
+  - **Archivo almacenado:** proporción natural (nunca forzar 16:9, nunca padding, nunca deformar).
+  - **Presentación UI:** cards/covers/miniaturas en contenedor 16:9 + `object-cover` + `object-center`; galería ampliada/lightbox con `object-contain` + fondo oscuro/neutro (el área libre del visor no es parte de la foto).
 - Keys R2 determinísticas (siempre `.webp`; no reutilizar keys históricas `.jpg`/`.png` del passthrough):
   `{tenantId}/migrations/wordpress-houzez/5312/00-wp5315.webp` … `06-wp8965.webp`
-- `PropertyImage` persiste `storageKey`, `mimeType=image/webp`, `fileSize` del WebP final (el schema no tiene width/height; dimensiones viven en el plan/reporte).
+- `PropertyImage` persiste `storageKey`, `mimeType=image/webp`, `fileSize` del WebP final (el schema no tiene width/height; dimensiones y metadata de trim viven en el plan/reporte/manifest).
+- Metadata de trim por imagen (dry-run / manifest / import report): `trimApplied`, dimensiones original/trimmed, píxeles por lado, `reason`/`confidence`, hashes y bytes.
 
 ### Conteo `plannedEntities` (contrato dry-run)
 

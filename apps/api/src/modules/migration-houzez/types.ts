@@ -69,6 +69,27 @@ export type DumpAuditSummary = {
  * Optimization contract recorded per image after the shared WebP pipeline runs.
  * Dry-run, local prep, and import must emit identical values for the same source.
  */
+export type ImageTrimMeta = {
+  trimApplied: boolean;
+  version: string;
+  originalWidth: number;
+  originalHeight: number;
+  trimmedWidth: number;
+  trimmedHeight: number;
+  pixelsRemoved: {
+    top: number;
+    right: number;
+    bottom: number;
+    left: number;
+  };
+  confidence: 'high' | 'none';
+  reason: string;
+  nearWhiteMinChannel: number;
+  uniformityRatio: number;
+  minTrimPixels: number;
+  maxTrimRatioPerSide: number;
+};
+
 export type ImageOptimizationMeta = {
   pipelineVersion: string;
   quality: number;
@@ -79,6 +100,7 @@ export type ImageOptimizationMeta = {
   orientationPolicy: string;
   metadataPolicy: string;
   orientationApplied: boolean;
+  trim: ImageTrimMeta;
   source: {
     mimeType: string | null;
     format: string | null;

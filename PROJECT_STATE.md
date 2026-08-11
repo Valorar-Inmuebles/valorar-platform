@@ -292,18 +292,15 @@ Pendiente admin: RBAC API (v1.1), configuración (usuarios/inmobiliaria/tenants)
 
 ## Módulos Pendientes
 
-### Migración Houzez → Valorar (audit/dry-run + writer local Fase D)
+### Migración Houzez → Valorar (piloto production + pipeline v2)
 
 * Documentación: `docs/04-modules/houzez-migration.md`
 * Rama: `feature/houzez-migration`
-* CLI: `npm run migration:houzez -- audit|dry-run|import`
-* Import: solo una propiedad (`--wp-id` obligatorio), confirmaciones duales, fingerprint dry-run obligatorio
-* DB: solo `HOUZEZ_STAGING_*` + `HOUZEZ_MIGRATION_TARGET=staging-houzez` (nunca `DATABASE_URL`)
-* Dataset manifest versionado: `houzez-sql-dump-v1`
-* Schema `MigrationSourceRef` preparado (`202608070001_migration_source_ref`) — **no aplicado** en staging
-* Writer local + object-store inyectable + compensación R2 (tests con fake; sin R2/Neon en esta fase)
-* Piloto WP `5312`: `plannedEntities=12` (incluye `batch_manifest`; writer añade AgentAccess + MigrationSourceRef)
-* Pendiente autorizado: backup + `migrate deploy` + import real WP `5312`
+* CLI: `npm run migration:houzez -- audit|dry-run|import` · prep local: `migration:houzez:prepare-images`
+* Piloto WP `5312` **importado en production** (13 filas + 7 WebP); idempotencia activa vía `MigrationSourceRef`
+* Pipeline imágenes: **`houzez-webp-v2`** — EXIF rotate → trim conservador `edge-fill-v1` → fit 1600×1200 → WebP q82/e4; proporción natural almacenada
+* Presentación: cards/covers/miniaturas 16:9 + `object-cover`; lightbox `object-contain` + fondo oscuro
+* Pendiente autorizado: re-subir imágenes del piloto con v2 (trim letterbox) — sin ejecutar hasta OK explícito; continuar migración por lotes
 
 ### Auth Foundation v1.1 (RBAC API)
 

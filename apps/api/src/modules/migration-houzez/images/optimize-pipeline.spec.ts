@@ -59,7 +59,7 @@ async function png(
     .toBuffer();
 }
 
-describe('optimizeImageBuffer (houzez-webp-v1)', () => {
+describe('optimizeImageBuffer (houzez-webp-v2)', () => {
   it('converts small horizontal JPEG without enlargement', async () => {
     const input = await jpeg(800, 600);
     const out = await optimizeImageBuffer(input, {

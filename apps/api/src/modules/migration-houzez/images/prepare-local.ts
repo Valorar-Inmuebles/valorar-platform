@@ -49,6 +49,18 @@ export type LocalPreparationManifest = {
     reductionPercent: number;
     storageKey: string;
     orientationApplied: boolean;
+    trimApplied: boolean;
+    trimReason: string;
+    trimPixelsRemoved: {
+      top: number;
+      right: number;
+      bottom: number;
+      left: number;
+    };
+    trimOriginalWidth: number;
+    trimOriginalHeight: number;
+    trimTrimmedWidth: number;
+    trimTrimmedHeight: number;
   }>;
 };
 
@@ -130,6 +142,13 @@ export async function prepareOptimizedImagesLocally(input: {
       reductionPercent,
       storageKey: image.optimization.output.storageKey,
       orientationApplied: image.optimization.orientationApplied,
+      trimApplied: image.optimization.trim.trimApplied,
+      trimReason: image.optimization.trim.reason,
+      trimPixelsRemoved: { ...image.optimization.trim.pixelsRemoved },
+      trimOriginalWidth: image.optimization.trim.originalWidth,
+      trimOriginalHeight: image.optimization.trim.originalHeight,
+      trimTrimmedWidth: image.optimization.trim.trimmedWidth,
+      trimTrimmedHeight: image.optimization.trim.trimmedHeight,
     });
   }
 

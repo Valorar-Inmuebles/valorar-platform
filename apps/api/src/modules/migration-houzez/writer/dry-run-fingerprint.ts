@@ -281,6 +281,13 @@ export function buildPlannedEntitiesForPlan(input: {
         sha256: image.sha256,
         pipelineVersion: image.optimization?.pipelineVersion ?? null,
         quality: image.optimization?.quality ?? null,
+        trimApplied: image.optimization?.trim.trimApplied ?? false,
+        trimReason: image.optimization?.trim.reason ?? null,
+        trimPixelsRemoved: image.optimization?.trim.pixelsRemoved ?? null,
+        trimOriginalWidth: image.optimization?.trim.originalWidth ?? null,
+        trimOriginalHeight: image.optimization?.trim.originalHeight ?? null,
+        trimmedWidth: image.optimization?.trim.trimmedWidth ?? null,
+        trimmedHeight: image.optimization?.trim.trimmedHeight ?? null,
       },
     });
   }

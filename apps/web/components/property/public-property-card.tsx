@@ -38,7 +38,7 @@ function PropertyCoverImage({ property }: { property: PublicPropertyCard }) {
       fill
       loading="lazy"
       unoptimized
-      className="object-cover transition-transform duration-700 ease-out group-hover:scale-[1.03]"
+      className="object-cover object-center transition-transform duration-700 ease-out group-hover:scale-[1.03]"
       sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
     />
   );
@@ -69,7 +69,7 @@ export function PublicPropertyCard({ property }: PublicPropertyCardProps) {
         href={buildPublicPropertyDetailHref(property.slug, property.listingType)}
         className="flex h-full flex-col overflow-hidden rounded-2xl bg-surface-card ring-1 ring-border-default/80 transition duration-300 hover:-translate-y-0.5 hover:shadow-lg hover:ring-brand-green/30 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-green"
       >
-        <div className="relative aspect-[5/4] shrink-0 overflow-hidden bg-surface-alt">
+        <div className="relative aspect-video shrink-0 overflow-hidden bg-surface-alt">
           <PropertyCoverImage property={property} />
           <div className="absolute left-3 top-3 flex flex-wrap gap-2">
             <ListingTypeBadge listingType={property.listingType} />

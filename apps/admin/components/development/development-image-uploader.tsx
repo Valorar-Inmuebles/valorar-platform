@@ -152,12 +152,12 @@ export function DevelopmentImageUploader({
               key={preview.id}
               className="overflow-hidden rounded-lg border border-border bg-white"
             >
-              <div className="aspect-[4/3] overflow-hidden bg-zinc-100">
+              <div className="aspect-video overflow-hidden bg-zinc-900">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={preview.previewUrl}
                   alt={preview.file.name}
-                  className="size-full object-cover"
+                  className="size-full object-cover object-center"
                 />
               </div>
               <p className="truncate px-3 py-2 text-xs text-muted">

@@ -13,7 +13,7 @@ export function DevelopmentsEditorialSkeleton({
           key={index}
           className="flex flex-col gap-6 border-b border-border pb-8 sm:flex-row"
         >
-          <div className="aspect-[4/3] w-full animate-pulse rounded-2xl bg-surface-alt sm:w-64 md:w-72 lg:w-80" />
+          <div className="aspect-video w-full animate-pulse rounded-2xl bg-surface-alt sm:w-64 md:w-72 lg:w-80" />
           <div className="flex flex-1 flex-col justify-center gap-3">
             <div className="h-6 w-2/3 animate-pulse rounded bg-surface-alt" />
             <div className="h-4 w-1/3 animate-pulse rounded bg-surface-alt" />

@@ -2,10 +2,23 @@ import * as crypto from 'node:crypto';
 import * as fs from 'node:fs';
 import sharp from 'sharp';
 import { buildHouzezMigrationImageKey } from '../writer/storage-keys';
-import type { ImagePlanEntry, ImageOptimizationMeta } from '../types';
+import type {
+  ImagePlanEntry,
+  ImageOptimizationMeta,
+  ImageTrimMeta,
+} from '../types';
+import {
+  IMAGE_TRIM_PARAMS,
+  decideWhiteBorderTrim,
+  trimRegionFromDecision,
+  type ImageTrimDecision,
+} from './trim-white-borders';
 
-/** Deterministic Houzez image optimization contract (v1). */
-export const IMAGE_OPTIMIZE_PIPELINE_VERSION = 'houzez-webp-v1' as const;
+/**
+ * Deterministic Houzez image optimization contract (v2).
+ * v2 = v1 WebP params + conservative edge-fill trim before resize.
+ */
+export const IMAGE_OPTIMIZE_PIPELINE_VERSION = 'houzez-webp-v2' as const;
 
 export const IMAGE_OPTIMIZE_PARAMS = {
   outputFormat: 'webp',
@@ -24,6 +37,9 @@ export const IMAGE_OPTIMIZE_PARAMS = {
    * Color profile is not copied unless withMetadata() is used — we do not call it.
    */
   metadataPolicy: 'strip-all',
+  /** Never force stored files to 16:9; presentation uses CSS object-cover. */
+  storedAspectPolicy: 'natural-proportion',
+  trim: IMAGE_TRIM_PARAMS,
 } as const;
 
 export type ImageOptimizeParams = typeof IMAGE_OPTIMIZE_PARAMS;
@@ -37,6 +53,7 @@ export type OptimizedImageResult = {
   mimeType: 'image/webp';
   hasAlpha: boolean;
   orientationApplied: boolean;
+  trim: ImageTrimDecision;
   source: {
     format: string | null;
     mimeType: string | null;
@@ -85,13 +102,34 @@ const SUPPORTED_INPUT_FORMATS = new Set([
   'tif',
 ]);
 
+function toTrimMeta(decision: ImageTrimDecision): ImageTrimMeta {
+  return {
+    trimApplied: decision.trimApplied,
+    version: decision.version,
+    originalWidth: decision.originalWidth,
+    originalHeight: decision.originalHeight,
+    trimmedWidth: decision.trimmedWidth,
+    trimmedHeight: decision.trimmedHeight,
+    pixelsRemoved: { ...decision.pixelsRemoved },
+    confidence: decision.confidence,
+    reason: decision.reason,
+    nearWhiteMinChannel: decision.params.nearWhiteMinChannel,
+    uniformityRatio: decision.params.uniformityRatio,
+    minTrimPixels: decision.params.minTrimPixels,
+    maxTrimRatioPerSide: decision.params.maxTrimRatioPerSide,
+  };
+}
+
 /**
  * Deterministic WebP transform:
  * 1. Reject empty / undecodable / animated / unsupported
  * 2. Auto-orient via EXIF (`.rotate()`)
- * 3. Fit inside 1600×1200 without enlargement or crop
- * 4. Encode WebP quality 82 / effort 4
- * 5. Strip metadata (Sharp default when not calling withMetadata)
+ * 3. Conservatively trim near-white edge fill (fail-closed)
+ * 4. Fit inside 1600×1200 without enlargement or content crop
+ * 5. Encode WebP quality 82 / effort 4
+ * 6. Strip metadata (Sharp default when not calling withMetadata)
+ *
+ * Stored files keep natural aspect ratio — never padded to 16:9.
  */
 export async function optimizeImageBuffer(
   input: Buffer,
@@ -148,10 +186,36 @@ export async function optimizeImageBuffer(
 
   let body: Buffer;
   let outMeta: sharp.OutputInfo;
+  let trimDecision: ImageTrimDecision;
   try {
-    const pipeline = sharp(input, { failOn: 'error' })
-      // Auto-orient using EXIF; result pixels are upright without EXIF dependence.
+    // Orient first so trim operates on upright pixels.
+    const oriented = await sharp(input, { failOn: 'error' })
       .rotate()
+      .ensureAlpha()
+      .raw()
+      .toBuffer({ resolveWithObject: true });
+
+    trimDecision = decideWhiteBorderTrim({
+      data: oriented.data,
+      width: oriented.info.width,
+      height: oriented.info.height,
+      channels: oriented.info.channels,
+    });
+
+    const region = trimRegionFromDecision(trimDecision);
+    let working = sharp(oriented.data, {
+      failOn: 'error',
+      raw: {
+        width: oriented.info.width,
+        height: oriented.info.height,
+        channels: oriented.info.channels,
+      },
+    });
+    if (region) {
+      working = working.extract(region);
+    }
+
+    const result = await working
       .resize({
         width: IMAGE_OPTIMIZE_PARAMS.maxWidth,
         height: IMAGE_OPTIMIZE_PARAMS.maxHeight,
@@ -161,12 +225,12 @@ export async function optimizeImageBuffer(
       .webp({
         quality: IMAGE_OPTIMIZE_PARAMS.quality,
         effort: IMAGE_OPTIMIZE_PARAMS.effort,
-      });
-
-    const result = await pipeline.toBuffer({ resolveWithObject: true });
+      })
+      .toBuffer({ resolveWithObject: true });
     body = result.data;
     outMeta = result.info;
   } catch (error) {
+    if (error instanceof ImageOptimizeError) throw error;
     throw new ImageOptimizeError(
       `Image transform failed: ${error instanceof Error ? error.message : String(error)}`,
       'IMAGE_TRANSFORM_FAILED',
@@ -219,6 +283,7 @@ export async function optimizeImageBuffer(
     mimeType: IMAGE_OPTIMIZE_PARAMS.contentType,
     hasAlpha,
     orientationApplied,
+    trim: trimDecision!,
     source: {
       format: format || null,
       mimeType: options?.sourceMimeHint ?? mimeFromSharpFormat(format) ?? null,
@@ -267,6 +332,7 @@ export function buildOptimizationMeta(input: {
     orientationPolicy: result.params.orientationPolicy,
     metadataPolicy: result.params.metadataPolicy,
     orientationApplied: result.orientationApplied,
+    trim: toTrimMeta(result.trim),
     source: {
       mimeType: result.source.mimeType,
       format: result.source.format,
