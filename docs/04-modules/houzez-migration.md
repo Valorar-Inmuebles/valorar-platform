@@ -6,7 +6,8 @@ Rama: `feature/houzez-migration` (desde `main`).
 **E.5 (cerrada):** preflight read-only de production (33 props demo, MSR ausente, 7 keys R2 del piloto).
 **E.6 (cerrada en código):** target production, gates Neon, cleanup dual, fingerprint v2, R2 preexisting.
 **Import piloto:** WP 5312 escrito en production (13 filas + 7 WebP). Re-import bloqueado por idempotencia.
-**Pendiente autorizado:** re-procesar/reemplazar imágenes del piloto tras v2 (trim) — **no automático**; requiere autorización explícita.
+**Upgrade imágenes piloto:** comando operativo `migration:houzez:upgrade-pilot-images` (solo WP 5312, attachments 5315+5314, keys R2 nuevas `*.houzez-webp-v2.webp`, conserva v1).
+**Pendiente autorizado:** continuar migración por lotes — **no automático**.
 
 ---
 
@@ -186,6 +187,40 @@ npm run migration:houzez -- import \
 ```
 
 Import: un solo `--wp-id`; sin multi/mass/glob; confirmaciones duales; MSR obligatorio; árbol vacío; R2 preexisting compatible.
+
+### Upgrade imágenes piloto (WP 5312 → houzez-webp-v2)
+
+Solo attachments que cambian con `edge-fill-v1` (`5315`, `5314`). Sube keys **nuevas** versionadas y actualiza exactamente 2 filas `PropertyImage`. Conserva keys v1. No usa `import`.
+
+```bash
+cd apps/api
+
+# Preflight (sin escrituras) — exige HOUZEZ_MIGRATION_TARGET=production + gates Neon/R2
+npm run migration:houzez:upgrade-pilot-images -- \
+  --wp-id=5312 \
+  --tenant=demo \
+  --owner-email=admin@demo.valorar.dev \
+  --approved-manifest=../../migration-data/prepared/wp-5312/2026-08-11T21-00-33-562Z/preparation-manifest.json \
+  --confirm-target=production \
+  --confirm-write=UPGRADE_PILOT_IMAGES_WEBP_V2_PRODUCTION
+
+# Escritura controlada (una sola ejecución)
+npm run migration:houzez:upgrade-pilot-images -- \
+  --wp-id=5312 \
+  --tenant=demo \
+  --owner-email=admin@demo.valorar.dev \
+  --approved-manifest=../../migration-data/prepared/wp-5312/2026-08-11T21-00-33-562Z/preparation-manifest.json \
+  --confirm-target=production \
+  --confirm-write=UPGRADE_PILOT_IMAGES_WEBP_V2_PRODUCTION \
+  --execute
+```
+
+Keys propuestas:
+
+- `…/5312/00-wp5315.houzez-webp-v2.webp`
+- `…/5312/04-wp5314.houzez-webp-v2.webp`
+
+Manifest aprobado (SHA-256): `3813083d41e9e1e1ad636a7984b66449e638f2f2b7e45d52b3318851380f91a1`
 
 ---
 

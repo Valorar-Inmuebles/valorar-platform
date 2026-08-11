@@ -300,7 +300,7 @@ Pendiente admin: RBAC API (v1.1), configuración (usuarios/inmobiliaria/tenants)
 * Piloto WP `5312` **importado en production** (13 filas + 7 WebP); idempotencia activa vía `MigrationSourceRef`
 * Pipeline imágenes: **`houzez-webp-v2`** — EXIF rotate → trim conservador `edge-fill-v1` → fit 1600×1200 → WebP q82/e4; proporción natural almacenada
 * Presentación: cards/covers/miniaturas 16:9 + `object-cover`; lightbox `object-contain` + fondo oscuro
-* Pendiente autorizado: re-subir imágenes del piloto con v2 (trim letterbox) — sin ejecutar hasta OK explícito; continuar migración por lotes
+* Pendiente autorizado: continuar migración por lotes (el upgrade de imágenes del piloto WP 5312 usa `migration:houzez:upgrade-pilot-images`)
 
 ### Auth Foundation v1.1 (RBAC API)
 

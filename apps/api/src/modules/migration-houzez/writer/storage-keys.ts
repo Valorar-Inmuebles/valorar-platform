@@ -24,6 +24,38 @@ export function buildHouzezMigrationImageKey(input: {
   ].join('/');
 }
 
+/**
+ * Versioned object key for pipeline re-uploads (never overwrites the prior key).
+ * Pattern:
+ *   {tenantId}/migrations/{sourceSystem}/{sourceId}/{sortOrder}-wp{attachmentId}.{pipelineVersion}.webp
+ * Always ends with `.webp`.
+ */
+export function buildHouzezMigrationImageKeyWithPipeline(input: {
+  tenantId: string;
+  sourceId: string;
+  sortOrder: number;
+  attachmentId: number;
+  pipelineVersion: string;
+}): string {
+  const order = String(input.sortOrder).padStart(2, '0');
+  const version = input.pipelineVersion
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9._-]/g, '');
+  if (!version) {
+    throw new Error(
+      'pipelineVersion is required for versioned migration keys.',
+    );
+  }
+  return [
+    input.tenantId,
+    'migrations',
+    HOUZEZ_SOURCE_SYSTEM,
+    input.sourceId,
+    `${order}-wp${input.attachmentId}.${version}.webp`,
+  ].join('/');
+}
+
 export function extensionFromMimeOrFilename(
   mimeType: string | null,
   filename: string | null,

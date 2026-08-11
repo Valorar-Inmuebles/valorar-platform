@@ -123,3 +123,26 @@ export const PILOT_5312_EXPECTED_RELATIVE_KEYS = [
   '05-wp6928.webp',
   '06-wp8965.webp',
 ] as const;
+
+/**
+ * Production pilot image upgrade (houzez-webp-v2 letterbox trim).
+ * Only WP 5312; only attachments that changed under edge-fill-v1.
+ */
+export const PILOT_IMAGE_UPGRADE_CONFIRM_WRITE_PRODUCTION =
+  'UPGRADE_PILOT_IMAGES_WEBP_V2_PRODUCTION' as const;
+
+/** Attachment IDs authorized for the controlled pilot image upgrade. */
+export const PILOT_5312_UPGRADE_ATTACHMENT_IDS = [5315, 5314] as const;
+
+/**
+ * SHA-256 of the approved local preparation-manifest.json for
+ * migration-data/prepared/wp-5312/2026-08-11T21-00-33-562Z/
+ */
+export const PILOT_5312_APPROVED_V2_MANIFEST_SHA256 =
+  '3813083d41e9e1e1ad636a7984b66449e638f2f2b7e45d52b3318851380f91a1' as const;
+
+/** Expected production property / MSR identities for the pilot upgrade gate. */
+export const PILOT_5312_PRODUCTION_PROPERTY_ID =
+  'c35d3eba98ddb956f5bfeb156' as const;
+export const PILOT_5312_PRODUCTION_MSR_ID =
+  'ca29ce3e88ded145ecb30e9e1' as const;
