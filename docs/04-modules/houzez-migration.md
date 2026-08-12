@@ -140,7 +140,7 @@ Visibilidad web alineada: `ACTIVE` (+ precio) y `RESERVED` (precio opcional). Fi
 | **E.9** | Dry-run production WP 5312 (fingerprint ligado a production; localidad Flores exacta) | **Hecho** |
 | **E.10** | Import piloto WP 5312 con dry-run production + confirms | **Hecho** |
 | **E.11** | Validación visual/funcional + preflight idempotencia (segundo import rechazado) | **Hecho** |
-| **Post-piloto** | Baseline `post-pilot-controlled` + lotes 1×1 | **Hecho** (piloto + 14 publish; ola bloqueadas en curso) |
+| **Post-piloto** | Baseline `post-pilot-controlled` + lotes 1×1 | **Hecho** (piloto + 14 publish + 3 ola bloqueada + **10613 RESERVED priceless**) |
 
 ---
 ## Seguridad de conexión

@@ -303,9 +303,9 @@ Pendiente admin: RBAC API (v1.1), configuración (usuarios/inmobiliaria/tenants)
 * Presentación: cards/covers/miniaturas 16:9 + `object-cover`; lightbox `object-contain` + fondo oscuro
 * Gate localidad production: Locality CABA **resolved** + allowlist explícita (`Parque Avellaneda` CABA, `Ramos Mejía` Buenos Aires); sin GBA completo; desconocidas → blocker
 * Límite imágenes **migración** Houzez: `MIGRATION_MAX_PROPERTY_IMAGES=60` (producto/admin sigue en 30)
-* Lotes controlados importados: piloto 5312 + 14 publish sanas + 3 de ola bloqueada (`12559`, `11928`, `11099`); **10613** pendiente (RESERVED sin precio → soporte “Consultar precio”)
+* Lotes controlados importados: piloto 5312 + 14 publish sanas + 3 de ola bloqueada (`12559`, `11928`, `11099`) + **`10613` RESERVED sin precio** (UI “Consultar precio”; sin `PropertyPrice`)
 * Producto: listings `RESERVED` sin precio primario son visibles en web/admin como **“Consultar precio”** (sin inventar `Price=0`); `ACTIVE` sigue exigiendo precio
-* Pendiente autorizado: import WP `10613` tras soporte priceless RESERVED; considerar revertir `MIGRATION_MAX_PROPERTY_IMAGES` a 30 tras la ola
+* Pendiente autorizado: considerar revertir `MIGRATION_MAX_PROPERTY_IMAGES` a 30 tras la ola; auditoría de borradores no iniciada
 * Upgrade imágenes piloto: `migration:houzez:upgrade-pilot-images`
 
 ### Auth Foundation v1.1 (RBAC API)
