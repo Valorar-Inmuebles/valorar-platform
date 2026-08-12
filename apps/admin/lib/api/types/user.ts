@@ -14,6 +14,10 @@ export type AdminUser = {
   tenantId?: string | null;
   createdAt: string;
   updatedAt: string;
+  /** Cartera vía Property.assignedToId */
+  assignedPropertiesCount?: number;
+  /** Autoría histórica vía Property.createdById */
+  createdPropertiesCount?: number;
 };
 
 export type CreateUserPayload = {
@@ -37,4 +41,28 @@ export type UpdateProfilePayload = {
   phone?: string;
   avatarUrl?: string;
   password?: string;
+};
+
+export type UserDeletionReasonCode =
+  | "HAS_CREATED_PROPERTIES"
+  | "HAS_CREATED_DEVELOPMENTS"
+  | "SELF_DELETE"
+  | "LAST_ACTIVE_TENANT_ADMIN"
+  | "SUPER_ADMIN_FORBIDDEN";
+
+export type UserDeletionReason = {
+  code: UserDeletionReasonCode;
+  message: string;
+  count?: number;
+};
+
+export type UserDeletionEligibility = {
+  userId: string;
+  canDelete: boolean;
+  reasons: UserDeletionReason[];
+  sideEffectsIfDeleted: {
+    assignedPropertiesToClear: number;
+    agentAccessRowsToDelete: number;
+    grantedByRowsToNull: number;
+  };
 };

@@ -80,6 +80,5 @@ temp/
 
 *.tsbuildinfo
 
-# Local migration dumps / reports / backups (never commit)
+# Migration
 migration-data/
-backups/

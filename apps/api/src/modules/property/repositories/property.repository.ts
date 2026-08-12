@@ -1,19 +1,17 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma, Property } from '../../../../generated/prisma/client';
 import { PrismaService } from '../../../prisma/prisma.service';
-import { propertyGeoInclude } from '../utils/property-location';
+import { propertyInclude } from '../utils/property-location';
 
 export type CreatePropertyData = Prisma.PropertyUncheckedCreateInput;
 
 export type UpdatePropertyData = Prisma.PropertyUncheckedUpdateInput;
 
 export type PropertyRecord = Prisma.PropertyGetPayload<{
-  include: typeof propertyGeoInclude;
+  include: typeof propertyInclude;
 }>;
 
-export type PropertyWithCreatorRecord = PropertyRecord & {
-  createdBy: { id: string; name: string };
-};
+export type PropertyWithCreatorRecord = PropertyRecord;
 
 export interface FindManyPropertiesOptions {
   isActive?: boolean;
@@ -27,14 +25,14 @@ export class PropertyRepository {
   create(data: CreatePropertyData): Promise<PropertyRecord> {
     return this.prisma.property.create({
       data,
-      include: propertyGeoInclude,
+      include: propertyInclude,
     });
   }
 
   findById(id: string, tenantId: string): Promise<PropertyRecord | null> {
     return this.prisma.property.findFirst({
       where: { id, tenantId },
-      include: propertyGeoInclude,
+      include: propertyInclude,
     });
   }
 
@@ -68,7 +66,7 @@ export class PropertyRepository {
         tenantId,
         ...(isActive !== undefined ? { isActive } : {}),
       },
-      include: propertyGeoInclude,
+      include: propertyInclude,
       orderBy: { updatedAt: 'desc' },
     });
   }
@@ -76,12 +74,7 @@ export class PropertyRepository {
   findManyWithCreator(tenantId: string): Promise<PropertyWithCreatorRecord[]> {
     return this.prisma.property.findMany({
       where: { tenantId },
-      include: {
-        ...propertyGeoInclude,
-        createdBy: {
-          select: { id: true, name: true },
-        },
-      },
+      include: propertyInclude,
       orderBy: { updatedAt: 'desc' },
     });
   }

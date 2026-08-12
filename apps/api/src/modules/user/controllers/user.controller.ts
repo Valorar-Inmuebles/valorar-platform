@@ -1,7 +1,9 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
+  HttpCode,
   Param,
   Patch,
   Post,
@@ -9,6 +11,7 @@ import {
 } from '@nestjs/common';
 import {
   ApiCreatedResponse,
+  ApiNoContentResponse,
   ApiOkResponse,
   ApiOperation,
   ApiTags,
@@ -24,6 +27,7 @@ import { TenantGuard } from '../../auth/guards/tenant.guard';
 import { CreateUserDto } from '../dto/create-user.dto';
 import { UpdateProfileDto } from '../dto/update-profile.dto';
 import { UpdateUserDto } from '../dto/update-user.dto';
+import { UserDeletionEligibilityDto } from '../dto/user-deletion-eligibility.dto';
 import { UserResponseDto } from '../dto/user-response.dto';
 import { UserService } from '../services/user.service';
 
@@ -69,6 +73,21 @@ export class UserController {
     return this.userService.updateProfile(user.id, dto);
   }
 
+  @Get(':id/deletion-eligibility')
+  @RequirePermissions('user.update')
+  @ApiOperation({
+    summary:
+      'Informative precheck for permanent user deletion (revalidated on DELETE)',
+  })
+  @ApiOkResponse({ type: UserDeletionEligibilityDto })
+  getDeletionEligibility(
+    @CurrentTenant() tenantId: string,
+    @CurrentUser() actor: AuthenticatedUser,
+    @Param('id') id: string,
+  ) {
+    return this.userService.getDeletionEligibility(id, tenantId, actor);
+  }
+
   @Get(':id')
   @RequirePermissions('user.read')
   @ApiOperation({ summary: 'Get user by id' })
@@ -100,5 +119,21 @@ export class UserController {
     @Body() dto: UpdateUserDto,
   ) {
     return this.userService.updateUser(id, tenantId, dto, actor);
+  }
+
+  @Delete(':id')
+  @HttpCode(204)
+  @RequirePermissions('user.update')
+  @ApiOperation({
+    summary:
+      'Permanently delete a user when eligibility allows (transactional revalidation)',
+  })
+  @ApiNoContentResponse({ description: 'User deleted' })
+  deleteUser(
+    @CurrentTenant() tenantId: string,
+    @CurrentUser() actor: AuthenticatedUser,
+    @Param('id') id: string,
+  ) {
+    return this.userService.deleteUser(id, tenantId, actor);
   }
 }
