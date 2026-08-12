@@ -39,6 +39,7 @@ model Tenant {
   developmentFeatureAssignments DevelopmentFeatureAssignment[]
   developmentTypologies      DevelopmentTypology[]
   developmentTypologyFeatureAssignments DevelopmentTypologyFeatureAssignment[]
+  migrationSourceRefs        MigrationSourceRef[]
 }
 
 enum UserRole {
@@ -698,4 +699,37 @@ model DevelopmentTypologyFeatureAssignment {
   @@index([tenantId])
   @@index([typologyId])
   @@index([featureId])
+}
+
+/// Traceability for external imports (e.g. WordPress/Houzez).
+/// entityId is NOT a polymorphic FK — PostgreSQL cannot enforce FKs across
+/// Property | PropertyListing | PropertyPrice | PropertyImage | … via one column.
+/// Referential integrity is application-owned; cascade deletes only apply to Tenant.
+model MigrationSourceRef {
+  id String @id @default(cuid())
+
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  /// Logical entity kind, e.g. property | property_listing | property_price | property_image | property_feature_assignment | batch_manifest
+  entityType String
+
+  /// Target row id (cuid) in the corresponding table — not FK-enforced
+  entityId String
+
+  sourceSystem String
+  sourceId     String
+
+  migrationBatchId String
+
+  /// Free-form migration metadata (oldSlug, oldUrl, rulesApplied, createdEntityIds, …)
+  metadata Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([tenantId, sourceSystem, sourceId, entityType])
+  @@index([migrationBatchId])
+  @@index([tenantId, entityType, entityId])
+  @@index([tenantId, sourceSystem, migrationBatchId])
 }

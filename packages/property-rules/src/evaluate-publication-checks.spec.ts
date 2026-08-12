@@ -83,6 +83,28 @@ describe('evaluateListingPublishability', () => {
     expect(result.isPublishable).toBe(false);
     expect(result.missing).toContain('listing-active');
   });
+
+  it('allows RESERVED listing without primary price (Consultar precio)', () => {
+    const result = evaluateListingPublishability({
+      ...completeInput,
+      listingStatus: 'RESERVED',
+      hasPrimaryPrice: false,
+    });
+
+    expect(result.isPublishable).toBe(true);
+    expect(result.missing).toEqual([]);
+  });
+
+  it('still requires primary price for ACTIVE visibility', () => {
+    const result = evaluateListingPublishability({
+      ...completeInput,
+      listingStatus: 'ACTIVE',
+      hasPrimaryPrice: false,
+    });
+
+    expect(result.isPublishable).toBe(false);
+    expect(result.missing).toEqual(['primary-price']);
+  });
 });
 
 describe('evaluateActivationChecklist', () => {

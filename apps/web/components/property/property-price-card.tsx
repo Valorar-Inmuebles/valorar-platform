@@ -1,5 +1,5 @@
 import type { PublicPropertyDetail } from "@repo/shared-types";
-import { formatPrice } from "@/lib/format/price";
+import { formatPrice, formatPropertyPriceLabel } from "@/lib/format/price";
 import { getListingTypeLabel } from "@/lib/format/labels";
 import {
   buildPropertyWhatsAppMessage,
@@ -53,9 +53,9 @@ export function PropertyPriceCard({ property, contact }: PropertyPriceCardProps)
           {getListingTypeLabel(property.listingType)}
         </p>
         <p className="mt-2 text-3xl font-semibold tracking-tight text-text-primary md:text-4xl">
-          {formatPrice(price.amount, price.currency)}
+          {formatPropertyPriceLabel(price?.amount, price?.currency)}
         </p>
-        {price.label ? (
+        {price?.label ? (
           <p className="mt-1 text-sm text-text-secondary">{price.label}</p>
         ) : null}
 

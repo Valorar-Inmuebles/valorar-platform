@@ -32,6 +32,12 @@ export interface PublicPropertiesPagination {
   limit: number;
 }
 
+/** Listing statuses visible on the public web. */
+export const PUBLIC_WEB_LISTING_STATUSES: PropertyListingStatus[] = [
+  PropertyListingStatus.ACTIVE,
+  PropertyListingStatus.RESERVED,
+];
+
 const publishableListingInclude = {
   prices: {
     where: { isPrimary: true },
@@ -47,7 +53,7 @@ export const publicListInclude = {
     take: 1,
   },
   listings: {
-    where: { status: PropertyListingStatus.ACTIVE },
+    where: { status: { in: PUBLIC_WEB_LISTING_STATUSES } },
     include: publishableListingInclude,
   },
 } satisfies Prisma.PropertyInclude;
@@ -62,7 +68,7 @@ export const publicDetailInclude = {
     ],
   },
   listings: {
-    where: { status: PropertyListingStatus.ACTIVE },
+    where: { status: { in: PUBLIC_WEB_LISTING_STATUSES } },
     include: publishableListingInclude,
   },
   featureAssignments: {
@@ -159,34 +165,78 @@ export class PublicPropertyRepository {
     });
   }
 
+  /**
+   * Web-visible listing rule:
+   * - ACTIVE requires primary price
+   * - RESERVED may omit price (“Consultar precio”)
+   * - Price range / currency filters always require a matching primary price
+   *   (priceless listings are excluded from range filters)
+   *
+   * Sort note: Public list order is `Property.updatedAt desc` (no price sort).
+   * If price sorting is added later, null primary prices must sort last.
+   */
   private buildPublishableListingWhere(
     tenantId: string,
     filters: FindManyPublicPropertiesFilters = {},
   ): Prisma.PropertyListingWhereInput {
-    const priceFilter: Prisma.PropertyPriceWhereInput = {
+    const listingTypeFilter =
+      filters.listingType !== undefined
+        ? { listingType: filters.listingType }
+        : {};
+    const featuredFilter = filters.featuredOnly ? { isFeatured: true } : {};
+
+    const primaryPriceBase: Prisma.PropertyPriceWhereInput = {
       isPrimary: true,
       tenantId,
     };
 
-    if (filters.currency !== undefined) {
-      priceFilter.currency = filters.currency;
-    }
+    const hasPriceConstraint =
+      filters.currency !== undefined ||
+      filters.priceMin !== undefined ||
+      filters.priceMax !== undefined;
 
-    if (filters.priceMin !== undefined || filters.priceMax !== undefined) {
-      priceFilter.amount = {
-        ...(filters.priceMin !== undefined ? { gte: filters.priceMin } : {}),
-        ...(filters.priceMax !== undefined ? { lte: filters.priceMax } : {}),
+    if (hasPriceConstraint) {
+      const priceFilter: Prisma.PropertyPriceWhereInput = {
+        ...primaryPriceBase,
+        ...(filters.currency !== undefined
+          ? { currency: filters.currency }
+          : {}),
+        ...(filters.priceMin !== undefined || filters.priceMax !== undefined
+          ? {
+              amount: {
+                ...(filters.priceMin !== undefined
+                  ? { gte: filters.priceMin }
+                  : {}),
+                ...(filters.priceMax !== undefined
+                  ? { lte: filters.priceMax }
+                  : {}),
+              },
+            }
+          : {}),
+      };
+
+      return {
+        tenantId,
+        status: { in: PUBLIC_WEB_LISTING_STATUSES },
+        ...listingTypeFilter,
+        ...featuredFilter,
+        prices: { some: priceFilter },
       };
     }
 
     return {
       tenantId,
-      status: PropertyListingStatus.ACTIVE,
-      ...(filters.listingType !== undefined
-        ? { listingType: filters.listingType }
-        : {}),
-      ...(filters.featuredOnly ? { isFeatured: true } : {}),
-      prices: { some: priceFilter },
+      ...listingTypeFilter,
+      ...featuredFilter,
+      OR: [
+        {
+          status: PropertyListingStatus.ACTIVE,
+          prices: { some: primaryPriceBase },
+        },
+        {
+          status: PropertyListingStatus.RESERVED,
+        },
+      ],
     };
   }
 

@@ -40,7 +40,7 @@ function ImagePreview({ image }: { image: AdminPropertyImage }) {
       <img
         src={image.url}
         alt={image.altText ?? image.storageKey}
-        className="size-full object-cover"
+        className="size-full object-cover object-center"
       />
     );
   }
@@ -190,7 +190,7 @@ export function PropertyImageGrid({
                 rowPending ? "pointer-events-none opacity-70" : "cursor-grab active:cursor-grabbing",
               ].join(" ")}
             >
-              <div className="relative aspect-[4/3] w-full overflow-hidden bg-zinc-50">
+              <div className="relative aspect-video w-full overflow-hidden bg-zinc-900">
                 <ImagePreview image={image} />
                 {image.isCover ? (
                   <div className="absolute left-2 top-2">

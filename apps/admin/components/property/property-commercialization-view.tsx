@@ -465,16 +465,11 @@ export function PropertyCommercializationView({
                       <td className="px-4 py-3 font-medium text-foreground">
 
                         {summary.primary
-
                           ? formatPrice(
-
                               summary.primary.amount,
-
                               summary.primary.currency,
-
                             )
-
-                          : "—"}
+                          : "Consultar precio"}
 
                       </td>
 

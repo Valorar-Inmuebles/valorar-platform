@@ -1,8 +1,7 @@
 import { Badge } from "@repo/ui/badge";
 import type { AdminProperty } from "@/lib/api/types/property";
-import type { PriceCurrency } from "@/lib/api/types/property-price";
 import { getPropertyTypeLabel } from "@/lib/format/property-labels";
-import { formatPrice } from "@/lib/format/price";
+import { formatPropertyPriceLabel } from "@/lib/format/price";
 import type { PropertyExecutiveSnapshot } from "@/lib/property/property-executive";
 import { cn } from "@/lib/cn";
 
@@ -46,12 +45,11 @@ export function PropertyExecutiveHeader({
     locationParts.push(snapshot.provinceLabel);
   }
 
-  const priceLabel = snapshot.primaryPrice
-    ? formatPrice(
-        snapshot.primaryPrice.amount,
-        snapshot.primaryPrice.currency as PriceCurrency,
-      )
-    : null;
+  const priceLabel = formatPropertyPriceLabel(
+    snapshot.primaryPrice?.amount,
+    snapshot.primaryPrice?.currency,
+  );
+  const hasPrice = snapshot.primaryPrice != null;
 
   return (
     <section
@@ -102,19 +100,17 @@ export function PropertyExecutiveHeader({
           ) : null}
         </div>
 
-        {priceLabel ? (
-          <div className="shrink-0 text-right">
-            <p className="text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
-              {priceLabel}
-            </p>
+        <div className="shrink-0 text-right">
+          <p className="text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
+            {priceLabel}
+          </p>
+          {hasPrice ? (
             <p className="text-xs text-muted">
               {snapshot.primaryPrice!.listingTypeLabel} ·{" "}
               {snapshot.primaryPrice!.currency}
             </p>
-          </div>
-        ) : (
-          <p className="shrink-0 text-sm text-muted">Sin precio principal</p>
-        )}
+          ) : null}
+        </div>
       </div>
     </section>
   );

@@ -38,7 +38,7 @@ function DevelopmentCoverImage({
       fill
       loading="lazy"
       unoptimized
-      className="object-cover transition-transform duration-700 ease-out group-hover:scale-[1.02]"
+      className="object-cover object-center transition-transform duration-700 ease-out group-hover:scale-[1.02]"
       sizes="(max-width: 640px) 100vw, 320px"
     />
   );
@@ -53,7 +53,7 @@ export function DevelopmentEditorialRow({
   return (
     <article className="group border-b border-border py-8 first:pt-0 last:border-b-0 last:pb-0">
       <div className="flex flex-col gap-6 sm:flex-row sm:items-stretch">
-        <div className="relative aspect-[4/3] w-full shrink-0 overflow-hidden rounded-2xl bg-surface-alt sm:w-64 md:w-72 lg:w-80">
+        <div className="relative aspect-video w-full shrink-0 overflow-hidden rounded-2xl bg-surface-alt sm:w-64 md:w-72 lg:w-80">
           <DevelopmentCoverImage development={development} />
         </div>
 

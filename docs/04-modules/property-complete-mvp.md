@@ -61,16 +61,23 @@ Property
 └── PropertyFeatureAssignment → PropertyFeature (global)
 ```
 
-### Regla de publicación (sin cambios)
+### Regla de publicación web
 
-Una propiedad es visible en web cuando se cumplen **todas** estas condiciones:
+Una propiedad es visible en web cuando se cumplen:
 
 * `Property.isActive = true`
-* Al menos un `PropertyListing` con `status = ACTIVE`
-* Precio principal (`PropertyPrice.isPrimary = true`) en ese listing
 * Imagen portada (`PropertyImage.isCover = true`)
+* Al menos un `PropertyListing` web-visible:
+  * `status = ACTIVE` **con** precio principal (`PropertyPrice.isPrimary = true`), **o**
+  * `status = RESERVED` (precio principal **opcional**; si falta, UI muestra **“Consultar precio”**)
 
-Implementada en Public API y panel de publicabilidad del admin.
+Destacadas / featured siguen siendo solo `ACTIVE` con precio.
+
+Filtros `priceMin` / `priceMax` / `currency` excluyen listings sin precio primario.
+
+Orden de listado público: `Property.updatedAt desc` (hoy no hay sort por precio; si se agrega, montos null al final).
+
+Implementada en Public API, `@repo/property-rules` (visibilidad) y panel de publicabilidad del admin.
 
 ### Roadmap oficial
 

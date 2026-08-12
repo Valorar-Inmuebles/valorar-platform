@@ -3,12 +3,33 @@ const moneyFormatter = new Intl.NumberFormat("es-AR", {
   minimumFractionDigits: 0,
 });
 
+export const CONSULT_PRICE_LABEL = "Consultar precio";
+
 export function formatMoney(amount: number): string {
   return moneyFormatter.format(amount);
 }
 
 export function formatPrice(amount: number, currency: string): string {
   return `${currency} ${formatMoney(amount)}`;
+}
+
+/**
+ * Display label for a property primary price.
+ * Missing / non-finite amount → “Consultar precio” (never invent 0).
+ */
+export function formatPropertyPriceLabel(
+  amount: number | null | undefined,
+  currency: string | null | undefined,
+): string {
+  if (
+    amount == null ||
+    !Number.isFinite(amount) ||
+    currency == null ||
+    String(currency).trim() === ""
+  ) {
+    return CONSULT_PRICE_LABEL;
+  }
+  return formatPrice(amount, currency);
 }
 
 /** Strip non-digit characters from user input. */

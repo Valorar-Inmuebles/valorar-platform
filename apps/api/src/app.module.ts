@@ -21,6 +21,7 @@ import { DevelopmentTypologyModule } from './modules/development-typology/develo
 import { GeoModule } from './modules/geo/geo.module';
 import { PlatformTenantModule } from './modules/platform-tenant/platform-tenant.module';
 import { PublicDevelopmentModule } from './modules/public-development/public-development.module';
+import { MigrationHouzezModule } from './modules/migration-houzez/migration-houzez.module';
 import { PrismaModule } from './prisma/prisma.module';
 
 @Module({
@@ -46,6 +47,7 @@ import { PrismaModule } from './prisma/prisma.module';
     PublicDevelopmentModule,
     AdminDashboardModule,
     GeoModule,
+    MigrationHouzezModule,
   ],
   controllers: [AppController],
   providers: [AppService],

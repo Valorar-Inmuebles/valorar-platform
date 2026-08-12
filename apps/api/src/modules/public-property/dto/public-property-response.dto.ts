@@ -64,11 +64,19 @@ export class PublicPropertyCardDto {
   @ApiProperty({ type: PublicCoverImageDto })
   coverImage: PublicCoverImageDto;
 
-  @ApiProperty()
-  price: number;
+  @ApiPropertyOptional({
+    description:
+      'Primary price amount; null when the listing has no price (UI: Consultar precio)',
+    nullable: true,
+  })
+  price: number | null;
 
-  @ApiProperty({ enum: Currency })
-  currency: Currency;
+  @ApiPropertyOptional({
+    enum: Currency,
+    nullable: true,
+    description: 'Null when price is null',
+  })
+  currency: Currency | null;
 
   @ApiPropertyOptional()
   bedrooms: number | null;
@@ -133,8 +141,13 @@ export class PublicPropertyListingDto {
   @ApiPropertyOptional({ enum: Currency })
   expensesCurrency: Currency | null;
 
-  @ApiProperty({ type: PublicPropertyPrimaryPriceDto })
-  primaryPrice: PublicPropertyPrimaryPriceDto;
+  @ApiPropertyOptional({
+    type: PublicPropertyPrimaryPriceDto,
+    nullable: true,
+    description:
+      'Null when the listing has no primary price (UI: Consultar precio)',
+  })
+  primaryPrice: PublicPropertyPrimaryPriceDto | null;
 }
 
 export class PublicPropertyFeatureDto {
@@ -254,8 +267,13 @@ export class PublicPropertyDetailDto {
   @ApiProperty({ type: PublicCoverImageDto })
   coverImage: PublicCoverImageDto;
 
-  @ApiProperty({ type: PublicPropertyPrimaryPriceDto })
-  price: PublicPropertyPrimaryPriceDto;
+  @ApiPropertyOptional({
+    type: PublicPropertyPrimaryPriceDto,
+    nullable: true,
+    description:
+      'Null when the listing has no primary price (UI: Consultar precio)',
+  })
+  price: PublicPropertyPrimaryPriceDto | null;
 
   @ApiProperty({ enum: PropertyListingType })
   listingType: PropertyListingType;

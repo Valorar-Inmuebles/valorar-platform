@@ -214,12 +214,12 @@ Documentación: `docs/04-modules/auth.md`, `docs/09-roadmap/auth-implementation-
 * `PublicPropertyModule` en `apps/api/src/modules/public-property`
 * Solo lectura, sin JWT: `GET /public/properties`, `GET /public/properties/featured`, `GET /public/properties/:slug`
 * Arquitectura: Controller → Service → Repository → Prisma
-* Regla de publicación: `Property.isActive = true` + listing `ACTIVE` + precio `isPrimary` + imagen `isCover`
+* Regla de publicación web: `Property.isActive = true` + listing `ACTIVE` (con precio `isPrimary`) **o** `RESERVED` (precio opcional → UI “Consultar precio”) + imagen `isCover`
 * Listado paginado con filtros: `listingType`, `propertyType`, `city`, `neighborhood`, precio, `currency`, `bedrooms`, `bathrooms`
-* Destacadas: `PropertyListing.isFeatured = true`, orden `publishedAt desc`
-* Detalle por `slug` con galería, listing activo, precio principal, features activas y `availableListingTypes` (multi-operación)
-* DTOs públicos sin datos internos (`tenantId`, `createdById`, `internalCode`)
-* Swagger tag `Public Properties` con `@ApiQuery`
+* Destacadas: `PropertyListing.isFeatured = true`, orden `publishedAt desc` (solo `ACTIVE` con precio)
+* Detalle por `slug` con galería, listing visible, precio principal nullable, features activas y `availableListingTypes` (multi-operación)
+* Filtro por rango/moneda de precio: excluye listings sin precio primario
+* Orden público actual: `Property.updatedAt desc` (no hay sort por precio; si se agrega, nulls last)
 
 Pendiente en Property API (Property Complete MVP): features admin, storage upload, resolución tenant por dominio. Ver `docs/04-modules/property-complete-mvp.md`.
 
@@ -291,6 +291,23 @@ Pendiente admin: RBAC API (v1.1), configuración (usuarios/inmobiliaria/tenants)
 ---
 
 ## Módulos Pendientes
+
+### Migración Houzez → Valorar — **PUBLISH_MIGRATION_COMPLETED**
+
+* Documentación: `docs/04-modules/houzez-migration.md`
+* Rama: `feature/houzez-migration`
+* Estado operativo: **`PUBLISH_MIGRATION_COMPLETED`** (ola `publish` del dump actual: **19/19** en production tenant `demo`)
+* CLI: `npm run migration:houzez -- audit|dry-run|import` · prep local: `migration:houzez:prepare-images`
+* **No ejecutar `import` sin pedido explícito nuevo.** El CLI advierte el cierre operativo; no hard-bloquea futuros borradores/pending.
+* Piloto WP `5312` importado (idempotencia vía `MigrationSourceRef`)
+* WP `10613` importada como `SALE`/`RESERVED` **sin** `PropertyPrice` → UI **“Consultar precio”**; filtros por precio la excluyen
+* Pipeline imágenes: **`houzez-webp-v2`** — EXIF rotate → trim `edge-fill-v1` → fit 1600×1200 → WebP q82/e4
+* Presentación: cards/covers/miniaturas 16:9 + `object-cover`; lightbox `object-contain` + fondo oscuro
+* Gate localidad: Locality CABA resolved + allowlist (`Parque Avellaneda` CABA, `Ramos Mejía` Buenos Aires)
+* `MIGRATION_MAX_PROPERTY_IMAGES=60` **solo** scope `migration-houzez`; producto/admin upload sigue en **30**
+* Fuera de alcance ahora: `draft` / `pending` / `expired` del dump — **no** iniciar sin auditoría read-only nueva
+* Checkpoint Neon documentado histórico: `checkpoint-pre-houzez-cleanup` (pre-cleanup). **Pendiente manual:** crear/confirmar snapshot Neon **posterior** a las 19 importadas
+* Upgrade imágenes piloto: `migration:houzez:upgrade-pilot-images`
 
 ### Auth Foundation v1.1 (RBAC API)
 
