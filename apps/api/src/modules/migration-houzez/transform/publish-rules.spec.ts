@@ -136,6 +136,34 @@ describe('publish-wave transform rules', () => {
     ).toBe(true);
   });
 
+  it('allows RESERVED listing without price and warns PRICE_MISSING_ALLOWED_RESERVED', () => {
+    const meta = { ...baseRaw().meta };
+    delete meta.fave_property_price;
+    meta.fave_property_price_prefix = 'u$s';
+    const result = transformPublishProperty(
+      baseRaw({
+        id: 10613,
+        title: 'Depto 2 ambientes. Pizzurno 300.',
+        slug: 'depto-2-ambientes-pizzurno-300',
+        taxonomies: {
+          property_type: ['Departamento'],
+          property_status: ['Reservado'],
+          property_area: ['Ramos Mejía'],
+          property_city: ['Gran Buenos Aires'],
+          property_feature: [],
+        },
+        meta,
+      }),
+    );
+    expect(result.listing).toEqual({ listingType: 'SALE', status: 'RESERVED' });
+    expect(result.price).toBeNull();
+    expect(result.blockers).toEqual([]);
+    expect(
+      result.warnings.some((w) => w.code === 'PRICE_MISSING_ALLOWED_RESERVED'),
+    ).toBe(true);
+    expect(result.price).not.toEqual(expect.objectContaining({ amount: 0 }));
+  });
+
   it('parses half bathroom strings', () => {
     const meta = { ...baseRaw().meta };
     delete meta.fave_property_land;

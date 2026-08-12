@@ -118,6 +118,16 @@ Otras localidades GBA no listadas en la allowlist siguen bloqueadas.
 
 Migración de datos: `202608120001_add_parque_avellaneda_locality` inserta Locality CABA `parque-avellaneda` si faltaba.
 
+### Precio ausente (RESERVED)
+
+| Caso | Efecto |
+|------|--------|
+| Listing transform `ACTIVE` sin `fave_property_price` resolvable | Blocker `PRICE_REQUIRED_FOR_ACTIVE` |
+| Listing transform `RESERVED` sin precio | Warning `PRICE_MISSING_ALLOWED_RESERVED`; **no** se crea `PropertyPrice`; UI “Consultar precio” |
+| Inventar `amount=0` / precio falso | **Prohibido** |
+
+Visibilidad web alineada: `ACTIVE` (+ precio) y `RESERVED` (precio opcional). Filtros por rango/moneda excluyen sin precio. Orden público vigente: `updatedAt desc` (sin sort por precio; futuros sorts por precio → nulls last).
+
 ---
 
 ## Fases E.6–E.11 (plan operativo)

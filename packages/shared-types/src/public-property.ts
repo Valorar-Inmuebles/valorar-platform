@@ -67,8 +67,9 @@ export type PublicPropertyCard = PropertyGeoFields & {
   city: string;
   neighborhood: string | null;
   coverImage: PublicCoverImage;
-  price: number;
-  currency: Currency;
+  /** Null when the listing has no primary price (“Consultar precio”). */
+  price: number | null;
+  currency: Currency | null;
   bedrooms: number | null;
   bathrooms: number | null;
   totalArea: number | null;
@@ -109,7 +110,8 @@ export type PublicPropertyListing = {
   publishedAt: string | null;
   expensesAmount: number | null;
   expensesCurrency: Currency | null;
-  primaryPrice: PublicPropertyPrimaryPrice;
+  /** Null when the listing has no primary price (“Consultar precio”). */
+  primaryPrice: PublicPropertyPrimaryPrice | null;
 };
 
 export type PublicPropertyFeature = {
@@ -148,7 +150,8 @@ export type PublicPropertyDetail = PropertyGeoFields & {
   layout: PropertyLayout | null;
   brightness: PropertyBrightness | null;
   coverImage: PublicCoverImage;
-  price: PublicPropertyPrimaryPrice;
+  /** Null when the listing has no primary price (“Consultar precio”). */
+  price: PublicPropertyPrimaryPrice | null;
   listingType: PropertyListingType;
   listing: PublicPropertyListing;
   gallery: PublicPropertyImage[];

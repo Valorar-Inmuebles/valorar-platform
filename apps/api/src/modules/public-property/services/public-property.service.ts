@@ -128,9 +128,14 @@ export class PublicPropertyService {
       preferredListingType,
     );
     const coverImage = property.images[0];
-    const primaryPrice = listing?.prices[0];
+    const primaryPrice = listing?.prices[0] ?? null;
 
-    if (!listing || !coverImage || !primaryPrice) {
+    if (!listing || !coverImage) {
+      return null;
+    }
+
+    // ACTIVE without primary price is not web-visible (defense in depth).
+    if (listing.status === 'ACTIVE' && !primaryPrice) {
       return null;
     }
 
@@ -151,8 +156,8 @@ export class PublicPropertyService {
       neighborhoodId: location.neighborhoodId,
       neighborhoodName: location.neighborhoodName,
       coverImage: this.toCoverImageDto(coverImage),
-      price: Number(primaryPrice.amount),
-      currency: primaryPrice.currency,
+      price: primaryPrice != null ? Number(primaryPrice.amount) : null,
+      currency: primaryPrice?.currency ?? null,
       bedrooms: property.bedrooms,
       bathrooms: property.bathrooms,
       totalArea: property.totalArea != null ? Number(property.totalArea) : null,
@@ -206,15 +211,22 @@ export class PublicPropertyService {
       preferredListingType,
     );
     const coverImage = property.images.find((image) => image.isCover);
-    const primaryPrice = listing?.prices[0];
+    const primaryPrice = listing?.prices[0] ?? null;
 
-    if (!listing || !coverImage || !primaryPrice) {
+    if (!listing || !coverImage) {
       throw new NotFoundException(
         `Public property with slug "${property.slug}" is not publishable`,
       );
     }
 
-    const primaryPriceDto = this.toPrimaryPriceDto(primaryPrice);
+    if (listing.status === 'ACTIVE' && !primaryPrice) {
+      throw new NotFoundException(
+        `Public property with slug "${property.slug}" is not publishable`,
+      );
+    }
+
+    const primaryPriceDto =
+      primaryPrice != null ? this.toPrimaryPriceDto(primaryPrice) : null;
     const availableListingTypes = this.resolveAvailableListingTypes(property);
     const location = resolvePropertyLocation(property);
 
@@ -256,11 +268,11 @@ export class PublicPropertyService {
       coverImage: this.toCoverImageDto(coverImage),
       price: primaryPriceDto,
       listingType: listing.listingType,
-      listing: this.toListingDto(listing, primaryPrice),
-      gallery: property.images.map(this.toGalleryImageDto),
+      listing: this.toListingDto(listing, primaryPriceDto),
+      gallery: property.images.map((image) => this.toGalleryImageDto(image)),
       features: property.featureAssignments
         .filter((assignment) => assignment.feature.isActive)
-        .map(this.toFeatureDto),
+        .map((assignment) => this.toFeatureDto(assignment)),
       availableListingTypes,
     };
   }
@@ -278,7 +290,9 @@ export class PublicPropertyService {
 
     for (const listingType of LISTING_TYPE_PRIORITY) {
       const listing = property.listings.find(
-        (entry) => entry.listingType === listingType && entry.prices.length > 0,
+        (entry) =>
+          entry.listingType === listingType &&
+          (entry.status === 'RESERVED' || entry.prices.length > 0),
       );
 
       if (listing) {
@@ -293,7 +307,9 @@ export class PublicPropertyService {
     listings: PublishableListing[],
     preferredListingType?: PropertyListingType,
   ): PublishableListing | null {
-    const publishable = listings.filter((listing) => listing.prices.length > 0);
+    const publishable = listings.filter(
+      (listing) => listing.status === 'RESERVED' || listing.prices.length > 0,
+    );
 
     if (publishable.length === 0) {
       return null;
@@ -351,7 +367,7 @@ export class PublicPropertyService {
 
   private toListingDto(
     listing: PublishableListing,
-    primaryPrice: PropertyPrice,
+    primaryPrice: PublicPropertyPrimaryPriceDto | null,
   ): PublicPropertyListingDto {
     return {
       id: listing.id,
@@ -361,7 +377,7 @@ export class PublicPropertyService {
       expensesAmount:
         listing.expensesAmount != null ? Number(listing.expensesAmount) : null,
       expensesCurrency: listing.expensesCurrency,
-      primaryPrice: this.toPrimaryPriceDto(primaryPrice),
+      primaryPrice,
     };
   }
 

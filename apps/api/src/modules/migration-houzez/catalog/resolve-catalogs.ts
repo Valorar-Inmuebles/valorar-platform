@@ -115,8 +115,9 @@ export async function resolveCatalogsForTransform(input: {
   } else {
     results.push({
       key: 'currency',
-      status: 'unresolved',
-      detail: 'No price payload.',
+      status: 'not_required',
+      detail:
+        'No price payload — currency not required (e.g. RESERVED without price).',
     });
   }
 

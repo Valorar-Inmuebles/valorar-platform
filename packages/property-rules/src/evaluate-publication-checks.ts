@@ -31,10 +31,16 @@ function evaluateSingleCheck(
       passed = input.hasCoverImage;
       break;
     case 'listing-active':
-      passed = input.listingStatus === 'ACTIVE';
+      // Web-visible commercial statuses (ACTIVE + RESERVED).
+      passed =
+        input.listingStatus === 'ACTIVE' ||
+        input.listingStatus === 'RESERVED';
       break;
     case 'primary-price':
-      passed = input.hasPrimaryPrice;
+      // RESERVED may be web-visible without a primary price (“Consultar precio”).
+      // ACTIVE (and activation checklist) still require a primary price.
+      passed =
+        input.listingStatus === 'RESERVED' ? true : input.hasPrimaryPrice;
       break;
   }
 

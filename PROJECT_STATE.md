@@ -214,12 +214,12 @@ Documentación: `docs/04-modules/auth.md`, `docs/09-roadmap/auth-implementation-
 * `PublicPropertyModule` en `apps/api/src/modules/public-property`
 * Solo lectura, sin JWT: `GET /public/properties`, `GET /public/properties/featured`, `GET /public/properties/:slug`
 * Arquitectura: Controller → Service → Repository → Prisma
-* Regla de publicación: `Property.isActive = true` + listing `ACTIVE` + precio `isPrimary` + imagen `isCover`
+* Regla de publicación web: `Property.isActive = true` + listing `ACTIVE` (con precio `isPrimary`) **o** `RESERVED` (precio opcional → UI “Consultar precio”) + imagen `isCover`
 * Listado paginado con filtros: `listingType`, `propertyType`, `city`, `neighborhood`, precio, `currency`, `bedrooms`, `bathrooms`
-* Destacadas: `PropertyListing.isFeatured = true`, orden `publishedAt desc`
-* Detalle por `slug` con galería, listing activo, precio principal, features activas y `availableListingTypes` (multi-operación)
-* DTOs públicos sin datos internos (`tenantId`, `createdById`, `internalCode`)
-* Swagger tag `Public Properties` con `@ApiQuery`
+* Destacadas: `PropertyListing.isFeatured = true`, orden `publishedAt desc` (solo `ACTIVE` con precio)
+* Detalle por `slug` con galería, listing visible, precio principal nullable, features activas y `availableListingTypes` (multi-operación)
+* Filtro por rango/moneda de precio: excluye listings sin precio primario
+* Orden público actual: `Property.updatedAt desc` (no hay sort por precio; si se agrega, nulls last)
 
 Pendiente en Property API (Property Complete MVP): features admin, storage upload, resolución tenant por dominio. Ver `docs/04-modules/property-complete-mvp.md`.
 
@@ -303,8 +303,9 @@ Pendiente admin: RBAC API (v1.1), configuración (usuarios/inmobiliaria/tenants)
 * Presentación: cards/covers/miniaturas 16:9 + `object-cover`; lightbox `object-contain` + fondo oscuro
 * Gate localidad production: Locality CABA **resolved** + allowlist explícita (`Parque Avellaneda` CABA, `Ramos Mejía` Buenos Aires); sin GBA completo; desconocidas → blocker
 * Límite imágenes **migración** Houzez: `MIGRATION_MAX_PROPERTY_IMAGES=60` (producto/admin sigue en 30)
-* Lotes controlados importados: piloto 5312 + 14 publish sanas + 3 de ola bloqueada (`12559`, `11928`, `11099`); **10613** queda fuera (sin precio resolvable)
-* Pendiente autorizado: cargar precio en WP `10613` antes de reintentar; considerar revertir `MIGRATION_MAX_PROPERTY_IMAGES` a 30 tras la ola
+* Lotes controlados importados: piloto 5312 + 14 publish sanas + 3 de ola bloqueada (`12559`, `11928`, `11099`); **10613** pendiente (RESERVED sin precio → soporte “Consultar precio”)
+* Producto: listings `RESERVED` sin precio primario son visibles en web/admin como **“Consultar precio”** (sin inventar `Price=0`); `ACTIVE` sigue exigiendo precio
+* Pendiente autorizado: import WP `10613` tras soporte priceless RESERVED; considerar revertir `MIGRATION_MAX_PROPERTY_IMAGES` a 30 tras la ola
 * Upgrade imágenes piloto: `migration:houzez:upgrade-pilot-images`
 
 ### Auth Foundation v1.1 (RBAC API)

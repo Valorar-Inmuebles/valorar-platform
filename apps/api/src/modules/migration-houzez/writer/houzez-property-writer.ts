@@ -557,7 +557,10 @@ export async function writeOneHouzezProperty(input: {
           listingType: input.transform.listing.listingType,
           status: input.transform.listing.status,
           publishedAt:
-            input.transform.listing.status === 'ACTIVE' ? new Date() : null,
+            input.transform.listing.status === 'ACTIVE' ||
+            input.transform.listing.status === 'RESERVED'
+              ? new Date()
+              : null,
         },
       });
 

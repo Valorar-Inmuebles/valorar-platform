@@ -125,6 +125,18 @@ export function transformPublishProperty(
       code: 'PRICE_REQUIRED_FOR_ACTIVE',
       message: 'ACTIVE listing requires a resolvable price.',
     });
+  } else if (listing.status === 'RESERVED') {
+    warnings.push({
+      code: 'PRICE_MISSING_ALLOWED_RESERVED',
+      message:
+        'RESERVED listing without resolvable price — no PropertyPrice will be created; UI shows “Consultar precio”.',
+    });
+    inferences.push({
+      field: 'price',
+      value: null,
+      rule: 'missing price allowed for RESERVED (no invented amount)',
+      source: 'meta.fave_property_price absent/invalid',
+    });
   }
 
   const areas = transformAreas(raw, propertyType ?? 'OTHER', inferences);

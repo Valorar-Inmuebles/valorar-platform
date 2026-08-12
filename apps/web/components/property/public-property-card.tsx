@@ -2,7 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import type { PublicPropertyCard } from "@repo/shared-types";
 import { formatArea } from "@/lib/format/area";
-import { formatPrice } from "@/lib/format/price";
+import { formatPropertyPriceLabel } from "@/lib/format/price";
 import { getPropertyTypeLabel, getListingTypeLabel } from "@/lib/format/labels";
 import { buildPublicPropertyDetailHref } from "@/lib/url/public-property-detail";
 import { PropertyFavoriteButton } from "./property-favorite-button";
@@ -87,7 +87,7 @@ export function PublicPropertyCard({ property }: PublicPropertyCardProps) {
         <div className="flex flex-1 flex-col gap-3 p-4 md:p-5">
           <div>
             <p className="text-2xl font-semibold tracking-tight text-text-primary">
-              {formatPrice(property.price, property.currency)}
+              {formatPropertyPriceLabel(property.price, property.currency)}
             </p>
             <p className="mt-0.5 text-xs font-medium uppercase tracking-wide text-text-secondary">
               {getListingTypeLabel(property.listingType)}

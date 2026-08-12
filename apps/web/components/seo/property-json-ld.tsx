@@ -31,12 +31,15 @@ export function PropertyJsonLd({ property }: PropertyJsonLdProps) {
     description,
     url,
     address,
-    offers: {
+  };
+
+  if (property.price) {
+    data.offers = {
       "@type": "Offer",
       price: property.price.amount,
       priceCurrency: property.price.currency,
-    },
-  };
+    };
+  }
 
   if (property.coverImage.url) {
     data.image = property.coverImage.url;

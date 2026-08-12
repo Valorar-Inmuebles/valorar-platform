@@ -174,7 +174,9 @@ class FakeWriterPrisma implements WriterPrisma {
   }
 }
 
-function makeTransform(): PublishTransformResult {
+function makeTransform(
+  over: Partial<PublishTransformResult> = {},
+): PublishTransformResult {
   return {
     property: {
       title: 'Lote comercial',
@@ -206,6 +208,7 @@ function makeTransform(): PublishTransformResult {
     inferences: [],
     warnings: [],
     blockers: [],
+    ...over,
   };
 }
 
@@ -611,5 +614,36 @@ describe('writeOneHouzezProperty', () => {
     expect(
       report.warnings.some((w) => w.code === 'R2_PREEXISTING_KEYS_REUSED'),
     ).toBe(true);
+  });
+
+  it('imports RESERVED listing without creating PropertyPrice', async () => {
+    const { source, optimized } = await makeImages(tmpDir, 2);
+    const transform = makeTransform({
+      listing: { listingType: 'SALE', status: 'RESERVED' },
+      price: null,
+      warnings: [
+        {
+          code: 'PRICE_MISSING_ALLOWED_RESERVED',
+          message: 'RESERVED without price',
+        },
+      ],
+    });
+    const report = await writeOneHouzezProperty({
+      prisma,
+      objectStore: store,
+      dryRun: makeDryRun(optimized, 11),
+      transform,
+      catalogs: makeCatalogs(),
+      images: source,
+      owner: makeOwner(),
+      batchId: 'batch-reserved-priceless',
+      fingerprint: 'abc',
+    });
+    expect(report.wrote).toBe(true);
+    expect(prisma.listings).toHaveLength(1);
+    expect(prisma.listings[0].status).toBe('RESERVED');
+    expect(prisma.prices).toHaveLength(0);
+    expect(report.created?.priceId).toBeNull();
+    expect(prisma.prices.some((p) => Number(p.amount) === 0)).toBe(false);
   });
 });

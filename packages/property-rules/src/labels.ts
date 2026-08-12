@@ -4,7 +4,7 @@ const CHECK_LABELS: Record<PublicationCheckKey, string> = {
   'property-active': 'Propiedad activa',
   'has-image': 'Al menos una imagen',
   'cover-image': 'Imagen portada definida',
-  'listing-active': 'Publicación activa',
+  'listing-active': 'Publicación visible en web',
   'primary-price': 'Precio principal definido',
 };
 
@@ -12,7 +12,7 @@ const CHECK_MESSAGES: Partial<Record<PublicationCheckKey, string>> = {
   'property-active': 'Activá la propiedad',
   'has-image': 'Agregá al menos una imagen',
   'cover-image': 'Definí una imagen portada',
-  'listing-active': 'Activá la publicación',
+  'listing-active': 'Activá o reservá la publicación',
   'primary-price': 'Definí un precio principal',
 };
 
