@@ -292,20 +292,21 @@ Pendiente admin: RBAC API (v1.1), configuración (usuarios/inmobiliaria/tenants)
 
 ## Módulos Pendientes
 
-### Migración Houzez → Valorar (piloto production + pipeline v2)
+### Migración Houzez → Valorar — **PUBLISH_MIGRATION_COMPLETED**
 
 * Documentación: `docs/04-modules/houzez-migration.md`
 * Rama: `feature/houzez-migration`
+* Estado operativo: **`PUBLISH_MIGRATION_COMPLETED`** (ola `publish` del dump actual: **19/19** en production tenant `demo`)
 * CLI: `npm run migration:houzez -- audit|dry-run|import` · prep local: `migration:houzez:prepare-images`
-* Piloto WP `5312` **importado en production** (13 filas + 7 WebP); idempotencia activa vía `MigrationSourceRef`
-* Primer lote controlado (**10** props Flores) importado y aprobado visualmente
-* Pipeline imágenes: **`houzez-webp-v2`** — EXIF rotate → trim conservador `edge-fill-v1` → fit 1600×1200 → WebP q82/e4; proporción natural almacenada
+* **No ejecutar `import` sin pedido explícito nuevo.** El CLI advierte el cierre operativo; no hard-bloquea futuros borradores/pending.
+* Piloto WP `5312` importado (idempotencia vía `MigrationSourceRef`)
+* WP `10613` importada como `SALE`/`RESERVED` **sin** `PropertyPrice` → UI **“Consultar precio”**; filtros por precio la excluyen
+* Pipeline imágenes: **`houzez-webp-v2`** — EXIF rotate → trim `edge-fill-v1` → fit 1600×1200 → WebP q82/e4
 * Presentación: cards/covers/miniaturas 16:9 + `object-cover`; lightbox `object-contain` + fondo oscuro
-* Gate localidad production: Locality CABA **resolved** + allowlist explícita (`Parque Avellaneda` CABA, `Ramos Mejía` Buenos Aires); sin GBA completo; desconocidas → blocker
-* Límite imágenes **migración** Houzez: `MIGRATION_MAX_PROPERTY_IMAGES=60` (producto/admin sigue en 30)
-* Lotes controlados importados: piloto 5312 + 14 publish sanas + 3 de ola bloqueada (`12559`, `11928`, `11099`) + **`10613` RESERVED sin precio** (UI “Consultar precio”; sin `PropertyPrice`)
-* Producto: listings `RESERVED` sin precio primario son visibles en web/admin como **“Consultar precio”** (sin inventar `Price=0`); `ACTIVE` sigue exigiendo precio
-* Pendiente autorizado: considerar revertir `MIGRATION_MAX_PROPERTY_IMAGES` a 30 tras la ola; auditoría de borradores no iniciada
+* Gate localidad: Locality CABA resolved + allowlist (`Parque Avellaneda` CABA, `Ramos Mejía` Buenos Aires)
+* `MIGRATION_MAX_PROPERTY_IMAGES=60` **solo** scope `migration-houzez`; producto/admin upload sigue en **30**
+* Fuera de alcance ahora: `draft` / `pending` / `expired` del dump — **no** iniciar sin auditoría read-only nueva
+* Checkpoint Neon documentado histórico: `checkpoint-pre-houzez-cleanup` (pre-cleanup). **Pendiente manual:** crear/confirmar snapshot Neon **posterior** a las 19 importadas
 * Upgrade imágenes piloto: `migration:houzez:upgrade-pilot-images`
 
 ### Auth Foundation v1.1 (RBAC API)

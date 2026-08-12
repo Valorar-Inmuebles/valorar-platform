@@ -67,6 +67,16 @@ describe('migrate CLI isolation', () => {
     expect(importSlice).toMatch(/createConfiguredObjectStore/);
     expect(importSlice).not.toMatch(/process\.env\.DATABASE_URL/);
   });
+
+  it('documents publish-wave operational close without hard-blocking future imports', () => {
+    const source = fs.readFileSync(scriptPath, 'utf8');
+    expect(source).toMatch(/PUBLISH_WAVE_OPERATIONAL_STATUS/);
+    expect(source).toMatch(/Operational status/);
+    expect(source).toMatch(/Drafts\/pending/);
+    expect(source).toMatch(/19\/19/);
+    // Still a real import path (dual confirms) — status is advisory only.
+    expect(source).toMatch(/runImport\(/);
+  });
 });
 
 describe('dry-run report path sanitization', () => {

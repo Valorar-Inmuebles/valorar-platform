@@ -9,6 +9,14 @@ export const STAGING_MIGRATION_TARGET = 'staging-houzez' as const;
  */
 export const PRODUCTION_MIGRATION_TARGET = 'production' as const;
 
+/**
+ * Operational status of the approved WordPress `publish` wave for the current dump.
+ * Informational / documentation guardrail — does **not** hard-block CLI import
+ * (drafts/pending may be authorized later with a fresh audit + explicit request).
+ */
+export const PUBLISH_WAVE_OPERATIONAL_STATUS =
+  'PUBLISH_MIGRATION_COMPLETED' as const;
+
 export type HouzezMigrationTarget =
   | typeof STAGING_MIGRATION_TARGET
   | typeof PRODUCTION_MIGRATION_TARGET;

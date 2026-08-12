@@ -28,6 +28,7 @@ import {
   IMPORT_CONFIRM_WRITE_STAGING,
   PILOT_WP_ID,
   PRODUCTION_MIGRATION_TARGET,
+  PUBLISH_WAVE_OPERATIONAL_STATUS,
   STAGING_MIGRATION_TARGET,
 } from '../src/modules/migration-houzez/constants';
 import {
@@ -164,6 +165,12 @@ function createConfiguredObjectStore(): MigrationObjectStore {
 function printHelp() {
   console.log(`Houzez migration CLI
 
+Operational status: ${PUBLISH_WAVE_OPERATIONAL_STATUS}
+  - Current dump publish wave: 19/19 imported in production (demo).
+  - Do NOT run "import" without an explicit new operator request.
+  - Drafts/pending are out of scope until a fresh read-only audit is authorized.
+  - Dual confirms + approved dry-run remain mandatory for any future import.
+
 Commands:
   audit      Stream-dump audit report (validates dataset manifest; no DB)
   dry-run    Plan transform for one WP property (default --wp-id=${PILOT_WP_ID})
@@ -258,6 +265,9 @@ async function main() {
   }
 
   if (command === 'import') {
+    console.error(
+      `[houzez-migrate] Operational status=${PUBLISH_WAVE_OPERATIONAL_STATUS}. Publish wave 19/19 is closed; continue only with an explicit new import request. Drafts/pending stay out of scope until a fresh read-only audit.`,
+    );
     const parsed = parseImportCliArgs({ args });
     if (!parsed.ok) {
       for (const err of parsed.errors) console.error(err);

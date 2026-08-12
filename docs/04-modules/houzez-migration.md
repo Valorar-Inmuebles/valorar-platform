@@ -1,13 +1,15 @@
 # Migración Houzez → Valorar
 
-Estado: **piloto WP 5312 importado en production** + pipeline **houzez-webp-v2** (trim conservador de letterbox + presentación 16:9 en UI).
+Estado operativo: **`PUBLISH_MIGRATION_COMPLETED`** — ola `publish` del dump actual **19/19** importada y verificada en production (tenant `demo`).
 Rama: `feature/houzez-migration` (desde `main`).
 
-**E.5 (cerrada):** preflight read-only de production (33 props demo, MSR ausente, 7 keys R2 del piloto).
-**E.6 (cerrada en código):** target production, gates Neon, cleanup dual, fingerprint v2, R2 preexisting.
-**Import piloto:** WP 5312 escrito en production (13 filas + 7 WebP). Re-import bloqueado por idempotencia.
-**Upgrade imágenes piloto:** comando operativo `migration:houzez:upgrade-pilot-images` (solo WP 5312, attachments 5315+5314, keys R2 nuevas `*.houzez-webp-v2.webp`, conserva v1).
-**Pendiente autorizado:** continuar migración por lotes controlados (CLI 1×`--wp-id`) — **no automático**. Pipeline desbloqueado en código vía baseline `post-pilot-controlled`.
+Pipeline: **houzez-webp-v2** (trim letterbox + presentación 16:9 en UI).
+
+**E.5–E.11:** cerradas (cleanup demo, piloto WP 5312, post-piloto controlado).
+**Cierre publish:** todas las propiedades `post_status=publish` del dump (`houzez-audit.json`: publish=19) tienen `MigrationSourceRef` + Property en production. Re-import del mismo WP ID sigue bloqueado por idempotencia.
+**WP 10613:** `SALE`/`RESERVED` sin `PropertyPrice` → UI **“Consultar precio”**; filtros precio excluyen sin precio.
+**No iniciar borradores/pending** sin auditoría read-only nueva + pedido explícito.
+**No ejecutar `houzez-migrate import`** sin pedido explícito nuevo (el CLI imprime aviso `PUBLISH_MIGRATION_COMPLETED`; no hard-bloquea).
 
 ---
 
@@ -20,7 +22,8 @@ Rama: `feature/houzez-migration` (desde `main`).
 - Fingerprint Neon auditado (E.5) exigido vía env + `current_setting` live:
   - `neon.project_id` / `neon.branch_id` / `neon.endpoint_id`
 - Tenant: `demo` · Owner: `admin@demo.valorar.dev`
-- Checkpoint previo: `checkpoint-pre-houzez-cleanup`
+- Checkpoint histórico documentado: `checkpoint-pre-houzez-cleanup` (anterior al cleanup demo / imports)
+- **Acción manual pendiente:** crear o confirmar en Neon un snapshot/branch de backup **posterior** a las 19 propiedades publish importadas (no verificado automáticamente desde este worktree; dumps locales bajo `backups/` son de **staging**, no production post-ola)
 - Staging `staging-houzez`: solo prueba; no autoriza import production.
 
 ---
@@ -140,7 +143,31 @@ Visibilidad web alineada: `ACTIVE` (+ precio) y `RESERVED` (precio opcional). Fi
 | **E.9** | Dry-run production WP 5312 (fingerprint ligado a production; localidad Flores exacta) | **Hecho** |
 | **E.10** | Import piloto WP 5312 con dry-run production + confirms | **Hecho** |
 | **E.11** | Validación visual/funcional + preflight idempotencia (segundo import rechazado) | **Hecho** |
-| **Post-piloto** | Baseline `post-pilot-controlled` + lotes 1×1 | **Hecho** (piloto + 14 publish + 3 ola bloqueada + **10613 RESERVED priceless**) |
+| **Post-piloto** | Baseline `post-pilot-controlled` + lotes 1×1 | **Hecho** (19/19 publish) |
+| **Cierre publish** | Documentar `PUBLISH_MIGRATION_COMPLETED` + guardrail CLI advisory | **Hecho** |
+
+### Inventario production (cierre publish, read-only)
+
+Tenant `demo` (verificado al cierre):
+
+| Entidad | Count |
+|---------|------:|
+| Property | 19 |
+| PropertyListing | 19 |
+| PropertyPrice | 18 |
+| PropertyImage | 284 |
+| PropertyAgentAccess | 19 |
+| MigrationSourceRef (`wordpress-houzez` / property) | 19 |
+
+- Cero Property sin MSR en el tenant.
+- Dump audit: `publish=19`, `draft=270`, `pending=4`, `expired=2` — solo publish migrado.
+- `MIGRATION_MAX_PROPERTY_IMAGES=60` scoped a migration-houzez; producto/admin = 30.
+
+### Guardrail post-cierre
+
+- Constante `PUBLISH_WAVE_OPERATIONAL_STATUS = PUBLISH_MIGRATION_COMPLETED` en `migration-houzez/constants.ts`.
+- `houzez-migrate` help + aviso stderr al entrar a `import` (informativo; **no** impide un import futuro explícito de borradores).
+- Confirms duales + dry-run aprobado + idempotencia MSR siguen siendo la barrera real.
 
 ---
 ## Seguridad de conexión
