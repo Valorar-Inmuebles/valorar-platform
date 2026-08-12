@@ -225,8 +225,8 @@ describe('gallery plan', () => {
     fs.rmSync(tmp, { recursive: true, force: true });
   });
 
-  it('emits explicit blocker when gallery exceeds limit', () => {
-    const ids = Array.from({ length: 31 }, (_, i) => i + 1);
+  it('allows gallery of 33 under migration limit 60', () => {
+    const ids = Array.from({ length: 33 }, (_, i) => i + 1);
     const attachments = new Map<number, WordpressAttachmentRaw>();
     for (const id of ids) {
       attachments.set(id, {
@@ -259,7 +259,87 @@ describe('gallery plan', () => {
       uploadsDir: os.tmpdir(),
       computeHash: false,
     });
+    expect(plan.exceedsImageLimit).toBe(false);
+    expect(plan.imageLimit).toBe(60);
+    expect(plan.blockers.some((b) => b.code === 'GALLERY_EXCEEDS_LIMIT')).toBe(
+      false,
+    );
+  });
+
+  it('allows gallery of 40 under migration limit 60', () => {
+    const ids = Array.from({ length: 40 }, (_, i) => i + 1);
+    const attachments = new Map<number, WordpressAttachmentRaw>();
+    for (const id of ids) {
+      attachments.set(id, {
+        id,
+        parentId: 1,
+        mimeType: 'image/jpeg',
+        title: null,
+        attachedFile: null,
+        width: null,
+        height: null,
+        filesize: null,
+      });
+    }
+    const property: WordpressPropertyRaw = {
+      id: 11928,
+      status: 'publish',
+      slug: 'x',
+      title: 'x',
+      content: null,
+      postDate: null,
+      authorId: null,
+      taxonomies: {},
+      meta: {},
+      galleryAttachmentIds: ids,
+      thumbnailId: 1,
+    };
+    const plan = buildGalleryPlan({
+      property,
+      attachments,
+      uploadsDir: os.tmpdir(),
+      computeHash: false,
+    });
+    expect(plan.exceedsImageLimit).toBe(false);
+    expect(plan.images).toHaveLength(40);
+  });
+
+  it('emits explicit blocker when gallery exceeds migration limit 60', () => {
+    const ids = Array.from({ length: 61 }, (_, i) => i + 1);
+    const attachments = new Map<number, WordpressAttachmentRaw>();
+    for (const id of ids) {
+      attachments.set(id, {
+        id,
+        parentId: 1,
+        mimeType: 'image/jpeg',
+        title: null,
+        attachedFile: null,
+        width: null,
+        height: null,
+        filesize: null,
+      });
+    }
+    const property: WordpressPropertyRaw = {
+      id: 99999,
+      status: 'publish',
+      slug: 'x',
+      title: 'x',
+      content: null,
+      postDate: null,
+      authorId: null,
+      taxonomies: {},
+      meta: {},
+      galleryAttachmentIds: ids,
+      thumbnailId: 1,
+    };
+    const plan = buildGalleryPlan({
+      property,
+      attachments,
+      uploadsDir: os.tmpdir(),
+      computeHash: false,
+    });
     expect(plan.exceedsImageLimit).toBe(true);
+    expect(plan.imageLimit).toBe(60);
     expect(plan.blockers.some((b) => b.code === 'GALLERY_EXCEEDS_LIMIT')).toBe(
       true,
     );

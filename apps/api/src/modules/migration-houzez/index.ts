@@ -9,6 +9,7 @@ export * from './images/optimize-pipeline';
 export * from './images/prepare-local';
 export * from './traceability/idempotency';
 export * from './catalog/resolve-catalogs';
+export * from './catalog/explicit-locality-mappings';
 export * from './catalog/assert-flores-locality';
 export * from './catalog/assert-resolved-locality';
 export * from './services/owner-resolution.service';

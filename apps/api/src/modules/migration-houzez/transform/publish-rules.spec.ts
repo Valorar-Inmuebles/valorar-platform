@@ -116,6 +116,26 @@ describe('publish-wave transform rules', () => {
     );
   });
 
+  it('blocks ACTIVE listing without resolvable price', () => {
+    const meta = { ...baseRaw().meta };
+    delete meta.fave_property_price;
+    const result = transformPublishProperty(
+      baseRaw({
+        taxonomies: {
+          property_type: ['Departamento'],
+          property_status: ['En Venta'],
+          property_area: ['Flores'],
+          property_city: ['Capital Federal'],
+        },
+        meta,
+      }),
+    );
+    expect(result.price).toBeNull();
+    expect(
+      result.blockers.some((b) => b.code === 'PRICE_REQUIRED_FOR_ACTIVE'),
+    ).toBe(true);
+  });
+
   it('parses half bathroom strings', () => {
     const meta = { ...baseRaw().meta };
     delete meta.fave_property_land;

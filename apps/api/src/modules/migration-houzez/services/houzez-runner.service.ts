@@ -269,7 +269,7 @@ export async function runAudit(options: CliOptions): Promise<AuditReport> {
       notes: [
         'Read-only audit. No DB writes. No image processing/upload.',
         `Dataset manifest ${HOUZEZ_DATASET_MANIFEST_ID} validated before parse.`,
-        `Known product-blocked oversized galleries until MAX raised: ${GALLERY_LIMIT_BLOCKED_WP_IDS.join(', ')}.`,
+        `Historical oversized galleries (WP ${GALLERY_LIMIT_BLOCKED_WP_IDS.join(', ')}); migration image limit is now ${MIGRATION_MAX_PROPERTY_IMAGES} (product upload limit remains 30).`,
         `Pilot WP id: ${PILOT_WP_ID}.`,
       ],
     },
@@ -294,6 +294,7 @@ export async function runAudit(options: CliOptions): Promise<AuditReport> {
       max: MIGRATION_MAX_PROPERTY_IMAGES,
       behavior: 'explicit_block_no_silent_truncate',
       raiseTo50Before: GALLERY_LIMIT_BLOCKED_WP_IDS,
+      note: 'MIGRATION_MAX_PROPERTY_IMAGES is migration-scoped (currently 60); product MAX_PROPERTY_IMAGES stays 30.',
     },
     wouldWrite: false,
   };

@@ -49,7 +49,7 @@ export function evaluateCatalogLocalityGate(
     blockers.push({
       code: 'GEO_PROVINCE_UNRESOLVED',
       message:
-        'Production import requires resolved provinceId (CABA/Capital Federal) in catalogs.',
+        'Production import requires resolved provinceId (Capital Federal or explicit allowlisted province).',
     });
   }
 

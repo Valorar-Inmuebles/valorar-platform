@@ -301,7 +301,9 @@ Pendiente admin: RBAC API (v1.1), configuración (usuarios/inmobiliaria/tenants)
 * Primer lote controlado (**10** props Flores) importado y aprobado visualmente
 * Pipeline imágenes: **`houzez-webp-v2`** — EXIF rotate → trim conservador `edge-fill-v1` → fit 1600×1200 → WebP q82/e4; proporción natural almacenada
 * Presentación: cards/covers/miniaturas 16:9 + `object-cover`; lightbox `object-contain` + fondo oscuro
-* Gate localidad production: cualquier Locality CABA **resolved** (ya no Flores-only); desconocidas → blocker
+* Gate localidad production: Locality CABA **resolved** + allowlist explícita (`Parque Avellaneda` CABA, `Ramos Mejía` Buenos Aires); sin GBA completo; desconocidas → blocker
+* Límite imágenes **migración** Houzez: `MIGRATION_MAX_PROPERTY_IMAGES=60` (producto/admin sigue en 30)
+* Lotes controlados importados: piloto 5312 + 10 Flores + 4 restantes publish; ola bloqueadas en curso
 * Pendiente autorizado: continuar migración por lotes controlados (1×`--wp-id`); el upgrade de imágenes del piloto usa `migration:houzez:upgrade-pilot-images`
 
 ### Auth Foundation v1.1 (RBAC API)

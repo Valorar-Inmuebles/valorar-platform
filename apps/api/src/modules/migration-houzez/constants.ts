@@ -46,10 +46,18 @@ export const HOUZEZ_SQL_FRAGMENTS = [
 /** Versioned dataset manifest id (SQL fragments only; dumps not stored in git). */
 export const HOUZEZ_DATASET_MANIFEST_ID = 'houzez-sql-dump-v1' as const;
 
-/** Matches apps/api storage.constants MAX_PROPERTY_IMAGES — do not raise here without product approval. */
-export const MIGRATION_MAX_PROPERTY_IMAGES = 30;
+/**
+ * Operational image limit for Houzez migration dry-run/import only.
+ * Product upload limit remains `storage.constants.MAX_PROPERTY_IMAGES` (30).
+ * Raised to 60 to import oversized publish galleries (WP 12559=33, 11928=40).
+ * Prefer reverting to 30 after the blocked-publish wave, or keep scoped here.
+ */
+export const MIGRATION_MAX_PROPERTY_IMAGES = 60;
 
-/** Known publish properties blocked until MAX_PROPERTY_IMAGES is raised. */
+/**
+ * Historically gallery-blocked publish WP IDs (pre limit=60).
+ * Kept for audit/reporting context; no longer hard-blocked solely by this list.
+ */
 export const GALLERY_LIMIT_BLOCKED_WP_IDS = [12559, 11928] as const;
 
 export const PILOT_WP_ID = 5312;

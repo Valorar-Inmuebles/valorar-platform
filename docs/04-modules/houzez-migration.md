@@ -107,13 +107,16 @@ El hard-gate **Flores-only** del piloto quedó **reemplazado**.
 
 | Regla | Efecto |
 |-------|--------|
-| `localityId` **resolved** en catálogo geo (match exacto de search bajo CABA) | Permitido (Flores, Caballito, Almagro, …) |
+| `localityId` **resolved** en catálogo geo (match exacto de search bajo CABA) | Permitido (Flores, Caballito, Almagro, Parque Avellaneda, …) |
+| Mapping explícito Houzez → geo (`explicit-locality-mappings.ts`) | Solo allowlist: **Parque Avellaneda** (CABA) y **Ramos Mejía** (Buenos Aires). Sin GBA completo. |
 | `localityId` unresolved / ambiguous / ausente | Blocker `LOCALITY_UNRESOLVED` |
 | `countryId` / `provinceId` unresolved | Blockers `GEO_COUNTRY_UNRESOLVED` / `GEO_PROVINCE_UNRESOLVED` |
 | Remapeo silencioso de barrios inválidos | **Prohibido** |
 
 Dry-run e import production emiten warning `LOCALITY_RESOLVED` con `slug`/`name`/`id` destino.
-Barrios fuera del catálogo CABA (p. ej. GBA sin locality exacta) siguen bloqueados hasta mapping explícito.
+Otras localidades GBA no listadas en la allowlist siguen bloqueadas.
+
+Migración de datos: `202608120001_add_parque_avellaneda_locality` inserta Locality CABA `parque-avellaneda` si faltaba.
 
 ---
 
@@ -127,7 +130,7 @@ Barrios fuera del catálogo CABA (p. ej. GBA sin locality exacta) siguen bloquea
 | **E.9** | Dry-run production WP 5312 (fingerprint ligado a production; localidad Flores exacta) | **Hecho** |
 | **E.10** | Import piloto WP 5312 con dry-run production + confirms | **Hecho** |
 | **E.11** | Validación visual/funcional + preflight idempotencia (segundo import rechazado) | **Hecho** |
-| **Post-piloto** | Baseline `post-pilot-controlled` en código (permite lotes controlados 1×1) | **Hecho (código)** — import de lotes **aún no autorizado / no ejecutado** |
+| **Post-piloto** | Baseline `post-pilot-controlled` + lotes 1×1 | **Hecho** (piloto + 14 publish; ola bloqueadas en curso) |
 
 ---
 ## Seguridad de conexión
@@ -259,9 +262,13 @@ Manifest aprobado (SHA-256): `3813083d41e9e1e1ad636a7984b66449e638f2f2b7e45d52b3
 
 ## Límite de imágenes
 
-`MAX_PROPERTY_IMAGES = 30` **sin cambiar**.
+`MIGRATION_MAX_PROPERTY_IMAGES = 60` (**solo** pipeline Houzez dry-run/import).
 
-Bloqueadas hasta subir el límite a 50: WP `12559` (33), `11928` (40).
+El límite de producto/admin upload permanece en `storage.constants.MAX_PROPERTY_IMAGES = 30` y **no** se modifica.
+
+Motivo operativo: desbloquear publish WP `12559` (33) y `11928` (40). Galerías >60 siguen bloqueadas sin truncate silencioso.
+
+Recomendación post-ola: volver el límite migratorio a **30**, o mantenerlo scoped en `migration-houzez/constants.ts` (nunca acoplar el producto al valor 60).
 
 ---
 

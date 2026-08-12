@@ -1,6 +1,10 @@
 import { createSearch } from '@repo/geo-text';
 import type { CatalogResolution } from '../types';
 import type { PublishTransformResult } from '../transform/publish-rules';
+import {
+  findExplicitLocalityMapping,
+  type ExplicitLocalityMapping,
+} from './explicit-locality-mappings';
 
 const FEATURE_SLUG_MAP: Record<string, string> = {
   Pavimento: 'pavimento', // may not exist in catalog
@@ -28,6 +32,12 @@ const CABA_CITY_SEARCHES = new Set([
   'capfed',
 ]);
 
+const BUENOS_AIRES_PROVINCE_SEARCHES = new Set([
+  'buenosaires',
+  'provinciadebuenosaires',
+  'provincia de buenos aires',
+]);
+
 export type CatalogPrisma = {
   propertyFeature: {
     findMany: (
@@ -40,10 +50,14 @@ export type CatalogPrisma = {
     ) => Promise<{ id: string; name: string; iso2: string } | null>;
   };
   province: {
-    findMany: (
-      args: unknown,
-    ) => Promise<
-      Array<{ id: string; name: string; search: string; countryId: string }>
+    findMany: (args: unknown) => Promise<
+      Array<{
+        id: string;
+        name: string;
+        search: string;
+        countryId: string;
+        slug?: string;
+      }>
     >;
   };
   locality: {
@@ -57,6 +71,14 @@ export type CatalogPrisma = {
       }>
     >;
   };
+};
+
+type ProvinceRow = {
+  id: string;
+  name: string;
+  search: string;
+  countryId: string;
+  slug?: string;
 };
 
 export async function resolveCatalogsForTransform(input: {
@@ -135,53 +157,93 @@ export async function resolveCatalogsForTransform(input: {
   const provinces = country
     ? await input.prisma.province.findMany({ where: { countryId: country.id } })
     : [];
-  const cabaProvince =
-    provinces.find((p) => CABA_CITY_SEARCHES.has(p.search)) ||
-    provinces.find((p) => /ciudad autonoma|capital federal|caba/i.test(p.name));
 
+  const neighborhoodName = input.transform.property.neighborhood;
+  const explicit = findExplicitLocalityMapping(neighborhoodName);
+
+  const targetProvince = resolveTargetProvince(provinces, explicit);
   results.push(
-    cabaProvince
+    targetProvince
       ? {
           key: 'provinceId',
           status: 'resolved',
-          value: { id: cabaProvince.id, name: cabaProvince.name },
-          detail: 'Matched CABA province via normalized search/name.',
+          value: { id: targetProvince.id, name: targetProvince.name },
+          detail: explicit
+            ? `Matched province for explicit mapping "${explicit.label}" (${explicit.provinceScope}).`
+            : 'Matched CABA province via normalized search/name.',
         }
       : {
           key: 'provinceId',
           status: 'unresolved',
-          detail: 'CABA/Capital Federal province not found.',
+          detail: explicit
+            ? `Province for explicit mapping "${explicit.label}" (${explicit.provinceScope}) not found.`
+            : 'CABA/Capital Federal province not found.',
         },
   );
 
-  const neighborhoodName = input.transform.property.neighborhood;
   let localityId: string | null = null;
-  if (cabaProvince && neighborhoodName) {
+  if (targetProvince && neighborhoodName) {
     const localities = await input.prisma.locality.findMany({
-      where: { provinceId: cabaProvince.id },
+      where: { provinceId: targetProvince.id },
     });
-    const want = createSearch(neighborhoodName);
-    const exact = localities.filter((l) => l.search === want);
-    if (exact.length === 1) {
-      localityId = exact[0].id;
-      results.push({
-        key: 'localityId',
-        status: 'resolved',
-        value: { id: exact[0].id, name: exact[0].name, slug: exact[0].slug },
-        detail: `Exact search match for barrio/locality "${neighborhoodName}" under CABA (barrios are Localities).`,
-      });
-    } else if (exact.length > 1) {
-      results.push({
-        key: 'localityId',
-        status: 'unresolved',
-        detail: `Ambiguous locality search="${want}" (${exact.length} hits) — not assigning localityId.`,
-      });
+
+    if (explicit) {
+      const exact = localities.filter(
+        (l) => l.search === explicit.localitySearch,
+      );
+      if (exact.length === 1) {
+        localityId = exact[0].id;
+        results.push({
+          key: 'localityId',
+          status: 'resolved',
+          value: {
+            id: exact[0].id,
+            name: exact[0].name,
+            slug: exact[0].slug,
+          },
+          detail: `Explicit Houzez mapping "${explicit.label}" → locality search=${explicit.localitySearch} under ${explicit.provinceScope}.`,
+        });
+      } else if (exact.length > 1) {
+        results.push({
+          key: 'localityId',
+          status: 'unresolved',
+          detail: `Ambiguous explicit mapping "${explicit.label}" (${exact.length} hits) — not assigning localityId.`,
+        });
+      } else {
+        results.push({
+          key: 'localityId',
+          status: 'unresolved',
+          detail: `Explicit mapping "${explicit.label}" configured but Locality.search=${explicit.localitySearch} missing under ${explicit.provinceScope}.`,
+        });
+      }
     } else {
-      results.push({
-        key: 'localityId',
-        status: 'unresolved',
-        detail: `No exact locality search match for "${neighborhoodName}".`,
-      });
+      const want = createSearch(neighborhoodName);
+      const exact = localities.filter((l) => l.search === want);
+      if (exact.length === 1) {
+        localityId = exact[0].id;
+        results.push({
+          key: 'localityId',
+          status: 'resolved',
+          value: {
+            id: exact[0].id,
+            name: exact[0].name,
+            slug: exact[0].slug,
+          },
+          detail: `Exact search match for barrio/locality "${neighborhoodName}" under CABA (barrios are Localities).`,
+        });
+      } else if (exact.length > 1) {
+        results.push({
+          key: 'localityId',
+          status: 'unresolved',
+          detail: `Ambiguous locality search="${want}" (${exact.length} hits) — not assigning localityId.`,
+        });
+      } else {
+        results.push({
+          key: 'localityId',
+          status: 'unresolved',
+          detail: `No exact locality search match for "${neighborhoodName}".`,
+        });
+      }
     }
   } else {
     results.push({
@@ -233,6 +295,27 @@ export async function resolveCatalogsForTransform(input: {
   }
 
   return results;
+}
+
+function resolveTargetProvince(
+  provinces: ProvinceRow[],
+  explicit: ExplicitLocalityMapping | null,
+): ProvinceRow | undefined {
+  if (explicit?.provinceScope === 'buenos-aires') {
+    return (
+      provinces.find((p) => p.slug === 'buenos-aires') ||
+      provinces.find((p) => BUENOS_AIRES_PROVINCE_SEARCHES.has(p.search)) ||
+      provinces.find(
+        (p) =>
+          /buenos aires/i.test(p.name) && !/ciudad|capital|caba/i.test(p.name),
+      )
+    );
+  }
+
+  return (
+    provinces.find((p) => CABA_CITY_SEARCHES.has(p.search)) ||
+    provinces.find((p) => /ciudad autonoma|capital federal|caba/i.test(p.name))
+  );
 }
 
 function slugifyFeature(name: string): string {
