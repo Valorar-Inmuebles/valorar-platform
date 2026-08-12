@@ -1,5 +1,10 @@
 import type { CatalogResolution } from '../types';
 
+/**
+ * @deprecated Pilot-era Flores-only helpers. Prefer {@link evaluateCatalogLocalityGate}
+ * from `./assert-resolved-locality`. Kept for unit coverage of the original exact Flores
+ * resolver used during E.9–E.10.
+ */
 export type FloresLocalityRow = {
   id: string;
   name: string;
@@ -36,7 +41,7 @@ export type FloresLocalityPrisma = {
 
 /**
  * Exact Flores locality under Capital Federal / AR — no ILIKE fuzzy, no LIMIT tricks.
- * Mirrors writer catalog resolution (slug=flores under CABA province).
+ * Retained for pilot regression tests; production import no longer requires Flores-only.
  */
 export async function resolveExactFloresLocality(
   prisma: FloresLocalityPrisma,
@@ -101,7 +106,9 @@ export async function resolveExactFloresLocality(
   };
 }
 
-/** True when catalogs[] already contain a resolved localityId for Flores. */
+/**
+ * @deprecated Use {@link catalogsIncludeResolvedLocality}. Flores remains a valid resolved locality.
+ */
 export function catalogsIncludeExactFlores(
   catalogs: CatalogResolution[],
   expectedLocalityId?: string,

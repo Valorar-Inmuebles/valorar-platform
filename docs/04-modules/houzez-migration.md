@@ -101,6 +101,20 @@ Consistencia mínima del piloto WP 5312: 1 listing, 1 price, 7 images, 1 feature
 - Dry-run post-piloto de otro WP ID registra warning `POST_PILOT_PRESERVE_PILOT` (no planifica mutar 5312).
 - Cero overwrite R2 y cero DeleteObject se mantienen en el writer.
 
+### Gate de localidad / barrio (production)
+
+El hard-gate **Flores-only** del piloto quedó **reemplazado**.
+
+| Regla | Efecto |
+|-------|--------|
+| `localityId` **resolved** en catálogo geo (match exacto de search bajo CABA) | Permitido (Flores, Caballito, Almagro, …) |
+| `localityId` unresolved / ambiguous / ausente | Blocker `LOCALITY_UNRESOLVED` |
+| `countryId` / `provinceId` unresolved | Blockers `GEO_COUNTRY_UNRESOLVED` / `GEO_PROVINCE_UNRESOLVED` |
+| Remapeo silencioso de barrios inválidos | **Prohibido** |
+
+Dry-run e import production emiten warning `LOCALITY_RESOLVED` con `slug`/`name`/`id` destino.
+Barrios fuera del catálogo CABA (p. ej. GBA sin locality exacta) siguen bloqueados hasta mapping explícito.
+
 ---
 
 ## Fases E.6–E.11 (plan operativo)

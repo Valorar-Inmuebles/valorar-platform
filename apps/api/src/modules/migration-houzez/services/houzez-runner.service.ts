@@ -28,10 +28,7 @@ import {
   applyImageOptimizationPlan,
 } from '../images/optimize-pipeline';
 import { resolveCatalogsForTransform } from '../catalog/resolve-catalogs';
-import {
-  catalogsIncludeExactFlores,
-  resolveExactFloresLocality,
-} from '../catalog/assert-flores-locality';
+import { evaluateCatalogLocalityGate } from '../catalog/assert-resolved-locality';
 import {
   checkPropertyIdempotency,
   detectTraceabilitySchema,
@@ -359,13 +356,6 @@ export async function runDryRun(
     } else {
       safety.neonIdentityVerified = true;
     }
-
-    const flores = await resolveExactFloresLocality(prisma as never);
-    if (!flores.ok) {
-      for (const message of flores.errors) {
-        blockers.push({ code: 'FLORES_LOCALITY', message });
-      }
-    }
   }
 
   const dump = await extractWordpressDump(options.sourceDir);
@@ -525,6 +515,21 @@ export async function runDryRun(
       });
     }
   }
+
+  if (
+    !options.skipDb &&
+    prisma &&
+    safety.migrationTarget === PRODUCTION_MIGRATION_TARGET
+  ) {
+    const localityGate = evaluateCatalogLocalityGate(catalogs);
+    for (const w of localityGate.warnings) {
+      warnings.push({ ...w, wpId });
+    }
+    for (const b of localityGate.blockers) {
+      blockers.push({ ...b, wpId });
+    }
+  }
+
   const oldUrl = reconstructOldUrl({
     site: dump.siteOptions,
     slug: property.slug,
@@ -841,14 +846,11 @@ export async function runImport(
   });
 
   if (migrationTarget === PRODUCTION_MIGRATION_TARGET) {
-    const flores = await resolveExactFloresLocality(prisma as never);
-    if (!flores.ok) {
-      throw new ImportValidationError(flores.errors);
-    }
-    if (!catalogsIncludeExactFlores(catalogs, flores.locality.id)) {
-      throw new ImportValidationError([
-        `Catalog localityId must resolve exactly to Flores under Capital Federal (id=${flores.locality.id}, slug=flores).`,
-      ]);
+    const localityGate = evaluateCatalogLocalityGate(catalogs);
+    if (!localityGate.ok) {
+      throw new ImportValidationError(
+        localityGate.blockers.map((b) => `${b.code}: ${b.message}`),
+      );
     }
 
     const r2Check = await validatePilotPreexistingR2Objects({
