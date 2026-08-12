@@ -13,6 +13,20 @@ import {
   resolvePropertyLocation,
 } from '../utils/property-location';
 
+export class PropertyCreatorDto {
+  @ApiProperty()
+  id!: string;
+
+  @ApiProperty()
+  name!: string;
+
+  @ApiProperty()
+  email!: string;
+
+  @ApiProperty()
+  isActive!: boolean;
+}
+
 export class PropertyResponseDto {
   @ApiProperty()
   id: string;
@@ -22,6 +36,9 @@ export class PropertyResponseDto {
 
   @ApiProperty()
   createdById: string;
+
+  @ApiPropertyOptional({ type: PropertyCreatorDto, nullable: true })
+  createdBy: PropertyCreatorDto | null;
 
   @ApiPropertyOptional({ nullable: true })
   assignedToId: string | null;
@@ -175,6 +192,14 @@ export class PropertyResponseDto {
       id: property.id,
       tenantId: property.tenantId,
       createdById: property.createdById,
+      createdBy: property.createdBy
+        ? {
+            id: property.createdBy.id,
+            name: property.createdBy.name,
+            email: property.createdBy.email,
+            isActive: property.createdBy.isActive,
+          }
+        : null,
       assignedToId: property.assignedToId,
       slug: property.slug,
       internalCode: property.internalCode,

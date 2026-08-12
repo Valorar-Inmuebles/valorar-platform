@@ -41,7 +41,21 @@ export class UserResponseDto {
   @ApiProperty()
   updatedAt!: Date;
 
-  static fromEntity(user: User): UserResponseDto {
+  /** Cartera operativa: Property.assignedToId (valor principal en listado). */
+  @ApiProperty({ default: 0 })
+  assignedPropertiesCount!: number;
+
+  /** Autoría histórica: Property.createdById (secundario / tooltip). */
+  @ApiProperty({ default: 0 })
+  createdPropertiesCount!: number;
+
+  static fromEntity(
+    user: User,
+    counts?: {
+      assignedPropertiesCount?: number;
+      createdPropertiesCount?: number;
+    },
+  ): UserResponseDto {
     return {
       id: user.id,
       firstName: user.firstName,
@@ -56,6 +70,8 @@ export class UserResponseDto {
       tenantId: user.tenantId,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
+      assignedPropertiesCount: counts?.assignedPropertiesCount ?? 0,
+      createdPropertiesCount: counts?.createdPropertiesCount ?? 0,
     };
   }
 }

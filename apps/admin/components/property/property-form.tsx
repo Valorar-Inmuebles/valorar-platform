@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition, type FormEvent } from "react";
 import { GARAGE_TYPE_ATTRIBUTE } from "@repo/shared-types";
 import { Button } from "@repo/ui/button";
+import { Badge } from "@repo/ui/badge";
 import {
   Card,
   CardContent,
@@ -285,6 +286,33 @@ export function PropertyForm({
               disabled={isPending}
             />
           </FormField>
+
+          {mode === "edit" && property?.createdBy ? (
+            <FormField className="md:col-span-2">
+              <Label>Creada por</Label>
+              <div className="flex flex-wrap items-center gap-2 rounded-md border border-border bg-surface-alt/40 px-3 py-2 text-sm">
+                <span className="min-w-0 truncate font-medium">
+                  {property.createdBy.name?.trim() ||
+                    property.createdBy.email ||
+                    "—"}
+                </span>
+                {property.createdBy.name?.trim() && property.createdBy.email ? (
+                  <span className="truncate text-xs text-muted">
+                    {property.createdBy.email}
+                  </span>
+                ) : null}
+                {!property.createdBy.isActive ? (
+                  <Badge variant="neutral" title="Usuario inactivo">
+                    Inactivo
+                  </Badge>
+                ) : null}
+              </div>
+              <HelperText>
+                Autoría histórica. No se edita desde aquí ni al cambiar el
+                responsable comercial.
+              </HelperText>
+            </FormField>
+          ) : null}
 
           {assignableUsers.length > 0 ? (
             <FormField className="md:col-span-2">

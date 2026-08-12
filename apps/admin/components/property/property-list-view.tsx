@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
+import { Badge } from "@repo/ui/badge";
 import { Card, CardContent } from "@repo/ui/card";
 import { PropertyEmptyState } from "@/components/property/property-empty-state";
 import { PropertyListFilters } from "@/components/property/property-list-filters";
@@ -34,6 +35,16 @@ type PropertyListViewProps = {
 
 function formatLocation(property: AdminProperty): string {
   return [property.neighborhood, property.city].filter(Boolean).join(", ");
+}
+
+function resolveCreatorLabel(
+  createdBy: AdminProperty["createdBy"],
+): string {
+  if (!createdBy) return "—";
+  const name = createdBy.name?.trim();
+  if (name) return name;
+  const email = createdBy.email?.trim();
+  return email || "—";
 }
 
 function resolveEmptyState(
@@ -199,6 +210,7 @@ export function PropertyListView({
                     <th className="px-4 py-3 font-medium">Tipo</th>
                     <th className="px-4 py-3 font-medium">Ubicación</th>
                     <th className="px-4 py-3 font-medium">Estado comercial</th>
+                    <th className="px-4 py-3 font-medium">Creada por</th>
                     <th className="px-4 py-3 font-medium text-right">
                       Acciones
                     </th>
@@ -212,6 +224,16 @@ export function PropertyListView({
                       summary,
                     );
                     const publicUrl = resolveRowPublicUrl(property, summary);
+                    const creatorLabel = resolveCreatorLabel(property.createdBy);
+                    const creatorTitle = property.createdBy
+                      ? [
+                          creatorLabel,
+                          property.createdBy.email,
+                          property.createdBy.isActive ? null : "Inactivo",
+                        ]
+                          .filter(Boolean)
+                          .join(" · ")
+                      : undefined;
 
                     return (
                       <tr
@@ -241,6 +263,26 @@ export function PropertyListView({
                         </td>
                         <td className="px-4 py-3">
                           <PropertyStatusBadge status={statusVariant} />
+                        </td>
+                        <td className="px-4 py-3">
+                          <div
+                            className="flex max-w-[10rem] items-center gap-1.5 sm:max-w-[14rem]"
+                            title={creatorTitle}
+                          >
+                            <span className="truncate text-muted">
+                              {creatorLabel}
+                            </span>
+                            {property.createdBy &&
+                            !property.createdBy.isActive ? (
+                              <Badge
+                                variant="neutral"
+                                title="Usuario inactivo"
+                                className="shrink-0"
+                              >
+                                Inactivo
+                              </Badge>
+                            ) : null}
+                          </div>
                         </td>
                         <td className="px-4 py-3">
                           <PropertyRowActions
