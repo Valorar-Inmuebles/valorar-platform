@@ -17,6 +17,12 @@ export type AdminProperty = {
   id: string;
   tenantId: string;
   createdById: string;
+  createdBy?: {
+    id: string;
+    name: string;
+    email: string;
+    isActive: boolean;
+  } | null;
   assignedToId: string | null;
   slug: string;
   internalCode: string | null;

@@ -6,11 +6,27 @@ import {
   Province,
 } from '../../../../generated/prisma/client';
 
+/** Safe creator projection for list/detail (no password or secrets). */
+export const propertyCreatorSelect = {
+  id: true,
+  name: true,
+  email: true,
+  isActive: true,
+} as const;
+
+export type PropertyCreatorSummary = {
+  id: string;
+  name: string;
+  email: string;
+  isActive: boolean;
+};
+
 export type PropertyWithGeoRelations = Property & {
   geoCountry?: Country | null;
   geoProvince?: Province | null;
   geoLocality?: Locality | null;
   geoNeighborhood?: Neighborhood | null;
+  createdBy?: PropertyCreatorSummary | null;
 };
 
 export type ResolvedPropertyLocation = {
@@ -58,4 +74,12 @@ export const propertyGeoInclude = {
   geoProvince: true,
   geoLocality: true,
   geoNeighborhood: true,
+} as const;
+
+/** Standard Property include: geo + creator (single query, no N+1). */
+export const propertyInclude = {
+  ...propertyGeoInclude,
+  createdBy: {
+    select: propertyCreatorSelect,
+  },
 } as const;

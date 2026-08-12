@@ -18,8 +18,8 @@ export default async function ConfiguracionRolesPage() {
 
   const description =
     session.user.role === "SUPER_ADMIN"
-      ? "Roles del sistema."
-      : "Roles disponibles para esta inmobiliaria.";
+      ? "Matriz de roles del sistema (solo lectura)."
+      : "Matriz de roles de la inmobiliaria (solo lectura).";
 
   return (
     <PageShell

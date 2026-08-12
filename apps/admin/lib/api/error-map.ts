@@ -6,6 +6,32 @@ import {
 
 const MESSAGE_RULES: Array<{ match: string | RegExp; message: string }> = [
   {
+    match: "No podés desactivar tu propia cuenta",
+    message: "No podés desactivar tu propia cuenta.",
+  },
+  {
+    match: "No podés desactivar al único administrador activo del tenant",
+    message:
+      "No podés desactivar al único administrador activo del tenant.",
+  },
+  {
+    match: "No podés eliminar tu propia cuenta",
+    message: "No podés eliminar tu propia cuenta.",
+  },
+  {
+    match: "No podés eliminar al único administrador activo del tenant",
+    message: "No podés eliminar al único administrador activo del tenant.",
+  },
+  {
+    match: "No se puede eliminar un superadministrador",
+    message:
+      "No se puede eliminar un superadministrador de plataforma desde el tenant.",
+  },
+  {
+    match: "Cannot modify platform super admin",
+    message: "No se puede modificar un superadministrador de plataforma.",
+  },
+  {
     match: "Cannot change slug while the property has an active listing",
     message:
       "No podés cambiar la URL mientras haya publicaciones activas. Pausalas o cerrálas primero.",

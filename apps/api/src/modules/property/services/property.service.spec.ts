@@ -198,4 +198,76 @@ describe('PropertyService', () => {
       ).toHaveBeenCalledWith(propertyId, tenantId);
     });
   });
+
+  describe('findAll createdBy projection', () => {
+    it('maps list results through fromEntity including createdBy', async () => {
+      propertyRepository.findMany.mockResolvedValue([
+        {
+          id: 'property-1',
+          tenantId: 'tenant-1',
+          createdById: 'admin-1',
+          assignedToId: null,
+          slug: 'casa',
+          internalCode: null,
+          title: 'Casa',
+          description: null,
+          propertyType: 'HOUSE',
+          condition: null,
+          isActive: true,
+          street: null,
+          streetNumber: null,
+          floor: null,
+          apartment: null,
+          neighborhood: null,
+          city: 'CABA',
+          province: null,
+          country: 'AR',
+          countryId: null,
+          provinceId: null,
+          localityId: null,
+          neighborhoodId: null,
+          postalCode: null,
+          latitude: null,
+          longitude: null,
+          googlePlaceId: null,
+          formattedAddress: null,
+          geocodeSource: null,
+          geocodeAccuracy: null,
+          totalArea: null,
+          coveredArea: null,
+          uncoveredArea: null,
+          lotFront: null,
+          lotDepth: null,
+          rooms: null,
+          bedrooms: null,
+          bathrooms: null,
+          halfBathrooms: null,
+          parkingSpaces: null,
+          yearBuilt: null,
+          orientation: null,
+          layout: null,
+          brightness: null,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          createdBy: {
+            id: 'admin-1',
+            name: 'Admin Test',
+            email: 'admin@test.dev',
+            isActive: true,
+          },
+        },
+      ]);
+
+      const result = await service.findAll('tenant-1', adminUser);
+
+      expect(propertyRepository.findMany).toHaveBeenCalledTimes(1);
+      expect(result[0].createdBy).toEqual({
+        id: 'admin-1',
+        name: 'Admin Test',
+        email: 'admin@test.dev',
+        isActive: true,
+      });
+      expect(result[0].createdById).toBe('admin-1');
+    });
+  });
 });

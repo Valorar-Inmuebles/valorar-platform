@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import {
   createUser,
+  deleteUser,
   updateProfile,
   updateUser,
 } from "@/lib/api/users";
@@ -33,6 +34,18 @@ export async function updateUserAction(
     await updateUser(id, payload);
     revalidatePath("/configuracion/usuarios");
     revalidatePath(`/configuracion/usuarios/${id}`);
+    return { ok: true };
+  } catch (error) {
+    return { ok: false, message: mapUnknownError(error) };
+  }
+}
+
+export async function deleteUserAction(
+  id: string,
+): Promise<{ ok: true } | { ok: false; message: string }> {
+  try {
+    await deleteUser(id);
+    revalidatePath("/configuracion/usuarios");
     return { ok: true };
   } catch (error) {
     return { ok: false, message: mapUnknownError(error) };

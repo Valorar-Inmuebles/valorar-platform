@@ -4,6 +4,7 @@ import type {
   CreateUserPayload,
   UpdateProfilePayload,
   UpdateUserPayload,
+  UserDeletionEligibility,
 } from "@/lib/api/types/user";
 
 export function listUsers(): Promise<AdminUser[]> {
@@ -12,6 +13,15 @@ export function listUsers(): Promise<AdminUser[]> {
 
 export function getUser(id: string): Promise<AdminUser> {
   return apiFetch<AdminUser>(`/users/${id}`, { cache: "no-store" });
+}
+
+export function getUserDeletionEligibility(
+  id: string,
+): Promise<UserDeletionEligibility> {
+  return apiFetch<UserDeletionEligibility>(
+    `/users/${id}/deletion-eligibility`,
+    { cache: "no-store" },
+  );
 }
 
 export function createUser(payload: CreateUserPayload): Promise<AdminUser> {
@@ -28,6 +38,12 @@ export function updateUser(
   return apiFetch<AdminUser>(`/users/${id}`, {
     method: "PATCH",
     body: JSON.stringify(payload),
+  });
+}
+
+export function deleteUser(id: string): Promise<void> {
+  return apiFetch<void>(`/users/${id}`, {
+    method: "DELETE",
   });
 }
 
