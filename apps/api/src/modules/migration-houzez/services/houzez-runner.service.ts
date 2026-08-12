@@ -166,6 +166,8 @@ function toPreflightSection(
   return {
     performed: result.performed,
     propertyTreeEmpty: result.propertyTreeEmpty,
+    importBaselineMode: result.importBaselineMode,
+    importBaselineDetail: result.importBaselineDetail,
     propertyTreeCounts: result.propertyTreeCounts,
     pilotFeaturePresent: result.pilotFeature.present,
     geoOk:
@@ -328,6 +330,17 @@ export async function runDryRun(
   const preflight = toPreflightSection(preflightResult);
   warnings.push(...preflightResult.informativeWarnings);
   blockers.push(...preflightResult.pilotBlockers);
+
+  if (
+    preflightResult.importBaselineMode === 'post-pilot-controlled' &&
+    wpId !== PILOT_WP_ID
+  ) {
+    warnings.push({
+      code: 'POST_PILOT_PRESERVE_PILOT',
+      message: `Post-pilot dry-run targets WP ${wpId} only — pilot WP ${PILOT_WP_ID} is not planned for mutation.`,
+      wpId,
+    });
+  }
 
   if (
     !options.skipDb &&
@@ -747,9 +760,12 @@ export async function runImport(
       preflightResult.importBlockers.map((b) => `${b.code}: ${b.message}`),
     );
   }
-  if (!preflightResult.propertyTreeEmpty) {
+  if (
+    preflightResult.importBaselineMode !== 'initial-empty-tree' &&
+    preflightResult.importBaselineMode !== 'post-pilot-controlled'
+  ) {
     throw new ImportValidationError([
-      'Property tree baseline is not empty — refusing import.',
+      `Import baseline refused (mode=${preflightResult.importBaselineMode}): ${preflightResult.importBaselineDetail}`,
     ]);
   }
   if (!preflightResult.migrationSourceRef.exists) {

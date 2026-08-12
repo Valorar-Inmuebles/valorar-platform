@@ -207,6 +207,12 @@ export type MigrationSafetyReportSection = {
 export type StagingPreflightReportSection = {
   performed: boolean;
   propertyTreeEmpty: boolean;
+  /** initial-empty-tree | post-pilot-controlled | blocked */
+  importBaselineMode:
+    | 'initial-empty-tree'
+    | 'post-pilot-controlled'
+    | 'blocked';
+  importBaselineDetail?: string;
   propertyTreeCounts: Record<string, number>;
   pilotFeaturePresent: boolean;
   geoOk: boolean;

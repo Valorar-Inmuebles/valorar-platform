@@ -238,10 +238,7 @@ function makeCatalogs(): CatalogResolution[] {
   ];
 }
 
-function makeDryRun(
-  images: ImagePlanEntry[],
-  plannedCount = 12,
-): DryRunReport {
+function makeDryRun(images: ImagePlanEntry[], plannedCount = 12): DryRunReport {
   const manifest = loadBundledDatasetManifest();
   const base: Omit<DryRunReport, 'reportFingerprint'> = {
     mode: 'dry-run',
@@ -269,6 +266,8 @@ function makeDryRun(
     preflight: {
       performed: true,
       propertyTreeEmpty: true,
+      importBaselineMode: 'initial-empty-tree',
+      importBaselineDetail: 'test fixture empty tree',
       propertyTreeCounts: {
         Property: 0,
         PropertyListing: 0,

@@ -17,7 +17,11 @@ import { loadBundledDatasetManifest } from '../dataset/validate-dataset-manifest
 import { PILOT_5312_EXPECTED_RELATIVE_KEYS } from '../constants';
 import type { DryRunReport } from '../types';
 
-async function jpeg(width: number, height: number, color = '#336699'): Promise<Buffer> {
+async function jpeg(
+  width: number,
+  height: number,
+  color = '#336699',
+): Promise<Buffer> {
   return sharp({
     create: {
       width,
@@ -288,6 +292,8 @@ describe('fingerprint integrity with optimization contract', () => {
       preflight: {
         performed: true,
         propertyTreeEmpty: true,
+        importBaselineMode: 'initial-empty-tree',
+        importBaselineDetail: 'test fixture empty tree',
         propertyTreeCounts: {
           Property: 0,
           PropertyListing: 0,

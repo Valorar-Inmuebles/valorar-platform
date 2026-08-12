@@ -352,6 +352,8 @@ export function computeLivePlanFingerprint(
     preflight: {
       performed: true,
       propertyTreeEmpty: true,
+      importBaselineMode: 'initial-empty-tree',
+      importBaselineDetail: 'live fingerprint synthetic',
       propertyTreeCounts: {
         Property: 0,
         PropertyListing: 0,

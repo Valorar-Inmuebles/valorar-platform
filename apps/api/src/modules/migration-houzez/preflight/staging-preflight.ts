@@ -5,34 +5,36 @@ import {
   type OwnerPrisma,
 } from '../services/owner-resolution.service';
 import { detectTraceabilitySchema } from '../traceability/idempotency';
+import {
+  evaluatePropertyTreeBaseline,
+  type ImportBaselineMode,
+  type PropertyTreeBaselinePrisma,
+  type PropertyTreeCounts,
+} from './property-tree-baseline';
 
 export const PILOT_REQUIRED_FEATURE_SLUG = 'uso-comercial' as const;
 
-export type PreflightPrisma = OwnerPrisma & {
-  property: { count: (args?: unknown) => Promise<number> };
-  propertyListing: { count: (args?: unknown) => Promise<number> };
-  propertyPrice: { count: (args?: unknown) => Promise<number> };
-  propertyImage: { count: (args?: unknown) => Promise<number> };
-  propertyFeatureAssignment: { count: (args?: unknown) => Promise<number> };
-  propertyAgentAccess: { count: (args?: unknown) => Promise<number> };
-  propertyFeature: {
-    findFirst: (
-      args: unknown,
-    ) => Promise<{ id: string; slug: string; isActive: boolean } | null>;
+export type PreflightPrisma = OwnerPrisma &
+  PropertyTreeBaselinePrisma & {
+    propertyFeature: {
+      findFirst: (
+        args: unknown,
+      ) => Promise<{ id: string; slug: string; isActive: boolean } | null>;
+    };
+    country: {
+      findFirst: (
+        args: unknown,
+      ) => Promise<{ id: string; iso2: string } | null>;
+    };
+    province: { count: (args?: unknown) => Promise<number> };
+    locality: { count: (args?: unknown) => Promise<number> };
+    user: {
+      count: (args?: unknown) => Promise<number>;
+      findMany: OwnerPrisma['user']['findMany'];
+    };
+    development: { count: (args?: unknown) => Promise<number> };
+    $queryRawUnsafe?: (q: string) => Promise<unknown>;
   };
-  country: {
-    findFirst: (args: unknown) => Promise<{ id: string; iso2: string } | null>;
-  };
-  province: { count: (args?: unknown) => Promise<number> };
-  locality: { count: (args?: unknown) => Promise<number> };
-  user: {
-    count: (args?: unknown) => Promise<number>;
-    findMany: OwnerPrisma['user']['findMany'];
-  };
-  development: { count: (args?: unknown) => Promise<number> };
-  $queryRawUnsafe?: (q: string) => Promise<unknown>;
-  migrationSourceRef?: unknown;
-};
 
 export type StagingPreflightResult = {
   performed: boolean;
@@ -43,15 +45,11 @@ export type StagingPreflightResult = {
     detail: string;
   };
   owner: OwnerResolution;
-  propertyTreeCounts: {
-    Property: number;
-    PropertyListing: number;
-    PropertyPrice: number;
-    PropertyImage: number;
-    PropertyFeatureAssignment: number;
-    PropertyAgentAccess: number;
-  };
+  propertyTreeCounts: PropertyTreeCounts;
   propertyTreeEmpty: boolean;
+  /** initial-empty-tree | post-pilot-controlled | blocked */
+  importBaselineMode: ImportBaselineMode;
+  importBaselineDetail: string;
   pilotFeature: {
     slug: string;
     present: boolean;
@@ -73,7 +71,7 @@ export type StagingPreflightResult = {
     developmentCount: number;
     note: string;
   };
-  /** Blockers that prevent a successful pilot dry-run plan. */
+  /** Blockers that prevent a successful dry-run/import plan. */
   pilotBlockers: BlockerRecord[];
   /** Non-blocking informational warnings for dry-run. */
   informativeWarnings: WarningRecord[];
@@ -174,38 +172,17 @@ export async function runStagingPreflight(input: {
     }
   }
 
-  const [
-    Property,
-    PropertyListing,
-    PropertyPrice,
-    PropertyImage,
-    PropertyFeatureAssignment,
-    PropertyAgentAccess,
-  ] = await Promise.all([
-    input.prisma.property.count(),
-    input.prisma.propertyListing.count(),
-    input.prisma.propertyPrice.count(),
-    input.prisma.propertyImage.count(),
-    input.prisma.propertyFeatureAssignment.count(),
-    input.prisma.propertyAgentAccess.count(),
-  ]);
-
-  const propertyTreeCounts = {
-    Property,
-    PropertyListing,
-    PropertyPrice,
-    PropertyImage,
-    PropertyFeatureAssignment,
-    PropertyAgentAccess,
-  };
-  const propertyTreeEmpty = Object.values(propertyTreeCounts).every(
-    (c) => c === 0,
-  );
-  if (!propertyTreeEmpty) {
-    pilotBlockers.push({
-      code: 'PROPERTY_TREE_NOT_EMPTY',
-      message: `Expected empty Property tree on staging before pilot dry-run; found ${JSON.stringify(propertyTreeCounts)}.`,
-    });
+  const treeBaseline = await evaluatePropertyTreeBaseline({
+    prisma: input.prisma,
+    tenantId: owner.tenantId ?? null,
+  });
+  const propertyTreeCounts = treeBaseline.propertyTreeCounts;
+  const propertyTreeEmpty = treeBaseline.propertyTreeEmpty;
+  for (const b of treeBaseline.blockers) {
+    pilotBlockers.push(b);
+  }
+  for (const w of treeBaseline.warnings) {
+    informativeWarnings.push(w);
   }
 
   const feature = await input.prisma.propertyFeature.findFirst({
@@ -263,6 +240,8 @@ export async function runStagingPreflight(input: {
     owner,
     propertyTreeCounts,
     propertyTreeEmpty,
+    importBaselineMode: treeBaseline.mode,
+    importBaselineDetail: treeBaseline.detail,
     pilotFeature: {
       slug: featureSlug,
       present: Boolean(feature),
@@ -316,6 +295,9 @@ export function skippedStagingPreflight(): StagingPreflightResult {
       PropertyAgentAccess: 0,
     },
     propertyTreeEmpty: false,
+    importBaselineMode: 'blocked',
+    importBaselineDetail:
+      'Preflight skipped (--skip-db) — baseline unclassified.',
     pilotFeature: {
       slug: PILOT_REQUIRED_FEATURE_SLUG,
       present: false,

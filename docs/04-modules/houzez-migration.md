@@ -7,7 +7,7 @@ Rama: `feature/houzez-migration` (desde `main`).
 **E.6 (cerrada en código):** target production, gates Neon, cleanup dual, fingerprint v2, R2 preexisting.
 **Import piloto:** WP 5312 escrito en production (13 filas + 7 WebP). Re-import bloqueado por idempotencia.
 **Upgrade imágenes piloto:** comando operativo `migration:houzez:upgrade-pilot-images` (solo WP 5312, attachments 5315+5314, keys R2 nuevas `*.houzez-webp-v2.webp`, conserva v1).
-**Pendiente autorizado:** continuar migración por lotes — **no automático**.
+**Pendiente autorizado:** continuar migración por lotes controlados (CLI 1×`--wp-id`) — **no automático**. Pipeline desbloqueado en código vía baseline `post-pilot-controlled`.
 
 ---
 
@@ -84,11 +84,22 @@ Para WP 5312 sin blockers, `plannedEntities.length = 12` (property + listing + p
 
 1 Property + 1 PropertyListing + 1 PropertyPrice + 7 PropertyImage + 1 PropertyFeatureAssignment + 1 PropertyAgentAccess + 1 MigrationSourceRef.
 
-### Gate `propertyTreeEmpty` (primer piloto production)
+### Gate de baseline del árbol Property
 
-El import **sigue exigiendo** árbol Property vacío tras la limpieza demo.
-No se habilita `requireEmptyPropertyTree=false` para este primer import.
-Si queda cualquier Property/Listing/Price/Image/FeatureAssignment/AgentAccess → abortar.
+El import distingue dos baselines seguros (sin `--force`):
+
+| Modo | Condición | Efecto |
+|------|-----------|--------|
+| `initial-empty-tree` | Árbol Property del tenant vacío | Primer import (piloto) |
+| `post-pilot-controlled` | Piloto WP `5312` presente + consistente; **todas** las Property del tenant trazadas por `MigrationSourceRef` (`wordpress-houzez` / `entityType=property`) | Imports posteriores uno a uno |
+| `blocked` | Propiedades ajenas/sin MSR, piloto incompleto/inconsistente, MSR huérfano, etc. | Abortar |
+
+Consistencia mínima del piloto WP 5312: 1 listing, 1 price, 7 images, 1 feature assignment, 1 agent access.
+
+- Re-import del mismo WP ID → bloqueado por idempotencia (`SOURCE_ALREADY_IMPORTED` / `IDEMPOTENT_HIT`).
+- CLI sigue siendo **un solo** `--wp-id` por invocación (sin mass/bulk).
+- Dry-run post-piloto de otro WP ID registra warning `POST_PILOT_PRESERVE_PILOT` (no planifica mutar 5312).
+- Cero overwrite R2 y cero DeleteObject se mantienen en el writer.
 
 ---
 
@@ -96,15 +107,15 @@ Si queda cualquier Property/Listing/Price/Image/FeatureAssignment/AgentAccess �
 
 | Fase | Acción | Estado |
 |------|--------|--------|
-| **E.6** | Código + tests: target production, confirms, Neon fingerprint, cleanup dual, fingerprint v2, R2 preexisting, docs | **Hecho (código); sin escrituras remotas** |
-| **E.7** | Backup/checkpoint inmediato + aplicar migración `202608070001_migration_source_ref` en production | Pendiente autorización |
-| **E.8** | Dry-run + execute cleanup demo (33 props) con confirms production | Pendiente |
-| **E.9** | Dry-run production WP 5312 (fingerprint ligado a production; localidad Flores exacta) | Pendiente |
-| **E.10** | Import piloto WP 5312 con dry-run production + confirms | Pendiente |
-| **E.11** | Validación visual/funcional + preflight idempotencia (segundo import rechazado) | Pendiente |
+| **E.6** | Código + tests: target production, confirms, Neon fingerprint, cleanup dual, fingerprint v2, R2 preexisting, docs | **Hecho** |
+| **E.7** | Backup/checkpoint + aplicar migración `202608070001_migration_source_ref` en production | **Hecho** (MSR presente en production) |
+| **E.8** | Dry-run + execute cleanup demo (33 props) con confirms production | **Hecho** |
+| **E.9** | Dry-run production WP 5312 (fingerprint ligado a production; localidad Flores exacta) | **Hecho** |
+| **E.10** | Import piloto WP 5312 con dry-run production + confirms | **Hecho** |
+| **E.11** | Validación visual/funcional + preflight idempotencia (segundo import rechazado) | **Hecho** |
+| **Post-piloto** | Baseline `post-pilot-controlled` en código (permite lotes controlados 1×1) | **Hecho (código)** — import de lotes **aún no autorizado / no ejecutado** |
 
 ---
-
 ## Seguridad de conexión
 
 El CLI `migration:houzez` **nunca** usa `DATABASE_URL` como destino ni como fallback.

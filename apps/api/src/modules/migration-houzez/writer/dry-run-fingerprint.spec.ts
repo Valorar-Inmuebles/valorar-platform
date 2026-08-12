@@ -48,6 +48,8 @@ function makeMinimalDryRun(
     preflight: {
       performed: true,
       propertyTreeEmpty: true,
+      importBaselineMode: 'initial-empty-tree',
+      importBaselineDetail: 'test fixture empty tree',
       propertyTreeCounts: {
         Property: 0,
         PropertyListing: 0,
