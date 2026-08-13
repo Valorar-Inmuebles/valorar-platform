@@ -18,6 +18,10 @@ export type ContactOffice = {
   whatsappDisplay: string;
   latitude: number;
   longitude: number;
+  imageSrc: string;
+  imageAlt: string;
+  /** Tailwind object-position utility for facade framing. */
+  imageObjectPosition: string;
 };
 
 export const CONTACT_OFFICES: ContactOffice[] = [
@@ -30,6 +34,9 @@ export const CONTACT_OFFICES: ContactOffice[] = [
     whatsappDisplay: "114-473-6714",
     latitude: -34.6206,
     longitude: -58.4418,
+    imageSrc: "/valorar-inmuebles-casa-central.jpg",
+    imageAlt: "Casa Central de Valorar Inmuebles",
+    imageObjectPosition: "object-center",
   },
   {
     id: "sucursal-flores",
@@ -40,6 +47,9 @@ export const CONTACT_OFFICES: ContactOffice[] = [
     whatsappDisplay: "112-459-1701",
     latitude: -34.6348,
     longitude: -58.4629,
+    imageSrc: "/valorar-inmuebles-sucursal-flores.jpg",
+    imageAlt: "Sucursal Flores de Valorar Inmuebles",
+    imageObjectPosition: "object-center",
   },
 ];
 
@@ -50,9 +60,19 @@ export const CONTACT_HOURS = {
   saturday: "Sáb. de 10 a 13 hs.",
 };
 
+export const CONTACT_BRANCHES_SECTION_ID = "sucursales";
+
 export const CONTACT_MAP = {
   title: "Nuestras sucursales",
   description: "Encontrá Casa Central y Sucursal Flores en el mapa.",
+};
+
+export const HOME_BRANCHES = {
+  title: "Nuestras sucursales",
+  description:
+    "Estamos cerca para acompañarte en cada operación inmobiliaria.",
+  locationLabel: "Ver ubicación",
+  locationHref: `/contacto#${CONTACT_BRANCHES_SECTION_ID}`,
 };
 
 export const CONTACT_BENEFITS = [
