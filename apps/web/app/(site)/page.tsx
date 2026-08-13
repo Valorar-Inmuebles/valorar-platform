@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import { CategoryGrid } from "@/components/home/category-grid";
 import { FeaturedPropertiesSection } from "@/components/home/featured-properties-section";
 import { HeroSection } from "@/components/home/hero-section";
+import { HomeBranchesSection } from "@/components/home/home-branches-section";
 import { HomeNextStepCta } from "@/components/home/home-next-step-cta";
 import { HomeSearchHelpCta } from "@/components/home/home-search-help-cta";
 import { RecentPropertiesSection } from "@/components/home/recent-properties-section";
@@ -94,6 +95,8 @@ export default function HomePage() {
       </Suspense>
 
       <CategoryGrid />
+
+      <HomeBranchesSection />
 
       <HomeNextStepCta />
     </>

@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import { MapContainer, Marker, Popup, TileLayer } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+import { cn } from "@/lib/cn";
 import { VALORAR_MAP_MARKER } from "./map-marker-config";
 import {
   CARTO_POSITRON_ATTRIBUTION,
@@ -51,6 +52,7 @@ export function MapInner({
   zoom = DEFAULT_MAP_ZOOM,
   marker = null,
   className = "h-64 w-full md:h-72",
+  framed = true,
   scrollWheelZoom = false,
   zoomControl = false,
   ariaLabel = "Mapa",
@@ -60,7 +62,11 @@ export function MapInner({
 
   return (
     <div
-      className={`overflow-hidden rounded-2xl border border-border-default bg-surface-card ${className}`}
+      className={cn(
+        "overflow-hidden bg-surface-card",
+        framed && "rounded-2xl border border-border-default",
+        className,
+      )}
       role="region"
       aria-label={ariaLabel}
     >

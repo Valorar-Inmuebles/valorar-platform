@@ -1,3 +1,4 @@
+export { BranchOfficeCard } from "./branch-office-card";
 export { ContactBenefitsSection } from "./contact-benefits-section";
 export { ContactCtaSection } from "./contact-cta-section";
 export { ContactForm } from "./contact-form";
