@@ -103,6 +103,14 @@ Secciones del detalle: Hero, Descripción, Amenidades, Ubicación, Tipologías.
 
 ---
 
+## Orden de listados
+
+Admin `GET /developments` y público `GET /public/developments` (incluye el bloque de recientes) ordenan por `sortOrder ASC`, `createdAt DESC`, `id ASC`. Ver `docs/03-database/development-domain.md`.
+
+El ABM no muestra ni edita `sortOrder` en esta versión.
+
+---
+
 ## Fuera de alcance D1
 
 Videos, PDFs, brochure, masterplan, avance de obra, etapas, torres, planos, administración unidad por unidad, CRM, reservas.

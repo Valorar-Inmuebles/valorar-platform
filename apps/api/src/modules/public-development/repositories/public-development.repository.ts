@@ -5,6 +5,7 @@ import {
   Prisma,
 } from '../../../../generated/prisma/client';
 import { PrismaService } from '../../../prisma/prisma.service';
+import { DEVELOPMENT_LIST_ORDER_BY } from '../../development/constants/list-order';
 import { buildDevelopmentLocationWhere } from '../../development/utils/development-location-filters';
 import { developmentGeoInclude } from '../../development/utils/development-location';
 
@@ -71,7 +72,7 @@ export class PublicDevelopmentRepository {
       this.prisma.development.findMany({
         where,
         include: publicDevelopmentListInclude,
-        orderBy: { updatedAt: 'desc' },
+        orderBy: DEVELOPMENT_LIST_ORDER_BY,
         skip: (pagination.page - 1) * pagination.limit,
         take: pagination.limit,
       }),
@@ -114,9 +115,7 @@ export class PublicDevelopmentRepository {
       ...this.buildPublishableDevelopmentBaseWhere(tenantId),
       ...(filters.status !== undefined ? { status: filters.status } : {}),
       ...locationWhere,
-      ...(filters.currency !== undefined
-        ? { currency: filters.currency }
-        : {}),
+      ...(filters.currency !== undefined ? { currency: filters.currency } : {}),
       ...(priceFrom !== undefined ? { priceFrom } : {}),
     };
   }

@@ -364,7 +364,9 @@ Roadmap técnico API: `docs/09-roadmap/property-api-roadmap.md`
 * API pública: `/public/developments`
 * Admin UI: `/emprendimientos` (listado, ficha ejecutiva, tabs Datos/Comercialización/Características/Imágenes/Tipologías)
 * Web: `/emprendimientos`, `/emprendimientos/[slug]`
-* Migración: `202607020004_development_foundation`
+* Orden editorial: `Development.sortOrder` (migración `202608210001_development_sort_order`)
+* Migración de datos (audit/dry-run, etapa 1.1 localidades/estados): `docs/04-modules/developments-data-migration.md` — **importación no autorizada**
+* Migración schema: `202607020004_development_foundation`
 * Documentación: `docs/03-database/development-domain.md`, `docs/04-modules/developments.md`
 
 ### Lead Domain v1 (lógica de negocio)

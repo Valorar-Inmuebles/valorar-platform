@@ -736,6 +736,24 @@ Subdivisión opcional. `slug` y `search` se generan automáticamente desde `name
 
 ---
 
+# Development
+
+Entidad independiente de Property. Documentación: `docs/03-database/development-domain.md`.
+
+## `sortOrder`
+
+| Campo | Tipo | Default | Descripción |
+| ----- | ---- | ------- | ----------- |
+| sortOrder | Int | `0` | Orden editorial de listados. Menor = más arriba. |
+
+Listados: `sortOrder ASC`, `createdAt DESC`, `id ASC`. No usar `updatedAt`.
+
+Migración: `202608210001_development_sort_order`.
+
+Alta ABM y filas preexistentes: `0` (quedan antes del lote importado `1..16`).
+
+---
+
 # Reglas Globales
 
 ## Multi Tenant

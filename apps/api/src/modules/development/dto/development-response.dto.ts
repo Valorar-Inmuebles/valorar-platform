@@ -120,6 +120,9 @@ export class DevelopmentResponseDto {
   parkingSpacesCount: number | null;
 
   @ApiProperty()
+  sortOrder: number;
+
+  @ApiProperty()
   createdAt: Date;
 
   @ApiProperty()
@@ -167,6 +170,7 @@ export class DevelopmentResponseDto {
       financingDescription: development.financingDescription,
       hasParkingSpaces: development.hasParkingSpaces,
       parkingSpacesCount: development.parkingSpacesCount,
+      sortOrder: development.sortOrder,
       createdAt: development.createdAt,
       updatedAt: development.updatedAt,
     };
