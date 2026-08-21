@@ -1,6 +1,6 @@
 # Migración de emprendimientos (`local-developments-v1`)
 
-Estado: **importador implementado, gated a development**. La importación contra el `DATABASE_URL` habitual **no está autorizada** mientras ese destino coincida con el Neon de producción auditado o el bucket de storage tenga token `prod`.
+Estado: **carga del lote `local-developments-v1` completada** en el Neon auditado / bucket `valorarinmuebles-images-prod` / tenant `demo` (16 Development, 87 imágenes, 16 portadas). `--target=development` sigue gated a un ambiente de desarrollo. `--target=production` exige `--confirm=IMPORT_LOCAL_DEVELOPMENTS_PRODUCTION`.
 
 Rama: `feature/developments-data-migration`
 
@@ -20,10 +20,11 @@ Incluye:
 
 No incluye:
 
-* cleanup del lote;
 * drag-and-drop de orden en el ABM;
 * persistencia de `DevelopmentTypology`;
 * creación de `Property`.
+
+Cleanup del lote: comando acotado `cleanup --dry-run` / `cleanup --execute` (ver más abajo). No es un rollback general.
 
 ---
 
@@ -116,6 +117,8 @@ Identidad geo estable: `provinceName` + `localityName` (y slugs derivados). **No
 
 Si la localidad no está en el catálogo (seed CABA), el plan queda `blocked`, no se inserta la fila, y el dry-run agrupa el faltante en `missingCatalogEntries`.
 
+Villa Luro (`villa-luro`) y Floresta (`floresta`) se incorporan con la migración de datos `202608210002_add_villa_luro_floresta_localities` bajo provincia `capital-federal` / `AR-C`. No se crea una provincia nueva ni un CRUD de localidades.
+
 ---
 
 ## Catálogo geográfico (etapa 1.1)
@@ -125,7 +128,7 @@ Jerarquía real: `Country` → `Province` → `Locality` → `Neighborhood` (opc
 Alimentación:
 
 * seed opt-in `SEED_GEO_CATALOG=true` desde `prisma/seed-data/provincias.sql` y `localidades.sql`;
-* migraciones de datos puntuales (ej. `202608120001_add_parque_avellaneda_locality`);
+* migraciones de datos puntuales (ej. `202608120001_add_parque_avellaneda_locality`, `202608210002_add_villa_luro_floresta_localities`);
 * API `GET /geo/*` de solo lectura;
 * **no** hay CRUD admin de localidades;
 * el importador de emprendimientos **no** crea Provincia ni Localidad.
@@ -164,7 +167,7 @@ El ABM no expone el campo en esta etapa. Un futuro orden manual asignaría enter
 
 Las imágenes siguen usando `DevelopmentImage.sortOrder`.
 
-Migración Prisma: `202608210001_development_sort_order`. Aplicar **solo** contra un ambiente inequívocamente de desarrollo, con `npx prisma migrate deploy`. No usar `migrate reset`, `db push` ni `migrate dev` contra Neon compartido.
+Migración Prisma: `202608210001_development_sort_order`. Aplicar con `npx prisma migrate deploy` contra el destino autorizado. No usar `migrate reset`, `db push` ni `migrate dev` contra Neon compartido.
 
 ---
 
@@ -226,6 +229,10 @@ npm run migration:developments -- audit
 npm run migration:developments -- dry-run
 npm run migration:developments -- preflight --target=development
 npm run migration:developments -- import --target=development --tenant=demo --confirm=IMPORT_LOCAL_DEVELOPMENTS
+npm run migration:developments -- preflight --target=production
+npm run migration:developments -- import --target=production --tenant=demo --created-by=admin@demo.valorar.dev --confirm=IMPORT_LOCAL_DEVELOPMENTS_PRODUCTION
+npm run migration:developments -- cleanup --dry-run --target=production --tenant=demo
+npm run migration:developments -- cleanup --execute --target=production --tenant=demo --confirm=DELETE_LOCAL_DEVELOPMENTS_PRODUCTION
 ```
 
 Desde la raíz del monorepo:
@@ -235,6 +242,8 @@ npm run migration:developments -w api -- audit
 npm run migration:developments -w api -- dry-run
 npm run migration:developments -w api -- preflight --target=development
 npm run migration:developments -w api -- import --target=development --tenant=demo --confirm=IMPORT_LOCAL_DEVELOPMENTS
+npm run migration:developments -w api -- import --target=production --tenant=demo --created-by=admin@demo.valorar.dev --confirm=IMPORT_LOCAL_DEVELOPMENTS_PRODUCTION
+npm run migration:developments -w api -- cleanup --dry-run --target=production --tenant=demo
 ```
 
 Opciones adicionales: `--source-path`, `--created-by`, `--json`.
@@ -247,9 +256,11 @@ Códigos de salida:
 
 `audit` y `dry-run` no abren Prisma ni S3.
 
-`preflight` e `import` exigen `--target=development`. `import` exige además `--confirm=IMPORT_LOCAL_DEVELOPMENTS`.
+`preflight`, `import` y `cleanup` exigen `--target=development` o `--target=production`. `import` exige el token de confirmación correspondiente. `cleanup --execute` exige `DELETE_LOCAL_DEVELOPMENTS` o `DELETE_LOCAL_DEVELOPMENTS_PRODUCTION`. Sin confirmación no hay escrituras.
 
 El `dry-run` resuelve **nombres y slugs** de provincia/localidad contra el catálogo CABA offline. `provinceId` y `localityId` se resuelven en preflight/import contra el catálogo live. Si falta una localidad, el reporte incluye `missingCatalogEntries` y solo bloquea esos `sourceId`.
+
+Features de cochera ausentes (`cochera-cubierta`, `cochera-fija`, `cochera-planta-baja`, `cochera-subsuelo`) generan warning `FEATURES_MISSING` / `FEATURE_NOT_IN_CATALOG`. **No se crean** y **no bloquean** el import.
 
 ---
 
@@ -257,23 +268,53 @@ El `dry-run` resuelve **nombres y slugs** de provincia/localidad contra el catá
 
 * Origen explícito (`--source-path` o default resuelto desde la raíz del workspace).
 * No se imprimen credenciales, connection strings ni access keys.
-* Target `production`, `prod`, `staging` y `preview` están prohibidos.
-* El fingerprint Neon de producción auditado (Houzez E.5) es deny-list.
-* Un bucket cuyo nombre contiene `prod`/`production`/`staging`/`preview` se rechaza.
-* Si no se puede demostrar que DB y storage son de desarrollo, no hay escrituras.
+* `--target=prod`, `staging` y `preview` están prohibidos.
+* `--target=development` deniega el fingerprint Neon de producción auditado (Houzez E.5) y buckets con token `prod`/`production`/`staging`/`preview`.
+* `--target=production` es un modo explícito: exige `--confirm=IMPORT_LOCAL_DEVELOPMENTS_PRODUCTION` y solo autoriza el Neon auditado, el bucket `valorarinmuebles-images-prod`, el tenant `demo` y `sourceSystem = local-developments-v1`.
+* Sin el token de confirmación no hay escrituras.
 * No geocodificar. No inventar precios ni cantidades de cocheras.
 * No se crean `Property` ni `DevelopmentTypology`.
 * Un conflicto de slug/`internalCode` sin `MigrationSourceRef` bloquea ese registro; no se apropia.
 
 ---
 
-## Pasos que siguen bloqueados en este worktree
+## Cleanup del lote
 
-El `DATABASE_URL` local coincide con el Neon de producción auditado y `STORAGE_BUCKET` contiene el token `prod`. En ese estado:
+Comando acotado para borrar **solo** este lote y reintentar. No es un rollback general.
 
-1. no aplicar `prisma migrate deploy`;
-2. no ejecutar `import`;
-3. no subir imágenes;
-4. no escribir `Development` / `DevelopmentImage` / `MigrationSourceRef`.
+Alcance:
 
-Para importar hace falta un ambiente inequívocamente de desarrollo (host/bucket con señal `dev`/`development`, identidad Neon distinta de producción, y allowlists opcionales `DEVELOPMENTS_DEV_DB_HOST` + `DEVELOPMENTS_DEV_STORAGE_BUCKET` sin tokens prohibidos).
+* tenant `demo`;
+* `sourceSystem = local-developments-v1`;
+* `Development` vinculados por `MigrationSourceRef`;
+* `DevelopmentImage` y asignaciones del mismo lote;
+* objetos R2 bajo el prefijo exacto `{tenantId}/migrations/local-developments-v1/`.
+
+Nunca toca:
+
+* `Property`;
+* Houzez (`wordpress-houzez`);
+* otros `Development`;
+* imágenes fuera del prefijo;
+* otros tenants.
+
+```bash
+npm run migration:developments -w api -- cleanup --dry-run --target=production --tenant=demo
+npm run migration:developments -w api -- cleanup --execute --target=production --tenant=demo --confirm=DELETE_LOCAL_DEVELOPMENTS_PRODUCTION
+```
+
+`--dry-run` solo cuenta. `--execute` exige el token y muestra conteos previos. No ejecutar cleanup si el import terminó correctamente.
+
+---
+
+## Destino autorizado para esta carga
+
+El `DATABASE_URL` local coincide con el Neon de producción auditado y `STORAGE_BUCKET` es `valorarinmuebles-images-prod`. Esa combinación **sigue bloqueada** con `--target=development`.
+
+La carga de los 16 emprendimientos se autoriza únicamente con:
+
+```bash
+npm run migration:developments -w api -- import --target=production --tenant=demo --created-by=admin@demo.valorar.dev --confirm=IMPORT_LOCAL_DEVELOPMENTS_PRODUCTION
+```
+
+Migraciones Prisma de esta carga: `202608210001_development_sort_order` y `202608210002_add_villa_luro_floresta_localities`. Aplicar con `npx prisma migrate deploy`. No usar `migrate reset`, `db push` ni comandos destructivos.

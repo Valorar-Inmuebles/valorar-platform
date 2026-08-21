@@ -211,7 +211,12 @@ export type DryRunReport = {
   writes: { database: false; storage: false };
 };
 
-export type CliCommand = 'audit' | 'dry-run' | 'preflight' | 'import';
+export type CliCommand =
+  | 'audit'
+  | 'dry-run'
+  | 'preflight'
+  | 'import'
+  | 'cleanup';
 
 export type CliOptions = {
   command: CliCommand;
@@ -222,6 +227,8 @@ export type CliOptions = {
   createdBy?: string;
   target?: string;
   confirm?: string;
+  dryRun?: boolean;
+  execute?: boolean;
 };
 
 export type GateIssue = {
@@ -352,5 +359,30 @@ export type ImportReport = {
   storageWrites: number;
   records: ImportRecordResult[];
   blockers: GateIssue[];
+  writes: { database: boolean; storage: boolean };
+};
+
+export type CleanupCounts = {
+  developments: number;
+  images: number;
+  featureAssignments: number;
+  typologies: number;
+  sourceRefs: number;
+  storageObjects: number;
+};
+
+export type CleanupReport = {
+  command: 'cleanup';
+  mode: 'dry-run' | 'execute';
+  ok: boolean;
+  executed: boolean;
+  environment: SanitizedEnvironment;
+  tenant: { id: string | null; slug: string | null };
+  sourceSystem: 'local-developments-v1';
+  storagePrefix: string | null;
+  counts: CleanupCounts;
+  deleted: CleanupCounts;
+  blockers: GateIssue[];
+  warnings: GateIssue[];
   writes: { database: boolean; storage: boolean };
 };

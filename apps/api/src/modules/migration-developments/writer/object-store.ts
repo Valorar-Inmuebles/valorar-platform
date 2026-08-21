@@ -21,6 +21,8 @@ export type MigrationObjectStore = {
   }): Promise<PutObjectResult>;
   getPublicUrl(key: string): string;
   ping(): Promise<boolean>;
+  listByPrefix(prefix: string): Promise<string[]>;
+  deleteObject(key: string): Promise<boolean>;
 };
 
 export type InMemoryObjectRecord = {
@@ -85,6 +87,16 @@ export class InMemoryMigrationObjectStore implements MigrationObjectStore {
 
   ping(): Promise<boolean> {
     return Promise.resolve(this.pingOk);
+  }
+
+  listByPrefix(prefix: string): Promise<string[]> {
+    return Promise.resolve(
+      [...this.objects.keys()].filter((key) => key.startsWith(prefix)).sort(),
+    );
+  }
+
+  deleteObject(key: string): Promise<boolean> {
+    return Promise.resolve(this.objects.delete(key));
   }
 
   seedPreexisting(

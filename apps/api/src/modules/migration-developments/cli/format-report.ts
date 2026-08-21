@@ -1,6 +1,7 @@
 import { CLI_EXIT } from '../constants';
 import type {
   AuditReport,
+  CleanupReport,
   DryRunReport,
   ImportReport,
   PreflightReport,
@@ -183,6 +184,36 @@ export function formatImportReport(report: ImportReport): string {
   }
   for (const issue of report.blockers) {
     lines.push(`  - blocker: ${issue.code} ${issue.message}`);
+  }
+  return lines.join('\n');
+}
+
+export function exitCodeForCleanup(report: CleanupReport): number {
+  if (!report.ok || report.blockers.length > 0) {
+    return CLI_EXIT.blocked;
+  }
+  if (report.warnings.length > 0) {
+    return CLI_EXIT.warnings;
+  }
+  return CLI_EXIT.ok;
+}
+
+export function formatCleanupReport(report: CleanupReport): string {
+  const env = report.environment;
+  const lines = [
+    `Cleanup — ${report.sourceSystem} (${report.mode})`,
+    `target=${env.target}  dbHost=${env.dbHostMasked ?? 'n/a'}  dbName=${env.dbName ?? 'n/a'}  bucket=${env.storageBucket ?? 'n/a'}`,
+    `tenant=${report.tenant.slug ?? 'n/a'} id=${report.tenant.id ?? 'n/a'}`,
+    `storagePrefix=${report.storagePrefix ?? 'n/a'}`,
+    `counts developments=${report.counts.developments} images=${report.counts.images} features=${report.counts.featureAssignments} typologies=${report.counts.typologies} refs=${report.counts.sourceRefs} r2=${report.counts.storageObjects}`,
+    `deleted developments=${report.deleted.developments} images=${report.deleted.images} features=${report.deleted.featureAssignments} typologies=${report.deleted.typologies} refs=${report.deleted.sourceRefs} r2=${report.deleted.storageObjects}`,
+    `executed=${report.executed} ok=${report.ok}  Writes: database=${report.writes.database} storage=${report.writes.storage}`,
+    '',
+  ];
+  for (const issue of [...report.blockers, ...report.warnings]) {
+    lines.push(
+      `  - ${issue.blocking ? 'blocker' : 'warning'}: ${issue.code} ${issue.message}`,
+    );
   }
   return lines.join('\n');
 }

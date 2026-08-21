@@ -1,6 +1,8 @@
 import {
+  DeleteObjectCommand,
   HeadBucketCommand,
   HeadObjectCommand,
+  ListObjectsV2Command,
   PutObjectCommand,
   S3Client,
 } from '@aws-sdk/client-s3';
@@ -100,6 +102,39 @@ export function createS3MigrationObjectStore(
         new HeadBucketCommand({ Bucket: config.bucket }),
       );
       return true;
+    },
+
+    async listByPrefix(prefix: string): Promise<string[]> {
+      const keys: string[] = [];
+      let continuationToken: string | undefined;
+      do {
+        const page = await config.client.send(
+          new ListObjectsV2Command({
+            Bucket: config.bucket,
+            Prefix: prefix,
+            ContinuationToken: continuationToken,
+          }),
+        );
+        for (const object of page.Contents ?? []) {
+          if (object.Key) keys.push(object.Key);
+        }
+        continuationToken = page.IsTruncated
+          ? page.NextContinuationToken
+          : undefined;
+      } while (continuationToken);
+      return keys;
+    },
+
+    async deleteObject(key: string): Promise<boolean> {
+      try {
+        await config.client.send(
+          new DeleteObjectCommand({ Bucket: config.bucket, Key: key }),
+        );
+        return true;
+      } catch (error) {
+        if (isNotFound(error)) return false;
+        throw error;
+      }
     },
   };
 

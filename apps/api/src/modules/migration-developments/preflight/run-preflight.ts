@@ -2,6 +2,9 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import {
   ALLOWED_MIGRATION_TARGET,
+  AUTHORIZED_PRODUCTION_CREATOR_EMAIL,
+  AUTHORIZED_PRODUCTION_TENANT_SLUG,
+  DEFAULT_CREATOR_EMAIL,
   DEFAULT_TENANT_SLUG,
   DEVELOPMENTS_SOURCE_SYSTEM,
   REQUIRED_LOCALITY_NAMES,
@@ -23,6 +26,7 @@ import {
   type LiveGeoPrisma,
 } from '../catalog/resolve-live-geo';
 import {
+  isProductionTarget,
   validateDevelopmentEnvironment,
   type NeonIdentity,
 } from '../safety/environment';
@@ -175,6 +179,32 @@ export async function runPreflight(input: {
   });
   blockers.push(...(env.ok ? [] : env.blockers));
   warnings.push(...env.warnings);
+  if (isProductionTarget(input.target)) {
+    warnings.push({
+      code: 'AUTHORIZED_PRODUCTION_TARGET',
+      message:
+        'Explicit production target: writes stay limited to tenant demo, sourceSystem local-developments-v1, bucket valorarinmuebles-images-prod and the audited Neon identity.',
+      blocking: false,
+    });
+    const tenantSlug = input.tenantSlug?.trim() || DEFAULT_TENANT_SLUG;
+    if (tenantSlug !== AUTHORIZED_PRODUCTION_TENANT_SLUG) {
+      blockers.push({
+        code: 'PRODUCTION_TENANT_NOT_AUTHORIZED',
+        message: `Production target only authorizes tenant slug="${AUTHORIZED_PRODUCTION_TENANT_SLUG}".`,
+        blocking: true,
+      });
+    }
+    const creatorEmail = (
+      input.createdBy?.trim() || DEFAULT_CREATOR_EMAIL
+    ).toLowerCase();
+    if (creatorEmail !== AUTHORIZED_PRODUCTION_CREATOR_EMAIL) {
+      blockers.push({
+        code: 'PRODUCTION_CREATOR_NOT_AUTHORIZED',
+        message: `Production target only authorizes --created-by=${AUTHORIZED_PRODUCTION_CREATOR_EMAIL}.`,
+        blocking: true,
+      });
+    }
+  }
 
   let storageOk = false;
   if (input.objectStore) {

@@ -18,30 +18,59 @@ export const DEFAULT_TENANT_SLUG = 'demo';
 
 export const DEFAULT_CREATOR_EMAIL = 'admin@demo.valorar.dev';
 
-export const ALLOWED_MIGRATION_TARGET = 'development' as const;
+export const DEVELOPMENT_MIGRATION_TARGET = 'development' as const;
+
+export const PRODUCTION_MIGRATION_TARGET = 'production' as const;
+
+export const ALLOWED_MIGRATION_TARGET = DEVELOPMENT_MIGRATION_TARGET;
+
+export const ALLOWED_MIGRATION_TARGETS = [
+  DEVELOPMENT_MIGRATION_TARGET,
+  PRODUCTION_MIGRATION_TARGET,
+] as const;
 
 export const IMPORT_CONFIRM_TOKEN = 'IMPORT_LOCAL_DEVELOPMENTS' as const;
 
+export const IMPORT_PRODUCTION_CONFIRM_TOKEN =
+  'IMPORT_LOCAL_DEVELOPMENTS_PRODUCTION' as const;
+
+export const CLEANUP_CONFIRM_TOKEN = 'DELETE_LOCAL_DEVELOPMENTS' as const;
+
+export const CLEANUP_PRODUCTION_CONFIRM_TOKEN =
+  'DELETE_LOCAL_DEVELOPMENTS_PRODUCTION' as const;
+
 export const FORBIDDEN_MIGRATION_TARGETS = [
-  'production',
   'prod',
   'staging',
   'preview',
 ] as const;
 
+export const AUTHORIZED_PRODUCTION_STORAGE_BUCKET =
+  'valorarinmuebles-images-prod' as const;
+
+export const AUTHORIZED_PRODUCTION_TENANT_SLUG = DEFAULT_TENANT_SLUG;
+
+export const AUTHORIZED_PRODUCTION_CREATOR_EMAIL = DEFAULT_CREATOR_EMAIL;
+
 /**
- * Audited production Neon fingerprint (Houzez E.5). Used only as a deny-list
- * so this importer never writes to that branch, even if --target=development.
+ * Audited production Neon fingerprint (Houzez E.5).
+ * --target=development treats it as a deny-list.
+ * --target=production requires this exact identity plus the production confirm token.
  */
-export const DENIED_PRODUCTION_NEON_IDENTITY = {
+export const AUDITED_PRODUCTION_NEON_IDENTITY = {
   projectId: 'square-lab-71259415',
   branchId: 'br-rapid-bread-acsu0836',
   endpointId: 'ep-mute-sun-ac6nva0v',
 } as const;
 
+export const DENIED_PRODUCTION_NEON_IDENTITY = AUDITED_PRODUCTION_NEON_IDENTITY;
+
 export const TRACEABILITY_MIGRATION = '202608070001_migration_source_ref';
 
 export const SORT_ORDER_MIGRATION = '202608210001_development_sort_order';
+
+export const CABA_LOCALITIES_MIGRATION =
+  '202608210002_add_villa_luro_floresta_localities';
 
 export const CREATOR_ROLES = [
   'TENANT_ADMIN',

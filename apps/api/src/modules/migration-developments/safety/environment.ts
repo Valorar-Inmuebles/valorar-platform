@@ -1,8 +1,15 @@
 import {
   ALLOWED_MIGRATION_TARGET,
-  DENIED_PRODUCTION_NEON_IDENTITY,
+  ALLOWED_MIGRATION_TARGETS,
+  AUDITED_PRODUCTION_NEON_IDENTITY,
+  AUTHORIZED_PRODUCTION_STORAGE_BUCKET,
+  CLEANUP_CONFIRM_TOKEN,
+  CLEANUP_PRODUCTION_CONFIRM_TOKEN,
+  DEVELOPMENT_MIGRATION_TARGET,
   FORBIDDEN_MIGRATION_TARGETS,
   IMPORT_CONFIRM_TOKEN,
+  IMPORT_PRODUCTION_CONFIRM_TOKEN,
+  PRODUCTION_MIGRATION_TARGET,
 } from '../constants';
 import type { GateIssue, SanitizedEnvironment } from '../types';
 import {
@@ -23,6 +30,7 @@ export type EnvironmentInput = {
   target?: string | null;
   confirm?: string | null;
   requireConfirm: boolean;
+  expectedConfirmToken?: string | null;
   databaseUrl?: string | null;
   storageBucket?: string | null;
   storageEndpoint?: string | null;
@@ -59,31 +67,63 @@ function emptyEnvironment(target: string): SanitizedEnvironment {
   };
 }
 
+export function normalizeMigrationTarget(
+  target: string | undefined | null,
+): string {
+  return target?.trim().toLowerCase() ?? '';
+}
+
+export function isProductionTarget(target: string | undefined | null): boolean {
+  return normalizeMigrationTarget(target) === PRODUCTION_MIGRATION_TARGET;
+}
+
+export function expectedImportConfirmToken(
+  target: string | undefined | null,
+): string {
+  return isProductionTarget(target)
+    ? IMPORT_PRODUCTION_CONFIRM_TOKEN
+    : IMPORT_CONFIRM_TOKEN;
+}
+
+export function expectedCleanupConfirmToken(
+  target: string | undefined | null,
+): string {
+  return isProductionTarget(target)
+    ? CLEANUP_PRODUCTION_CONFIRM_TOKEN
+    : CLEANUP_CONFIRM_TOKEN;
+}
+
 export function assertAllowedTarget(target: string | undefined | null): {
   ok: boolean;
   errors: string[];
+  target: string;
 } {
   const errors: string[] = [];
-  const value = target?.trim() ?? '';
-  if (!value) {
+  const normalized = normalizeMigrationTarget(target);
+  if (!normalized) {
     errors.push(
-      `Import/preflight requires --target=${ALLOWED_MIGRATION_TARGET}.`,
+      `Import/preflight/cleanup requires --target=${DEVELOPMENT_MIGRATION_TARGET} or --target=${PRODUCTION_MIGRATION_TARGET}.`,
     );
-    return { ok: false, errors };
+    return { ok: false, errors, target: normalized };
   }
-  const normalized = value.toLowerCase();
-  if (
-    (FORBIDDEN_MIGRATION_TARGETS as readonly string[]).includes(normalized) ||
-    normalized !== ALLOWED_MIGRATION_TARGET
-  ) {
+  if ((FORBIDDEN_MIGRATION_TARGETS as readonly string[]).includes(normalized)) {
     errors.push(
-      `Refusing target. Only --target=${ALLOWED_MIGRATION_TARGET} is allowed. production, prod, staging and preview are forbidden.`,
+      `Refusing target "${normalized}". Use --target=${DEVELOPMENT_MIGRATION_TARGET} or --target=${PRODUCTION_MIGRATION_TARGET}. Shorthand prod, staging and preview are forbidden.`,
+    );
+    return { ok: false, errors, target: normalized };
+  }
+  if (!(ALLOWED_MIGRATION_TARGETS as readonly string[]).includes(normalized)) {
+    errors.push(
+      `Refusing target "${normalized}". Only --target=${DEVELOPMENT_MIGRATION_TARGET} or --target=${PRODUCTION_MIGRATION_TARGET} is allowed.`,
     );
   }
-  return { ok: errors.length === 0, errors };
+  return { ok: errors.length === 0, errors, target: normalized };
 }
 
-export function assertImportConfirm(confirm: string | undefined | null): {
+export function assertExactConfirm(
+  confirm: string | undefined | null,
+  expectedToken: string,
+): {
   ok: boolean;
   errors: string[];
 } {
@@ -91,30 +131,48 @@ export function assertImportConfirm(confirm: string | undefined | null): {
   if (!value) {
     return {
       ok: false,
-      errors: [`Import requires --confirm=${IMPORT_CONFIRM_TOKEN}.`],
+      errors: [`This command requires --confirm=${expectedToken}.`],
     };
   }
-  if (value !== IMPORT_CONFIRM_TOKEN) {
+  if (value !== expectedToken) {
     return {
       ok: false,
-      errors: [
-        `Import confirmation token does not match --confirm=${IMPORT_CONFIRM_TOKEN}.`,
-      ],
+      errors: [`Confirmation token does not match --confirm=${expectedToken}.`],
     };
   }
   return { ok: true, errors: [] };
 }
 
-function matchesDeniedProduction(
+export function assertImportConfirm(
+  confirm: string | undefined | null,
+  target: string | undefined | null = ALLOWED_MIGRATION_TARGET,
+): {
+  ok: boolean;
+  errors: string[];
+} {
+  return assertExactConfirm(confirm, expectedImportConfirmToken(target));
+}
+
+export function assertCleanupConfirm(
+  confirm: string | undefined | null,
+  target: string | undefined | null = ALLOWED_MIGRATION_TARGET,
+): {
+  ok: boolean;
+  errors: string[];
+} {
+  return assertExactConfirm(confirm, expectedCleanupConfirmToken(target));
+}
+
+function matchesAuditedProduction(
   neon: NeonIdentity | null | undefined,
 ): boolean {
   if (!neon?.projectId || !neon.branchId || !neon.endpointId) {
     return false;
   }
   return (
-    neon.projectId === DENIED_PRODUCTION_NEON_IDENTITY.projectId &&
-    neon.branchId === DENIED_PRODUCTION_NEON_IDENTITY.branchId &&
-    neon.endpointId === DENIED_PRODUCTION_NEON_IDENTITY.endpointId
+    neon.projectId === AUDITED_PRODUCTION_NEON_IDENTITY.projectId &&
+    neon.branchId === AUDITED_PRODUCTION_NEON_IDENTITY.branchId &&
+    neon.endpointId === AUDITED_PRODUCTION_NEON_IDENTITY.endpointId
   );
 }
 
@@ -169,17 +227,18 @@ export function validateDevelopmentEnvironment(
   const blockers: GateIssue[] = [];
   const warnings: GateIssue[] = [];
   const targetResult = assertAllowedTarget(input.target);
-  const target = input.target?.trim() || ALLOWED_MIGRATION_TARGET;
-  const environment = emptyEnvironment(
-    targetResult.ok ? ALLOWED_MIGRATION_TARGET : target,
-  );
+  const target = targetResult.target || ALLOWED_MIGRATION_TARGET;
+  const production = isProductionTarget(target);
+  const environment = emptyEnvironment(targetResult.ok ? target : target);
 
   for (const message of targetResult.errors) {
-    blockers.push({ code: 'TARGET_NOT_DEVELOPMENT', message, blocking: true });
+    blockers.push({ code: 'TARGET_NOT_ALLOWED', message, blocking: true });
   }
 
   if (input.requireConfirm) {
-    const confirmResult = assertImportConfirm(input.confirm);
+    const expected =
+      input.expectedConfirmToken?.trim() || expectedImportConfirmToken(target);
+    const confirmResult = assertExactConfirm(input.confirm, expected);
     for (const message of confirmResult.errors) {
       blockers.push({
         code: 'IMPORT_CONFIRM_REQUIRED',
@@ -193,8 +252,9 @@ export function validateDevelopmentEnvironment(
   if (!databaseUrl) {
     blockers.push({
       code: 'DATABASE_URL_MISSING',
-      message:
-        'DATABASE_URL is required and must point at the development database.',
+      message: production
+        ? 'DATABASE_URL is required for the authorized production import.'
+        : 'DATABASE_URL is required and must point at the development database.',
       blocking: true,
     });
   } else {
@@ -209,8 +269,9 @@ export function validateDevelopmentEnvironment(
         blocking: true,
       });
     } else if (
-      hasForbiddenEnvironmentToken(host) ||
-      hasForbiddenEnvironmentToken(dbName ?? '')
+      !production &&
+      (hasForbiddenEnvironmentToken(host) ||
+        hasForbiddenEnvironmentToken(dbName ?? ''))
     ) {
       blockers.push({
         code: 'DATABASE_NOT_DEVELOPMENT',
@@ -231,10 +292,19 @@ export function validateDevelopmentEnvironment(
   if (!bucket || !endpoint) {
     blockers.push({
       code: 'STORAGE_NOT_CONFIGURED',
-      message:
-        'Storage is not configured. Set STORAGE_BUCKET and STORAGE_ENDPOINT for the development bucket.',
+      message: production
+        ? 'Storage is not configured. Set STORAGE_BUCKET and STORAGE_ENDPOINT for the authorized production bucket.'
+        : 'Storage is not configured. Set STORAGE_BUCKET and STORAGE_ENDPOINT for the development bucket.',
       blocking: true,
     });
+  } else if (production) {
+    if (bucket !== AUTHORIZED_PRODUCTION_STORAGE_BUCKET) {
+      blockers.push({
+        code: 'STORAGE_NOT_AUTHORIZED_PRODUCTION',
+        message: `Production target only authorizes bucket ${AUTHORIZED_PRODUCTION_STORAGE_BUCKET}.`,
+        blocking: true,
+      });
+    }
   } else if (hasForbiddenEnvironmentToken(bucket)) {
     blockers.push({
       code: 'STORAGE_NOT_DEVELOPMENT',
@@ -246,8 +316,8 @@ export function validateDevelopmentEnvironment(
 
   if (input.storagePublicUrl?.trim()) {
     const publicHost = extractHostname(input.storagePublicUrl);
-    // r2.dev is Cloudflare's public bucket hostname and is not an environment signal.
     if (
+      !production &&
       publicHost &&
       hasForbiddenEnvironmentToken(publicHost) &&
       !/\.r2\.dev$/i.test(publicHost)
@@ -280,16 +350,26 @@ export function validateDevelopmentEnvironment(
     }
   }
 
-  if (matchesDeniedProduction(neon)) {
+  if (production) {
+    if (!matchesAuditedProduction(neon)) {
+      blockers.push({
+        code: 'NEON_NOT_AUTHORIZED_PRODUCTION',
+        message:
+          'Production target only authorizes the audited Neon project/branch/endpoint.',
+        blocking: true,
+      });
+    }
+  } else if (matchesAuditedProduction(neon)) {
     blockers.push({
       code: 'NEON_PRODUCTION_IDENTITY',
       message:
-        'Live Neon identity matches the audited production project/branch/endpoint. Refusing writes.',
+        'Live Neon identity matches the audited production project/branch/endpoint. Refusing writes. Use --target=production with the production confirm token if this lote is explicitly authorized.',
       blocking: true,
     });
   }
 
   if (
+    !production &&
     blockers.length === 0 &&
     !developmentSignal({
       dbHost,

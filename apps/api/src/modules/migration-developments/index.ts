@@ -6,4 +6,5 @@ export { parseCliArgs } from './cli/parse-args';
 export { planDevelopment } from './planning/plan-development';
 export { runPreflight } from './preflight/run-preflight';
 export { runImport } from './cli/run-import';
+export { runCleanup } from './cleanup/run-cleanup';
 export { writeOneDevelopment } from './writer/development-writer';
