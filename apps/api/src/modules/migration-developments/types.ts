@@ -32,7 +32,11 @@ export type IssueCode =
   | 'ENCODING_CORRECTED'
   | 'DUPLICATE_FRAGMENT_REMOVED'
   | 'GENERIC_PARKING_WITHOUT_COUNT'
-  | 'TITLE_NORMALIZED';
+  | 'TITLE_NORMALIZED'
+  | 'FEATURE_NOT_IN_CATALOG'
+  | 'STORAGE_OBJECT_MISMATCH'
+  | 'SLUG_CONFLICT'
+  | 'INTERNAL_CODE_CONFLICT';
 
 export type SourceIssue = {
   code: IssueCode;
@@ -207,11 +211,146 @@ export type DryRunReport = {
   writes: { database: false; storage: false };
 };
 
-export type CliCommand = 'audit' | 'dry-run';
+export type CliCommand = 'audit' | 'dry-run' | 'preflight' | 'import';
 
 export type CliOptions = {
   command: CliCommand;
   sourcePath?: string;
   json?: boolean;
   tenantId?: string;
+  tenant?: string;
+  createdBy?: string;
+  target?: string;
+  confirm?: string;
+};
+
+export type GateIssue = {
+  code: string;
+  message: string;
+  blocking: boolean;
+};
+
+export type SanitizedEnvironment = {
+  target: string;
+  dbHostMasked: string | null;
+  dbName: string | null;
+  neonProjectMasked: string | null;
+  neonBranchMasked: string | null;
+  neonEndpointMasked: string | null;
+  storageBucket: string | null;
+  storageEndpointHostMasked: string | null;
+};
+
+export type ResolvedActor = {
+  tenantId: string;
+  tenantSlug: string;
+  tenantStatus: string;
+  userId: string;
+  email: string;
+  isActive: boolean;
+  role: string;
+};
+
+export type MigrationInspection = {
+  applied: string[];
+  pending: string[];
+  failed: string[];
+  unexpected: string[];
+  migrationSourceRefExists: boolean;
+  sortOrderColumnExists: boolean;
+  drift: boolean;
+};
+
+export type PreflightReport = {
+  command: 'preflight';
+  ok: boolean;
+  environment: SanitizedEnvironment;
+  tenant: {
+    id: string | null;
+    slug: string | null;
+    status: string | null;
+  };
+  creator: {
+    id: string | null;
+    email: string | null;
+    isActive: boolean | null;
+    role: string | null;
+  };
+  catalog: {
+    province: string | null;
+    localityCount: number;
+    requiredLocalities: string[];
+    missingLocalities: string[];
+  };
+  features: {
+    planned: string[];
+    present: string[];
+    missing: string[];
+  };
+  migrations: MigrationInspection;
+  conflicts: Array<{
+    sourceId: string;
+    kind: 'slug' | 'internalCode';
+    value: string;
+  }>;
+  existingSourceRefs: number;
+  connectivity: {
+    database: boolean;
+    storage: boolean;
+  };
+  planned: {
+    developments: number;
+    images: number;
+    covers: number;
+    blocked: number;
+  };
+  blockers: GateIssue[];
+  warnings: GateIssue[];
+  writes: { database: false; storage: false };
+};
+
+export type ImportRecordStatus =
+  | 'created'
+  | 'already_imported'
+  | 'skipped'
+  | 'conflict'
+  | 'blocked'
+  | 'error';
+
+export type ImportRecordResult = {
+  sourceId: string;
+  title: string;
+  status: ImportRecordStatus;
+  developmentId: string | null;
+  imagesCreated: number;
+  imagesUploaded: number;
+  imagesReused: number;
+  featuresAssigned: number;
+  refsCreated: number;
+  warnings: SourceIssue[];
+  errors: string[];
+  orphanStorageKeys: string[];
+};
+
+export type ImportReport = {
+  command: 'import';
+  ok: boolean;
+  environment: SanitizedEnvironment;
+  tenant: { id: string; slug: string };
+  creator: { id: string; email: string; role: string };
+  planned: number;
+  alreadyImported: number;
+  created: number;
+  skipped: number;
+  conflicts: number;
+  blocked: number;
+  errors: number;
+  warnings: number;
+  imagesUploaded: number;
+  imagesReused: number;
+  databaseWrites: number;
+  storageWrites: number;
+  records: ImportRecordResult[];
+  blockers: GateIssue[];
+  writes: { database: boolean; storage: boolean };
 };

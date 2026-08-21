@@ -1,5 +1,10 @@
 import { CLI_EXIT } from '../constants';
-import type { AuditReport, DryRunReport } from '../types';
+import type {
+  AuditReport,
+  DryRunReport,
+  ImportReport,
+  PreflightReport,
+} from '../types';
 
 export function exitCodeForAudit(report: AuditReport): number {
   if (report.errors.length > 0 || report.invalidFolders > 0) {
@@ -87,5 +92,97 @@ export function formatDryRunReport(report: DryRunReport): string {
     }
   }
 
+  return lines.join('\n');
+}
+
+export function exitCodeForPreflight(report: PreflightReport): number {
+  if (!report.ok || report.blockers.length > 0) {
+    return CLI_EXIT.blocked;
+  }
+  if (report.warnings.length > 0) {
+    return CLI_EXIT.warnings;
+  }
+  return CLI_EXIT.ok;
+}
+
+export function exitCodeForImport(report: ImportReport): number {
+  if (!report.ok || report.blockers.length > 0 || report.errors > 0) {
+    return CLI_EXIT.blocked;
+  }
+  if (report.warnings > 0) {
+    return CLI_EXIT.warnings;
+  }
+  return CLI_EXIT.ok;
+}
+
+export function formatPreflightReport(report: PreflightReport): string {
+  const env = report.environment;
+  const lines = [
+    'Preflight — local-developments-v1',
+    `target=${env.target}`,
+    `dbHost=${env.dbHostMasked ?? 'n/a'}  dbName=${env.dbName ?? 'n/a'}`,
+    `neonProject=${env.neonProjectMasked ?? 'n/a'}  neonBranch=${env.neonBranchMasked ?? 'n/a'}  neonEndpoint=${env.neonEndpointMasked ?? 'n/a'}`,
+    `storageBucket=${env.storageBucket ?? 'n/a'}  storageEndpoint=${env.storageEndpointHostMasked ?? 'n/a'}`,
+    `tenant=${report.tenant.slug ?? 'n/a'} id=${report.tenant.id ?? 'n/a'} status=${report.tenant.status ?? 'n/a'}`,
+    `creator=${report.creator.email ?? 'n/a'} active=${report.creator.isActive ?? 'n/a'} role=${report.creator.role ?? 'n/a'}`,
+    `connectivity db=${report.connectivity.database} storage=${report.connectivity.storage}`,
+    `planned developments=${report.planned.developments} images=${report.planned.images} covers=${report.planned.covers} blocked=${report.planned.blocked}`,
+    `existingSourceRefs=${report.existingSourceRefs} conflicts=${report.conflicts.length}`,
+    `migrations applied=${report.migrations.applied.length} pending=${report.migrations.pending.length} failed=${report.migrations.failed.length} unexpected=${report.migrations.unexpected.length} drift=${report.migrations.drift}`,
+    `migrationSourceRef=${report.migrations.migrationSourceRefExists} sortOrderColumn=${report.migrations.sortOrderColumnExists}`,
+    `geo province=${report.catalog.province ?? 'n/a'} localities=${report.catalog.localityCount}/${report.catalog.requiredLocalities.length}`,
+    `features planned=${report.features.planned.length} present=${report.features.present.length} missing=${report.features.missing.length}`,
+    `ok=${report.ok}  Writes: database=${report.writes.database} storage=${report.writes.storage}`,
+    '',
+  ];
+  if (report.migrations.pending.length) {
+    lines.push(`Pending migrations: ${report.migrations.pending.join(', ')}`);
+  }
+  if (report.catalog.missingLocalities.length) {
+    lines.push(
+      `Missing localities: ${report.catalog.missingLocalities.join(', ')}`,
+    );
+  }
+  for (const conflict of report.conflicts) {
+    lines.push(
+      `  conflict ${conflict.kind}=${conflict.value} sourceId=${conflict.sourceId}`,
+    );
+  }
+  for (const issue of [...report.blockers, ...report.warnings]) {
+    lines.push(
+      `  - ${issue.blocking ? 'blocker' : 'warning'}: ${issue.code} ${issue.message}`,
+    );
+  }
+  return lines.join('\n');
+}
+
+export function formatImportReport(report: ImportReport): string {
+  const env = report.environment;
+  const lines = [
+    'Import — local-developments-v1',
+    `target=${env.target}  dbHost=${env.dbHostMasked ?? 'n/a'}  dbName=${env.dbName ?? 'n/a'}  bucket=${env.storageBucket ?? 'n/a'}`,
+    `tenant=${report.tenant.slug}  creator=${report.creator.email}  role=${report.creator.role}`,
+    `planned=${report.planned} alreadyImported=${report.alreadyImported} created=${report.created} skipped=${report.skipped} conflicts=${report.conflicts} blocked=${report.blocked} errors=${report.errors} warnings=${report.warnings}`,
+    `imagesUploaded=${report.imagesUploaded} imagesReused=${report.imagesReused}`,
+    `databaseWrites=${report.databaseWrites} storageWrites=${report.storageWrites}`,
+    `Writes: database=${report.writes.database} storage=${report.writes.storage}`,
+    '',
+  ];
+  for (const record of report.records) {
+    lines.push(
+      `[${record.status}] ${record.sourceId} ${record.title} developmentId=${record.developmentId ?? 'n/a'} images=${record.imagesCreated} uploaded=${record.imagesUploaded} reused=${record.imagesReused} features=${record.featuresAssigned} refs=${record.refsCreated}`,
+    );
+    for (const error of record.errors) {
+      lines.push(`  - error: ${error}`);
+    }
+    if (record.orphanStorageKeys.length) {
+      lines.push(
+        `  - potential orphan objects: ${record.orphanStorageKeys.length} (not deleted)`,
+      );
+    }
+  }
+  for (const issue of report.blockers) {
+    lines.push(`  - blocker: ${issue.code} ${issue.message}`);
+  }
   return lines.join('\n');
 }

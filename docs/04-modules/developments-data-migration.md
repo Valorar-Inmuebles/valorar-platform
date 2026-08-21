@@ -1,6 +1,6 @@
 # Migración de emprendimientos (`local-developments-v1`)
 
-Estado: **etapa 1.1 — audit / dry-run con localidades y estados resueltos**. La importación **no está autorizada**.
+Estado: **importador implementado, gated a development**. La importación contra el `DATABASE_URL` habitual **no está autorizada** mientras ese destino coincida con el Neon de producción auditado o el bucket de storage tenga token `prod`.
 
 Rama: `feature/developments-data-migration`
 
@@ -13,17 +13,17 @@ Incluye:
 * contrato de la fuente `migration-data/emprendimientos`;
 * campo editorial `Development.sortOrder`;
 * parser, inventario, overrides y planner;
-* CLI `audit` y `dry-run`;
-* tests de las reglas de normalización.
+* CLI `audit`, `dry-run`, `preflight` e `import`;
+* writer idempotente (`Development`, `DevelopmentImage`, `DevelopmentFeatureAssignment`, `MigrationSourceRef`);
+* upload/reutilización de objetos en keys determinísticas;
+* tests de las reglas de normalización y del writer.
 
-No incluye (todavía):
+No incluye:
 
-* escrituras en PostgreSQL;
-* creación de filas `Development`;
-* upload a R2 / storage;
-* filas `MigrationSourceRef`;
-* comando `import`;
-* cleanup.
+* cleanup del lote;
+* drag-and-drop de orden en el ABM;
+* persistencia de `DevelopmentTypology`;
+* creación de `Property`.
 
 ---
 
@@ -164,7 +164,7 @@ El ABM no expone el campo en esta etapa. Un futuro orden manual asignaría enter
 
 Las imágenes siguen usando `DevelopmentImage.sortOrder`.
 
-Migración Prisma: `202608210001_development_sort_order`. **No aplicada** a bases remotas en esta etapa.
+Migración Prisma: `202608210001_development_sort_order`. Aplicar **solo** contra un ambiente inequívocamente de desarrollo, con `npx prisma migrate deploy`. No usar `migrate reset`, `db push` ni `migrate dev` contra Neon compartido.
 
 ---
 
@@ -195,7 +195,7 @@ No se crean `PropertyFeature` nuevos. Laundry, solarium, jacuzzi, grupo electró
 
 ---
 
-## Identidad de fuente (futura importación)
+## Identidad de fuente
 
 | Campo | Valor |
 | ----- | ----- |
@@ -209,9 +209,11 @@ No se crean `PropertyFeature` nuevos. Laundry, solarium, jacuzzi, grupo electró
 
 `internalCode` (`DEV-001`) es visible para operadores; **no** es la clave de idempotencia.
 
-Storage key futura (no se escribe aún):
+Storage key:
 
 `{tenantId}/migrations/local-developments-v1/{sourceId}/{filename}`
+
+Antes de subir se hace HEAD. Si el objeto existe y metadata/tamaño coinciden, se reutiliza. Si no coinciden, no se sobrescribe.
 
 ---
 
@@ -222,8 +224,8 @@ Desde `apps/api`:
 ```bash
 npm run migration:developments -- audit
 npm run migration:developments -- dry-run
-npm run migration:developments -- audit --source-path="migration-data/emprendimientos"
-npm run migration:developments -- dry-run --json
+npm run migration:developments -- preflight --target=development
+npm run migration:developments -- import --target=development --tenant=demo --confirm=IMPORT_LOCAL_DEVELOPMENTS
 ```
 
 Desde la raíz del monorepo:
@@ -231,33 +233,47 @@ Desde la raíz del monorepo:
 ```bash
 npm run migration:developments -w api -- audit
 npm run migration:developments -w api -- dry-run
+npm run migration:developments -w api -- preflight --target=development
+npm run migration:developments -w api -- import --target=development --tenant=demo --confirm=IMPORT_LOCAL_DEVELOPMENTS
 ```
+
+Opciones adicionales: `--source-path`, `--created-by`, `--json`.
 
 Códigos de salida:
 
 * `0` éxito sin warnings;
 * `2` warnings, sin bloqueantes;
-* `1` errores/bloqueantes, o comando `import`.
+* `1` errores/bloqueantes, target inválido o confirm ausente.
 
-`audit` y `dry-run` no abren Prisma ni S3. No hay conexión a producción.
+`audit` y `dry-run` no abren Prisma ni S3.
 
-El `dry-run` resuelve **nombres y slugs** de provincia/localidad contra el catálogo CABA offline. `provinceId` y `localityId` quedan `null` hasta la etapa de importación (lookup real contra DB, con target explícito). Si falta una localidad, el reporte incluye `missingCatalogEntries` y solo bloquea esos `sourceId`.
+`preflight` e `import` exigen `--target=development`. `import` exige además `--confirm=IMPORT_LOCAL_DEVELOPMENTS`.
+
+El `dry-run` resuelve **nombres y slugs** de provincia/localidad contra el catálogo CABA offline. `provinceId` y `localityId` se resuelven en preflight/import contra el catálogo live. Si falta una localidad, el reporte incluye `missingCatalogEntries` y solo bloquea esos `sourceId`.
 
 ---
 
 ## Seguridad
 
 * Origen explícito (`--source-path` o default resuelto desde la raíz del workspace).
-* No se imprimen credenciales.
-* `import` rechazado en esta etapa.
+* No se imprimen credenciales, connection strings ni access keys.
+* Target `production`, `prod`, `staging` y `preview` están prohibidos.
+* El fingerprint Neon de producción auditado (Houzez E.5) es deny-list.
+* Un bucket cuyo nombre contiene `prod`/`production`/`staging`/`preview` se rechaza.
+* Si no se puede demostrar que DB y storage son de desarrollo, no hay escrituras.
 * No geocodificar. No inventar precios ni cantidades de cocheras.
+* No se crean `Property` ni `DevelopmentTypology`.
+* Un conflicto de slug/`internalCode` sin `MigrationSourceRef` bloquea ese registro; no se apropia.
 
 ---
 
-## Pasos no autorizados
+## Pasos que siguen bloqueados en este worktree
 
-1. `prisma migrate deploy` / aplicar `202608210001_development_sort_order` en remoto.
-2. Comando `import`.
-3. Writes a `Development`, `DevelopmentImage`, `MigrationSourceRef`.
-4. Upload R2.
-5. Cleanup del lote.
+El `DATABASE_URL` local coincide con el Neon de producción auditado y `STORAGE_BUCKET` contiene el token `prod`. En ese estado:
+
+1. no aplicar `prisma migrate deploy`;
+2. no ejecutar `import`;
+3. no subir imágenes;
+4. no escribir `Development` / `DevelopmentImage` / `MigrationSourceRef`.
+
+Para importar hace falta un ambiente inequívocamente de desarrollo (host/bucket con señal `dev`/`development`, identidad Neon distinta de producción, y allowlists opcionales `DEVELOPMENTS_DEV_DB_HOST` + `DEVELOPMENTS_DEV_STORAGE_BUCKET` sin tokens prohibidos).

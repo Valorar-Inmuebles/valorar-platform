@@ -16,6 +16,48 @@ export const INTERNAL_CODE_PREFIX = 'DEV-';
 
 export const DEFAULT_TENANT_SLUG = 'demo';
 
+export const DEFAULT_CREATOR_EMAIL = 'admin@demo.valorar.dev';
+
+export const ALLOWED_MIGRATION_TARGET = 'development' as const;
+
+export const IMPORT_CONFIRM_TOKEN = 'IMPORT_LOCAL_DEVELOPMENTS' as const;
+
+export const FORBIDDEN_MIGRATION_TARGETS = [
+  'production',
+  'prod',
+  'staging',
+  'preview',
+] as const;
+
+/**
+ * Audited production Neon fingerprint (Houzez E.5). Used only as a deny-list
+ * so this importer never writes to that branch, even if --target=development.
+ */
+export const DENIED_PRODUCTION_NEON_IDENTITY = {
+  projectId: 'square-lab-71259415',
+  branchId: 'br-rapid-bread-acsu0836',
+  endpointId: 'ep-mute-sun-ac6nva0v',
+} as const;
+
+export const TRACEABILITY_MIGRATION = '202608070001_migration_source_ref';
+
+export const SORT_ORDER_MIGRATION = '202608210001_development_sort_order';
+
+export const CREATOR_ROLES = [
+  'TENANT_ADMIN',
+  'SUPER_ADMIN',
+  'MANAGER',
+] as const;
+
+export const REQUIRED_LOCALITY_NAMES = [
+  'Almagro',
+  'Caballito',
+  'Flores',
+  'Villa Luro',
+  'Floresta',
+  'Villa Urquiza',
+] as const;
+
 export const DEFAULT_COUNTRY = 'AR';
 
 export const DEFAULT_PROVINCE_NAME = 'Capital Federal';

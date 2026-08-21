@@ -365,7 +365,7 @@ Roadmap técnico API: `docs/09-roadmap/property-api-roadmap.md`
 * Admin UI: `/emprendimientos` (listado, ficha ejecutiva, tabs Datos/Comercialización/Características/Imágenes/Tipologías)
 * Web: `/emprendimientos`, `/emprendimientos/[slug]`
 * Orden editorial: `Development.sortOrder` (migración `202608210001_development_sort_order`)
-* Migración de datos (audit/dry-run, etapa 1.1 localidades/estados): `docs/04-modules/developments-data-migration.md` — **importación no autorizada**
+* Migración de datos: `docs/04-modules/developments-data-migration.md` — importador implementado y gated a development; **no ejecutar import** contra el Neon/storage de producción
 * Migración schema: `202607020004_development_foundation`
 * Documentación: `docs/03-database/development-domain.md`, `docs/04-modules/developments.md`
 
