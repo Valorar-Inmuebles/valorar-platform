@@ -14,6 +14,7 @@ export interface FindManyPublicDevelopmentsFilters {
   localityId?: string;
   neighborhoodId?: string;
   city?: string;
+  neighborhood?: string;
   priceMin?: number;
   priceMax?: number;
   currency?: Currency;

@@ -21,8 +21,10 @@ type DevelopmentsPageProps = {
 function buildDevelopmentsDescription(
   filters: ReturnType<typeof parsePropertyListSearchParams>,
 ): string {
-  if (filters.city) {
-    return `Emprendimientos disponibles en ${filters.city}.`;
+  const locationLabel = filters.neighborhood ?? filters.city;
+
+  if (locationLabel) {
+    return `Emprendimientos disponibles en ${locationLabel}.`;
   }
 
   return "Explorá emprendimientos inmobiliarios disponibles.";
@@ -35,7 +37,9 @@ export async function generateMetadata({
   const filters = parsePropertyListSearchParams(params);
 
   return createPageMetadata({
-    title: filters.city ? `Emprendimientos en ${filters.city}` : "Emprendimientos",
+    title: (filters.neighborhood ?? filters.city)
+      ? `Emprendimientos en ${filters.neighborhood ?? filters.city}`
+      : "Emprendimientos",
     description: buildDevelopmentsDescription(filters),
     path: "/emprendimientos",
     noIndex: true,
@@ -84,8 +88,9 @@ export default async function DevelopmentsPage({
 }: DevelopmentsPageProps) {
   const params = await searchParams;
   const filters = parsePropertyListSearchParams(params);
-  const pageTitle = filters.city
-    ? `Emprendimientos en ${filters.city}`
+  const locationLabel = filters.neighborhood ?? filters.city;
+  const pageTitle = locationLabel
+    ? `Emprendimientos en ${locationLabel}`
     : "Emprendimientos";
 
   return (

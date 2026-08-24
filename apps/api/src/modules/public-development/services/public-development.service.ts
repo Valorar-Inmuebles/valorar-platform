@@ -43,6 +43,7 @@ export class PublicDevelopmentService {
           localityId: query.localityId,
           neighborhoodId: query.neighborhoodId,
           city: query.city,
+          neighborhood: query.neighborhood,
           priceMin: query.priceMin,
           priceMax: query.priceMax,
           currency: query.currency,

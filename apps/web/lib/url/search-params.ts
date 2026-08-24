@@ -370,6 +370,7 @@ export function locationSelectionToListFilters(
     return {
       ...cleared,
       provinceId: location.provinceId,
+      localityId: location.localityId,
       neighborhoodId: location.neighborhoodId,
       neighborhood,
     };

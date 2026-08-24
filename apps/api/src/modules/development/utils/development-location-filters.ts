@@ -6,6 +6,7 @@ export type DevelopmentLocationFilters = {
   localityId?: string;
   neighborhoodId?: string;
   city?: string;
+  neighborhood?: string;
 };
 
 export function buildDevelopmentLocationWhere(
@@ -24,14 +25,42 @@ export function buildDevelopmentLocationWhere(
     conditions.push({
       OR: [
         { city: { equals: filters.city, mode: 'insensitive' } },
-        { geoLocality: { search: { contains: citySearch, mode: 'insensitive' } } },
-        { geoLocality: { name: { equals: filters.city, mode: 'insensitive' } } },
+        {
+          geoLocality: {
+            search: { contains: citySearch, mode: 'insensitive' },
+          },
+        },
+        {
+          geoLocality: { name: { equals: filters.city, mode: 'insensitive' } },
+        },
       ],
     });
   }
 
   if (filters.neighborhoodId) {
     conditions.push({ neighborhoodId: filters.neighborhoodId });
+  } else if (filters.neighborhood) {
+    const neighborhoodSearch = createSearch(filters.neighborhood);
+    conditions.push({
+      OR: [
+        { neighborhood: { equals: filters.neighborhood, mode: 'insensitive' } },
+        {
+          geoNeighborhood: {
+            search: { contains: neighborhoodSearch, mode: 'insensitive' },
+          },
+        },
+        {
+          geoLocality: {
+            search: { contains: neighborhoodSearch, mode: 'insensitive' },
+          },
+        },
+        {
+          geoLocality: {
+            name: { equals: filters.neighborhood, mode: 'insensitive' },
+          },
+        },
+      ],
+    });
   }
 
   if (conditions.length === 0) {
@@ -39,7 +68,7 @@ export function buildDevelopmentLocationWhere(
   }
 
   if (conditions.length === 1) {
-    return conditions[0]!;
+    return conditions[0];
   }
 
   return { AND: conditions };
