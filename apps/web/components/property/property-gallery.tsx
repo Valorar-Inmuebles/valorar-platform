@@ -125,9 +125,70 @@ function ShowAllPhotosButton({
 
 function PhotoCountBadge({ count }: { count: number }) {
   return (
-    <div className="pointer-events-none absolute bottom-3 left-3 inline-flex items-center gap-1.5 rounded-lg bg-black/55 px-3 py-1.5 text-sm font-medium text-white backdrop-blur-sm">
+    <div className="pointer-events-none absolute bottom-3 left-3 z-10 inline-flex items-center gap-1.5 rounded-lg bg-black/55 px-3 py-1.5 text-sm font-medium text-white backdrop-blur-sm">
       <CameraIcon />
       {count} {count === 1 ? "foto" : "fotos"}
+    </div>
+  );
+}
+
+function SingleImageGalleryView({
+  image,
+  title,
+  onClick,
+}: {
+  image: PublicPropertyImage;
+  title: string;
+  onClick: () => void;
+}) {
+  const alt = image.altText ?? title;
+  const containerClassName =
+    "relative h-[clamp(220px,55vw,300px)] w-full overflow-hidden rounded-2xl md:h-[clamp(260px,40vw,460px)]";
+
+  if (!image.url) {
+    return (
+      <div className={`${containerClassName} bg-surface-alt`}>
+        <PropertyImagePlaceholder />
+        <PhotoCountBadge count={1} />
+      </div>
+    );
+  }
+
+  return (
+    <div className={containerClassName}>
+      <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
+        <Image
+          src={image.url}
+          alt=""
+          fill
+          unoptimized
+          priority
+          className="scale-105 object-cover object-center blur-xl"
+          sizes="(max-width: 768px) 100vw, 70vw"
+        />
+        <div className="absolute inset-0 bg-neutral-900/20" />
+      </div>
+
+      <button
+        type="button"
+        onClick={onClick}
+        className="relative flex h-full w-full items-center justify-center focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-green"
+        aria-label={`Ver imagen: ${alt}`}
+      >
+        <div className="relative h-full w-full">
+          <Image
+            src={image.url}
+            alt={alt}
+            fill
+            unoptimized
+            priority
+            className="object-contain object-center transition duration-500 hover:scale-[1.01]"
+            sizes="(max-width: 768px) 100vw, 70vw"
+          />
+        </div>
+      </button>
+
+      <PhotoCountBadge count={1} />
     </div>
   );
 }
@@ -200,6 +261,7 @@ export function PropertyGallery({ images, title }: PropertyGalleryProps) {
   }
 
   const activeImage = sortedImages[activeIndex] ?? sortedImages[0];
+  const isSingleImage = sortedImages.length === 1;
   const secondaryImages = sortedImages.slice(1, 5);
   const lastSecondaryIndex = secondaryImages.length - 1;
 
@@ -225,6 +287,16 @@ export function PropertyGallery({ images, title }: PropertyGalleryProps) {
     <>
       <SiteContainer className="pt-3 pb-2 md:pt-4 md:pb-3">
         <div className="w-full">
+          {isSingleImage ? (
+            <SingleImageGalleryView
+              image={sortedImages[0]!}
+              title={title}
+              onClick={() => openLightbox(0)}
+            />
+          ) : null}
+
+          {!isSingleImage ? (
+          <>
           <div className="md:hidden">
             <div className="relative aspect-video overflow-hidden rounded-2xl bg-neutral-900">
               {activeImage ? (
@@ -296,6 +368,8 @@ export function PropertyGallery({ images, title }: PropertyGalleryProps) {
               </div>
             ))}
           </div>
+          </>
+          ) : null}
         </div>
       </SiteContainer>
 
