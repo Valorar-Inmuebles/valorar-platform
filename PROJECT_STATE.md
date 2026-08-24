@@ -364,7 +364,9 @@ Roadmap técnico API: `docs/09-roadmap/property-api-roadmap.md`
 * API pública: `/public/developments`
 * Admin UI: `/emprendimientos` (listado, ficha ejecutiva, tabs Datos/Comercialización/Características/Imágenes/Tipologías)
 * Web: `/emprendimientos`, `/emprendimientos/[slug]`
-* Migración: `202607020004_development_foundation`
+* Orden editorial: `Development.sortOrder` (migración `202608210001_development_sort_order`)
+* Migración de datos: `docs/04-modules/developments-data-migration.md` — lote `local-developments-v1` importado (16 emprendimientos / 87 imágenes) con `--target=production` explícito (tenant `demo`, bucket `valorarinmuebles-images-prod`, Neon auditado)
+* Migración schema: `202607020004_development_foundation`
 * Documentación: `docs/03-database/development-domain.md`, `docs/04-modules/developments.md`
 
 ### Lead Domain v1 (lógica de negocio)

@@ -579,6 +579,10 @@ model Development {
   hasParkingSpaces   Boolean @default(false)
   parkingSpacesCount Int?
 
+  /// Editorial list order. Lower values appear first.
+  /// Default 0 keeps ABM-created developments above the imported historical batch (1..n).
+  sortOrder Int @default(0)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -599,6 +603,7 @@ model Development {
   @@index([localityId])
   @@index([neighborhoodId])
   @@index([tenantId, status])
+  @@index([tenantId, sortOrder])
   @@index([tenantId, updatedAt])
 }
 

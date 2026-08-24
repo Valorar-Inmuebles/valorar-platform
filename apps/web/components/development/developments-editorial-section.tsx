@@ -24,27 +24,34 @@ export function DevelopmentsEditorialSection({
   hasActiveFilters,
   total,
 }: DevelopmentsEditorialSectionProps) {
-  const title = buildSectionTitle(hasActiveFilters, total);
+  const title = unavailable
+    ? null
+    : buildSectionTitle(hasActiveFilters, total);
 
   return (
     <section>
-      <h2 className="text-xl font-semibold tracking-tight text-foreground">
-        {title}
-      </h2>
+      {title ? (
+        <h2 className="text-xl font-semibold tracking-tight text-foreground">
+          {title}
+        </h2>
+      ) : null}
 
-      <div className="mt-6">
+      <div className={title ? "mt-6" : undefined}>
         {unavailable ? (
-          <PropertyUnavailableState title="Emprendimientos temporalmente no disponibles" />
+          <PropertyUnavailableState
+            title="Emprendimientos temporalmente no disponibles"
+            description="No pudimos cargar los emprendimientos en este momento. Intentá nuevamente en unos minutos."
+          />
         ) : developments.length === 0 ? (
           <PropertyEmptyState
             title={
               hasActiveFilters
-                ? "No encontramos emprendimientos con estos filtros"
+                ? "No encontramos emprendimientos"
                 : "No hay emprendimientos disponibles"
             }
             description={
               hasActiveFilters
-                ? "Probá ajustando los filtros o limpiá la búsqueda."
+                ? "Probá con otro barrio o modificá los filtros seleccionados."
                 : "Volvé a consultar más tarde para ver nuevos proyectos."
             }
           />

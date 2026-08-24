@@ -42,6 +42,11 @@ export class ListPublicDevelopmentsQueryDto extends PublicDevelopmentTenantQuery
   @IsString()
   city?: string;
 
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  neighborhood?: string;
+
   @ApiPropertyOptional({ minimum: 0 })
   @IsOptional()
   @Type(() => Number)

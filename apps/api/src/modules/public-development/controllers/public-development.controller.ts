@@ -32,6 +32,7 @@ export class PublicDevelopmentController {
   @ApiQuery({ name: 'localityId', required: false, type: String })
   @ApiQuery({ name: 'neighborhoodId', required: false, type: String })
   @ApiQuery({ name: 'city', required: false, type: String })
+  @ApiQuery({ name: 'neighborhood', required: false, type: String })
   @ApiQuery({ name: 'priceMin', required: false, type: Number })
   @ApiQuery({ name: 'priceMax', required: false, type: Number })
   @ApiQuery({ name: 'currency', required: false, enum: ['ARS', 'USD'] })

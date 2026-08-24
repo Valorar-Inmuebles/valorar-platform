@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { Development, Prisma } from '../../../../generated/prisma/client';
 import { PrismaService } from '../../../prisma/prisma.service';
+import { DEVELOPMENT_LIST_ORDER_BY } from '../constants/list-order';
 import { developmentGeoInclude } from '../utils/development-location';
 
 export type CreateDevelopmentData = Prisma.DevelopmentUncheckedCreateInput;
@@ -64,7 +65,7 @@ export class DevelopmentRepository {
         ...(isActive !== undefined ? { isActive } : {}),
       },
       include: developmentGeoInclude,
-      orderBy: { updatedAt: 'desc' },
+      orderBy: DEVELOPMENT_LIST_ORDER_BY,
     });
   }
 
