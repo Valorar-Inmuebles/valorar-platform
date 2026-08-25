@@ -91,17 +91,26 @@ export const ABOUT_COMMITMENT = {
     "Cada operación es acompañada desde el primer contacto hasta su cierre. Tu confianza nos impulsa a trabajar con el mayor empeño, construyendo relaciones sinceras que perduran más allá de la firma.",
 };
 
+export type AboutDirectorProfession = {
+  title: string;
+  lines: string[];
+};
+
 export const ABOUT_DIRECTOR = {
   name: "Christian Ariel Marani",
-  roles: ["Martillero, Corredor Público y Tasador."],
-  credentials: [
-    "Matrícula CPI 3686.",
-    "Abogado – IUPFA.",
-    "Tomo 154 · Folio 51 · CPACF.",
-  ],
   initials: "CM",
   photoSrc: "/valorar-inmuebles-christian-marani.jpeg",
   photoAlt: "Christian Ariel Marani — Valorar Inmuebles",
+  professions: [
+    {
+      title: "Martillero, Corredor Público y Tasador",
+      lines: ["Matrícula CPI 3686.", "Martillero Público y Corredor."],
+    },
+    {
+      title: "Abogado",
+      lines: ["Abogado – IUPFA.", "Tomo 154 · Folio 51 · CPACF."],
+    },
+  ] satisfies AboutDirectorProfession[],
 };
 
 export const ABOUT_CTA = {
