@@ -110,3 +110,86 @@ export type RentalConcept = {
   createdAt: string;
   updatedAt: string;
 };
+
+export type RentalObligationKind = "RECURRING" | "ONE_TIME";
+export type RentalAmountMode = "FIXED" | "VARIABLE";
+export type RentalOccurrenceStatus =
+  | "PENDING"
+  | "OVERDUE"
+  | "FULFILLED"
+  | "CANCELLED";
+
+export type RentalObligation = {
+  id: string;
+  tenantId: string;
+  contractId: string;
+  conceptId: string;
+  concept: Pick<RentalConcept, "id" | "name" | "systemCode" | "isActive">;
+  kind: RentalObligationKind;
+  recurrenceMonths: number | null;
+  dueDay: number | null;
+  amountMode: RentalAmountMode;
+  defaultAmount: number | null;
+  currency: "ARS" | "USD";
+  startsOn: string;
+  endsOn: string | null;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type RentalFulfillment = {
+  id: string;
+  status: "RECORDED" | "REVERSED";
+  fulfilledOn: string;
+  amount: number | null;
+  notes: string | null;
+  recordedById: string | null;
+  reversedAt: string | null;
+  reversedById: string | null;
+  reversalReason: string | null;
+};
+
+export type RentalOccurrence = {
+  id: string;
+  tenantId: string;
+  obligationId: string;
+  periodKey: string;
+  periodStartsOn: string | null;
+  periodEndsOn: string | null;
+  dueDate: string;
+  amount: number | null;
+  currency: "ARS" | "USD";
+  status: Exclude<RentalOccurrenceStatus, "OVERDUE">;
+  operationalStatus: RentalOccurrenceStatus;
+  cancellationReason: string | null;
+  obligation: {
+    id: string;
+    concept: Pick<RentalConcept, "id" | "name" | "systemCode">;
+    contract: {
+      id: string;
+      propertyAddressSnapshot: string;
+      renterContact: { id: string; name: string } | null;
+    };
+  };
+  fulfillments: RentalFulfillment[];
+};
+
+export type CreateRentalObligationPayload = {
+  contractId: string;
+  conceptId: string;
+  kind: RentalObligationKind;
+  recurrenceMonths?: number | null;
+  dueDay?: number | null;
+  amountMode: RentalAmountMode;
+  defaultAmount?: number | null;
+  currency: "ARS" | "USD";
+  startsOn: string;
+  endsOn?: string | null;
+  oneTimeDueDate?: string | null;
+  isActive?: boolean;
+};
+
+export type UpdateRentalObligationPayload = Partial<
+  Omit<CreateRentalObligationPayload, "contractId" | "oneTimeDueDate">
+>;

@@ -2,7 +2,7 @@
 
 ## Estado
 
-Versión: Foundation v1 + Auth Foundation Fase 1 + Property Domain v1 + Rental Foundation A
+Versión: Foundation v1 + Auth Foundation Fase 1 + Property Domain v1 + Rental Management A+B
 
 Base de datos:
 
@@ -13,7 +13,7 @@ Auth Foundation Fase 1: migrado (`20260616125024_auth_foundation`).
 
 Dominio Property: migrado (`202606150001_property_foundation`, `202606150002_property_location_v1_1`).
 
-Rental Management: schema y migración fundacional A implementados (`202609090001_rental_foundation_a`); no aplicada a producción durante este desarrollo.
+Rental Management: Migraciones A y B implementadas en schema y archivos de migración (`202609090001_rental_foundation_a`, `202609090002_rental_obligation_engine_b`); no aplicadas a producción durante este desarrollo. Migración C continúa pendiente.
 
 ---
 
@@ -63,6 +63,9 @@ Tenant
 ├── Contacts / ContactPoints
 ├── RentalConcepts
 ├── RentalContracts
+├── RentalObligations
+├── RentalObligationOccurrences
+├── RentalFulfillments
 └── Leads (planificado)
 ```
 
@@ -106,7 +109,9 @@ User
 ├── Properties (createdBy)
 ├── PropertyAgentAccess (sharedWith)
 ├── PropertyAgentAccess (grantedBy)
-└── RentalContracts (createdBy)
+├── RentalContracts (createdBy)
+├── RentalObligationOccurrences (cancelledBy)
+└── RentalFulfillments (recordedBy / reversedBy)
 ```
 
 ---
@@ -142,9 +147,9 @@ Relación 1:1 con `Tenant`.
 
 ---
 
-# Rental Management — Fundación A
+# Rental Management — Migraciones A+B
 
-Estado: schema y archivo de migración implementados. No incluye todavía motor de vencimientos ni comunicaciones.
+Estado: fundación y motor de vencimientos implementados. No incluye todavía avisos ni comunicaciones.
 
 Documentación canónica: `docs/03-database/rental-domain.md` y `docs/04-modules/rental-management-v1.md`.
 
@@ -159,13 +164,20 @@ Tenant
     ├── Property? + snapshot textual obligatorio
     ├── Contact? (renter; requerido para activar)
     ├── Contact? (landlord)
-    └── User? (createdBy)
+    ├── User? (createdBy)
+    └── RentalObligation
+        ├── RentalConcept
+        └── RentalObligationOccurrence
+            └── RentalFulfillment
 ```
 
 - `Contact`: contraparte externa tenant-scoped, separada de `User`, con conservación por `isActive`.
 - `ContactPoint`: `EMAIL` o `PHONE`; guarda valor normalizado, capacidades SMS/WhatsApp y default por tipo garantizado transaccionalmente en Service.
 - `RentalConcept`: catálogo tenant-scoped con `slug` único y `systemCode` nullable único por tenant. Los siete conceptos base se crean para tenants existentes por backfill idempotente y para tenants nuevos en su alta.
 - `RentalContract`: comienza en `DRAFT`; referencia opcionalmente `Property`, renter, landlord y creador. Conserva dirección obligatoria, localidad/unidad/aclaraciones opcionales y fechas `@db.Date`.
+- `RentalObligation`: regla monetaria recurrente o única, con moneda obligatoria, importe fijo o variable, vigencia y recurrencia mensual simple.
+- `RentalObligationOccurrence`: vencimiento persistido e idempotente por `[obligationId, periodKey]`; conserva snapshots de importe/moneda y deriva `OVERDUE` sin persistirlo.
+- `RentalFulfillment`: cumplimiento total auditable, reversible y con un único registro vigente garantizado transaccionalmente.
 
 ## Enums
 
@@ -173,6 +185,11 @@ Tenant
 ContactPointType: EMAIL | PHONE
 RentalConceptSystemCode: RENT | EXPENSES | ELECTRICITY | GAS | ABL | AYSA | INSURANCE
 RentalContractStatus: DRAFT | ACTIVE | ENDED | CANCELLED
+RentalObligationKind: RECURRING | ONE_TIME
+RentalAmountMode: FIXED | VARIABLE
+RentalOccurrenceStatus: PENDING | FULFILLED | CANCELLED
+RentalFulfillmentStatus: RECORDED | REVERSED
+RentalFulfillmentOrigin: ADMIN
 ```
 
 ## Integridad y borrado
@@ -180,9 +197,11 @@ RentalContractStatus: DRAFT | ACTIVE | ENDED | CANCELLED
 - Todas las consultas y escrituras funcionales están acotadas por `tenantId`.
 - `Tenant` usa `Cascade`; `Property` y `User` usan `SetNull`; renter/landlord usan `Restrict`; los puntos propios de un contacto usan `Cascade`.
 - No hay hard delete público: contactos y conceptos se conservan mediante `isActive`, y contratos mediante estados.
-- La exigencia de una obligación `RENT` para activar se aplicará al implementar la Migración B; A no agrega una fuente monetaria temporal a `RentalContract`.
+- Un contrato sólo puede activarse con una obligación `RENT` activa y válida.
+- Finalizar o cancelar desactiva sus obligaciones y cancela sólo vencimientos futuros pendientes; no borra historia ni altera cumplimientos.
+- El horizonte operativo de materialización es el mes local actual y los dos meses siguientes; puede reejecutarse sin duplicar.
 
-Migración: `202609090001_rental_foundation_a`.
+Migraciones: `202609090001_rental_foundation_a`, `202609090002_rental_obligation_engine_b`.
 
 ---
 
@@ -822,6 +841,9 @@ Contact
 ContactPoint
 RentalConcept
 RentalContract
+RentalObligation
+RentalObligationOccurrence
+RentalFulfillment
 ```
 
 Catálogos globales sin `tenantId`:

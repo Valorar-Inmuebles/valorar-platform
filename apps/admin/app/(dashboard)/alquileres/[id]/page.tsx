@@ -11,6 +11,12 @@ import { resolveActiveTenantGate } from "@/lib/auth/require-active-tenant";
 import { getSession } from "@/lib/auth/session";
 import { sessionHasPermission } from "@/lib/auth/types";
 import { SuperAdminTenantEmptyState } from "@/components/shared/super-admin-tenant-empty-state";
+import { RentalObligationManager } from "@/components/rental/rental-obligation-manager";
+import {
+  listRentalConcepts,
+  listRentalObligations,
+  listRentalOccurrences,
+} from "@/lib/api/rental";
 
 export default async function AlquilerDetallePage({
   params,
@@ -33,11 +39,15 @@ export default async function AlquilerDetallePage({
   }
   const { id } = await params;
   try {
-    const [contract, properties, contacts] = await Promise.all([
-      getRentalContract(id),
-      listProperties({ isActive: true }),
-      listRentalContacts(),
-    ]);
+    const [contract, properties, contacts, concepts, obligations, occurrences] =
+      await Promise.all([
+        getRentalContract(id),
+        listProperties({ isActive: true }),
+        listRentalContacts(),
+        listRentalConcepts(),
+        listRentalObligations(id),
+        listRentalOccurrences({ contractId: id }),
+      ]);
     return (
       <PageShell
         title="Contrato de alquiler"
@@ -48,17 +58,36 @@ export default async function AlquilerDetallePage({
           { label: contract.propertyAddressSnapshot },
         ]}
       >
-        <RentalContractForm
-          mode="edit"
-          contract={contract}
-          properties={properties}
-          initialContacts={contacts}
-          canUpdate={sessionHasPermission(
-            session.user,
-            "rental.contract.update",
-          )}
-          canEnd={sessionHasPermission(session.user, "rental.contract.end")}
-        />
+        <div className="space-y-6">
+          <RentalContractForm
+            mode="edit"
+            contract={contract}
+            properties={properties}
+            initialContacts={contacts}
+            canUpdate={sessionHasPermission(
+              session.user,
+              "rental.contract.update",
+            )}
+            canEnd={sessionHasPermission(session.user, "rental.contract.end")}
+          />
+          <RentalObligationManager
+            contract={contract}
+            concepts={concepts}
+            initialObligations={obligations}
+            initialOccurrences={occurrences}
+            canManage={sessionHasPermission(
+              session.user,
+              "rental.obligation.manage",
+            )}
+            canFulfill={sessionHasPermission(
+              session.user,
+              "rental.fulfillment.manage",
+            )}
+            canReverse={["SUPER_ADMIN", "TENANT_ADMIN", "MANAGER"].includes(
+              session.user.role,
+            )}
+          />
+        </div>
       </PageShell>
     );
   } catch (error) {

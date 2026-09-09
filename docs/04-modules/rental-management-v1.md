@@ -2,11 +2,11 @@
 
 Versión: V1
 
-Estado: **implementación parcial — Migración fundacional A implementada; Migraciones B y C pendientes**.
+Estado: **implementación parcial — Migraciones A y B implementadas; Migración C pendiente**.
 
 Diseño de datos propuesto: `docs/03-database/rental-domain.md`.
 
-Este documento es la fuente canónica de reglas funcionales del módulo. La fundación A ya existe en Prisma, API y admin; el motor de vencimientos, las comunicaciones y sus automatizaciones todavía no están implementados.
+Este documento es la fuente canónica de reglas funcionales del módulo. La fundación A y el motor B ya existen en Prisma, API y admin; los avisos, comunicaciones y automatizaciones de C todavía no están implementados.
 
 ---
 
@@ -201,7 +201,7 @@ ACTIVE ───→ CANCELLED
 - `DRAFT`: puede estar incompleto y no genera automatizaciones.
 - `ACTIVE`: habilita obligaciones, ocurrencias y avisos.
 - `ENDED`: finalización normal; conserva historia y no genera nuevos vencimientos fuera de vigencia.
-- `CANCELLED`: cierre excepcional; requiere tratamiento explícito de ocurrencias pendientes al implementar.
+- `CANCELLED`: cierre excepcional; B desactiva obligaciones y cancela sólo ocurrencias futuras `PENDING`, preservando vencimientos del día/pasados y toda la historia.
 
 No se define reactivación automática de contratos terminados o cancelados.
 
@@ -261,6 +261,8 @@ RentalReminderDeliveryStatus
 - Ajustes de importe son manuales. No existe actualización automática por IPC/ICL.
 - Cambiar un importe futuro de la obligación no altera ocurrencias materializadas.
 - Todas las obligaciones son monetarias y siempre definen `Currency`; el importe puede ser nullable en obligaciones variables hasta conocerse.
+- La implementación B usa un horizonte explícito de tres meses: mes local actual y dos meses siguientes. Se materializa al crear/editar una obligación y bajo demanda; no existe scheduler en B.
+- La recurrencia se ancla al mes de inicio de la obligación; el vencimiento debe caer dentro de las vigencias del contrato y de la obligación.
 
 ---
 
@@ -283,6 +285,8 @@ Una corrección se realiza mediante reversión auditable:
 4. permite nuevas planificaciones que todavía correspondan según reglas vigentes.
 
 La reversión nunca borra ni vuelve a enviar deliveries históricos.
+
+En B, `AGENT` puede registrar un cumplimiento. La reversión queda restringida a `MANAGER`, `TENANT_ADMIN` y `SUPER_ADMIN` combinando el permiso `rental.fulfillment.manage` con el guard de rol existente.
 
 ---
 
@@ -537,14 +541,17 @@ Estado: **implementada en schema, migración, RBAC, API y admin mínimo**. La mi
 - Incluye relaciones inversas y enums de contacto, conceptos base y contrato.
 - Backfill idempotente de conceptos base para tenants existentes y creación transaccional para tenants nuevos.
 - No incluye todavía agrupación ni hora de avisos.
-- Mientras la Migración B no exista, la activación valida inquilino, fechas y consistencia tenant, pero no puede exigir todavía una obligación `RENT`. Esa invariante se incorpora en B sin agregar campos temporales al contrato.
+- A difirió la validación de `RENT`; B ya la incorporó al activar sin agregar campos temporales al contrato.
 
 #### Migración B — Motor de vencimientos
 
-Estado: **pendiente**.
+Estado: **implementada en schema, migración, API y admin; no aplicada a producción durante este desarrollo**.
 
 - Entidades: `RentalObligation`, `RentalObligationOccurrence`, `RentalFulfillment`.
 - Incluye recurrencia simple, fechas `@db.Date`, `periodKey`, snapshots monetarios, estados y reversión.
+- Materializa el mes local actual y dos meses siguientes de forma idempotente, permite ejecución manual y no incorpora scheduler.
+- La ficha de contrato administra obligaciones y vencimientos; `/alquileres/vencimientos` prioriza vencidos y próximos pendientes.
+- Al finalizar o cancelar, se desactivan obligaciones y se cancelan vencimientos futuros pendientes. Se conserva íntegramente la historia cumplida y revertida.
 
 #### Migración C — Avisos/comunicaciones
 
@@ -655,7 +662,6 @@ V1 se considera funcionalmente aceptada cuando:
 ## 26. Decisiones diferidas
 
 - Hora default de envío del sistema y UX de configuración por tenant.
-- Horizonte y frecuencia exacta de materialización de ocurrencias.
 - Proveedor inicial de email, WhatsApp o SMS y orden de incorporación de canales.
 - Política detallada de retries, backoff, rate limits y callbacks del proveedor elegido.
 - Texto, plantillas, idioma y personalización de mensajes.
@@ -663,7 +669,6 @@ V1 se considera funcionalmente aceptada cuando:
 - Reglas legales, consentimiento y opt-out aplicables a cada canal/proveedor.
 - Normalización y deduplicación avanzada de contactos.
 - Integración futura `Contact` ↔ `Lead`/`Client`.
-- Política exacta para ocurrencias pendientes al cancelar anticipadamente un contrato.
 - Edición o corrección del snapshot del inmueble luego de activar.
 - Diseño de `StoredFile`, documentos privados y comprobantes.
 - Portal del inquilino e identidad vinculada a `Contact`.

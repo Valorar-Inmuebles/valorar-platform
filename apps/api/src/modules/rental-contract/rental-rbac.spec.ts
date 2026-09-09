@@ -10,6 +10,8 @@ describe('Rental Management V1 RBAC', () => {
           'rental.contract.update',
           'rental.contract.end',
           'rental.contact.manage',
+          'rental.obligation.manage',
+          'rental.fulfillment.manage',
         ]),
       );
     }
@@ -23,6 +25,8 @@ describe('Rental Management V1 RBAC', () => {
         'rental.contract.create',
         'rental.contract.update',
         'rental.contact.manage',
+        'rental.obligation.manage',
+        'rental.fulfillment.manage',
       ]),
     );
     expect(permissions).not.toContain('rental.contract.end');

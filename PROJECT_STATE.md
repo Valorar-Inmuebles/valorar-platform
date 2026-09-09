@@ -17,7 +17,7 @@ Plataforma SaaS inmobiliaria multi-tenant orientada a:
 
 ## Foco actual del producto
 
-**Rental Management V1 — Migración fundacional A** ✅ (schema/migración, RBAC, API y admin mínimo; B/C pendientes)
+**Rental Management V1 — Migraciones A+B** ✅ (fundación + obligaciones, vencimientos y cumplimiento; C pendiente)
 
 Documentación: `docs/04-modules/rental-management-v1.md`, `docs/03-database/rental-domain.md`
 
@@ -47,7 +47,7 @@ Integración Property (GEO-002): FKs en Property + Admin select/autocomplete + W
 
 ## Estado Actual
 
-Fase: Foundation + **Auth Foundation v1** ✅ + Property API + Admin UI + Web Premium ✅ + **Fase 5 Administración Base** ✅ + **Fase 6 Plataforma (Super Admin)** ✅ + **Rental Foundation A** ✅
+Fase: Foundation + **Auth Foundation v1** ✅ + Property API + Admin UI + Web Premium ✅ + **Fase 5 Administración Base** ✅ + **Fase 6 Plataforma (Super Admin)** ✅ + **Rental Management A+B** ✅
 
 Infraestructura inicial:
 
@@ -248,8 +248,19 @@ Migración: `202606150001_property_foundation`, `202606150002_property_location_
 * API NestJS con arquitectura Controller → Service → Repository, guards de autenticación/tenant/permisos y validación explícita de referencias cross-tenant.
 * RBAC mínimo: lectura, creación/edición/finalización de contratos y gestión contextual de contactos.
 * Admin: `/alquileres`, alta/detalle/edición de contratos, contactos dentro del flujo y `/configuracion/conceptos-alquiler`.
-* La Migración B (obligaciones, vencimientos y cumplimientos) y la Migración C (avisos/comunicaciones) permanecen pendientes.
-* La activación en A no exige todavía `RENT`; esa invariante se implementará transaccionalmente junto con B, sin duplicar importe en `RentalContract`.
+* La Migración C (avisos/comunicaciones) permanece pendiente.
+* A dejó la activación sin `RENT` hasta B; B ya incorporó esa invariante sin duplicar importe en `RentalContract`.
+
+### Rental Management V1 — Migración B ✅
+
+* Schema y migración `202609090002_rental_obligation_engine_b`: `RentalObligation`, `RentalObligationOccurrence` y `RentalFulfillment`.
+* Motor monetario recurrente/único con fechas `@db.Date`, regla 29/30/31, snapshots e idempotencia por `periodKey`.
+* Horizonte operativo: mes local actual y dos siguientes; ejecución al crear/editar y endpoint manual, sin scheduler.
+* API tenant-scoped para obligaciones, agenda, importes variables, cumplimiento total y reversión auditable/transaccional.
+* Activación contractual exige `RENT`; cierre desactiva obligaciones y cancela sólo vencimientos futuros pendientes, preservando historia.
+* Admin: obligaciones y agenda en ficha contractual, más vista global `/alquileres/vencimientos`.
+* RBAC: `rental.obligation.manage` y `rental.fulfillment.manage`; reversión limitada a manager/admin.
+* Migración C (avisos/comunicaciones, planner/dispatcher y canales) permanece pendiente.
 
 Documentación: `docs/04-modules/rental-management-v1.md`, `docs/03-database/rental-domain.md`.
 

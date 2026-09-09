@@ -81,14 +81,24 @@ export class RentalContractController {
   @Post(':id/end')
   @RequirePermissions('rental.contract.end')
   @ApiOkResponse({ type: RentalContractResponseDto })
-  end(@Param('id') id: string, @CurrentTenant() tenantId: string) {
-    return this.service.end(id, tenantId);
+  end(
+    @Param('id') id: string,
+    @CurrentTenant() tenantId: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    const actorId = user.role === UserRole.SUPER_ADMIN ? null : user.id;
+    return this.service.end(id, tenantId, actorId);
   }
 
   @Post(':id/cancel')
   @RequirePermissions('rental.contract.end')
   @ApiOkResponse({ type: RentalContractResponseDto })
-  cancel(@Param('id') id: string, @CurrentTenant() tenantId: string) {
-    return this.service.cancel(id, tenantId);
+  cancel(
+    @Param('id') id: string,
+    @CurrentTenant() tenantId: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    const actorId = user.role === UserRole.SUPER_ADMIN ? null : user.id;
+    return this.service.cancel(id, tenantId, actorId);
   }
 }

@@ -44,6 +44,9 @@ model Tenant {
   contactPoints                         ContactPoint[]
   rentalConcepts                        RentalConcept[]
   rentalContracts                       RentalContract[]
+  rentalObligations                     RentalObligation[]
+  rentalObligationOccurrences           RentalObligationOccurrence[]
+  rentalFulfillments                    RentalFulfillment[]
 }
 
 enum UserRole {
@@ -76,12 +79,15 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  createdProperties      Property[]            @relation("PropertyCreator")
-  assignedProperties     Property[]            @relation("PropertyAssignee")
-  sharedPropertyAccess   PropertyAgentAccess[] @relation("PropertySharedWith")
-  grantedPropertyAccess  PropertyAgentAccess[] @relation("PropertyAccessGrantedBy")
-  createdDevelopments    Development[]         @relation("DevelopmentCreator")
-  createdRentalContracts RentalContract[]      @relation("RentalContractCreator")
+  createdProperties          Property[]                   @relation("PropertyCreator")
+  assignedProperties         Property[]                   @relation("PropertyAssignee")
+  sharedPropertyAccess       PropertyAgentAccess[]        @relation("PropertySharedWith")
+  grantedPropertyAccess      PropertyAgentAccess[]        @relation("PropertyAccessGrantedBy")
+  createdDevelopments        Development[]                @relation("DevelopmentCreator")
+  createdRentalContracts     RentalContract[]             @relation("RentalContractCreator")
+  recordedRentalFulfillments RentalFulfillment[]          @relation("RentalFulfillmentRecorder")
+  reversedRentalFulfillments RentalFulfillment[]          @relation("RentalFulfillmentReverser")
+  cancelledRentalOccurrences RentalObligationOccurrence[] @relation("RentalOccurrenceCanceller")
 
   @@index([tenantId])
 }
@@ -769,6 +775,31 @@ enum RentalContractStatus {
   CANCELLED
 }
 
+enum RentalObligationKind {
+  RECURRING
+  ONE_TIME
+}
+
+enum RentalAmountMode {
+  FIXED
+  VARIABLE
+}
+
+enum RentalOccurrenceStatus {
+  PENDING
+  FULFILLED
+  CANCELLED
+}
+
+enum RentalFulfillmentStatus {
+  RECORDED
+  REVERSED
+}
+
+enum RentalFulfillmentOrigin {
+  ADMIN
+}
+
 model Contact {
   id String @id @default(cuid())
 
@@ -832,6 +863,8 @@ model RentalConcept {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  rentalObligations RentalObligation[]
+
   @@unique([tenantId, slug])
   @@unique([tenantId, systemCode])
   @@index([tenantId, isActive])
@@ -869,8 +902,102 @@ model RentalContract {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  obligations RentalObligation[]
+
   @@index([tenantId, status])
   @@index([tenantId, renterContactId])
   @@index([tenantId, propertyId])
   @@index([tenantId, endsOn])
+}
+
+model RentalObligation {
+  id String @id @default(cuid())
+
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  contractId String
+  contract   RentalContract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+
+  conceptId String
+  concept   RentalConcept @relation(fields: [conceptId], references: [id], onDelete: Restrict)
+
+  kind             RentalObligationKind
+  recurrenceMonths Int?
+  dueDay           Int?
+  amountMode       RentalAmountMode
+  defaultAmount    Decimal?             @db.Decimal(14, 2)
+  currency         Currency
+  startsOn         DateTime             @db.Date
+  endsOn           DateTime?            @db.Date
+  isActive         Boolean              @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  occurrences RentalObligationOccurrence[]
+
+  @@index([tenantId, contractId, isActive])
+  @@index([tenantId, conceptId])
+}
+
+model RentalObligationOccurrence {
+  id String @id @default(cuid())
+
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  obligationId String
+  obligation   RentalObligation @relation(fields: [obligationId], references: [id], onDelete: Cascade)
+
+  periodKey      String
+  periodStartsOn DateTime?              @db.Date
+  periodEndsOn   DateTime?              @db.Date
+  dueDate        DateTime               @db.Date
+  amount         Decimal?               @db.Decimal(14, 2)
+  currency       Currency
+  status         RentalOccurrenceStatus @default(PENDING)
+
+  cancelledAt        DateTime?
+  cancelledById      String?
+  cancelledBy        User?     @relation("RentalOccurrenceCanceller", fields: [cancelledById], references: [id], onDelete: SetNull)
+  cancellationReason String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  fulfillments RentalFulfillment[]
+
+  @@unique([obligationId, periodKey])
+  @@index([tenantId, status, dueDate])
+  @@index([tenantId, obligationId, dueDate])
+}
+
+model RentalFulfillment {
+  id String @id @default(cuid())
+
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  occurrenceId String
+  occurrence   RentalObligationOccurrence @relation(fields: [occurrenceId], references: [id], onDelete: Cascade)
+
+  status      RentalFulfillmentStatus @default(RECORDED)
+  fulfilledOn DateTime                @db.Date
+  amount      Decimal?                @db.Decimal(14, 2)
+  notes       String?                 @db.Text
+  origin      RentalFulfillmentOrigin @default(ADMIN)
+
+  recordedById   String?
+  recordedBy     User?     @relation("RentalFulfillmentRecorder", fields: [recordedById], references: [id], onDelete: SetNull)
+  reversedAt     DateTime?
+  reversedById   String?
+  reversedBy     User?     @relation("RentalFulfillmentReverser", fields: [reversedById], references: [id], onDelete: SetNull)
+  reversalReason String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([tenantId, occurrenceId, status])
+  @@index([tenantId, fulfilledOn])
 }

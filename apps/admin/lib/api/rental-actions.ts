@@ -13,6 +13,12 @@ import {
   updateRentalContact,
   updateRentalContactPoint,
   updateRentalContract,
+  createRentalObligation,
+  materializeRentalObligation,
+  recordRentalFulfillment,
+  reverseRentalFulfillment,
+  updateRentalObligation,
+  updateRentalOccurrenceAmount,
 } from "@/lib/api/rental";
 import type {
   CreateRentalContactPayload,
@@ -25,6 +31,10 @@ import type {
   UpdateRentalContactPayload,
   UpdateRentalContactPointPayload,
   UpdateRentalContractPayload,
+  CreateRentalObligationPayload,
+  RentalObligation,
+  RentalOccurrence,
+  UpdateRentalObligationPayload,
 } from "@/lib/api/types/rental";
 
 export type RentalActionResult<T = undefined> =
@@ -43,7 +53,77 @@ async function run<T>(
 
 function revalidateRental(id?: string) {
   revalidatePath("/alquileres");
+  revalidatePath("/alquileres/vencimientos");
   if (id) revalidatePath(`/alquileres/${id}`);
+}
+
+export async function createRentalObligationAction(
+  payload: CreateRentalObligationPayload,
+) {
+  const result = await run<RentalObligation>(() =>
+    createRentalObligation(payload),
+  );
+  if (result.ok) revalidateRental(payload.contractId);
+  return result;
+}
+
+export async function updateRentalObligationAction(
+  id: string,
+  contractId: string,
+  payload: UpdateRentalObligationPayload,
+) {
+  const result = await run<RentalObligation>(() =>
+    updateRentalObligation(id, payload),
+  );
+  if (result.ok) revalidateRental(contractId);
+  return result;
+}
+
+export async function materializeRentalObligationAction(
+  id: string,
+  contractId: string,
+) {
+  const result = await run<RentalOccurrence[]>(() =>
+    materializeRentalObligation(id),
+  );
+  if (result.ok) revalidateRental(contractId);
+  return result;
+}
+
+export async function updateRentalOccurrenceAmountAction(
+  id: string,
+  contractId: string | undefined,
+  amount: number | null,
+) {
+  const result = await run<RentalOccurrence>(() =>
+    updateRentalOccurrenceAmount(id, amount),
+  );
+  if (result.ok) revalidateRental(contractId);
+  return result;
+}
+
+export async function recordRentalFulfillmentAction(
+  id: string,
+  contractId: string | undefined,
+  fulfilledOn: string,
+) {
+  const result = await run<{ occurrence: RentalOccurrence }>(() =>
+    recordRentalFulfillment(id, { fulfilledOn }),
+  );
+  if (result.ok) revalidateRental(contractId);
+  return result;
+}
+
+export async function reverseRentalFulfillmentAction(
+  id: string,
+  contractId: string | undefined,
+  reason: string,
+) {
+  const result = await run<RentalOccurrence>(() =>
+    reverseRentalFulfillment(id, reason),
+  );
+  if (result.ok) revalidateRental(contractId);
+  return result;
 }
 
 export async function createRentalContractAction(

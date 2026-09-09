@@ -9,6 +9,7 @@ import { CreateRentalContractDto } from '../dto/create-rental-contract.dto';
 import { RentalContractResponseDto } from '../dto/rental-contract-response.dto';
 import { UpdateRentalContractDto } from '../dto/update-rental-contract.dto';
 import { RentalContractRepository } from '../repositories/rental-contract.repository';
+import { localDateForTimeZone } from '../../rental-obligation/utils/rental-occurrence-materializer';
 
 @Injectable()
 export class RentalContractService {
@@ -150,18 +151,24 @@ export class RentalContractService {
     return this.transition(id, tenantId, RentalContractStatus.ACTIVE);
   }
 
-  end(id: string, tenantId: string) {
-    return this.transition(id, tenantId, RentalContractStatus.ENDED);
+  end(id: string, tenantId: string, actorId: string | null) {
+    return this.transition(id, tenantId, RentalContractStatus.ENDED, actorId);
   }
 
-  cancel(id: string, tenantId: string) {
-    return this.transition(id, tenantId, RentalContractStatus.CANCELLED);
+  cancel(id: string, tenantId: string, actorId: string | null) {
+    return this.transition(
+      id,
+      tenantId,
+      RentalContractStatus.CANCELLED,
+      actorId,
+    );
   }
 
   private async transition(
     id: string,
     tenantId: string,
     target: RentalContractStatus,
+    actorId: string | null = null,
   ) {
     const existing = await this.requireContract(id, tenantId);
 
@@ -201,15 +208,28 @@ export class RentalContractService {
       if (existing.propertyId) {
         await this.assertProperty(existing.propertyId, tenantId);
       }
-      // RentalObligation enters in Migration B. ACTIVE requiring RENT is
-      // intentionally enforced there, without a temporary duplicate field.
+      if (!(await this.repository.hasActiveRentObligation(id, tenantId))) {
+        throw new BadRequestException(
+          'An active RENT obligation is required to activate a rental contract',
+        );
+      }
     }
 
-    const updated = await this.repository.update(id, tenantId, {
-      status: target,
-    });
+    const updated =
+      target === RentalContractStatus.ACTIVE
+        ? await this.repository.activateWithRentRequirement(id, tenantId)
+        : await this.repository.transitionToTerminal(
+            id,
+            tenantId,
+            target,
+            localDateForTimeZone(
+              new Date(),
+              await this.repository.tenantTimeZone(tenantId),
+            ),
+            actorId,
+          );
     if (!updated) {
-      throw new NotFoundException(`Rental contract with id "${id}" not found`);
+      throw new ConflictException('Rental contract changed during transition');
     }
     return RentalContractResponseDto.fromEntity(updated);
   }

@@ -53,6 +53,8 @@ export const PERMISSION_MATRIX_GROUPS: ReadonlyArray<{
       "rental.contract.update",
       "rental.contract.end",
       "rental.contact.manage",
+      "rental.obligation.manage",
+      "rental.fulfillment.manage",
     ],
   },
 ];

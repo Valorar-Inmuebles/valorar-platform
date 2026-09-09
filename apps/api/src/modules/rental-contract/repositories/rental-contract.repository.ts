@@ -65,4 +65,90 @@ export class RentalContractRepository {
       .count({ where: { id: contactId, tenantId, isActive: true } })
       .then((count) => count > 0);
   }
+
+  hasActiveRentObligation(contractId: string, tenantId: string) {
+    return this.prisma.rentalObligation
+      .count({
+        where: {
+          contractId,
+          tenantId,
+          isActive: true,
+          concept: { systemCode: 'RENT' },
+        },
+      })
+      .then((count) => count > 0);
+  }
+
+  async activateWithRentRequirement(id: string, tenantId: string) {
+    const changed = await this.prisma.rentalContract.updateMany({
+      where: {
+        id,
+        tenantId,
+        status: RentalContractStatus.DRAFT,
+        obligations: {
+          some: {
+            isActive: true,
+            concept: { systemCode: 'RENT' },
+          },
+        },
+      },
+      data: { status: RentalContractStatus.ACTIVE },
+    });
+    return changed.count === 1 ? this.findById(id, tenantId) : null;
+  }
+
+  tenantTimeZone(tenantId: string) {
+    return this.prisma.tenantSetting
+      .findUnique({ where: { tenantId }, select: { timeZone: true } })
+      .then((setting) => setting?.timeZone ?? 'America/Argentina/Buenos_Aires');
+  }
+
+  transitionToTerminal(
+    id: string,
+    tenantId: string,
+    status: Extract<RentalContractStatus, 'ENDED' | 'CANCELLED'>,
+    localToday: Date,
+    actorId: string | null,
+  ) {
+    return this.prisma.$transaction(async (tx) => {
+      const changed = await tx.rentalContract.updateMany({
+        where: {
+          id,
+          tenantId,
+          status:
+            status === RentalContractStatus.ENDED
+              ? RentalContractStatus.ACTIVE
+              : {
+                  in: [RentalContractStatus.DRAFT, RentalContractStatus.ACTIVE],
+                },
+        },
+        data: { status },
+      });
+      if (changed.count !== 1) return null;
+
+      await tx.rentalObligation.updateMany({
+        where: { contractId: id, tenantId, isActive: true },
+        data: { isActive: false },
+      });
+      await tx.rentalObligationOccurrence.updateMany({
+        where: {
+          tenantId,
+          status: 'PENDING',
+          dueDate: { gt: localToday },
+          obligation: { contractId: id },
+        },
+        data: {
+          status: 'CANCELLED',
+          cancelledAt: new Date(),
+          cancelledById: actorId,
+          cancellationReason:
+            status === 'ENDED' ? 'Contract ended' : 'Contract cancelled',
+        },
+      });
+      return tx.rentalContract.findFirst({
+        where: { id, tenantId },
+        include: rentalContractInclude,
+      });
+    });
+  }
 }

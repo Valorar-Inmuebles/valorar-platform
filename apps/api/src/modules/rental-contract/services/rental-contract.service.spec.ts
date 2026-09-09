@@ -54,6 +54,10 @@ describe('RentalContractService', () => {
     update: jest.fn(),
     propertyBelongsToTenant: jest.fn(),
     contactBelongsToTenant: jest.fn(),
+    hasActiveRentObligation: jest.fn(),
+    activateWithRentRequirement: jest.fn(),
+    tenantTimeZone: jest.fn(),
+    transitionToTerminal: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -116,14 +120,36 @@ describe('RentalContractService', () => {
         }),
       );
     repository.contactBelongsToTenant.mockResolvedValue(true);
-    repository.update
-      .mockResolvedValueOnce(contract({ status: RentalContractStatus.ACTIVE }))
-      .mockResolvedValueOnce(contract({ status: RentalContractStatus.ENDED }));
+    repository.hasActiveRentObligation.mockResolvedValue(true);
+    repository.tenantTimeZone.mockResolvedValue(
+      'America/Argentina/Buenos_Aires',
+    );
+    repository.activateWithRentRequirement.mockResolvedValueOnce(
+      contract({ status: RentalContractStatus.ACTIVE }),
+    );
+    repository.transitionToTerminal.mockResolvedValueOnce(
+      contract({ status: RentalContractStatus.ENDED }),
+    );
 
     expect((await service.activate('contract-1', 'tenant-1')).status).toBe(
       'ACTIVE',
     );
-    expect((await service.end('contract-1', 'tenant-1')).status).toBe('ENDED');
+    expect((await service.end('contract-1', 'tenant-1', 'user-1')).status).toBe(
+      'ENDED',
+    );
+  });
+
+  it('rejects activation without an active RENT obligation', async () => {
+    repository.findById.mockResolvedValue(
+      contract({ renterContactId: 'renter-1' }),
+    );
+    repository.contactBelongsToTenant.mockResolvedValue(true);
+    repository.hasActiveRentObligation.mockResolvedValue(false);
+
+    await expect(service.activate('contract-1', 'tenant-1')).rejects.toThrow(
+      BadRequestException,
+    );
+    expect(repository.update).not.toHaveBeenCalled();
   });
 
   it('rejects invalid transitions', async () => {

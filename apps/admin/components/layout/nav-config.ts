@@ -86,9 +86,7 @@ export const navigation: NavSection[] = [
   {
     id: "general",
     label: "General",
-    items: [
-      { id: "inicio", label: "Inicio", href: "/", iconId: "home" },
-    ],
+    items: [{ id: "inicio", label: "Inicio", href: "/", iconId: "home" }],
   },
   {
     id: "inmobiliaria",
@@ -113,6 +111,20 @@ export const navigation: NavSection[] = [
         href: "/alquileres",
         iconId: "building",
         permissions: ["rental.read"],
+        children: [
+          {
+            id: "rental-contracts",
+            label: "Contratos",
+            href: "/alquileres",
+            permissions: ["rental.read"],
+          },
+          {
+            id: "rental-due-dates",
+            label: "Vencimientos",
+            href: "/alquileres/vencimientos",
+            permissions: ["rental.read"],
+          },
+        ],
       },
     ],
   },

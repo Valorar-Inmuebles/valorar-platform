@@ -1,8 +1,8 @@
 # Rental Management — Diseño de datos
 
-Versión: V1 — fundación A implementada
+Versión: V1 — Migraciones A y B implementadas
 
-Estado: **Migración fundacional A implementada en Prisma y preparada como migración; Migraciones B y C permanecen documentadas y no implementadas**.
+Estado: **Migraciones A y B implementadas en Prisma, API y admin; Migración C permanece documentada y no implementada**.
 
 Reglas funcionales canónicas: `docs/04-modules/rental-management-v1.md`.
 
@@ -160,7 +160,7 @@ Reglas:
 - La referencia textual siempre existe, incluso cuando hay `propertyId`.
 - `propertyAddressSnapshot` y `startsOn` son obligatorios incluso en `DRAFT`; `renterContactId` es la única nulabilidad transitoria necesaria para completar el contrato antes de activarlo.
 - El snapshot no se sincroniza automáticamente con cambios posteriores de `Property`.
-- `ACTIVE` requiere inquilino activo, fechas válidas y, desde la Migración B, una obligación activa con concepto `RENT` correctamente configurada. Durante la fundación A se aplican las primeras validaciones y el enforcement de `RENT` queda explícitamente pendiente de B.
+- `ACTIVE` requiere inquilino activo, fechas válidas y una obligación activa con concepto `RENT` correctamente configurada. La fundación A difirió esta última validación y B ya la aplica.
 - El propietario no participa en liquidaciones ni reglas financieras en V1.
 - Índices `[tenantId, status]`, `[tenantId, renterContactId]`, `[tenantId, propertyId]` y `[tenantId, endsOn]`.
 
@@ -466,9 +466,10 @@ Las relaciones hacia `User` son de auditoría (`createdBy`, `recordedBy`, `rever
 - Si `dueDay` es 29, 30 o 31 y el mes no contiene ese día, se usa el último día calendario del mes.
 - Fines de semana no desplazan el vencimiento.
 - V1 no contempla feriados.
-- La materialización se ejecuta en una ventana acotada hacia adelante y puede repetirse sin duplicar debido a `@@unique([obligationId, periodKey])`.
+- B materializa el mes local actual y los dos meses siguientes (`RENTAL_OCCURRENCE_HORIZON_MONTHS = 3`). La operación puede invocarse al crear/editar una obligación o mediante endpoint manual y repetirse sin duplicar debido a `@@unique([obligationId, periodKey])`.
+- Los intervalos de más de un mes se anclan al mes calendario de `RentalObligation.startsOn`. Sólo se crea una ocurrencia si su `dueDate` cae dentro de la intersección de vigencias de contrato y obligación.
 
-Los campos anteriores forman parte del diseño aprobado, pero todavía no existen en `schema.prisma`.
+Los campos de fechas, recurrencia y timezone correspondientes a A+B ya existen en `schema.prisma`; los campos exclusivos de planificación y entregas permanecen reservados para C.
 
 ---
 
@@ -514,6 +515,7 @@ Nunca se acepta un `tenantId` del cliente como autoridad. Las escrituras deben u
 ## Eliminación y conservación histórica
 
 - Contratos finalizados o cancelados conservan obligaciones, ocurrencias y comunicaciones.
+- En B, finalizar o cancelar desactiva todas las obligaciones del contrato y cancela sólo occurrences `PENDING` con `dueDate` posterior a la fecha local de cierre. Los vencimientos del día o anteriores y todos los cumplidos/cancelados se conservan sin alteración para resolución e historia operativa.
 - Conceptos, contactos y puntos usados se desactivan en lugar de eliminarse.
 - Fulfillments y deliveries nunca se borran para representar una corrección; se revierten o conservan con estado.
 - Una `Property` archivada sigue siendo referenciable históricamente; si la relación física se elimina en una evolución autorizada, el snapshot contractual continúa siendo suficiente.
@@ -571,7 +573,7 @@ No incluye todavía `reminderGroupingMode` ni configuración de hora de avisos.
 
 ### Migración B — Motor de vencimientos
 
-Estado: **pendiente**.
+Estado: **implementada en schema, migración, API y admin; no aplicada a producción durante este desarrollo**.
 
 Entidades:
 
@@ -580,6 +582,8 @@ Entidades:
 - `RentalFulfillment`.
 
 Incluye sus enums, fechas `@db.Date`, `periodKey`, snapshots monetarios, estados y reversión auditable.
+
+La materialización usa un horizonte fijo de tres meses (actual + dos siguientes), `createMany(skipDuplicates)` sobre la clave única y un endpoint manual. El cumplimiento reclama atómicamente una occurrence `PENDING` dentro de la misma transacción que crea el registro; la reversión conserva la fila y reabre la occurrence. `AGENT` puede registrar; `MANAGER`, `TENANT_ADMIN` y `SUPER_ADMIN` pueden revertir.
 
 ### Migración C — Avisos/comunicaciones
 
@@ -616,7 +620,6 @@ Los archivos privados requerirán un futuro `StoredFile` agnóstico de proveedor
 
 No bloquean las migraciones A, B o C:
 
-- horizonte y frecuencia de materialización de ocurrencias;
 - valor concreto de la hora default del sistema;
 - política de edición de snapshots contractuales después de activar;
 - algoritmo concreto de normalización de email y teléfonos argentinos/internacionales;

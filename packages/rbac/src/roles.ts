@@ -59,6 +59,8 @@ export const ROLE_PERMISSIONS: Record<PlatformRole, readonly Permission[]> = {
     'rental.contract.update',
     'rental.contract.end',
     'rental.contact.manage',
+    'rental.obligation.manage',
+    'rental.fulfillment.manage',
   ],
   TENANT_ADMIN: [
     'property.read',
@@ -82,6 +84,8 @@ export const ROLE_PERMISSIONS: Record<PlatformRole, readonly Permission[]> = {
     'rental.contract.update',
     'rental.contract.end',
     'rental.contact.manage',
+    'rental.obligation.manage',
+    'rental.fulfillment.manage',
   ],
   MANAGER: [
     'property.read',
@@ -102,6 +106,8 @@ export const ROLE_PERMISSIONS: Record<PlatformRole, readonly Permission[]> = {
     'rental.contract.update',
     'rental.contract.end',
     'rental.contact.manage',
+    'rental.obligation.manage',
+    'rental.fulfillment.manage',
   ],
   AGENT: [
     'property.read',
@@ -117,6 +123,8 @@ export const ROLE_PERMISSIONS: Record<PlatformRole, readonly Permission[]> = {
     'rental.contract.create',
     'rental.contract.update',
     'rental.contact.manage',
+    'rental.obligation.manage',
+    'rental.fulfillment.manage',
   ],
   COLLABORATOR: ['property.read', 'development.read', 'dashboard.view'],
 };

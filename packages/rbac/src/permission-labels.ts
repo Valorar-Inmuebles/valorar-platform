@@ -23,6 +23,8 @@ export const PERMISSION_LABELS: Record<Permission, string> = {
   'rental.contract.update': 'Editar contratos de alquiler',
   'rental.contract.end': 'Finalizar o cancelar contratos de alquiler',
   'rental.contact.manage': 'Administrar contactos de alquileres',
+  'rental.obligation.manage': 'Administrar obligaciones y vencimientos',
+  'rental.fulfillment.manage': 'Registrar cumplimientos de alquileres',
 };
 
 export function getPermissionLabel(permission: Permission): string {

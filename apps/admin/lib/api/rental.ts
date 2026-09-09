@@ -11,11 +11,99 @@ import type {
   UpdateRentalContactPayload,
   UpdateRentalContactPointPayload,
   UpdateRentalContractPayload,
+  CreateRentalObligationPayload,
+  RentalObligation,
+  RentalOccurrence,
+  RentalOccurrenceStatus,
+  UpdateRentalObligationPayload,
 } from "@/lib/api/types/rental";
 
 export function listRentalContracts(status?: RentalContractStatus) {
   const query = status ? `?status=${status}` : "";
   return apiFetch<RentalContract[]>(`/rental-contracts${query}`, {
+    cache: "no-store",
+  });
+}
+
+export function listRentalObligations(contractId: string) {
+  return apiFetch<RentalObligation[]>(
+    `/rental-obligations?contractId=${encodeURIComponent(contractId)}`,
+    { cache: "no-store" },
+  );
+}
+
+export function createRentalObligation(payload: CreateRentalObligationPayload) {
+  return apiFetch<RentalObligation>("/rental-obligations", {
+    method: "POST",
+    body: JSON.stringify(payload),
+    cache: "no-store",
+  });
+}
+
+export function updateRentalObligation(
+  id: string,
+  payload: UpdateRentalObligationPayload,
+) {
+  return apiFetch<RentalObligation>(`/rental-obligations/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+    cache: "no-store",
+  });
+}
+
+export function materializeRentalObligation(id: string) {
+  return apiFetch<RentalOccurrence[]>(`/rental-obligations/${id}/materialize`, {
+    method: "POST",
+    cache: "no-store",
+  });
+}
+
+export function listRentalOccurrences(
+  options: {
+    contractId?: string;
+    status?: RentalOccurrenceStatus;
+    dueFrom?: string;
+    dueTo?: string;
+  } = {},
+) {
+  const query = new URLSearchParams();
+  Object.entries(options).forEach(([key, value]) => {
+    if (value) query.set(key, value);
+  });
+  return apiFetch<RentalOccurrence[]>(`/rental-occurrences?${query}`, {
+    cache: "no-store",
+  });
+}
+
+export function updateRentalOccurrenceAmount(
+  id: string,
+  amount: number | null,
+) {
+  return apiFetch<RentalOccurrence>(`/rental-occurrences/${id}/amount`, {
+    method: "PATCH",
+    body: JSON.stringify({ amount }),
+    cache: "no-store",
+  });
+}
+
+export function recordRentalFulfillment(
+  occurrenceId: string,
+  payload: {
+    fulfilledOn: string;
+    amount?: number | null;
+    notes?: string | null;
+  },
+) {
+  return apiFetch<{ occurrence: RentalOccurrence }>(
+    `/rental-occurrences/${occurrenceId}/fulfillments`,
+    { method: "POST", body: JSON.stringify(payload), cache: "no-store" },
+  );
+}
+
+export function reverseRentalFulfillment(id: string, reason: string) {
+  return apiFetch<RentalOccurrence>(`/rental-fulfillments/${id}/reverse`, {
+    method: "POST",
+    body: JSON.stringify({ reason }),
     cache: "no-store",
   });
 }
