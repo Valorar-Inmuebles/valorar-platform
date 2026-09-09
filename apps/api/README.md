@@ -38,6 +38,30 @@ npm run check-types
 npm run lint
 ```
 
+### Base de datos development aislada
+
+Para ejecutar Prisma, seed o la API contra una base development distinta de la
+configurada en `.env`, copiar `.env.development.local.example` como
+`.env.development.local` y completar exclusivamente la connection string de la
+base o branch de desarrollo. El archivo local permanece ignorado por Git.
+
+Estos comandos cargan explícitamente ese archivo y ejecutan un preflight antes
+de iniciar cualquier proceso. El preflight exige las marcas de development,
+rechaza el endpoint productivo auditado y también rechaza reutilizar el host o
+endpoint de `.env`. Nunca imprime credenciales ni la connection string completa.
+
+```bash
+npm run db:dev:check
+npm run db:dev:inspect
+npm run db:dev:migrate:deploy
+npm run db:dev:migrate:status
+npm run db:dev:seed
+npm run start:dev:database
+```
+
+Los comandos deben ejecutarse desde `apps/api`, o desde la raíz agregando
+`-w api`.
+
 ## Variables de entorno
 
 Copiar desde `apps/api/.env.example`:
