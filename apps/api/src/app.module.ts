@@ -23,6 +23,9 @@ import { PlatformTenantModule } from './modules/platform-tenant/platform-tenant.
 import { PublicDevelopmentModule } from './modules/public-development/public-development.module';
 import { MigrationHouzezModule } from './modules/migration-houzez/migration-houzez.module';
 import { PrismaModule } from './prisma/prisma.module';
+import { ContactModule } from './modules/contact/contact.module';
+import { RentalConceptModule } from './modules/rental-concept/rental-concept.module';
+import { RentalContractModule } from './modules/rental-contract/rental-contract.module';
 
 @Module({
   imports: [
@@ -48,6 +51,9 @@ import { PrismaModule } from './prisma/prisma.module';
     AdminDashboardModule,
     GeoModule,
     MigrationHouzezModule,
+    ContactModule,
+    RentalConceptModule,
+    RentalContractModule,
   ],
   controllers: [AppController],
   providers: [AppService],

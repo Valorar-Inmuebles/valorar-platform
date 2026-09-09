@@ -2,11 +2,11 @@
 
 Versión: V1
 
-Estado: **diseño funcional aprobado, no implementado**.
+Estado: **implementación parcial — Migración fundacional A implementada; Migraciones B y C pendientes**.
 
 Diseño de datos propuesto: `docs/03-database/rental-domain.md`.
 
-Este documento es la fuente canónica de reglas funcionales del módulo. No implica que sus modelos, permisos, endpoints, tareas automáticas o pantallas existan en el código actual.
+Este documento es la fuente canónica de reglas funcionales del módulo. La fundación A ya existe en Prisma, API y admin; el motor de vencimientos, las comunicaciones y sus automatizaciones todavía no están implementados.
 
 ---
 
@@ -530,18 +530,25 @@ La ficha del contrato será simple y operativa: identificación, partes, inmuebl
 
 #### Migración fundacional A
 
+Estado: **implementada en schema, migración, RBAC, API y admin mínimo**. La migración no se aplicó contra producción como parte de este desarrollo.
+
 - Entidades: `Contact`, `ContactPoint`, `RentalConcept`, `RentalContract`.
 - Agrega `TenantSetting.timeZone`.
 - Incluye relaciones inversas y enums de contacto, conceptos base y contrato.
 - Backfill idempotente de conceptos base para tenants existentes y creación transaccional para tenants nuevos.
 - No incluye todavía agrupación ni hora de avisos.
+- Mientras la Migración B no exista, la activación valida inquilino, fechas y consistencia tenant, pero no puede exigir todavía una obligación `RENT`. Esa invariante se incorpora en B sin agregar campos temporales al contrato.
 
 #### Migración B — Motor de vencimientos
+
+Estado: **pendiente**.
 
 - Entidades: `RentalObligation`, `RentalObligationOccurrence`, `RentalFulfillment`.
 - Incluye recurrencia simple, fechas `@db.Date`, `periodKey`, snapshots monetarios, estados y reversión.
 
 #### Migración C — Avisos/comunicaciones
+
+Estado: **pendiente**.
 
 - Entidades: `RentalReminderRule`, `RentalReminderDispatch`, `RentalReminderDispatchOccurrence`, `RentalReminderDelivery`.
 - Agrega `RentalContract.reminderGroupingMode` y `TenantSetting.rentalReminderSendTime`.

@@ -7,6 +7,7 @@ const LINKS = [
   { href: "/configuracion/organizacion", label: "Organización", description: "Datos comerciales, contacto y SEO" },
   { href: "/configuracion/usuarios", label: "Usuarios", description: "Equipo, roles y acceso" },
   { href: "/configuracion/roles", label: "Roles y permisos", description: "Matriz de roles predefinidos" },
+  { href: "/configuracion/conceptos-alquiler", label: "Conceptos de alquiler", description: "Catálogo para futuras obligaciones y vencimientos" },
   { href: "/configuracion/perfil", label: "Perfil", description: "Tu información personal" },
   { href: "/configuracion/preferencias", label: "Preferencias", description: "Ajustes de experiencia" },
 ] as const;

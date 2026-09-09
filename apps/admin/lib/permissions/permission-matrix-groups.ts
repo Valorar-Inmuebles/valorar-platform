@@ -45,6 +45,16 @@ export const PERMISSION_MATRIX_GROUPS: ReadonlyArray<{
     label: "Dashboard",
     permissions: ["dashboard.view"],
   },
+  {
+    label: "Gestión de alquileres",
+    permissions: [
+      "rental.read",
+      "rental.contract.create",
+      "rental.contract.update",
+      "rental.contract.end",
+      "rental.contact.manage",
+    ],
+  },
 ];
 
 export function listMatrixPermissions(): Permission[] {

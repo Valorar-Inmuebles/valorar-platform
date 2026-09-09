@@ -26,20 +26,24 @@ model Tenant {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  users                      User[]
-  settings                   TenantSetting?
-  properties                 Property[]
-  propertyListings           PropertyListing[]
-  propertyPrices             PropertyPrice[]
-  propertyImages             PropertyImage[]
-  propertyFeatureAssignments PropertyFeatureAssignment[]
-  propertyAgentAccess        PropertyAgentAccess[]
-  developments               Development[]
-  developmentImages          DevelopmentImage[]
-  developmentFeatureAssignments DevelopmentFeatureAssignment[]
-  developmentTypologies      DevelopmentTypology[]
+  users                                 User[]
+  settings                              TenantSetting?
+  properties                            Property[]
+  propertyListings                      PropertyListing[]
+  propertyPrices                        PropertyPrice[]
+  propertyImages                        PropertyImage[]
+  propertyFeatureAssignments            PropertyFeatureAssignment[]
+  propertyAgentAccess                   PropertyAgentAccess[]
+  developments                          Development[]
+  developmentImages                     DevelopmentImage[]
+  developmentFeatureAssignments         DevelopmentFeatureAssignment[]
+  developmentTypologies                 DevelopmentTypology[]
   developmentTypologyFeatureAssignments DevelopmentTypologyFeatureAssignment[]
-  migrationSourceRefs        MigrationSourceRef[]
+  migrationSourceRefs                   MigrationSourceRef[]
+  contacts                              Contact[]
+  contactPoints                         ContactPoint[]
+  rentalConcepts                        RentalConcept[]
+  rentalContracts                       RentalContract[]
 }
 
 enum UserRole {
@@ -59,7 +63,7 @@ model User {
   firstName String
   lastName  String
   name      String
-  email     String @unique
+  email     String  @unique
   phone     String?
   avatarUrl String?
 
@@ -77,6 +81,7 @@ model User {
   sharedPropertyAccess   PropertyAgentAccess[] @relation("PropertySharedWith")
   grantedPropertyAccess  PropertyAgentAccess[] @relation("PropertyAccessGrantedBy")
   createdDevelopments    Development[]         @relation("DevelopmentCreator")
+  createdRentalContracts RentalContract[]      @relation("RentalContractCreator")
 
   @@index([tenantId])
 }
@@ -113,6 +118,8 @@ model TenantSetting {
 
   propertyVisibilityPolicy PropertyVisibilityPolicy @default(AGENT_OWN_ONLY)
   propertyEditPolicy       PropertyEditPolicy       @default(CREATOR_OR_ASSIGNEE)
+
+  timeZone String @default("America/Argentina/Buenos_Aires")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -239,29 +246,29 @@ model Property {
 
   isActive Boolean @default(true)
 
-  street       String?
-  streetNumber String?
-  floor        String?
-  apartment    String?
-  neighborhood String?
-  city         String
-  province     String?
-  country      String  @default("AR")
-  countryId      String?
-  provinceId     String?
-  localityId     String?
-  neighborhoodId String?
-  geoCountry     Country?      @relation(fields: [countryId], references: [id], onDelete: SetNull)
-  geoProvince    Province?     @relation(fields: [provinceId], references: [id], onDelete: SetNull)
-  geoLocality    Locality?     @relation(fields: [localityId], references: [id], onDelete: SetNull)
-  geoNeighborhood Neighborhood? @relation(fields: [neighborhoodId], references: [id], onDelete: SetNull)
-  postalCode   String?
-  latitude     Decimal? @db.Decimal(10, 7)
-  longitude    Decimal? @db.Decimal(10, 7)
-  googlePlaceId      String?
-  formattedAddress   String?
-  geocodeSource      GeocodeSource?
-  geocodeAccuracy    GeocodeAccuracy?
+  street           String?
+  streetNumber     String?
+  floor            String?
+  apartment        String?
+  neighborhood     String?
+  city             String
+  province         String?
+  country          String           @default("AR")
+  countryId        String?
+  provinceId       String?
+  localityId       String?
+  neighborhoodId   String?
+  geoCountry       Country?         @relation(fields: [countryId], references: [id], onDelete: SetNull)
+  geoProvince      Province?        @relation(fields: [provinceId], references: [id], onDelete: SetNull)
+  geoLocality      Locality?        @relation(fields: [localityId], references: [id], onDelete: SetNull)
+  geoNeighborhood  Neighborhood?    @relation(fields: [neighborhoodId], references: [id], onDelete: SetNull)
+  postalCode       String?
+  latitude         Decimal?         @db.Decimal(10, 7)
+  longitude        Decimal?         @db.Decimal(10, 7)
+  googlePlaceId    String?
+  formattedAddress String?
+  geocodeSource    GeocodeSource?
+  geocodeAccuracy  GeocodeAccuracy?
 
   totalArea     Decimal? @db.Decimal(10, 2)
   coveredArea   Decimal? @db.Decimal(10, 2)
@@ -287,6 +294,7 @@ model Property {
   images             PropertyImage[]
   featureAssignments PropertyFeatureAssignment[]
   agentAccess        PropertyAgentAccess[]
+  rentalContracts    RentalContract[]
 
   @@unique([tenantId, slug])
   @@unique([tenantId, internalCode])
@@ -387,7 +395,7 @@ model PropertyFeature {
   id String @id @default(cuid())
 
   name     String
-  slug     String @unique
+  slug     String                  @unique
   category PropertyFeatureCategory
 
   isActive  Boolean @default(true)
@@ -396,9 +404,9 @@ model PropertyFeature {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  assignments PropertyFeatureAssignment[]
+  assignments            PropertyFeatureAssignment[]
   developmentAssignments DevelopmentFeatureAssignment[]
-  typologyAssignments DevelopmentTypologyFeatureAssignment[]
+  typologyAssignments    DevelopmentTypologyFeatureAssignment[]
 
   @@index([category])
 }
@@ -453,32 +461,32 @@ model PropertyAgentAccess {
 }
 
 model Country {
-  id        String     @id @default(cuid())
-  name      String
-  iso2      String     @unique
-  slug      String     @unique
-  search    String
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
-  provinces  Province[]
-  properties Property[]
+  id           String        @id @default(cuid())
+  name         String
+  iso2         String        @unique
+  slug         String        @unique
+  search       String
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  provinces    Province[]
+  properties   Property[]
   developments Development[]
 
   @@index([search])
 }
 
 model Province {
-  id         String     @id @default(cuid())
-  countryId  String
-  country    Country    @relation(fields: [countryId], references: [id], onDelete: Restrict)
-  name       String
-  isoCode    String?
-  slug       String
-  search     String
-  createdAt  DateTime   @default(now())
-  updatedAt  DateTime   @updatedAt
-  localities Locality[]
-  properties Property[]
+  id           String        @id @default(cuid())
+  countryId    String
+  country      Country       @relation(fields: [countryId], references: [id], onDelete: Restrict)
+  name         String
+  isoCode      String?
+  slug         String
+  search       String
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  localities   Locality[]
+  properties   Property[]
   developments Development[]
 
   @@unique([countryId, name])
@@ -508,15 +516,15 @@ model Locality {
 }
 
 model Neighborhood {
-  id         String   @id @default(cuid())
-  localityId String
-  locality   Locality @relation(fields: [localityId], references: [id], onDelete: Restrict)
-  name       String
-  slug       String
-  search     String
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-  properties Property[]
+  id           String        @id @default(cuid())
+  localityId   String
+  locality     Locality      @relation(fields: [localityId], references: [id], onDelete: Restrict)
+  name         String
+  slug         String
+  search       String
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  properties   Property[]
   developments Development[]
 
   @@unique([localityId, name])
@@ -540,36 +548,36 @@ model Development {
   createdById String
   createdBy   User   @relation("DevelopmentCreator", fields: [createdById], references: [id])
 
-  slug         String
-  internalCode String?
-  title        String
-  shortDescription String @db.Text
-  description  String  @db.Text
-  status       DevelopmentStatus?
+  slug             String
+  internalCode     String?
+  title            String
+  shortDescription String             @db.Text
+  description      String             @db.Text
+  status           DevelopmentStatus?
 
   isActive Boolean @default(true)
 
-  street       String?
-  streetNumber String?
-  neighborhood String?
-  city         String
-  province     String?
-  country      String  @default("AR")
-  countryId      String?
-  provinceId     String?
-  localityId     String?
-  neighborhoodId String?
-  geoCountry     Country?      @relation(fields: [countryId], references: [id], onDelete: SetNull)
-  geoProvince    Province?     @relation(fields: [provinceId], references: [id], onDelete: SetNull)
-  geoLocality    Locality?     @relation(fields: [localityId], references: [id], onDelete: SetNull)
-  geoNeighborhood Neighborhood? @relation(fields: [neighborhoodId], references: [id], onDelete: SetNull)
-  postalCode   String?
-  latitude     Decimal? @db.Decimal(10, 7)
-  longitude    Decimal? @db.Decimal(10, 7)
-  googlePlaceId      String?
-  formattedAddress   String?
-  geocodeSource      GeocodeSource?
-  geocodeAccuracy    GeocodeAccuracy?
+  street           String?
+  streetNumber     String?
+  neighborhood     String?
+  city             String
+  province         String?
+  country          String           @default("AR")
+  countryId        String?
+  provinceId       String?
+  localityId       String?
+  neighborhoodId   String?
+  geoCountry       Country?         @relation(fields: [countryId], references: [id], onDelete: SetNull)
+  geoProvince      Province?        @relation(fields: [provinceId], references: [id], onDelete: SetNull)
+  geoLocality      Locality?        @relation(fields: [localityId], references: [id], onDelete: SetNull)
+  geoNeighborhood  Neighborhood?    @relation(fields: [neighborhoodId], references: [id], onDelete: SetNull)
+  postalCode       String?
+  latitude         Decimal?         @db.Decimal(10, 7)
+  longitude        Decimal?         @db.Decimal(10, 7)
+  googlePlaceId    String?
+  formattedAddress String?
+  geocodeSource    GeocodeSource?
+  geocodeAccuracy  GeocodeAccuracy?
 
   priceFrom            Decimal?  @db.Decimal(14, 2)
   currency             Currency?
@@ -664,15 +672,15 @@ model DevelopmentTypology {
   developmentId String
   development   Development @relation(fields: [developmentId], references: [id], onDelete: Cascade)
 
-  name        String
-  description String  @db.Text
-  totalCount       Int?
-  availableCount   Int?
-  surfaceFrom      Decimal? @db.Decimal(10, 2)
-  surfaceTo        Decimal? @db.Decimal(10, 2)
-  priceFrom        Decimal? @db.Decimal(14, 2)
-  currency         Currency?
-  sortOrder        Int      @default(0)
+  name           String
+  description    String    @db.Text
+  totalCount     Int?
+  availableCount Int?
+  surfaceFrom    Decimal?  @db.Decimal(10, 2)
+  surfaceTo      Decimal?  @db.Decimal(10, 2)
+  priceFrom      Decimal?  @db.Decimal(14, 2)
+  currency       Currency?
+  sortOrder      Int       @default(0)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -737,4 +745,132 @@ model MigrationSourceRef {
   @@index([migrationBatchId])
   @@index([tenantId, entityType, entityId])
   @@index([tenantId, sourceSystem, migrationBatchId])
+}
+
+enum ContactPointType {
+  EMAIL
+  PHONE
+}
+
+enum RentalConceptSystemCode {
+  RENT
+  EXPENSES
+  ELECTRICITY
+  GAS
+  ABL
+  AYSA
+  INSURANCE
+}
+
+enum RentalContractStatus {
+  DRAFT
+  ACTIVE
+  ENDED
+  CANCELLED
+}
+
+model Contact {
+  id String @id @default(cuid())
+
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  name     String
+  notes    String? @db.Text
+  isActive Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  contactPoints     ContactPoint[]
+  renterContracts   RentalContract[] @relation("RentalContractRenter")
+  landlordContracts RentalContract[] @relation("RentalContractLandlord")
+
+  @@index([tenantId, name])
+  @@index([tenantId, isActive])
+}
+
+model ContactPoint {
+  id String @id @default(cuid())
+
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  contactId String
+  contact   Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  type            ContactPointType
+  value           String
+  normalizedValue String
+  label           String?
+
+  isDefault          Boolean @default(false)
+  isActive           Boolean @default(true)
+  canReceiveSms      Boolean @default(false)
+  canReceiveWhatsapp Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([tenantId, contactId])
+  @@index([tenantId, type, normalizedValue])
+  @@index([contactId, type, isDefault])
+}
+
+model RentalConcept {
+  id String @id @default(cuid())
+
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  name       String
+  slug       String
+  systemCode RentalConceptSystemCode?
+  isActive   Boolean                  @default(true)
+  sortOrder  Int                      @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([tenantId, slug])
+  @@unique([tenantId, systemCode])
+  @@index([tenantId, isActive])
+  @@index([tenantId, sortOrder])
+}
+
+model RentalContract {
+  id String @id @default(cuid())
+
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  propertyId String?
+  property   Property? @relation(fields: [propertyId], references: [id], onDelete: SetNull)
+
+  renterContactId String?
+  renterContact   Contact? @relation("RentalContractRenter", fields: [renterContactId], references: [id], onDelete: Restrict)
+
+  landlordContactId String?
+  landlordContact   Contact? @relation("RentalContractLandlord", fields: [landlordContactId], references: [id], onDelete: Restrict)
+
+  createdById String?
+  createdBy   User?   @relation("RentalContractCreator", fields: [createdById], references: [id], onDelete: SetNull)
+
+  propertyAddressSnapshot  String
+  propertyLocalitySnapshot String?
+  propertyUnitSnapshot     String?
+  propertyNotesSnapshot    String? @db.Text
+
+  startsOn DateTime             @db.Date
+  endsOn   DateTime?            @db.Date
+  status   RentalContractStatus @default(DRAFT)
+  notes    String?              @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([tenantId, status])
+  @@index([tenantId, renterContactId])
+  @@index([tenantId, propertyId])
+  @@index([tenantId, endsOn])
 }

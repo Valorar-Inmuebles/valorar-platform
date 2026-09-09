@@ -7,6 +7,7 @@ const ITEMS = [
   { href: "/configuracion/organizacion", label: "Organización" },
   { href: "/configuracion/usuarios", label: "Usuarios" },
   { href: "/configuracion/roles", label: "Roles y permisos" },
+  { href: "/configuracion/conceptos-alquiler", label: "Conceptos de alquiler" },
   { href: "/configuracion/perfil", label: "Perfil" },
   { href: "/configuracion/preferencias", label: "Preferencias" },
 ] as const;

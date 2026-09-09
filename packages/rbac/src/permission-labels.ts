@@ -18,6 +18,11 @@ export const PERMISSION_LABELS: Record<Permission, string> = {
   'user.update': 'Editar usuarios',
   'organization.update': 'Editar organización',
   'dashboard.view': 'Ver dashboard',
+  'rental.read': 'Ver gestión de alquileres',
+  'rental.contract.create': 'Crear contratos de alquiler',
+  'rental.contract.update': 'Editar contratos de alquiler',
+  'rental.contract.end': 'Finalizar o cancelar contratos de alquiler',
+  'rental.contact.manage': 'Administrar contactos de alquileres',
 };
 
 export function getPermissionLabel(permission: Permission): string {

@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { TenantStatus } from '../../../../generated/prisma/client';
 import { PrismaService } from '../../../prisma/prisma.service';
-import type { UpdatePlatformTenantDto } from '../dto/update-platform-tenant.dto';
+import { DEFAULT_RENTAL_CONCEPTS } from '../../rental-concept/rental-concept.defaults';
 
 type TenantSettingsInput = {
   logoUrl?: string | null;
@@ -70,6 +70,9 @@ export class PlatformTenantRepository {
             companyName: data.name,
             ...settings,
           },
+        },
+        rentalConcepts: {
+          create: DEFAULT_RENTAL_CONCEPTS.map((concept) => ({ ...concept })),
         },
       },
       include: {
@@ -145,12 +148,14 @@ export class PlatformTenantRepository {
       this.prisma.tenant.count({ where: { status: TenantStatus.SUSPENDED } }),
       this.prisma.user.count({ where: { tenantId: { not: null } } }),
       this.prisma.property.count(),
-    ]).then(([activeTenants, suspendedTenants, totalUsers, totalProperties]) => ({
-      activeTenants,
-      suspendedTenants,
-      totalUsers,
-      totalProperties,
-    }));
+    ]).then(
+      ([activeTenants, suspendedTenants, totalUsers, totalProperties]) => ({
+        activeTenants,
+        suspendedTenants,
+        totalUsers,
+        totalProperties,
+      }),
+    );
   }
 
   findActiveOptions() {

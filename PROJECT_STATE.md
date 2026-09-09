@@ -17,6 +17,10 @@ Plataforma SaaS inmobiliaria multi-tenant orientada a:
 
 ## Foco actual del producto
 
+**Rental Management V1 — Migración fundacional A** ✅ (schema/migración, RBAC, API y admin mínimo; B/C pendientes)
+
+Documentación: `docs/04-modules/rental-management-v1.md`, `docs/03-database/rental-domain.md`
+
 **Fase 6 — Plataforma (Super Admin)** ✅
 
 Documentación: `docs/07-admin/fase6-plataforma-super-admin.md`
@@ -43,7 +47,7 @@ Integración Property (GEO-002): FKs en Property + Admin select/autocomplete + W
 
 ## Estado Actual
 
-Fase: Foundation + **Auth Foundation v1** ✅ + Property API + Admin UI + Web Premium ✅ + **Fase 5 Administración Base** ✅ → **Fase 6 Plataforma (Super Admin)** (implementado)
+Fase: Foundation + **Auth Foundation v1** ✅ + Property API + Admin UI + Web Premium ✅ + **Fase 5 Administración Base** ✅ + **Fase 6 Plataforma (Super Admin)** ✅ + **Rental Foundation A** ✅
 
 Infraestructura inicial:
 
@@ -236,6 +240,18 @@ Pendiente en Property API (Property Complete MVP): features admin, storage uploa
 Documentación: `docs/03-database/property-domain.md`
 
 Migración: `202606150001_property_foundation`, `202606150002_property_location_v1_1`
+
+### Rental Management V1 — Migración fundacional A ✅
+
+* Schema y migración `202609090001_rental_foundation_a`: `Contact`, `ContactPoint`, `RentalConcept`, `RentalContract` y `TenantSetting.timeZone`.
+* Conceptos base tenant-scoped con backfill idempotente para tenants existentes y alta automática para tenants nuevos.
+* API NestJS con arquitectura Controller → Service → Repository, guards de autenticación/tenant/permisos y validación explícita de referencias cross-tenant.
+* RBAC mínimo: lectura, creación/edición/finalización de contratos y gestión contextual de contactos.
+* Admin: `/alquileres`, alta/detalle/edición de contratos, contactos dentro del flujo y `/configuracion/conceptos-alquiler`.
+* La Migración B (obligaciones, vencimientos y cumplimientos) y la Migración C (avisos/comunicaciones) permanecen pendientes.
+* La activación en A no exige todavía `RENT`; esa invariante se implementará transaccionalmente junto con B, sin duplicar importe en `RentalContract`.
+
+Documentación: `docs/04-modules/rental-management-v1.md`, `docs/03-database/rental-domain.md`.
 
 ### Lead Domain v1 (documentado)
 

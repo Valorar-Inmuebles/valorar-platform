@@ -107,6 +107,13 @@ export const navigation: NavSection[] = [
         iconId: "layers",
         permissions: ["development.read"],
       },
+      {
+        id: "alquileres",
+        label: "Gestión de alquileres",
+        href: "/alquileres",
+        iconId: "building",
+        permissions: ["rental.read"],
+      },
     ],
   },
   {
@@ -146,6 +153,13 @@ export const navigation: NavSection[] = [
         href: "/configuracion/roles",
         iconId: "shield",
         permissions: ["user.read"],
+      },
+      {
+        id: "config-conceptos-alquiler",
+        label: "Conceptos de alquiler",
+        href: "/configuracion/conceptos-alquiler",
+        iconId: "settings",
+        permissions: ["rental.contract.update"],
       },
       {
         id: "config-perfil",

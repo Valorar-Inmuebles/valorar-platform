@@ -2,7 +2,7 @@
 
 ## Estado
 
-Versión: Foundation v1 + Auth Foundation Fase 1 + Property Domain v1
+Versión: Foundation v1 + Auth Foundation Fase 1 + Property Domain v1 + Rental Foundation A
 
 Base de datos:
 
@@ -12,6 +12,8 @@ Base de datos:
 Auth Foundation Fase 1: migrado (`20260616125024_auth_foundation`).
 
 Dominio Property: migrado (`202606150001_property_foundation`, `202606150002_property_location_v1_1`).
+
+Rental Management: schema y migración fundacional A implementados (`202609090001_rental_foundation_a`); no aplicada a producción durante este desarrollo.
 
 ---
 
@@ -58,6 +60,9 @@ Tenant
 ├── DevelopmentImages
 ├── DevelopmentFeatureAssignments
 ├── DevelopmentTypologies
+├── Contacts / ContactPoints
+├── RentalConcepts
+├── RentalContracts
 └── Leads (planificado)
 ```
 
@@ -100,7 +105,8 @@ User
 ├── Tenant
 ├── Properties (createdBy)
 ├── PropertyAgentAccess (sharedWith)
-└── PropertyAgentAccess (grantedBy)
+├── PropertyAgentAccess (grantedBy)
+└── RentalContracts (createdBy)
 ```
 
 ---
@@ -126,12 +132,57 @@ Relación 1:1 con `Tenant`.
 | domain         | String?  |             |
 | propertyVisibilityPolicy | PropertyVisibilityPolicy | Default `AGENT_OWN_ONLY` |
 | propertyEditPolicy | PropertyEditPolicy | Default `CREATOR_OR_ASSIGNEE` |
+| timeZone       | String   | Default `America/Argentina/Buenos_Aires` |
 | createdAt      | DateTime |             |
 | updatedAt      | DateTime |             |
 
 ## Restricciones
 
 * `tenantId`: único (`@unique`) — una configuración por tenant
+
+---
+
+# Rental Management — Fundación A
+
+Estado: schema y archivo de migración implementados. No incluye todavía motor de vencimientos ni comunicaciones.
+
+Documentación canónica: `docs/03-database/rental-domain.md` y `docs/04-modules/rental-management-v1.md`.
+
+## Entidades
+
+```txt
+Tenant
+├── Contact
+│   └── ContactPoint
+├── RentalConcept
+└── RentalContract
+    ├── Property? + snapshot textual obligatorio
+    ├── Contact? (renter; requerido para activar)
+    ├── Contact? (landlord)
+    └── User? (createdBy)
+```
+
+- `Contact`: contraparte externa tenant-scoped, separada de `User`, con conservación por `isActive`.
+- `ContactPoint`: `EMAIL` o `PHONE`; guarda valor normalizado, capacidades SMS/WhatsApp y default por tipo garantizado transaccionalmente en Service.
+- `RentalConcept`: catálogo tenant-scoped con `slug` único y `systemCode` nullable único por tenant. Los siete conceptos base se crean para tenants existentes por backfill idempotente y para tenants nuevos en su alta.
+- `RentalContract`: comienza en `DRAFT`; referencia opcionalmente `Property`, renter, landlord y creador. Conserva dirección obligatoria, localidad/unidad/aclaraciones opcionales y fechas `@db.Date`.
+
+## Enums
+
+```txt
+ContactPointType: EMAIL | PHONE
+RentalConceptSystemCode: RENT | EXPENSES | ELECTRICITY | GAS | ABL | AYSA | INSURANCE
+RentalContractStatus: DRAFT | ACTIVE | ENDED | CANCELLED
+```
+
+## Integridad y borrado
+
+- Todas las consultas y escrituras funcionales están acotadas por `tenantId`.
+- `Tenant` usa `Cascade`; `Property` y `User` usan `SetNull`; renter/landlord usan `Restrict`; los puntos propios de un contacto usan `Cascade`.
+- No hay hard delete público: contactos y conceptos se conservan mediante `isActive`, y contratos mediante estados.
+- La exigencia de una obligación `RENT` para activar se aplicará al implementar la Migración B; A no agrega una fuente monetaria temporal a `RentalContract`.
+
+Migración: `202609090001_rental_foundation_a`.
 
 ---
 
@@ -767,6 +818,10 @@ PropertyPrice
 PropertyImage
 PropertyFeatureAssignment
 PropertyAgentAccess
+Contact
+ContactPoint
+RentalConcept
+RentalContract
 ```
 
 Catálogos globales sin `tenantId`:

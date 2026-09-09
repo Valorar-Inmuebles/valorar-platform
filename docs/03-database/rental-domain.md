@@ -1,8 +1,8 @@
 # Rental Management — Diseño de datos
 
-Versión: V1 propuesta
+Versión: V1 — fundación A implementada
 
-Estado: **diseño documentado, no implementado**. Este documento no describe tablas existentes y no autoriza cambios en Prisma ni migraciones.
+Estado: **Migración fundacional A implementada en Prisma y preparada como migración; Migraciones B y C permanecen documentadas y no implementadas**.
 
 Reglas funcionales canónicas: `docs/04-modules/rental-management-v1.md`.
 
@@ -160,7 +160,7 @@ Reglas:
 - La referencia textual siempre existe, incluso cuando hay `propertyId`.
 - `propertyAddressSnapshot` y `startsOn` son obligatorios incluso en `DRAFT`; `renterContactId` es la única nulabilidad transitoria necesaria para completar el contrato antes de activarlo.
 - El snapshot no se sincroniza automáticamente con cambios posteriores de `Property`.
-- `ACTIVE` requiere inquilino activo, fechas válidas y una obligación activa con concepto `RENT` correctamente configurada.
+- `ACTIVE` requiere inquilino activo, fechas válidas y, desde la Migración B, una obligación activa con concepto `RENT` correctamente configurada. Durante la fundación A se aplican las primeras validaciones y el enforcement de `RENT` queda explícitamente pendiente de B.
 - El propietario no participa en liquidaciones ni reglas financieras en V1.
 - Índices `[tenantId, status]`, `[tenantId, renterContactId]`, `[tenantId, propertyId]` y `[tenantId, endsOn]`.
 
@@ -556,6 +556,8 @@ Las FKs no sustituyen la validación de pertenencia al tenant cuando la clave re
 
 ### Migración fundacional A
 
+Estado: **implementada en `schema.prisma` y en `202609090001_rental_foundation_a`; no aplicada a producción durante este desarrollo**.
+
 Entidades:
 
 - `Contact`.
@@ -569,6 +571,8 @@ No incluye todavía `reminderGroupingMode` ni configuración de hora de avisos.
 
 ### Migración B — Motor de vencimientos
 
+Estado: **pendiente**.
+
 Entidades:
 
 - `RentalObligation`.
@@ -578,6 +582,8 @@ Entidades:
 Incluye sus enums, fechas `@db.Date`, `periodKey`, snapshots monetarios, estados y reversión auditable.
 
 ### Migración C — Avisos/comunicaciones
+
+Estado: **pendiente**.
 
 Entidades:
 

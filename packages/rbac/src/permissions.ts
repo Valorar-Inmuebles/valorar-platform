@@ -16,6 +16,11 @@ export const PERMISSIONS = [
   'user.update',
   'organization.update',
   'dashboard.view',
+  'rental.read',
+  'rental.contract.create',
+  'rental.contract.update',
+  'rental.contract.end',
+  'rental.contact.manage',
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];
