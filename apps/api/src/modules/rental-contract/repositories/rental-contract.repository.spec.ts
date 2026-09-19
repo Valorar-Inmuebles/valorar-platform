@@ -33,6 +33,9 @@ describe('RentalContractRepository terminal transition', () => {
         id: 'contract-1',
         tenantId: 'tenant-1',
         status: RentalContractStatus.DRAFT,
+        parties: {
+          some: { role: 'RENTER', contact: { isActive: true } },
+        },
         obligations: {
           some: { isActive: true, concept: { systemCode: 'RENT' } },
         },

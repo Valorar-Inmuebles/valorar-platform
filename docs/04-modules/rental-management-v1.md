@@ -2,7 +2,16 @@
 
 Versión: V1
 
-Estado: **implementación parcial — Migraciones A y B implementadas; Migración C pendiente**.
+Estado: **implementación parcial — Migraciones A y B y refinamiento correctivo B.1 implementados; Migración C pendiente**.
+
+### Rental UAT Refinement B.1
+
+- Dirección contractual completa, estructurada e independiente de la `Property` opcional.
+- Precarga editable desde cualquier propiedad del tenant, incluso archivada.
+- Varias partes por contrato mediante `RentalContractParty` (`RENTER` / `LANDLORD`).
+- Selección persistente de un `ContactPoint` por canal y persona mediante `RentalContractNotificationRoute`.
+- Los propietarios son asociación administrativa; no se les habilitan avisos automáticamente en V1.
+- B.1 no incorpora `RentalReminderRule`, dispatches, deliveries, proveedores ni scheduler.
 
 Diseño de datos propuesto: `docs/03-database/rental-domain.md`.
 
@@ -111,9 +120,9 @@ Quedan expresamente fuera de V1:
 Tenant
 ├── Contact ── ContactPoint
 ├── RentalConcept
-└── RentalContract ── Property? + snapshot textual
-    ├── renter: Contact
-    ├── landlord: Contact?
+└── RentalContract ── Property? + dirección contractual estructurada
+    ├── RentalContractParty[] ── Contact
+    │   └── RentalContractNotificationRoute[] ── ContactPoint
     └── RentalObligation
         ├── RentalReminderRule
         └── RentalObligationOccurrence
@@ -147,8 +156,10 @@ Los campos y restricciones propuestos viven exclusivamente en `docs/03-database/
 
 ## 8. Relaciones
 
-- Un contrato `ACTIVE` tiene exactamente un inquilino principal; un `DRAFT` puede quedar temporalmente sin inquilino.
-- Un contrato puede tener un propietario informativo.
+- Un contrato `ACTIVE` tiene al menos una parte `RENTER` con contacto activo; un `DRAFT` puede quedar temporalmente sin inquilinos.
+- Un contrato puede tener varias partes `RENTER` y `LANDLORD`; un mismo contacto no se repite dentro del mismo rol contractual.
+- Cada parte puede seleccionar como máximo un `ContactPoint` activo por canal. El punto debe pertenecer al contacto y ser compatible con `EMAIL`, `WHATSAPP` o `SMS`.
+- Las rutas de propietarios son una asociación administrativa y no habilitan avisos automáticamente en V1.
 - Un contrato puede referenciar cero o una `Property`, pero siempre conserva referencia textual.
 - Un contrato contiene una o más obligaciones; para activarse necesita una obligación `RENT` válida.
 - Una obligación pertenece a un concepto y materializa muchas ocurrencias.
@@ -159,7 +170,7 @@ Los campos y restricciones propuestos viven exclusivamente en `docs/03-database/
 
 No existe relación contractual con `PropertyListing` ni con `PropertyPrice`.
 
-En el schema, `renterContactId` es nullable para soportar el `DRAFT`; `propertyAddressSnapshot` y `startsOn` siguen siendo obligatorios desde la creación. La relación opcional a `Property` usa `SetNull` y nunca elimina el snapshot textual.
+En el schema, las partes viven en `RentalContractParty`; `propertyAddressSnapshot` y `startsOn` siguen siendo obligatorios desde la creación. La relación opcional a `Property` usa `SetNull` y nunca elimina la dirección contractual. Las referencias geográficas también usan `SetNull`, mientras sus snapshots históricos permanecen en el contrato.
 
 ---
 
@@ -167,7 +178,7 @@ En el schema, `renterContactId` es nullable para soportar el `DRAFT`; `propertyA
 
 1. Ninguna entidad funcional queda sin `tenantId`.
 2. El tenant de cada referencia se valida en backend; nunca se confía en IDs del cliente.
-3. Un contrato activo tiene inquilino activo, fechas consistentes y una obligación `RENT` activa y válida.
+3. Un contrato activo tiene al menos una parte `RENTER` con contacto activo, fechas consistentes y una obligación `RENT` activa y válida.
 4. Un contrato referencia como máximo una propiedad.
 5. El snapshot textual del inmueble es obligatorio aun con `propertyId`.
 6. Alquiler, expensas y servicios usan el mismo motor de concepto → obligación → ocurrencia.
@@ -552,6 +563,17 @@ Estado: **implementada en schema, migración, API y admin; no aplicada a producc
 - Materializa el mes local actual y dos meses siguientes de forma idempotente, permite ejecución manual y no incorpora scheduler.
 - La ficha de contrato administra obligaciones y vencimientos; `/alquileres/vencimientos` prioriza vencidos y próximos pendientes.
 - Al finalizar o cancelar, se desactivan obligaciones y se cancelan vencimientos futuros pendientes. Se conserva íntegramente la historia cumplida y revertida.
+
+#### Refinamiento correctivo B.1 — Partes y dirección contractual
+
+Estado: **implementado en schema, migración, API y admin; aplicado en development y no aplicado a producción durante este desarrollo**.
+
+- Reemplaza las referencias singulares de inquilino y propietario por `RentalContractParty`, con múltiples partes `RENTER` y `LANDLORD`.
+- Persiste la selección de un punto de contacto por canal y parte mediante `RentalContractNotificationRoute`, sin enviar comunicaciones.
+- Amplía la dirección contractual con referencias geográficas opcionales y snapshots editables e independientes de `Property`.
+- Permite precargar la dirección desde propiedades activas o archivadas del tenant sin modificar ni resincronizar la propiedad.
+- Agrega documento opcional a contactos y los controles de formulario necesarios para capturar estos datos.
+- No incorpora reglas de aviso, dispatches, deliveries, proveedores ni scheduler.
 
 #### Migración C — Avisos/comunicaciones
 

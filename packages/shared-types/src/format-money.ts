@@ -2,6 +2,10 @@ const moneyFormatter = new Intl.NumberFormat("es-AR", {
   maximumFractionDigits: 0,
   minimumFractionDigits: 0,
 });
+const priceFormatter = new Intl.NumberFormat("es-AR", {
+  maximumFractionDigits: 2,
+  minimumFractionDigits: 2,
+});
 
 export const CONSULT_PRICE_LABEL = "Consultar precio";
 
@@ -10,7 +14,8 @@ export function formatMoney(amount: number): string {
 }
 
 export function formatPrice(amount: number, currency: string): string {
-  return `${currency} ${formatMoney(amount)}`;
+  const prefix = currency === "ARS" ? "$" : currency;
+  return `${prefix} ${priceFormatter.format(amount)}`;
 }
 
 /**

@@ -29,7 +29,7 @@ export default async function CrearAlquilerPage() {
 
   try {
     const [properties, contacts] = await Promise.all([
-      listProperties({ isActive: true }),
+      listProperties(),
       listRentalContacts({ isActive: true }),
     ]);
     return (

@@ -42,7 +42,7 @@ export default async function AlquilerDetallePage({
     const [contract, properties, contacts, concepts, obligations, occurrences] =
       await Promise.all([
         getRentalContract(id),
-        listProperties({ isActive: true }),
+        listProperties(),
         listRentalContacts(),
         listRentalConcepts(),
         listRentalObligations(id),
@@ -51,7 +51,7 @@ export default async function AlquilerDetallePage({
     return (
       <PageShell
         title="Contrato de alquiler"
-        description={`Estado: ${contract.status}`}
+        description={`Estado: ${{ DRAFT: "Borrador", ACTIVE: "Activo", ENDED: "Finalizado", CANCELLED: "Cancelado" }[contract.status]}`}
         breadcrumbs={[
           { label: "Inicio", href: "/" },
           { label: "Alquileres", href: "/alquileres" },

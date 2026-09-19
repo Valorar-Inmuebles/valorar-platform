@@ -17,7 +17,7 @@ Plataforma SaaS inmobiliaria multi-tenant orientada a:
 
 ## Foco actual del producto
 
-**Rental Management V1 — Migraciones A+B** ✅ (fundación + obligaciones, vencimientos y cumplimiento; C pendiente)
+**Rental Management V1 — Migraciones A+B + refinamiento B.1** ✅ (dirección contractual, partes y rutas por persona; C pendiente)
 
 Documentación: `docs/04-modules/rental-management-v1.md`, `docs/03-database/rental-domain.md`
 
@@ -261,6 +261,16 @@ Migración: `202606150001_property_foundation`, `202606150002_property_location_
 * Admin: obligaciones y agenda en ficha contractual, más vista global `/alquileres/vencimientos`.
 * RBAC: `rental.obligation.manage` y `rental.fulfillment.manage`; reversión limitada a manager/admin.
 * Migración C (avisos/comunicaciones, planner/dispatcher y canales) permanece pendiente.
+
+Documentación: `docs/04-modules/rental-management-v1.md`, `docs/03-database/rental-domain.md`.
+
+### Rental Management V1 — Refinamiento correctivo B.1 ✅
+
+* Schema y migración `202609100001_rental_uat_refinement_b1`: dirección contractual estructurada, `RentalContractParty`, `RentalContractNotificationRoute` y documento opcional de contacto.
+* Contratos con múltiples inquilinos y propietarios; activación exige al menos un inquilino con contacto activo.
+* Selección persistente de un punto activo y compatible por canal y persona, sin implementar envíos ni automatizaciones.
+* Precarga editable desde propiedades activas o archivadas del tenant, sin modificar la propiedad ni resincronizar el snapshot contractual.
+* API, aislamiento tenant y formularios admin actualizados. Migración C permanece pendiente.
 
 Documentación: `docs/04-modules/rental-management-v1.md`, `docs/03-database/rental-domain.md`.
 

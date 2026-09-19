@@ -1,8 +1,18 @@
 # Rental Management — Diseño de datos
 
-Versión: V1 — Migraciones A y B implementadas
+Versión: V1 — Migraciones A, B y refinamiento correctivo B.1
 
-Estado: **Migraciones A y B implementadas en Prisma, API y admin; Migración C permanece documentada y no implementada**.
+Estado: **Migraciones A y B implementadas; B.1 corrige dirección contractual, partes y rutas de contacto sin implementar comunicaciones; Migración C permanece pendiente**.
+
+## Refinamiento correctivo B.1
+
+`RentalContract` conserva una dirección administrativa independiente de `Property` mediante columnas estructuradas: referencias geo opcionales y snapshots de país, provincia, localidad, barrio, calle, número, piso, unidad y código postal. `propertyAddressSnapshot` permanece como resumen derivado para listados y compatibilidad. Elegir una propiedad precarga estos datos, pero las ediciones posteriores nunca escriben sobre `Property` ni se resincronizan automáticamente.
+
+Las partes dejan de representarse con `renterContactId` y `landlordContactId`. La fuente de verdad es `RentalContractParty`, con rol `RENTER` o `LANDLORD`, permitiendo varias personas por rol. Los registros existentes se migran antes de retirar las columnas singulares.
+
+`RentalContractNotificationRoute` guarda, por contrato y persona, la selección de un único `ContactPoint` por canal (`EMAIL`, `WHATSAPP`, `SMS`). Puede haber varios canales habilitados simultáneamente y una misma persona puede elegir puntos diferentes en contratos distintos. `ContactPoint.isDefault` es sólo la sugerencia inicial. B.1 no envía mensajes ni implementa reglas, planificación o entregas.
+
+`Contact` incorpora `documentType` y `documentNumber` opcionales, sin unicidad global ni inferencias de identidad.
 
 Reglas funcionales canónicas: `docs/04-modules/rental-management-v1.md`.
 
@@ -134,35 +144,51 @@ Los conceptos base se crean mediante upsert idempotente por `[tenantId, systemCo
 
 Acuerdo operativo de alquiler. No reemplaza un documento legal ni representa una publicación.
 
-| Campo                      | Tipo conceptual              | Regla                                                  |
-| -------------------------- | ---------------------------- | ------------------------------------------------------ |
-| `id`                       | String                       | `cuid`                                                 |
-| `tenantId`                 | String                       | Obligatorio                                            |
-| `propertyId`               | String?                      | Una `Property` opcional del mismo tenant               |
-| `renterContactId`          | String?                      | Puede faltar en `DRAFT`; obligatorio para activar      |
-| `landlordContactId`        | String?                      | Propietario informativo                                |
-| `propertyAddressSnapshot`  | String                       | Referencia textual obligatoria                         |
-| `propertyLocalitySnapshot` | String?                      | Localidad o barrio histórico                           |
-| `propertyUnitSnapshot`     | String?                      | Piso, unidad o departamento                            |
-| `propertyNotesSnapshot`    | String?                      | Aclaraciones de identificación                         |
-| `startsOn`                 | `DateTime @db.Date`          | Inicio contractual                                     |
-| `endsOn`                   | `DateTime? @db.Date`         | Fin contractual                                        |
-| `status`                   | `RentalContractStatus`       | Default `DRAFT`; luego `ACTIVE`, `ENDED` o `CANCELLED` |
-| `reminderGroupingMode`     | `RentalReminderGroupingMode` | `INDIVIDUAL` o `GROUPED`; se incorpora en Migración C  |
-| `notes`                    | String?                      | Notas internas                                         |
-| `createdById`              | String?                      | Usuario responsable, si aplica                         |
-| `createdAt`                | DateTime                     | Auditoría                                              |
-| `updatedAt`                | DateTime                     | Auditoría                                              |
+| Campo                                  | Tipo conceptual       | Regla                                                  |
+| -------------------------------------- | --------------------- | ------------------------------------------------------ |
+| `id`                                   | String                | `cuid`                                                 |
+| `tenantId`                             | String                | Obligatorio                                            |
+| `propertyId`                           | String?               | Una `Property` opcional del mismo tenant               |
+| `propertyCountryId`                    | String?               | Referencia geo opcional                                |
+| `propertyProvinceId`                   | String?               | Referencia geo opcional                                |
+| `propertyLocalityId`                   | String?               | Referencia geo opcional                                |
+| `propertyNeighborhoodId`               | String?               | Referencia geo opcional                                |
+| `propertyAddressSnapshot`              | String                | Resumen derivado obligatorio                           |
+| `propertyCountrySnapshot`              | String?               | País histórico                                         |
+| `propertyProvinceSnapshot`             | String?               | Provincia histórica                                    |
+| `propertyLocalitySnapshot`             | String?               | Localidad histórica                                    |
+| `propertyNeighborhoodSnapshot`         | String?               | Barrio histórico                                       |
+| `propertyStreetSnapshot`               | String?               | Calle histórica; requerida por la API B.1 al crear     |
+| `propertyStreetNumberSnapshot`         | String?               | Número histórico                                       |
+| `propertyFloorSnapshot`                | String?               | Piso histórico                                         |
+| `propertyUnitSnapshot`                 | String?               | Unidad histórica                                       |
+| `propertyPostalCodeSnapshot`           | String?               | Código postal histórico                                |
+| `propertyNotesSnapshot`                | String?               | Aclaraciones de identificación                         |
+| `startsOn`                             | `DateTime @db.Date`   | Inicio contractual                                     |
+| `endsOn`                               | `DateTime? @db.Date`  | Fin contractual                                        |
+| `status`                               | `RentalContractStatus`| Default `DRAFT`; luego `ACTIVE`, `ENDED` o `CANCELLED` |
+| `notes`                                | String?               | Notas internas                                         |
+| `createdById`                          | String?               | Usuario responsable, si aplica                         |
+| `createdAt`                            | DateTime              | Auditoría                                              |
+| `updatedAt`                            | DateTime              | Auditoría                                              |
 
 Reglas:
 
 - Un contrato referencia como máximo una `Property`; contratos multi-property quedan fuera de V1.
 - La referencia textual siempre existe, incluso cuando hay `propertyId`.
-- `propertyAddressSnapshot` y `startsOn` son obligatorios incluso en `DRAFT`; `renterContactId` es la única nulabilidad transitoria necesaria para completar el contrato antes de activarlo.
+- `propertyAddressSnapshot` y `startsOn` son obligatorios incluso en `DRAFT`; las partes pueden completarse antes de activar.
 - El snapshot no se sincroniza automáticamente con cambios posteriores de `Property`.
-- `ACTIVE` requiere inquilino activo, fechas válidas y una obligación activa con concepto `RENT` correctamente configurada. La fundación A difirió esta última validación y B ya la aplica.
+- `ACTIVE` requiere al menos una parte `RENTER` con contacto activo, fechas válidas y una obligación activa con concepto `RENT` correctamente configurada.
 - El propietario no participa en liquidaciones ni reglas financieras en V1.
-- Índices `[tenantId, status]`, `[tenantId, renterContactId]`, `[tenantId, propertyId]` y `[tenantId, endsOn]`.
+- Índices `[tenantId, status]`, `[tenantId, propertyId]`, referencias geográficas y `[tenantId, endsOn]`.
+
+### RentalContractParty
+
+Asocia múltiples contactos a un contrato con rol `RENTER` o `LANDLORD`. Es tenant-scoped, elimina en cascada al borrar el contrato y restringe el borrado del contacto. La combinación `[contractId, contactId, role]` es única. Un contrato activo exige al menos una parte `RENTER` cuyo contacto esté activo.
+
+### RentalContractNotificationRoute
+
+Persiste el `ContactPoint` seleccionado para un canal dentro de una parte contractual. La combinación `[contractPartyId, channel]` es única. El punto debe pertenecer al contacto de la parte, estar activo y ser compatible con el canal. Estas rutas son configuración; B.1 no planifica ni envía comunicaciones.
 
 ### RentalObligation
 
@@ -383,6 +409,10 @@ RentalContractStatus
   ENDED
   CANCELLED
 
+RentalContractPartyRole
+  RENTER
+  LANDLORD
+
 RentalObligationKind
   RECURRING
   ONE_TIME
@@ -441,8 +471,8 @@ Tenant
 ├── RentalConcept
 └── RentalContract
     ├── Property? (referencia opcional; snapshot siempre presente)
-    ├── Contact? (renter; obligatorio al activar)
-    ├── Contact? (landlord)
+    ├── RentalContractParty[] ── Contact
+    │   └── RentalContractNotificationRoute[] ── ContactPoint
     └── RentalObligation
         ├── RentalConcept
         ├── RentalReminderRule
@@ -584,6 +614,12 @@ Entidades:
 Incluye sus enums, fechas `@db.Date`, `periodKey`, snapshots monetarios, estados y reversión auditable.
 
 La materialización usa un horizonte fijo de tres meses (actual + dos siguientes), `createMany(skipDuplicates)` sobre la clave única y un endpoint manual. El cumplimiento reclama atómicamente una occurrence `PENDING` dentro de la misma transacción que crea el registro; la reversión conserva la fila y reabre la occurrence. `AGENT` puede registrar; `MANAGER`, `TENANT_ADMIN` y `SUPER_ADMIN` pueden revertir.
+
+### Refinamiento correctivo B.1 — Partes y dirección contractual
+
+Estado: **implementado en schema, migración, API y admin; aplicado en development y no aplicado a producción durante este desarrollo**.
+
+Incluye `RentalContractParty`, `RentalContractNotificationRoute`, los enums `RentalContractPartyRole` y `NotificationChannel`, documento opcional de contacto y la dirección contractual estructurada. Migra las referencias singulares existentes antes de eliminarlas. No implementa reglas, dispatches, deliveries, proveedores ni scheduler.
 
 ### Migración C — Avisos/comunicaciones
 

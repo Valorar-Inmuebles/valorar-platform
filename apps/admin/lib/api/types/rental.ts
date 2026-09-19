@@ -19,6 +19,8 @@ export type RentalContact = {
   id: string;
   tenantId: string;
   name: string;
+  documentType: string | null;
+  documentNumber: string | null;
   notes: string | null;
   isActive: boolean;
   contactPoints: RentalContactPoint[];
@@ -42,6 +44,8 @@ export type UpdateRentalContactPointPayload = Partial<
 
 export type CreateRentalContactPayload = {
   name: string;
+  documentType?: string;
+  documentNumber?: string;
   notes?: string;
   isActive?: boolean;
   contactPoints?: CreateRentalContactPointPayload[];
@@ -52,40 +56,87 @@ export type UpdateRentalContactPayload = Partial<
 >;
 
 export type RentalContractStatus = "DRAFT" | "ACTIVE" | "ENDED" | "CANCELLED";
+export type RentalContractPartyRole = "RENTER" | "LANDLORD";
+export type NotificationChannel = "EMAIL" | "WHATSAPP" | "SMS";
+
+export type RentalContractNotificationRoute = {
+  id?: string;
+  channel: NotificationChannel;
+  contactPointId: string;
+  isEnabled: boolean;
+};
+
+export type RentalContractParty = {
+  id?: string;
+  contactId: string;
+  role: RentalContractPartyRole;
+  contact: RentalContact;
+  notificationRoutes: RentalContractNotificationRoute[];
+};
 
 export type RentalContract = {
   id: string;
   tenantId: string;
   propertyId: string | null;
-  property: { id: string; title: string } | null;
-  renterContactId: string | null;
-  renterContact: { id: string; name: string; isActive: boolean } | null;
-  landlordContactId: string | null;
-  landlordContact: { id: string; name: string; isActive: boolean } | null;
+  property: {
+    id: string;
+    title: string;
+    propertyType: string;
+    isActive: boolean;
+  } | null;
   createdById: string | null;
   propertyAddressSnapshot: string;
+  propertyCountryId: string | null;
+  propertyProvinceId: string | null;
+  propertyLocalityId: string | null;
+  propertyNeighborhoodId: string | null;
+  propertyCountrySnapshot: string | null;
+  propertyProvinceSnapshot: string | null;
   propertyLocalitySnapshot: string | null;
+  propertyNeighborhoodSnapshot: string | null;
+  propertyStreetSnapshot: string | null;
+  propertyStreetNumberSnapshot: string | null;
+  propertyFloorSnapshot: string | null;
   propertyUnitSnapshot: string | null;
+  propertyPostalCodeSnapshot: string | null;
   propertyNotesSnapshot: string | null;
   startsOn: string;
   endsOn: string | null;
   status: RentalContractStatus;
   notes: string | null;
+  parties: RentalContractParty[];
   createdAt: string;
   updatedAt: string;
 };
 
 export type CreateRentalContractPayload = {
   propertyId?: string | null;
-  renterContactId?: string | null;
-  landlordContactId?: string | null;
-  propertyAddressSnapshot: string;
+  propertyCountryId?: string | null;
+  propertyProvinceId?: string | null;
+  propertyLocalityId?: string | null;
+  propertyNeighborhoodId?: string | null;
+  propertyCountrySnapshot?: string | null;
+  propertyProvinceSnapshot?: string | null;
   propertyLocalitySnapshot?: string | null;
+  propertyNeighborhoodSnapshot?: string | null;
+  propertyStreetSnapshot: string;
+  propertyStreetNumberSnapshot?: string | null;
+  propertyFloorSnapshot?: string | null;
   propertyUnitSnapshot?: string | null;
+  propertyPostalCodeSnapshot?: string | null;
   propertyNotesSnapshot?: string | null;
   startsOn: string;
   endsOn?: string | null;
   notes?: string | null;
+  parties?: Array<{
+    contactId: string;
+    role: RentalContractPartyRole;
+    notificationRoutes?: Array<{
+      channel: NotificationChannel;
+      contactPointId: string;
+      isEnabled?: boolean;
+    }>;
+  }>;
 };
 
 export type UpdateRentalContractPayload = Partial<CreateRentalContractPayload>;
@@ -169,7 +220,7 @@ export type RentalOccurrence = {
     contract: {
       id: string;
       propertyAddressSnapshot: string;
-      renterContact: { id: string; name: string } | null;
+      parties: Array<{ contact: { id: string; name: string } }>;
     };
   };
   fulfillments: RentalFulfillment[];

@@ -24,7 +24,11 @@ const occurrenceInclude = {
         select: {
           id: true,
           propertyAddressSnapshot: true,
-          renterContact: { select: { id: true, name: true } },
+          parties: {
+            where: { role: 'RENTER' },
+            select: { contact: { select: { id: true, name: true } } },
+            orderBy: { createdAt: 'asc' },
+          },
         },
       },
     },

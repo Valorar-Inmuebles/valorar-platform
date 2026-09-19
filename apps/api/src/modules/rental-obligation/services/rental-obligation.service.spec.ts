@@ -92,7 +92,9 @@ function occurrence(overrides: Record<string, unknown> = {}) {
       contract: {
         id: contract.id,
         propertyAddressSnapshot: 'Av. Rivadavia 1234',
-        renterContact: { id: 'contact-1', name: 'Ana' },
+        parties: [
+          { role: 'RENTER', contact: { id: 'contact-1', name: 'Ana' } },
+        ],
       },
     },
     fulfillments: [],

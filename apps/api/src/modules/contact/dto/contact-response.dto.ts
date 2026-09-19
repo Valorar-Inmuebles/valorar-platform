@@ -13,6 +13,12 @@ export class ContactResponseDto {
   name: string;
 
   @ApiPropertyOptional({ nullable: true })
+  documentType: string | null;
+
+  @ApiPropertyOptional({ nullable: true })
+  documentNumber: string | null;
+
+  @ApiPropertyOptional({ nullable: true })
   notes: string | null;
 
   @ApiProperty()
@@ -32,6 +38,8 @@ export class ContactResponseDto {
       id: contact.id,
       tenantId: contact.tenantId,
       name: contact.name,
+      documentType: contact.documentType,
+      documentNumber: contact.documentNumber,
       notes: contact.notes,
       isActive: contact.isActive,
       contactPoints: contact.contactPoints,

@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { useState, useTransition } from "react";
 import { Button } from "@repo/ui/button";
+import { CurrencyInput } from "@repo/ui/currency-input";
+import { formatPrice } from "@repo/shared-types/format-money";
 import { useToast } from "@repo/ui/toast";
 import {
   recordRentalFulfillmentAction,
@@ -159,8 +161,9 @@ function OccurrenceRow({
             {occurrence.obligation.contract.propertyAddressSnapshot}
           </Link>
           <div className="text-xs text-zinc-500">
-            {occurrence.obligation.contract.renterContact?.name ??
-              "Sin inquilino"}
+            {occurrence.obligation.contract.parties
+              .map((party) => party.contact.name)
+              .join(", ") || "Sin inquilino"}
           </div>
         </td>
       ) : null}
@@ -170,17 +173,19 @@ function OccurrenceRow({
       <td className="px-3 py-3">
         {occurrence.periodKey === "ONE_TIME" ? "Único" : occurrence.periodKey}
       </td>
-      <td className="px-3 py-3">{occurrence.dueDate.slice(0, 10)}</td>
+      <td className="px-3 py-3">
+        {new Intl.DateTimeFormat("es-AR", { timeZone: "UTC" }).format(
+          new Date(occurrence.dueDate),
+        )}
+      </td>
       <td className="px-3 py-3">
         {occurrence.status === "PENDING" && canManage ? (
           <div className="flex gap-2">
-            <input
-              className="w-28 rounded-md border border-zinc-200 px-2 py-1"
-              type="number"
-              min="0.01"
-              step="0.01"
+            <CurrencyInput
+              allowDecimals
+              className="w-32"
               value={amount}
-              onChange={(event) => setAmount(event.target.value)}
+              onChange={setAmount}
               placeholder="Variable"
             />
             <Button
@@ -195,7 +200,7 @@ function OccurrenceRow({
         ) : occurrence.amount == null ? (
           "A definir"
         ) : (
-          `${occurrence.currency} ${occurrence.amount.toLocaleString("es-AR")}`
+          formatPrice(occurrence.amount, occurrence.currency)
         )}
       </td>
       <td className="px-3 py-3">

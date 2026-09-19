@@ -52,7 +52,10 @@ export function RentalContractTable({
                     </p>
                   </td>
                   <td className="px-4 py-3 text-muted">
-                    {contract.renterContact?.name ?? "Sin asignar"}
+                    {contract.parties
+                      .filter((party) => party.role === "RENTER")
+                      .map((party) => party.contact.name)
+                      .join(", ") || "Sin asignar"}
                   </td>
                   <td className="px-4 py-3 text-muted">
                     {contract.startsOn.slice(0, 10)}

@@ -4,11 +4,32 @@ import {
   RentalContractStatus,
 } from '../../../../generated/prisma/client';
 import { PrismaService } from '../../../prisma/prisma.service';
+import type { RentalContractPartyInputDto } from '../dto/create-rental-contract.dto';
 
 const rentalContractInclude = {
-  property: { select: { id: true, title: true } },
-  renterContact: { select: { id: true, name: true, isActive: true } },
-  landlordContact: { select: { id: true, name: true, isActive: true } },
+  property: {
+    select: { id: true, title: true, propertyType: true, isActive: true },
+  },
+  parties: {
+    include: {
+      contact: {
+        include: {
+          contactPoints: {
+            orderBy: [
+              { type: 'asc' as const },
+              { isDefault: 'desc' as const },
+              { createdAt: 'asc' as const },
+            ],
+          },
+        },
+      },
+      notificationRoutes: {
+        include: { contactPoint: true },
+        orderBy: { channel: 'asc' as const },
+      },
+    },
+    orderBy: [{ role: 'asc' as const }, { createdAt: 'asc' as const }],
+  },
 } satisfies Prisma.RentalContractInclude;
 
 export type RentalContractRecord = Prisma.RentalContractGetPayload<{
@@ -19,10 +40,17 @@ export type RentalContractRecord = Prisma.RentalContractGetPayload<{
 export class RentalContractRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  create(data: Prisma.RentalContractUncheckedCreateInput) {
-    return this.prisma.rentalContract.create({
-      data,
-      include: rentalContractInclude,
+  create(
+    data: Prisma.RentalContractUncheckedCreateInput,
+    parties: RentalContractPartyInputDto[],
+  ) {
+    return this.prisma.$transaction(async (tx) => {
+      const contract = await tx.rentalContract.create({ data });
+      await this.replaceParties(tx, contract.id, contract.tenantId, parties);
+      return tx.rentalContract.findUniqueOrThrow({
+        where: { id: contract.id },
+        include: rentalContractInclude,
+      });
     });
   }
 
@@ -45,25 +73,33 @@ export class RentalContractRepository {
     id: string,
     tenantId: string,
     data: Prisma.RentalContractUncheckedUpdateInput,
+    parties?: RentalContractPartyInputDto[],
   ) {
-    const result = await this.prisma.rentalContract.updateMany({
-      where: { id, tenantId },
-      data,
+    return this.prisma.$transaction(async (tx) => {
+      const changed = await tx.rentalContract.updateMany({
+        where: { id, tenantId },
+        data,
+      });
+      if (changed.count === 0) return null;
+      if (parties) await this.replaceParties(tx, id, tenantId, parties);
+      return tx.rentalContract.findFirst({
+        where: { id, tenantId },
+        include: rentalContractInclude,
+      });
     });
-
-    return result.count === 0 ? null : this.findById(id, tenantId);
   }
 
   propertyBelongsToTenant(propertyId: string, tenantId: string) {
     return this.prisma.property
-      .count({ where: { id: propertyId, tenantId, isActive: true } })
+      .count({ where: { id: propertyId, tenantId } })
       .then((count) => count > 0);
   }
 
-  contactBelongsToTenant(contactId: string, tenantId: string) {
-    return this.prisma.contact
-      .count({ where: { id: contactId, tenantId, isActive: true } })
-      .then((count) => count > 0);
+  contactsByIds(contactIds: string[], tenantId: string) {
+    return this.prisma.contact.findMany({
+      where: { id: { in: contactIds }, tenantId, isActive: true },
+      include: { contactPoints: true },
+    });
   }
 
   hasActiveRentObligation(contractId: string, tenantId: string) {
@@ -85,11 +121,9 @@ export class RentalContractRepository {
         id,
         tenantId,
         status: RentalContractStatus.DRAFT,
+        parties: { some: { role: 'RENTER', contact: { isActive: true } } },
         obligations: {
-          some: {
-            isActive: true,
-            concept: { systemCode: 'RENT' },
-          },
+          some: { isActive: true, concept: { systemCode: 'RENT' } },
         },
       },
       data: { status: RentalContractStatus.ACTIVE },
@@ -125,7 +159,6 @@ export class RentalContractRepository {
         data: { status },
       });
       if (changed.count !== 1) return null;
-
       await tx.rentalObligation.updateMany({
         where: { contractId: id, tenantId, isActive: true },
         data: { isActive: false },
@@ -150,5 +183,37 @@ export class RentalContractRepository {
         include: rentalContractInclude,
       });
     });
+  }
+
+  private async replaceParties(
+    tx: Prisma.TransactionClient,
+    contractId: string,
+    tenantId: string,
+    parties: RentalContractPartyInputDto[],
+  ) {
+    await tx.rentalContractParty.deleteMany({
+      where: { contractId, tenantId },
+    });
+    for (const input of parties) {
+      const party = await tx.rentalContractParty.create({
+        data: {
+          tenantId,
+          contractId,
+          contactId: input.contactId,
+          role: input.role,
+        },
+      });
+      if (input.notificationRoutes?.length) {
+        await tx.rentalContractNotificationRoute.createMany({
+          data: input.notificationRoutes.map((route) => ({
+            tenantId,
+            contractPartyId: party.id,
+            channel: route.channel,
+            contactPointId: route.contactPointId,
+            isEnabled: route.isEnabled ?? true,
+          })),
+        });
+      }
+    }
   }
 }

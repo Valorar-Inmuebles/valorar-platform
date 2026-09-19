@@ -18,6 +18,18 @@ export class CreateContactDto {
   @Length(1, 160)
   name: string;
 
+  @ApiPropertyOptional({ example: 'DNI' })
+  @IsOptional()
+  @IsString()
+  @Length(1, 40)
+  documentType?: string;
+
+  @ApiPropertyOptional({ example: '30123456' })
+  @IsOptional()
+  @IsString()
+  @Length(1, 40)
+  documentNumber?: string;
+
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()

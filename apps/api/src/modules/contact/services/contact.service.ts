@@ -33,6 +33,8 @@ export class ContactService {
     const contact = await this.contactRepository.create({
       tenantId,
       name,
+      documentType: this.normalizeOptionalText(dto.documentType),
+      documentNumber: this.normalizeOptionalText(dto.documentNumber),
       notes: this.normalizeOptionalText(dto.notes),
       isActive: dto.isActive ?? true,
       contactPoints: dto.contactPoints?.length
@@ -77,6 +79,12 @@ export class ContactService {
 
     const updated = await this.contactRepository.update(id, tenantId, {
       ...(name !== undefined ? { name } : {}),
+      ...(dto.documentType !== undefined
+        ? { documentType: this.normalizeOptionalText(dto.documentType) }
+        : {}),
+      ...(dto.documentNumber !== undefined
+        ? { documentNumber: this.normalizeOptionalText(dto.documentNumber) }
+        : {}),
       ...(dto.notes !== undefined
         ? { notes: this.normalizeOptionalText(dto.notes) }
         : {}),
