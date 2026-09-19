@@ -48,6 +48,7 @@ model Tenant {
   rentalContractParties                 RentalContractParty[]
   rentalContractNotificationRoutes      RentalContractNotificationRoute[]
   rentalObligations                     RentalObligation[]
+  rentalRentValueRevisions              RentalRentValueRevision[]
   rentalObligationOccurrences           RentalObligationOccurrence[]
   rentalFulfillments                    RentalFulfillment[]
 }
@@ -91,6 +92,7 @@ model User {
   recordedRentalFulfillments RentalFulfillment[]          @relation("RentalFulfillmentRecorder")
   reversedRentalFulfillments RentalFulfillment[]          @relation("RentalFulfillmentReverser")
   cancelledRentalOccurrences RentalObligationOccurrence[] @relation("RentalOccurrenceCanceller")
+  recordedRentValueRevisions RentalRentValueRevision[]    @relation("RentalRentValueRevisionRecorder")
 
   @@index([tenantId])
 }
@@ -799,6 +801,11 @@ enum RentalAmountMode {
   VARIABLE
 }
 
+enum RentalDueMode {
+  FIXED_DAY
+  MANUAL_PER_PERIOD
+}
+
 enum RentalOccurrenceStatus {
   PENDING
   FULFILLED
@@ -1034,23 +1041,53 @@ model RentalObligation {
   conceptId String
   concept   RentalConcept @relation(fields: [conceptId], references: [id], onDelete: Restrict)
 
-  kind             RentalObligationKind
-  recurrenceMonths Int?
-  dueDay           Int?
-  amountMode       RentalAmountMode
-  defaultAmount    Decimal?             @db.Decimal(14, 2)
-  currency         Currency
-  startsOn         DateTime             @db.Date
-  endsOn           DateTime?            @db.Date
-  isActive         Boolean              @default(true)
+  kind                     RentalObligationKind
+  recurrenceMonths         Int?
+  dueMode                  RentalDueMode        @default(FIXED_DAY)
+  dueDay                   Int?
+  amountMode               RentalAmountMode
+  defaultAmount            Decimal?             @db.Decimal(14, 2)
+  currency                 Currency
+  adjustmentIntervalMonths Int?
+  includeInNotice          Boolean              @default(false)
+  showAmount               Boolean              @default(false)
+  startsOn                 DateTime             @db.Date
+  endsOn                   DateTime?            @db.Date
+  isActive                 Boolean              @default(true)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  occurrences RentalObligationOccurrence[]
+  occurrences        RentalObligationOccurrence[]
+  rentValueRevisions RentalRentValueRevision[]
 
+  @@unique([tenantId, id])
   @@index([tenantId, contractId, isActive])
   @@index([tenantId, conceptId])
+}
+
+model RentalRentValueRevision {
+  id String @id @default(cuid())
+
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  obligationId String
+  obligation   RentalObligation @relation(fields: [tenantId, obligationId], references: [tenantId, id], onDelete: Cascade)
+
+  effectiveFrom DateTime @db.Date
+  amount        Decimal  @db.Decimal(14, 2)
+  currency      Currency
+
+  recordedById String?
+  recordedBy   User?   @relation("RentalRentValueRevisionRecorder", fields: [recordedById], references: [id], onDelete: SetNull)
+  reason       String? @db.Text
+
+  createdAt DateTime @default(now())
+
+  @@unique([obligationId, effectiveFrom])
+  @@index([tenantId, effectiveFrom])
+  @@index([recordedById])
 }
 
 model RentalObligationOccurrence {
@@ -1065,7 +1102,7 @@ model RentalObligationOccurrence {
   periodKey      String
   periodStartsOn DateTime?              @db.Date
   periodEndsOn   DateTime?              @db.Date
-  dueDate        DateTime               @db.Date
+  dueDate        DateTime?              @db.Date
   amount         Decimal?               @db.Decimal(14, 2)
   currency       Currency
   status         RentalOccurrenceStatus @default(PENDING)

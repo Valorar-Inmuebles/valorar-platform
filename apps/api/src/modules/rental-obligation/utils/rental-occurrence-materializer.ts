@@ -1,4 +1,7 @@
-import { RentalObligationKind } from '../../../../generated/prisma/client';
+import {
+  RentalDueMode,
+  RentalObligationKind,
+} from '../../../../generated/prisma/client';
 
 export const RENTAL_OCCURRENCE_HORIZON_MONTHS = 3;
 
@@ -6,12 +9,13 @@ export type OccurrenceSeed = {
   periodKey: string;
   periodStartsOn: Date | null;
   periodEndsOn: Date | null;
-  dueDate: Date;
+  dueDate: Date | null;
 };
 
 export type MaterializationInput = {
   kind: RentalObligationKind;
   recurrenceMonths: number | null;
+  dueMode: RentalDueMode;
   dueDay: number | null;
   oneTimeDueDate?: Date | null;
   obligationStartsOn: Date;
@@ -76,7 +80,8 @@ export function buildOccurrenceSeeds(
     ];
   }
 
-  if (!input.recurrenceMonths || !input.dueDay) return [];
+  if (!input.recurrenceMonths) return [];
+  if (input.dueMode === RentalDueMode.FIXED_DAY && !input.dueDay) return [];
   const horizonMonths = input.horizonMonths ?? RENTAL_OCCURRENCE_HORIZON_MONTHS;
   const firstHorizonMonth = startOfUtcMonth(input.localToday);
   const anchorMonth = startOfUtcMonth(input.obligationStartsOn);
@@ -94,14 +99,21 @@ export function buildOccurrenceSeeds(
         0,
       ),
     );
-    const dueDate = new Date(
-      Date.UTC(
-        periodStartsOn.getUTCFullYear(),
-        periodStartsOn.getUTCMonth(),
-        Math.min(input.dueDay, periodEndsOn.getUTCDate()),
-      ),
-    );
-    if (dueDate < effectiveStart || (effectiveEnd && dueDate > effectiveEnd)) {
+    const dueDate =
+      input.dueMode === RentalDueMode.MANUAL_PER_PERIOD
+        ? null
+        : new Date(
+            Date.UTC(
+              periodStartsOn.getUTCFullYear(),
+              periodStartsOn.getUTCMonth(),
+              Math.min(input.dueDay!, periodEndsOn.getUTCDate()),
+            ),
+          );
+    const outsideRange = dueDate
+      ? dueDate < effectiveStart || (effectiveEnd && dueDate > effectiveEnd)
+      : periodEndsOn < effectiveStart ||
+        Boolean(effectiveEnd && periodStartsOn > effectiveEnd);
+    if (outsideRange) {
       continue;
     }
     result.push({

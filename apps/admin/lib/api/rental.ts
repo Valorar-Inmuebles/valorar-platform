@@ -65,6 +65,22 @@ export function materializeRentalObligation(id: string) {
   });
 }
 
+export function createRentAdjustment(
+  id: string,
+  payload: {
+    effectiveFrom: string;
+    amount: number;
+    currency: "ARS" | "USD";
+    reason?: string | null;
+  },
+) {
+  return apiFetch(`/rental-obligations/${id}/rent-adjustments`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+    cache: "no-store",
+  });
+}
+
 export function listRentalOccurrences(
   options: {
     contractId?: string;
@@ -89,6 +105,14 @@ export function updateRentalOccurrenceAmount(
   return apiFetch<RentalOccurrence>(`/rental-occurrences/${id}/amount`, {
     method: "PATCH",
     body: JSON.stringify({ amount }),
+    cache: "no-store",
+  });
+}
+
+export function updateRentalOccurrenceDueDate(id: string, dueDate: string) {
+  return apiFetch<RentalOccurrence>(`/rental-occurrences/${id}/due-date`, {
+    method: "PATCH",
+    body: JSON.stringify({ dueDate }),
     cache: "no-store",
   });
 }

@@ -2,7 +2,7 @@
 
 Versión: V1.1
 
-Estado: **implementación parcial**. A, B, B.1 y Rental V1.1 Fase 1 están implementados. Fase 2 y Migración C no fueron iniciadas.
+Estado: **implementación parcial**. A, B, B.1 y Rental V1.1 Fases 1–2 están implementados. Migración C no fue iniciada.
 
 Diseño de datos canónico: `docs/03-database/rental-domain.md`.
 
@@ -36,7 +36,7 @@ Este documento separa estrictamente:
 - vigencia mínima de un mes calendario para activar;
 - renovación explícita con sucesor único y copia selectiva.
 
-Permanecen pendientes las revisiones de valor, el historial contractual unificado, la inclusión selectiva en avisos, las fechas manuales y las notificaciones globales.
+Permanecen pendientes el historial contractual unificado, las notificaciones globales y la ejecución de comunicaciones de Migración C.
 
 ## 3. Objetivo V1.1
 
@@ -191,7 +191,7 @@ La edición de partes y rutas preserva IDs estables mediante diff/upsert transac
 
 El alquiler sigue siendo técnicamente la obligación cuyo concepto base es `RENT`. No se duplican importe, moneda o vencimiento en `RentalContract`.
 
-**APROBADO / PENDIENTE**: en producto y UX, `RENT` tendrá una experiencia propia dentro del wizard y del detalle; no se presentará como una obligación genérica.
+**IMPLEMENTADO parcialmente en Fase 2**: `RENT` tiene reglas y datos propios dentro del flujo existente. El refactor visual integral del wizard y detalle permanece pendiente.
 
 ### 8.2 Configuración V1
 
@@ -214,7 +214,7 @@ La actualización es inicialmente manual. IPC e ICL: **DEFER**.
 
 ### 8.3 Revisiones de valor
 
-**APROBADO / PENDIENTE**: las variaciones se registrarán con una operación específica sobre `RentalRentValueRevision`; no mediante un `PATCH` genérico de `defaultAmount`.
+**IMPLEMENTADO en Fase 2**: las variaciones se registran con una operación específica sobre `RentalRentValueRevision`; no mediante un `PATCH` genérico de `defaultAmount`.
 
 Cada revisión registra al menos:
 
@@ -226,7 +226,7 @@ Cada revisión registra al menos:
 - motivo opcional;
 - timestamps.
 
-La primera revisión representa el valor inicial. La próxima actualización se deriva de la última revisión efectiva y del intervalo configurado.
+La primera revisión representa el valor inicial. La próxima actualización se deriva de la última revisión efectiva y del intervalo configurado; cuando el intervalo legacy es `null`, ambas señales de próxima actualización permanecen en `null`/pendientes.
 
 Una revisión ordinaria no puede cambiar la moneda. Un cambio de moneda es una modificación contractual excepcional y queda fuera del flujo de actualización.
 
@@ -237,6 +237,8 @@ Al registrar una revisión:
 - nunca se modifican occurrences canceladas;
 - nunca se modifican períodos anteriores a `effectiveFrom`;
 - se conserva auditoría del cambio.
+
+Con varias revisiones futuras, cada período toma la última revisión aplicable (`effectiveFrom <= periodStartsOn`). Una revisión intermedia no pisa el rango de otra posterior. `defaultAmount` refleja la revisión cronológicamente más reciente como campo base de compatibilidad; el importe de cada occurrence se resuelve siempre por vigencia.
 
 ## 9. Obligaciones adicionales
 
@@ -254,7 +256,7 @@ La UX muestra:
 
 ### 9.2 Recurrencia
 
-**APROBADO / PENDIENTE** ofrecer presets:
+**IMPLEMENTADO en Fase 2** con presets:
 
 - mensual;
 - bimestral;
@@ -274,14 +276,14 @@ El importe puede ser fijo o variable.
 
 ### 9.3 Política de vencimiento
 
-**APROBADO / PENDIENTE** distinguir:
+**IMPLEMENTADO en Fase 2** distinguir:
 
 - día fijo;
 - fecha definida manualmente en cada período.
 
-Para `MANUAL_PER_PERIOD`, la occurrence puede existir sin fecha definitiva. La UX muestra **“Fecha pendiente”** hasta que el administrador la complete. No se inventa una fecha provisional.
+**IMPLEMENTADO en Fase 2**: para `MANUAL_PER_PERIOD`, la occurrence puede existir sin fecha definitiva. La UX muestra **“Fecha pendiente”** hasta que el administrador la complete. No se inventa una fecha provisional.
 
-La implementación deberá hacer `dueDate` nullable o adoptar un mecanismo equivalente que preserve esta semántica.
+La implementación usa `dueDate` nullable y preserva esta semántica tanto en API como en Admin.
 
 ## 10. Avisos: configuración previa a Migración C
 
@@ -305,7 +307,7 @@ Reglas:
 - la selección nunca se guarda como preferencia global del contacto;
 - las rutas deben conservar IDs estables al editar.
 
-Por obligación se incorporarán:
+**IMPLEMENTADO en Fase 2** por obligación:
 
 - `includeInNotice`;
 - `showAmount`.
@@ -346,7 +348,7 @@ Antes de Migración C sólo se consolidarán partes, rutas, canales, punto selec
 - proveedores;
 - callbacks.
 
-La persistencia de rutas de B.1 está **IMPLEMENTADA**; los flags por obligación y la preservación de IDs están **APROBADOS / PENDIENTES**. No existe todavía envío de mensajes.
+La persistencia de rutas de B.1 y los flags por obligación de Fase 2 están **IMPLEMENTADOS**. No existe todavía envío de mensajes.
 
 ## 11. Operación mensual
 
@@ -474,12 +476,11 @@ Los mockups visuales existen externamente y se proporcionarán durante los gates
 - Migración B: obligaciones, occurrences, fulfillment y reversión.
 - Refinamiento B.1: dirección estructurada, partes múltiples, rutas por persona/canal y documento libre opcional.
 - Rental V1.1 Fase 1: identidad contractual, documentos canónicos, renter principal, diff/upsert estable, vigencia reforzada y renovación.
+- Rental V1.1 Fase 2: revisiones de valor RENT, recurrencia 1–12, vencimiento fijo/manual, fechas pendientes y flags previos a avisos.
 
-### 17.2 Aprobado pero pendiente después de Fase 1
+### 17.2 Aprobado pero pendiente después de Fase 2
 
-- experiencia específica de alquiler y revisiones de valor;
-- presets de recurrencia y vencimiento manual por período;
-- flags de inclusión y visualización de importe;
+- refactor visual integral de la experiencia específica de alquiler;
 - historial contractual;
 - notificaciones internas globales;
 - arquitectura de pantallas V1.1;

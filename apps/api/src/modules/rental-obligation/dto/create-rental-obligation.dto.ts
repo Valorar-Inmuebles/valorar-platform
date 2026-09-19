@@ -2,6 +2,7 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   Currency,
   RentalAmountMode,
+  RentalDueMode,
   RentalObligationKind,
 } from '../../../../generated/prisma/client';
 import {
@@ -32,11 +33,20 @@ export class CreateRentalObligationDto {
   @IsEnum(RentalObligationKind)
   kind: RentalObligationKind;
 
-  @ApiPropertyOptional({ minimum: 1 })
+  @ApiPropertyOptional({ minimum: 1, maximum: 12 })
   @IsOptional()
   @IsInt()
   @Min(1)
+  @Max(12)
   recurrenceMonths?: number | null;
+
+  @ApiPropertyOptional({
+    enum: RentalDueMode,
+    default: RentalDueMode.FIXED_DAY,
+  })
+  @IsOptional()
+  @IsEnum(RentalDueMode)
+  dueMode?: RentalDueMode;
 
   @ApiPropertyOptional({ minimum: 1, maximum: 31 })
   @IsOptional()
@@ -54,6 +64,23 @@ export class CreateRentalObligationDto {
   @IsNumber({ maxDecimalPlaces: 2 })
   @IsPositive()
   defaultAmount?: number | null;
+
+  @ApiPropertyOptional({ minimum: 1, maximum: 12, nullable: true })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(12)
+  adjustmentIntervalMonths?: number | null;
+
+  @ApiPropertyOptional({ default: false })
+  @IsOptional()
+  @IsBoolean()
+  includeInNotice?: boolean;
+
+  @ApiPropertyOptional({ default: false })
+  @IsOptional()
+  @IsBoolean()
+  showAmount?: boolean;
 
   @ApiProperty({ enum: Currency })
   @IsEnum(Currency)

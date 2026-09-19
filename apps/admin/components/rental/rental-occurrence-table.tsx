@@ -4,12 +4,14 @@ import Link from "next/link";
 import { useState, useTransition } from "react";
 import { Button } from "@repo/ui/button";
 import { CurrencyInput } from "@repo/ui/currency-input";
+import { DatePicker } from "@repo/ui/date-picker";
 import { formatPrice } from "@repo/shared-types/format-money";
 import { useToast } from "@repo/ui/toast";
 import {
   recordRentalFulfillmentAction,
   reverseRentalFulfillmentAction,
   updateRentalOccurrenceAmountAction,
+  updateRentalOccurrenceDueDateAction,
 } from "@/lib/api/rental-actions";
 import type { RentalOccurrence } from "@/lib/api/types/rental";
 
@@ -99,6 +101,9 @@ function OccurrenceRow({
 }) {
   const { toast } = useToast();
   const [amount, setAmount] = useState(occurrence.amount?.toString() ?? "");
+  const [dueDate, setDueDate] = useState(
+    occurrence.dueDate?.slice(0, 10) ?? "",
+  );
   const [pending, startTransition] = useTransition();
   const contractId = occurrence.obligation.contract.id;
   const activeFulfillment = occurrence.fulfillments.find(
@@ -121,6 +126,20 @@ function OccurrenceRow({
       onChange(result.value);
       toast.success("Importe actualizado.");
     });
+
+  const saveDueDate = () => {
+    if (!dueDate) return toast.error("Seleccioná una fecha de vencimiento.");
+    startTransition(async () => {
+      const result = await updateRentalOccurrenceDueDateAction(
+        occurrence.id,
+        contractId,
+        dueDate,
+      );
+      if (!result.ok) return toast.error(result.error);
+      onChange(result.value);
+      toast.success("Fecha de vencimiento actualizada.");
+    });
+  };
 
   const fulfill = () =>
     startTransition(async () => {
@@ -174,8 +193,24 @@ function OccurrenceRow({
         {occurrence.periodKey === "ONE_TIME" ? "Único" : occurrence.periodKey}
       </td>
       <td className="px-3 py-3">
-        {new Intl.DateTimeFormat("es-AR", { timeZone: "UTC" }).format(
-          new Date(occurrence.dueDate),
+        {occurrence.dueDatePending && canManage ? (
+          <div className="flex min-w-56 gap-2">
+            <DatePicker value={dueDate} onChange={setDueDate} />
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={saveDueDate}
+              disabled={pending}
+            >
+              Guardar
+            </Button>
+          </div>
+        ) : occurrence.dueDate ? (
+          new Intl.DateTimeFormat("es-AR", { timeZone: "UTC" }).format(
+            new Date(occurrence.dueDate),
+          )
+        ) : (
+          "Fecha pendiente"
         )}
       </td>
       <td className="px-3 py-3">

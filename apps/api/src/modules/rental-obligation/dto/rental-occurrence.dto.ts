@@ -48,6 +48,12 @@ export class UpdateRentalOccurrenceAmountDto {
   amount?: number | null;
 }
 
+export class UpdateRentalOccurrenceDueDateDto {
+  @ApiProperty({ format: 'date' })
+  @Matches(DATE_ONLY_PATTERN)
+  dueDate: string;
+}
+
 export class CancelRentalOccurrenceDto {
   @ApiProperty()
   @IsString()

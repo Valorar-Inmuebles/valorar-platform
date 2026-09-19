@@ -176,6 +176,7 @@ export type RentalConcept = {
 
 export type RentalObligationKind = "RECURRING" | "ONE_TIME";
 export type RentalAmountMode = "FIXED" | "VARIABLE";
+export type RentalDueMode = "FIXED_DAY" | "MANUAL_PER_PERIOD";
 export type RentalOccurrenceStatus =
   | "PENDING"
   | "OVERDUE"
@@ -190,15 +191,32 @@ export type RentalObligation = {
   concept: Pick<RentalConcept, "id" | "name" | "systemCode" | "isActive">;
   kind: RentalObligationKind;
   recurrenceMonths: number | null;
+  dueMode: RentalDueMode;
   dueDay: number | null;
   amountMode: RentalAmountMode;
   defaultAmount: number | null;
+  adjustmentIntervalMonths: number | null;
+  includeInNotice: boolean;
+  showAmount: boolean;
+  nextAdjustmentDate: string | null;
+  adjustmentConfigurationPending: boolean;
+  rentValueRevisions: RentalRentValueRevision[];
   currency: "ARS" | "USD";
   startsOn: string;
   endsOn: string | null;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
+};
+
+export type RentalRentValueRevision = {
+  id: string;
+  effectiveFrom: string;
+  amount: number;
+  currency: "ARS" | "USD";
+  recordedById: string | null;
+  reason: string | null;
+  createdAt: string;
 };
 
 export type RentalFulfillment = {
@@ -220,7 +238,8 @@ export type RentalOccurrence = {
   periodKey: string;
   periodStartsOn: string | null;
   periodEndsOn: string | null;
-  dueDate: string;
+  dueDate: string | null;
+  dueDatePending: boolean;
   amount: number | null;
   currency: "ARS" | "USD";
   status: Exclude<RentalOccurrenceStatus, "OVERDUE">;
@@ -243,9 +262,13 @@ export type CreateRentalObligationPayload = {
   conceptId: string;
   kind: RentalObligationKind;
   recurrenceMonths?: number | null;
+  dueMode?: RentalDueMode;
   dueDay?: number | null;
   amountMode: RentalAmountMode;
   defaultAmount?: number | null;
+  adjustmentIntervalMonths?: number | null;
+  includeInNotice?: boolean;
+  showAmount?: boolean;
   currency: "ARS" | "USD";
   startsOn: string;
   endsOn?: string | null;

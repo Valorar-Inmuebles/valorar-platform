@@ -8,10 +8,12 @@ import {
   Prisma,
   RentalAmountMode,
   RentalContractStatus,
+  RentalDueMode,
   RentalObligationKind,
   RentalOccurrenceStatus,
 } from '../../../../generated/prisma/client';
 import { CreateRentalObligationDto } from '../dto/create-rental-obligation.dto';
+import { CreateRentValueRevisionDto } from '../dto/create-rent-value-revision.dto';
 import { ListRentalOccurrencesQueryDto } from '../dto/rental-occurrence.dto';
 import { UpdateRentalObligationDto } from '../dto/update-rental-obligation.dto';
 import {
@@ -26,6 +28,10 @@ import {
   localDateForTimeZone,
   parseDateOnly,
 } from '../utils/rental-occurrence-materializer';
+import {
+  effectiveRevisionFor,
+  nextAdjustmentDate,
+} from '../utils/rent-value-revision';
 
 @Injectable()
 export class RentalObligationService {
@@ -57,9 +63,10 @@ export class RentalObligationService {
       );
     }
 
-    const normalized = this.validateConfiguration(dto, contract);
+    const isRent = concept.systemCode === 'RENT';
+    const normalized = this.validateConfiguration(dto, contract, true, isRent);
     if (
-      concept.systemCode === 'RENT' &&
+      isRent &&
       (dto.isActive ?? true) &&
       (await this.repository.countActiveRent(dto.contractId, tenantId)) > 0
     ) {
@@ -68,20 +75,35 @@ export class RentalObligationService {
       );
     }
 
-    const obligation = await this.repository.create({
-      tenantId,
-      contractId: dto.contractId,
-      conceptId: dto.conceptId,
-      kind: dto.kind,
-      recurrenceMonths: normalized.recurrenceMonths,
-      dueDay: normalized.dueDay,
-      amountMode: dto.amountMode,
-      defaultAmount: dto.defaultAmount ?? null,
-      currency: dto.currency,
-      startsOn: normalized.startsOn,
-      endsOn: normalized.endsOn,
-      isActive: dto.isActive ?? true,
-    });
+    const includeInNotice = dto.includeInNotice ?? isRent;
+    const showAmount = includeInNotice && (dto.showAmount ?? isRent);
+    const obligation = await this.repository.create(
+      {
+        tenantId,
+        contractId: dto.contractId,
+        conceptId: dto.conceptId,
+        kind: dto.kind,
+        recurrenceMonths: normalized.recurrenceMonths,
+        dueMode: normalized.dueMode,
+        dueDay: normalized.dueDay,
+        amountMode: dto.amountMode,
+        defaultAmount: dto.defaultAmount ?? null,
+        currency: dto.currency,
+        adjustmentIntervalMonths: dto.adjustmentIntervalMonths ?? null,
+        includeInNotice,
+        showAmount,
+        startsOn: normalized.startsOn,
+        endsOn: normalized.endsOn,
+        isActive: dto.isActive ?? true,
+      },
+      isRent && dto.defaultAmount
+        ? {
+            effectiveFrom: normalized.startsOn,
+            amount: dto.defaultAmount,
+            currency: dto.currency,
+          }
+        : undefined,
+    );
     await this.materializeRecord(
       obligation,
       tenantId,
@@ -122,6 +144,7 @@ export class RentalObligationService {
         dto.recurrenceMonths !== undefined
           ? dto.recurrenceMonths
           : existing.recurrenceMonths,
+      dueMode: dto.dueMode ?? existing.dueMode,
       dueDay: dto.dueDay !== undefined ? dto.dueDay : existing.dueDay,
       amountMode: dto.amountMode ?? existing.amountMode,
       defaultAmount:
@@ -131,6 +154,15 @@ export class RentalObligationService {
             ? Number(existing.defaultAmount)
             : null,
       currency: dto.currency ?? existing.currency,
+      adjustmentIntervalMonths:
+        dto.adjustmentIntervalMonths !== undefined
+          ? dto.adjustmentIntervalMonths
+          : existing.adjustmentIntervalMonths,
+      includeInNotice: dto.includeInNotice ?? existing.includeInNotice,
+      showAmount:
+        dto.includeInNotice === false
+          ? false
+          : (dto.showAmount ?? existing.showAmount),
       startsOn: dto.startsOn ?? formatDateOnly(existing.startsOn),
       endsOn:
         dto.endsOn !== undefined
@@ -140,15 +172,56 @@ export class RentalObligationService {
             : null,
       isActive: dto.isActive ?? existing.isActive,
     } satisfies CreateRentalObligationDto;
+    const wasRent = existing.concept.systemCode === 'RENT';
+    const isRent = concept.systemCode === 'RENT';
+    if (wasRent !== isRent) {
+      throw new BadRequestException(
+        'RENT obligations cannot change to or from another concept',
+      );
+    }
+    if (
+      wasRent &&
+      dto.startsOn !== undefined &&
+      this.parseDate(dto.startsOn, 'startsOn').getTime() !==
+        existing.startsOn.getTime() &&
+      existing.rentValueRevisions.length > 0
+    ) {
+      throw new BadRequestException(
+        'RENT startsOn cannot change after its initial value revision',
+      );
+    }
     const normalized = this.validateConfiguration(
       effective,
       existing.contract,
       false,
+      isRent,
+      wasRent &&
+        existing.contract.status === RentalContractStatus.ACTIVE &&
+        existing.adjustmentIntervalMonths == null &&
+        effective.adjustmentIntervalMonths == null,
     );
 
-    const wasRent = existing.concept.systemCode === 'RENT';
-    const remainsActiveRent =
-      concept.systemCode === 'RENT' && effective.isActive;
+    const remainsActiveRent = isRent && effective.isActive;
+    if (
+      wasRent &&
+      dto.currency !== undefined &&
+      dto.currency !== existing.currency &&
+      existing.rentValueRevisions.length > 0
+    ) {
+      throw new BadRequestException(
+        'RENT currency cannot change after its initial value revision',
+      );
+    }
+    if (
+      wasRent &&
+      dto.defaultAmount !== undefined &&
+      existing.rentValueRevisions.length > 0 &&
+      Number(existing.defaultAmount) !== dto.defaultAmount
+    ) {
+      throw new BadRequestException(
+        'Use the rent-adjustments operation to change RENT amount',
+      );
+    }
     if (
       remainsActiveRent &&
       (await this.repository.countActiveRent(
@@ -176,24 +249,164 @@ export class RentalObligationService {
       );
     }
 
-    const updated = await this.repository.update(id, tenantId, {
+    const updateData: Prisma.RentalObligationUncheckedUpdateInput = {
       ...(dto.conceptId !== undefined ? { conceptId } : {}),
       ...(dto.recurrenceMonths !== undefined
         ? { recurrenceMonths: normalized.recurrenceMonths }
         : {}),
+      ...(dto.dueMode !== undefined ? { dueMode: normalized.dueMode } : {}),
       ...(dto.dueDay !== undefined ? { dueDay: normalized.dueDay } : {}),
       ...(dto.amountMode !== undefined ? { amountMode: dto.amountMode } : {}),
       ...(dto.defaultAmount !== undefined
         ? { defaultAmount: dto.defaultAmount }
         : {}),
       ...(dto.currency !== undefined ? { currency: dto.currency } : {}),
+      ...(dto.adjustmentIntervalMonths !== undefined
+        ? { adjustmentIntervalMonths: dto.adjustmentIntervalMonths }
+        : {}),
+      ...(dto.includeInNotice !== undefined
+        ? { includeInNotice: dto.includeInNotice }
+        : {}),
+      ...(dto.showAmount !== undefined || dto.includeInNotice === false
+        ? { showAmount: effective.showAmount }
+        : {}),
       ...(dto.startsOn !== undefined ? { startsOn: normalized.startsOn } : {}),
       ...(dto.endsOn !== undefined ? { endsOn: normalized.endsOn } : {}),
       ...(dto.isActive !== undefined ? { isActive: dto.isActive } : {}),
-    });
+    };
+    const shouldCreateInitialRevision =
+      isRent &&
+      existing.rentValueRevisions.length === 0 &&
+      effective.defaultAmount != null &&
+      effective.defaultAmount > 0;
+    const updated = shouldCreateInitialRevision
+      ? await this.repository.updateWithInitialRevision(
+          id,
+          tenantId,
+          updateData,
+          {
+            effectiveFrom: normalized.startsOn,
+            amount: effective.defaultAmount!,
+            currency: effective.currency,
+          },
+        )
+      : await this.repository.update(id, tenantId, updateData);
     if (!updated) throw new NotFoundException('Rental obligation not found');
     if (updated.isActive) await this.materializeRecord(updated, tenantId);
     return this.toObligationResponse(updated);
+  }
+
+  async createRentAdjustment(
+    id: string,
+    tenantId: string,
+    actorId: string | null,
+    dto: CreateRentValueRevisionDto,
+  ) {
+    const obligation = await this.requireObligation(id, tenantId);
+    if (obligation.concept.systemCode !== 'RENT') {
+      throw new BadRequestException(
+        'Rent adjustments are only available for the RENT obligation',
+      );
+    }
+    if (this.isTerminal(obligation.contract.status)) {
+      throw new ConflictException(
+        'Terminal rental contracts cannot register rent adjustments',
+      );
+    }
+    if (dto.currency !== obligation.currency) {
+      throw new BadRequestException(
+        'A rent adjustment cannot change the obligation currency',
+      );
+    }
+    const effectiveFrom = this.parseDate(dto.effectiveFrom, 'effectiveFrom');
+    if (
+      effectiveFrom < obligation.startsOn ||
+      (obligation.endsOn && effectiveFrom > obligation.endsOn) ||
+      effectiveFrom < obligation.contract.startsOn ||
+      (obligation.contract.endsOn && effectiveFrom > obligation.contract.endsOn)
+    ) {
+      throw new BadRequestException(
+        'effectiveFrom must be inside the obligation and contract dates',
+      );
+    }
+    if (
+      obligation.rentValueRevisions.length === 0 &&
+      effectiveFrom.getTime() !== obligation.startsOn.getTime()
+    ) {
+      throw new BadRequestException(
+        'The initial rent revision must start with the obligation',
+      );
+    }
+    try {
+      const revision = await this.repository.createRentValueRevision(
+        id,
+        tenantId,
+        {
+          effectiveFrom,
+          amount: dto.amount,
+          currency: dto.currency,
+          recordedById: actorId,
+          reason: this.normalizeText(dto.reason),
+        },
+      );
+      return {
+        ...revision,
+        amount: Number(revision.amount),
+        obligation: this.toObligationResponse(
+          await this.requireObligation(id, tenantId),
+        ),
+      };
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2002'
+      ) {
+        throw new ConflictException(
+          'A rent value revision already exists for effectiveFrom',
+        );
+      }
+      throw error;
+    }
+  }
+
+  async updateDueDate(id: string, tenantId: string, value: string) {
+    const occurrence = await this.repository.findOccurrence(id, tenantId);
+    if (!occurrence) throw new NotFoundException('Rental occurrence not found');
+    if (occurrence.status !== RentalOccurrenceStatus.PENDING) {
+      throw new ConflictException('Only a pending occurrence can set dueDate');
+    }
+    if (
+      occurrence.obligation.dueMode !== RentalDueMode.MANUAL_PER_PERIOD ||
+      occurrence.obligation.kind !== RentalObligationKind.RECURRING
+    ) {
+      throw new BadRequestException(
+        'dueDate can only be assigned for MANUAL_PER_PERIOD obligations',
+      );
+    }
+    const dueDate = this.parseDate(value, 'dueDate');
+    const startsOn =
+      occurrence.periodStartsOn ?? occurrence.obligation.startsOn;
+    const endsOn =
+      occurrence.periodEndsOn ??
+      occurrence.obligation.endsOn ??
+      occurrence.obligation.contract.endsOn;
+    if (
+      dueDate < startsOn ||
+      (endsOn && dueDate > endsOn) ||
+      dueDate < occurrence.obligation.contract.startsOn
+    ) {
+      throw new BadRequestException(
+        'dueDate must be inside the occurrence and contract validity',
+      );
+    }
+    const updated = await this.repository.updatePendingOccurrence(
+      id,
+      tenantId,
+      { dueDate },
+    );
+    if (!updated)
+      throw new ConflictException('Only a pending occurrence can be edited');
+    return this.occurrenceResponseForTenant(updated, tenantId);
   }
 
   async materialize(id: string, tenantId: string) {
@@ -225,7 +438,6 @@ export class RentalObligationService {
       dueDateFilter.lt = today;
     } else if (query.status === 'PENDING') {
       where.status = RentalOccurrenceStatus.PENDING;
-      dueDateFilter.gte = today;
     } else if (query.status) {
       where.status = query.status;
     }
@@ -369,6 +581,7 @@ export class RentalObligationService {
     const seeds = buildOccurrenceSeeds({
       kind: obligation.kind,
       recurrenceMonths: obligation.recurrenceMonths,
+      dueMode: obligation.dueMode,
       dueDay: obligation.dueDay,
       oneTimeDueDate,
       obligationStartsOn: obligation.startsOn,
@@ -378,7 +591,13 @@ export class RentalObligationService {
       localToday: localDateForTimeZone(new Date(), timeZone),
     }).map((seed) => ({
       ...seed,
-      amount: obligation.defaultAmount,
+      amount:
+        obligation.concept.systemCode === 'RENT'
+          ? (effectiveRevisionFor(
+              obligation.rentValueRevisions,
+              seed.periodStartsOn ?? seed.dueDate ?? obligation.startsOn,
+            )?.amount ?? obligation.defaultAmount)
+          : obligation.defaultAmount,
       currency: obligation.currency,
       status: RentalOccurrenceStatus.PENDING,
     }));
@@ -391,8 +610,14 @@ export class RentalObligationService {
 
   private validateConfiguration(
     dto: CreateRentalObligationDto,
-    contract: { startsOn: Date; endsOn: Date | null },
+    contract: {
+      startsOn: Date;
+      endsOn: Date | null;
+      status: RentalContractStatus;
+    },
     requireOneTimeDate = true,
+    isRent = false,
+    allowLegacyActiveAdjustmentPending = false,
   ) {
     const startsOn = this.parseDate(dto.startsOn, 'startsOn');
     const endsOn = dto.endsOn ? this.parseDate(dto.endsOn, 'endsOn') : null;
@@ -414,31 +639,75 @@ export class RentalObligationService {
         'FIXED obligations require defaultAmount greater than zero',
       );
     }
+    if (dto.showAmount && dto.includeInNotice !== true) {
+      throw new BadRequestException(
+        'showAmount requires includeInNotice to be enabled',
+      );
+    }
+    const dueMode = dto.dueMode ?? RentalDueMode.FIXED_DAY;
+    if (isRent && dto.kind !== RentalObligationKind.RECURRING) {
+      throw new BadRequestException('RENT must be a recurring obligation');
+    }
+    if (!isRent && dto.adjustmentIntervalMonths != null) {
+      throw new BadRequestException(
+        'adjustmentIntervalMonths is only available for RENT',
+      );
+    }
     if (dto.kind === RentalObligationKind.RECURRING) {
       if (
         !dto.recurrenceMonths ||
         dto.recurrenceMonths < 1 ||
-        !dto.dueDay ||
-        dto.dueDay < 1 ||
-        dto.dueDay > 31
+        dto.recurrenceMonths > 12
       ) {
         throw new BadRequestException(
-          'RECURRING requires recurrenceMonths >= 1 and dueDay 1-31',
+          'RECURRING requires recurrenceMonths between 1 and 12',
+        );
+      }
+      if (
+        dueMode === RentalDueMode.FIXED_DAY &&
+        (!dto.dueDay || dto.dueDay < 1 || dto.dueDay > 31)
+      ) {
+        throw new BadRequestException('FIXED_DAY requires dueDay 1-31');
+      }
+      if (dueMode === RentalDueMode.MANUAL_PER_PERIOD && dto.dueDay != null) {
+        throw new BadRequestException(
+          'MANUAL_PER_PERIOD requires dueDay to be null',
         );
       }
       if (dto.oneTimeDueDate)
         throw new BadRequestException('RECURRING cannot define oneTimeDueDate');
+      if (
+        isRent &&
+        (dto.recurrenceMonths !== 1 || dueMode !== RentalDueMode.FIXED_DAY)
+      ) {
+        throw new BadRequestException('RENT must be monthly and use FIXED_DAY');
+      }
+      if (
+        isRent &&
+        contract.status === RentalContractStatus.ACTIVE &&
+        (dto.amountMode !== RentalAmountMode.FIXED ||
+          !dto.defaultAmount ||
+          (!dto.adjustmentIntervalMonths &&
+            !allowLegacyActiveAdjustmentPending))
+      ) {
+        throw new BadRequestException(
+          'ACTIVE RENT requires fixed amount and adjustmentIntervalMonths',
+        );
+      }
       return {
         startsOn,
         endsOn,
         recurrenceMonths: dto.recurrenceMonths,
-        dueDay: dto.dueDay,
+        dueMode,
+        dueDay:
+          dueMode === RentalDueMode.MANUAL_PER_PERIOD ? null : dto.dueDay!,
         oneTimeDueDate: null,
       };
     }
     if (
       dto.recurrenceMonths != null ||
       dto.dueDay != null ||
+      dueMode !== RentalDueMode.FIXED_DAY ||
       (requireOneTimeDate && !dto.oneTimeDueDate)
     ) {
       throw new BadRequestException(
@@ -450,6 +719,7 @@ export class RentalObligationService {
         startsOn,
         endsOn,
         recurrenceMonths: null,
+        dueMode: RentalDueMode.FIXED_DAY,
         dueDay: null,
         oneTimeDueDate: null,
       };
@@ -469,6 +739,7 @@ export class RentalObligationService {
       startsOn,
       endsOn,
       recurrenceMonths: null,
+      dueMode: RentalDueMode.FIXED_DAY,
       dueDay: null,
       oneTimeDueDate,
     };
@@ -493,10 +764,22 @@ export class RentalObligationService {
   }
 
   private toObligationResponse(item: RentalObligationRecord) {
+    const nextDate = nextAdjustmentDate(
+      item.rentValueRevisions,
+      item.adjustmentIntervalMonths,
+    );
     return {
       ...item,
       defaultAmount:
         item.defaultAmount == null ? null : Number(item.defaultAmount),
+      rentValueRevisions: item.rentValueRevisions.map((revision) => ({
+        ...revision,
+        amount: Number(revision.amount),
+      })),
+      nextAdjustmentDate: nextDate ? formatDateOnly(nextDate) : null,
+      adjustmentConfigurationPending:
+        item.concept.systemCode === 'RENT' &&
+        item.adjustmentIntervalMonths == null,
     };
   }
 
@@ -504,8 +787,11 @@ export class RentalObligationService {
     return {
       ...item,
       amount: item.amount == null ? null : Number(item.amount),
+      dueDatePending: item.dueDate == null,
       operationalStatus:
-        item.status === RentalOccurrenceStatus.PENDING && item.dueDate < today
+        item.status === RentalOccurrenceStatus.PENDING &&
+        item.dueDate != null &&
+        item.dueDate < today
           ? 'OVERDUE'
           : item.status,
       fulfillments: item.fulfillments.map((fulfillment) =>

@@ -6,6 +6,7 @@ jest.mock('../../../../generated/prisma/client', () => ({
   },
   RentalFulfillmentStatus: { RECORDED: 'RECORDED', REVERSED: 'REVERSED' },
   RentalFulfillmentOrigin: { ADMIN: 'ADMIN' },
+  Prisma: { TransactionIsolationLevel: { Serializable: 'Serializable' } },
 }));
 jest.mock('../../../prisma/prisma.service', () => ({
   PrismaService: class PrismaService {},
@@ -18,6 +19,49 @@ import {
 } from './rental-obligation.repository';
 
 describe('RentalObligationRepository fulfillment transactions', () => {
+  it('records a revision and only recalculates future PENDING occurrences', async () => {
+    const revision = {
+      id: 'revision-2',
+      amount: 150000,
+      currency: 'ARS',
+      effectiveFrom: new Date('2027-01-01T00:00:00.000Z'),
+    };
+    const tx = {
+      rentalRentValueRevision: {
+        create: jest.fn().mockResolvedValue(revision),
+        findFirstOrThrow: jest.fn().mockResolvedValue(revision),
+      },
+      rentalObligation: {
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+      },
+      $executeRaw: jest.fn().mockResolvedValue(2),
+    };
+    const prisma = {
+      $transaction: (callback: (client: typeof tx) => unknown) => callback(tx),
+    };
+    const repository = new RentalObligationRepository(prisma as never);
+
+    await repository.createRentValueRevision('obligation-1', 'tenant-1', {
+      effectiveFrom: revision.effectiveFrom,
+      amount: 150000,
+      currency: 'ARS',
+      recordedById: 'user-1',
+      reason: null,
+    });
+
+    const rawCalls = tx.$executeRaw.mock.calls as unknown as Array<
+      [TemplateStringsArray, ...unknown[]]
+    >;
+    const sql = rawCalls[0]?.[0].join(' ') ?? '';
+    expect(sql).toContain("occurrence.status = 'PENDING'");
+    expect(sql).toContain('occurrence."periodStartsOn" >=');
+    expect(sql).toContain('ORDER BY candidate."effectiveFrom" DESC');
+    expect(tx.rentalObligation.updateMany).toHaveBeenCalledWith({
+      where: { id: 'obligation-1', tenantId: 'tenant-1' },
+      data: { defaultAmount: 150000 },
+    });
+  });
+
   const occurrence = {
     id: 'occurrence-1',
     tenantId: 'tenant-1',

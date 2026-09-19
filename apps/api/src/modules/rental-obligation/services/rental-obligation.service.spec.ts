@@ -4,6 +4,10 @@ import { Test } from '@nestjs/testing';
 jest.mock('../../../../generated/prisma/client', () => ({
   Currency: { ARS: 'ARS', USD: 'USD' },
   RentalAmountMode: { FIXED: 'FIXED', VARIABLE: 'VARIABLE' },
+  RentalDueMode: {
+    FIXED_DAY: 'FIXED_DAY',
+    MANUAL_PER_PERIOD: 'MANUAL_PER_PERIOD',
+  },
   RentalContractStatus: {
     DRAFT: 'DRAFT',
     ACTIVE: 'ACTIVE',
@@ -29,6 +33,7 @@ import {
   Currency,
   RentalAmountMode,
   RentalContractStatus,
+  RentalDueMode,
   RentalObligationKind,
   RentalOccurrenceStatus,
 } from '../../../../generated/prisma/client';
@@ -57,9 +62,22 @@ function obligation(overrides: Record<string, unknown> = {}) {
     contract,
     kind: RentalObligationKind.RECURRING,
     recurrenceMonths: 1,
+    dueMode: RentalDueMode.FIXED_DAY,
     dueDay: 10,
     amountMode: RentalAmountMode.FIXED,
     defaultAmount: 100000,
+    adjustmentIntervalMonths: 3,
+    includeInNotice: true,
+    showAmount: true,
+    rentValueRevisions: [
+      {
+        id: 'revision-1',
+        effectiveFrom: contract.startsOn,
+        amount: 100000,
+        currency: Currency.ARS,
+        createdAt: now,
+      },
+    ],
     currency: Currency.ARS,
     startsOn: contract.startsOn,
     endsOn: contract.endsOn,
@@ -112,6 +130,8 @@ describe('RentalObligationService', () => {
     countActiveRent: jest.fn(),
     create: jest.fn(),
     update: jest.fn(),
+    updateWithInitialRevision: jest.fn(),
+    createRentValueRevision: jest.fn(),
     createMissingOccurrences: jest.fn(),
     tenantTimeZone: jest.fn(),
     findOccurrences: jest.fn(),
@@ -173,11 +193,53 @@ describe('RentalObligationService', () => {
     );
     expect(repository.create).toHaveBeenCalledWith(
       expect.objectContaining({ defaultAmount: null, currency: Currency.ARS }),
+      undefined,
     );
+  });
+
+  it('keeps RENT recurring and reserves adjustment intervals for RENT', async () => {
+    await expect(
+      service.create(
+        'tenant-1',
+        validDto({
+          kind: RentalObligationKind.ONE_TIME,
+          recurrenceMonths: null,
+          dueDay: null,
+          oneTimeDueDate: '2026-09-10',
+        }),
+      ),
+    ).rejects.toThrow(/recurring/);
+
+    repository.findConcept.mockResolvedValue({
+      id: 'concept-extra',
+      isActive: true,
+      systemCode: null,
+    });
+    await expect(
+      service.create(
+        'tenant-1',
+        validDto({
+          conceptId: 'concept-extra',
+          adjustmentIntervalMonths: 3,
+        }),
+      ),
+    ).rejects.toThrow(/only available for RENT/);
   });
 
   it('copies the default amount into new occurrence seeds only', async () => {
     await service.create('tenant-1', validDto());
+    expect(repository.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        adjustmentIntervalMonths: null,
+        includeInNotice: true,
+        showAmount: true,
+      }),
+      expect.objectContaining({
+        effectiveFrom: contract.startsOn,
+        amount: 100000,
+        currency: Currency.ARS,
+      }),
+    );
     expect(repository.createMissingOccurrences).toHaveBeenCalledWith(
       'obligation-1',
       'tenant-1',
@@ -191,21 +253,52 @@ describe('RentalObligationService', () => {
     );
   });
 
-  it('does not rewrite materialized amounts when the obligation default changes', async () => {
+  it('requires the specific adjustment operation after the initial revision', async () => {
     repository.findById.mockResolvedValue(obligation());
     repository.findConcept.mockResolvedValue(concept);
     repository.update.mockResolvedValue(obligation({ defaultAmount: 200000 }));
 
-    await service.update('obligation-1', 'tenant-1', {
-      defaultAmount: 200000,
-    });
+    await expect(
+      service.update('obligation-1', 'tenant-1', {
+        defaultAmount: 200000,
+      }),
+    ).rejects.toThrow(/rent-adjustments/);
+    expect(repository.update).not.toHaveBeenCalled();
+  });
 
-    expect(repository.updatePendingOccurrence).not.toHaveBeenCalled();
-    expect(repository.createMissingOccurrences).toHaveBeenCalledWith(
-      'obligation-1',
-      'tenant-1',
-      expect.arrayContaining([expect.objectContaining({ amount: 200000 })]),
-    );
+  it('protects RENT identity and its initial revision boundary', async () => {
+    repository.findById.mockResolvedValue(obligation());
+    repository.findConcept.mockResolvedValue({
+      id: 'concept-extra',
+      isActive: true,
+      systemCode: null,
+    });
+    await expect(
+      service.update('obligation-1', 'tenant-1', {
+        conceptId: 'concept-extra',
+      }),
+    ).rejects.toThrow(/cannot change/);
+
+    repository.findConcept.mockResolvedValue(concept);
+    await expect(
+      service.update('obligation-1', 'tenant-1', {
+        startsOn: '2026-10-01',
+      }),
+    ).rejects.toThrow(/startsOn cannot change/);
+  });
+
+  it('preserves a nullable adjustment interval on an ACTIVE legacy RENT', async () => {
+    const activeLegacy = obligation({
+      adjustmentIntervalMonths: null,
+      contract: { ...contract, status: RentalContractStatus.ACTIVE },
+    });
+    repository.findById.mockResolvedValue(activeLegacy);
+    repository.findConcept.mockResolvedValue(concept);
+    repository.update.mockResolvedValue(activeLegacy);
+
+    await expect(
+      service.update('obligation-1', 'tenant-1', { includeInNotice: true }),
+    ).resolves.toBeDefined();
   });
 
   it('derives OVERDUE without persisting it', async () => {
@@ -213,6 +306,111 @@ describe('RentalObligationService', () => {
     const [result] = await service.listOccurrences('tenant-1', {});
     expect(result.operationalStatus).toBe('OVERDUE');
     expect(result.status).toBe(RentalOccurrenceStatus.PENDING);
+  });
+
+  it('never derives OVERDUE when a manual due date is pending', async () => {
+    repository.findOccurrences.mockResolvedValue([
+      occurrence({ dueDate: null }),
+    ]);
+    const [result] = await service.listOccurrences('tenant-1', {});
+    expect(result.operationalStatus).toBe('PENDING');
+    expect(result.dueDatePending).toBe(true);
+  });
+
+  it.each([0, 13])('rejects recurrenceMonths=%i', async (value) => {
+    await expect(
+      service.create('tenant-1', validDto({ recurrenceMonths: value })),
+    ).rejects.toThrow(/between 1 and 12/);
+  });
+
+  it.each([1, 12])(
+    'accepts recurrenceMonths=%i for additional obligations',
+    async (value) => {
+      repository.findConcept.mockResolvedValue({
+        id: 'concept-extra',
+        isActive: true,
+        systemCode: null,
+      });
+      await expect(
+        service.create(
+          'tenant-1',
+          validDto({ conceptId: 'concept-extra', recurrenceMonths: value }),
+        ),
+      ).resolves.toBeDefined();
+    },
+  );
+
+  it('enforces notice flags and defaults additional obligations to false', async () => {
+    repository.findConcept.mockResolvedValue({
+      id: 'concept-extra',
+      isActive: true,
+      systemCode: null,
+    });
+    await expect(
+      service.create(
+        'tenant-1',
+        validDto({
+          conceptId: 'concept-extra',
+          showAmount: true,
+        }),
+      ),
+    ).rejects.toThrow(/showAmount/);
+    await service.create('tenant-1', validDto({ conceptId: 'concept-extra' }));
+    expect(repository.create).toHaveBeenLastCalledWith(
+      expect.objectContaining({ includeInNotice: false, showAmount: false }),
+      undefined,
+    );
+  });
+
+  it('rejects currency changes and registers a valid rent revision', async () => {
+    repository.findById.mockResolvedValue(obligation());
+    await expect(
+      service.createRentAdjustment('obligation-1', 'tenant-1', 'user-1', {
+        effectiveFrom: '2026-12-01',
+        amount: 120000,
+        currency: Currency.USD,
+      }),
+    ).rejects.toThrow(/currency/);
+
+    repository.createRentValueRevision.mockResolvedValue({
+      id: 'revision-2',
+      tenantId: 'tenant-1',
+      obligationId: 'obligation-1',
+      effectiveFrom: new Date('2026-12-01T00:00:00.000Z'),
+      amount: 120000,
+      currency: Currency.ARS,
+      recordedById: 'user-1',
+      reason: null,
+      createdAt: now,
+    });
+    await service.createRentAdjustment('obligation-1', 'tenant-1', 'user-1', {
+      effectiveFrom: '2026-12-01',
+      amount: 120000,
+      currency: Currency.ARS,
+    });
+    expect(repository.createRentValueRevision).toHaveBeenCalledWith(
+      'obligation-1',
+      'tenant-1',
+      expect.objectContaining({ amount: 120000, recordedById: 'user-1' }),
+    );
+  });
+
+  it('assigns a due date only to a pending manual occurrence', async () => {
+    const manual = occurrence({
+      dueDate: null,
+      obligation: obligation({ dueMode: RentalDueMode.MANUAL_PER_PERIOD }),
+    });
+    repository.findOccurrence.mockResolvedValue(manual);
+    repository.updatePendingOccurrence.mockResolvedValue({
+      ...manual,
+      dueDate: new Date('2026-09-20T00:00:00.000Z'),
+    });
+    await service.updateDueDate('occurrence-1', 'tenant-1', '2026-09-20');
+    expect(repository.updatePendingOccurrence).toHaveBeenCalledWith(
+      'occurrence-1',
+      'tenant-1',
+      { dueDate: new Date('2026-09-20T00:00:00.000Z') },
+    );
   });
 
   it('maps logical double fulfillment conflicts to HTTP conflict', async () => {

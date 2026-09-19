@@ -14,6 +14,9 @@ const obligationInclude = {
   contract: {
     select: { id: true, startsOn: true, endsOn: true, status: true },
   },
+  rentValueRevisions: {
+    orderBy: [{ effectiveFrom: 'asc' as const }, { createdAt: 'asc' as const }],
+  },
 } satisfies Prisma.RentalObligationInclude;
 
 const occurrenceInclude = {
@@ -23,6 +26,8 @@ const occurrenceInclude = {
       contract: {
         select: {
           id: true,
+          startsOn: true,
+          endsOn: true,
           propertyAddressSnapshot: true,
           parties: {
             where: { role: 'RENTER' },
@@ -91,10 +96,31 @@ export class RentalObligationRepository {
     });
   }
 
-  create(data: Prisma.RentalObligationUncheckedCreateInput) {
-    return this.prisma.rentalObligation.create({
-      data,
-      include: obligationInclude,
+  create(
+    data: Prisma.RentalObligationUncheckedCreateInput,
+    initialRevision?: {
+      effectiveFrom: Date;
+      amount: number;
+      currency: Prisma.RentalRentValueRevisionUncheckedCreateInput['currency'];
+    },
+  ) {
+    return this.prisma.$transaction(async (tx) => {
+      const obligation = await tx.rentalObligation.create({ data });
+      if (initialRevision) {
+        await tx.rentalRentValueRevision.create({
+          data: {
+            tenantId: obligation.tenantId,
+            obligationId: obligation.id,
+            effectiveFrom: initialRevision.effectiveFrom,
+            amount: initialRevision.amount,
+            currency: initialRevision.currency,
+          },
+        });
+      }
+      return tx.rentalObligation.findUniqueOrThrow({
+        where: { id: obligation.id },
+        include: obligationInclude,
+      });
     });
   }
 
@@ -108,6 +134,87 @@ export class RentalObligationRepository {
       data,
     });
     return result.count ? this.findById(id, tenantId) : null;
+  }
+
+  async updateWithInitialRevision(
+    id: string,
+    tenantId: string,
+    data: Prisma.RentalObligationUncheckedUpdateInput,
+    revision: {
+      effectiveFrom: Date;
+      amount: number;
+      currency: Prisma.RentalRentValueRevisionUncheckedCreateInput['currency'];
+    },
+  ) {
+    return this.prisma.$transaction(async (tx) => {
+      const changed = await tx.rentalObligation.updateMany({
+        where: { id, tenantId },
+        data,
+      });
+      if (!changed.count) return null;
+      await tx.rentalRentValueRevision.create({
+        data: { tenantId, obligationId: id, ...revision },
+      });
+      return tx.rentalObligation.findFirst({
+        where: { id, tenantId },
+        include: obligationInclude,
+      });
+    });
+  }
+
+  createRentValueRevision(
+    obligationId: string,
+    tenantId: string,
+    input: {
+      effectiveFrom: Date;
+      amount: number;
+      currency: Prisma.RentalRentValueRevisionUncheckedCreateInput['currency'];
+      recordedById: string | null;
+      reason: string | null;
+    },
+  ) {
+    return this.prisma.$transaction(
+      async (tx) => {
+        const revision = await tx.rentalRentValueRevision.create({
+          data: { tenantId, obligationId, ...input },
+        });
+        await tx.$executeRaw`
+          WITH resolved AS (
+            SELECT occurrence.id, applicable.amount, applicable.currency
+            FROM "RentalObligationOccurrence" occurrence
+            CROSS JOIN LATERAL (
+              SELECT candidate.amount, candidate.currency
+              FROM "RentalRentValueRevision" candidate
+              WHERE candidate."obligationId" = occurrence."obligationId"
+                AND candidate."effectiveFrom" <= occurrence."periodStartsOn"
+              ORDER BY candidate."effectiveFrom" DESC, candidate."createdAt" DESC
+              LIMIT 1
+            ) applicable
+            WHERE occurrence."obligationId" = ${obligationId}
+              AND occurrence."tenantId" = ${tenantId}
+              AND occurrence.status = 'PENDING'
+              AND occurrence."periodStartsOn" >= ${input.effectiveFrom}
+          )
+          UPDATE "RentalObligationOccurrence" occurrence
+          SET
+            amount = resolved.amount,
+            currency = resolved.currency,
+            "updatedAt" = CURRENT_TIMESTAMP
+          FROM resolved
+          WHERE occurrence.id = resolved.id
+        `;
+        const latest = await tx.rentalRentValueRevision.findFirstOrThrow({
+          where: { obligationId, tenantId },
+          orderBy: [{ effectiveFrom: 'desc' }, { createdAt: 'desc' }],
+        });
+        await tx.rentalObligation.updateMany({
+          where: { id: obligationId, tenantId },
+          data: { defaultAmount: latest.amount },
+        });
+        return revision;
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+    );
   }
 
   async createMissingOccurrences(

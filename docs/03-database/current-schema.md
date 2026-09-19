@@ -2,7 +2,7 @@
 
 ## Estado
 
-Versión: Foundation v1 + Auth Foundation Fase 1 + Property Domain v1 + Rental Management A+B+B.1+V1.1 Fase 1
+Versión: Foundation v1 + Auth Foundation Fase 1 + Property Domain v1 + Rental Management A+B+B.1+V1.1 Fases 1–2
 
 Base de datos:
 
@@ -13,7 +13,7 @@ Auth Foundation Fase 1: migrado (`20260616125024_auth_foundation`).
 
 Dominio Property: migrado (`202606150001_property_foundation`, `202606150002_property_location_v1_1`).
 
-Rental Management: A, B, B.1 y V1.1 Fase 1 implementadas en development. Fase 2 y Migración C continúan pendientes; ninguna migración de esta fase se aplica a producción durante este desarrollo.
+Rental Management: A, B, B.1 y V1.1 Fases 1–2 implementadas en development. Migración C continúa pendiente; ninguna migración de estas fases se aplica a producción durante este desarrollo.
 
 ---
 
@@ -150,9 +150,9 @@ Relación 1:1 con `Tenant`.
 
 ---
 
-# Rental Management — A+B+B.1+V1.1 Fase 1
+# Rental Management — A+B+B.1+V1.1 Fases 1–2
 
-Estado: fundación, motor de vencimientos, B.1 e identidad/renovación V1.1 Fase 1 implementados. Fase 2 y Migración C no iniciadas.
+Estado: fundación, motor de vencimientos, B.1 e identidad/renovación Fase 1, más revisiones de alquiler y reglas de obligaciones Fase 2 implementados. Migración C no iniciada.
 
 Documentación canónica: `docs/03-database/rental-domain.md` y `docs/04-modules/rental-management-v1.md`.
 
@@ -172,6 +172,7 @@ Tenant
     ├── previousContract? / renewedContract?
     └── RentalObligation
         ├── RentalConcept
+        ├── RentalRentValueRevision
         └── RentalObligationOccurrence
             └── RentalFulfillment
 ```
@@ -183,8 +184,9 @@ Tenant
 - `RentalContract`: comienza en `DRAFT`; posee `internalNumber` inmutable, relación opcional con contrato anterior, referencia opcional a `Property`, catálogos geográficos y creador. Conserva dirección contractual estructurada y fechas `@db.Date`.
 - `RentalContractParty`: vincula múltiples contactos como `RENTER` o `LANDLORD`; `isPrimary` identifica al referente administrativo. Un contrato activo requiere exactamente un renter primary.
 - `RentalContractNotificationRoute`: selecciona un `ContactPoint` activo y compatible por canal y parte; B.1 sólo persiste esta configuración y no envía mensajes.
-- `RentalObligation`: regla monetaria recurrente o única, con moneda obligatoria, importe fijo o variable, vigencia y recurrencia mensual simple.
-- `RentalObligationOccurrence`: vencimiento persistido e idempotente por `[obligationId, periodKey]`; conserva snapshots de importe/moneda y deriva `OVERDUE` sin persistirlo.
+- `RentalObligation`: regla monetaria recurrente o única con recurrencia 1–12, política `FIXED_DAY` o `MANUAL_PER_PERIOD`, flags previos a avisos e intervalo nullable de actualización para `RENT`.
+- `RentalRentValueRevision`: historial append-only tenant-scoped del valor de `RENT`, único por obligación y fecha efectiva.
+- `RentalObligationOccurrence`: vencimiento persistido e idempotente por `[obligationId, periodKey]`; admite `dueDate = null`, conserva snapshots y deriva `OVERDUE` sólo cuando existe fecha.
 - `RentalFulfillment`: cumplimiento total auditable, reversible y con un único registro vigente garantizado transaccionalmente.
 
 ## Enums
@@ -198,6 +200,7 @@ RentalContractPartyRole: RENTER | LANDLORD
 NotificationChannel: EMAIL | WHATSAPP | SMS
 RentalObligationKind: RECURRING | ONE_TIME
 RentalAmountMode: FIXED | VARIABLE
+RentalDueMode: FIXED_DAY | MANUAL_PER_PERIOD
 RentalOccurrenceStatus: PENDING | FULFILLED | CANCELLED
 RentalFulfillmentStatus: RECORDED | REVERSED
 RentalFulfillmentOrigin: ADMIN
@@ -213,8 +216,10 @@ RentalFulfillmentOrigin: ADMIN
 - Número interno, sucesor directo y primary único están protegidos por constraints/trigger de base además del Service.
 - Finalizar o cancelar desactiva sus obligaciones y cancela sólo vencimientos futuros pendientes; no borra historia ni altera cumplimientos.
 - El horizonte operativo de materialización es el mes local actual y los dos meses siguientes; puede reejecutarse sin duplicar.
+- Nuevas activaciones exigen RENT mensual, día fijo, importe/revisión inicial válidos y `adjustmentIntervalMonths` entre 1 y 12; ACTIVE legacy puede conservar ese intervalo en `null` hasta configurarlo.
+- Las revisiones sólo recalculan occurrences `PENDING` del rango aplicable; cumplidas, canceladas y períodos anteriores permanecen intactos.
 
-Migraciones: `202609090001_rental_foundation_a`, `202609090002_rental_obligation_engine_b`, `202609100001_rental_uat_refinement_b1`, `202609190001_rental_contract_identity_renewal_v1_1`.
+Migraciones: `202609090001_rental_foundation_a`, `202609090002_rental_obligation_engine_b`, `202609100001_rental_uat_refinement_b1`, `202609190001_rental_contract_identity_renewal_v1_1`, `202609190002_rental_rent_revision_obligation_rules_v1_1`.
 
 ---
 

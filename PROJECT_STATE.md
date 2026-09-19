@@ -19,7 +19,7 @@ Plataforma SaaS inmobiliaria multi-tenant orientada a:
 
 **Rental Management V1 — Migraciones A+B + refinamiento B.1** ✅ (baseline consolidado y versionado)
 
-**Rental Management V1.1 — Fase 1 identidad, partes estables y renovación** ✅ (Fase 2 y Migración C no iniciadas)
+**Rental Management V1.1 — Fases 1 y 2** ✅ (identidad/renovación + revisiones de alquiler y reglas de obligaciones; Migración C no iniciada)
 
 Documentación: `docs/04-modules/rental-management-v1.md`, `docs/03-database/rental-domain.md`
 
@@ -284,7 +284,20 @@ Documentación: `docs/04-modules/rental-management-v1.md`, `docs/03-database/ren
 * Activación con fecha final, duración mínima de un mes calendario, exactamente un renter primary y obligación `RENT` activa.
 * Endpoint `POST /rental-contracts/:id/renew`, sucesor único concurrent-safe y copia selectiva sin occurrences, fulfillments ni obligaciones puntuales.
 * RBAC `rental.contract.renew` para super admin, tenant admin y manager.
-* Fase 2 y Migración C permanecen pendientes.
+* Migración C permanece pendiente.
+
+Documentación: `docs/04-modules/rental-management-v1.md`, `docs/03-database/rental-domain.md`, `docs/03-database/current-schema.md`.
+
+### Rental Management V1.1 — Fase 2 ✅
+
+* Migración `202609190002_rental_rent_revision_obligation_rules_v1_1`: historial append-only `RentalRentValueRevision`, política de vencimiento fija/manual, recurrencia 1–12 y flags previos a avisos.
+* Backfill conservador: revisión inicial sólo para `RENT` con importe existente; los `DRAFT` sin importe permanecen incompletos sin inventar valores ni convertir su modalidad.
+* `adjustmentIntervalMonths` nullable preserva contratos legacy; nuevas activaciones exigen valor 1–12, `RENT` mensual/fijo e importe con revisión inicial válida.
+* Las revisiones recalculan únicamente occurrences futuras aplicables que continúan `PENDING`; preservan cumplidas, canceladas y períodos anteriores.
+* Vencimientos manuales usan `dueDate = null` y se muestran como “Fecha pendiente”, sin fechas ficticias.
+* API y Admin exponen configuración pendiente, próxima actualización, revisiones y edición manual de vencimiento dentro del flujo existente.
+* Se reutiliza `rental.obligation.manage`; no se agregaron permisos ni se inició el refactor visual integral.
+* Historial contractual, notificaciones globales y Migración C permanecen pendientes.
 
 Documentación: `docs/04-modules/rental-management-v1.md`, `docs/03-database/rental-domain.md`, `docs/03-database/current-schema.md`.
 

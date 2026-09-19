@@ -19,6 +19,7 @@ import {
   reverseRentalFulfillment,
   updateRentalObligation,
   updateRentalOccurrenceAmount,
+  updateRentalOccurrenceDueDate,
 } from "@/lib/api/rental";
 import type {
   CreateRentalContactPayload,
@@ -97,6 +98,18 @@ export async function updateRentalOccurrenceAmountAction(
 ) {
   const result = await run<RentalOccurrence>(() =>
     updateRentalOccurrenceAmount(id, amount),
+  );
+  if (result.ok) revalidateRental(contractId);
+  return result;
+}
+
+export async function updateRentalOccurrenceDueDateAction(
+  id: string,
+  contractId: string | undefined,
+  dueDate: string,
+) {
+  const result = await run<RentalOccurrence>(() =>
+    updateRentalOccurrenceDueDate(id, dueDate),
   );
   if (result.ok) revalidateRental(contractId);
   return result;

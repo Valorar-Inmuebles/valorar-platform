@@ -51,6 +51,10 @@ const renewalSourceInclude = {
   },
   obligations: {
     where: { isActive: true, kind: RentalObligationKind.RECURRING },
+    include: {
+      concept: { select: { systemCode: true } },
+      rentValueRevisions: { orderBy: { effectiveFrom: 'asc' as const } },
+    },
   },
 } satisfies Prisma.RentalContractInclude;
 
@@ -240,22 +244,47 @@ export class RentalContractRepository {
         await this.syncParties(tx, renewed.id, tenantId, parties);
 
         if (source.obligations.length) {
-          await tx.rentalObligation.createMany({
-            data: source.obligations.map((obligation) => ({
-              tenantId,
-              contractId: renewed.id,
-              conceptId: obligation.conceptId,
-              kind: obligation.kind,
-              recurrenceMonths: obligation.recurrenceMonths,
-              dueDay: obligation.dueDay,
-              amountMode: obligation.amountMode,
-              defaultAmount: obligation.defaultAmount,
-              currency: obligation.currency,
-              startsOn,
-              endsOn: null,
-              isActive: true,
-            })),
-          });
+          for (const obligation of source.obligations) {
+            const isRent = obligation.concept.systemCode === 'RENT';
+            const effectiveRevision = isRent
+              ? obligation.rentValueRevisions
+                  .filter((revision) => revision.effectiveFrom <= startsOn)
+                  .at(-1)
+              : null;
+            const defaultAmount =
+              effectiveRevision?.amount ?? obligation.defaultAmount;
+            const copied = await tx.rentalObligation.create({
+              data: {
+                tenantId,
+                contractId: renewed.id,
+                conceptId: obligation.conceptId,
+                kind: obligation.kind,
+                recurrenceMonths: obligation.recurrenceMonths,
+                dueMode: obligation.dueMode,
+                dueDay: obligation.dueDay,
+                amountMode: obligation.amountMode,
+                defaultAmount,
+                currency: obligation.currency,
+                adjustmentIntervalMonths: obligation.adjustmentIntervalMonths,
+                includeInNotice: obligation.includeInNotice,
+                showAmount: obligation.showAmount,
+                startsOn,
+                endsOn: null,
+                isActive: true,
+              },
+            });
+            if (isRent && defaultAmount != null) {
+              await tx.rentalRentValueRevision.create({
+                data: {
+                  tenantId,
+                  obligationId: copied.id,
+                  effectiveFrom: startsOn,
+                  amount: defaultAmount,
+                  currency: obligation.currency,
+                },
+              });
+            }
+          }
         }
 
         return {
@@ -285,15 +314,40 @@ export class RentalContractRepository {
 
   hasActiveRentObligation(contractId: string, tenantId: string) {
     return this.prisma.rentalObligation
-      .count({
+      .findFirst({
         where: {
           contractId,
           tenantId,
           isActive: true,
           concept: { systemCode: 'RENT' },
+          kind: RentalObligationKind.RECURRING,
+          recurrenceMonths: 1,
+          dueMode: 'FIXED_DAY',
+          dueDay: { gte: 1, lte: 31 },
+          amountMode: 'FIXED',
+          defaultAmount: { gt: 0 },
+          adjustmentIntervalMonths: { gte: 1, lte: 12 },
+          rentValueRevisions: { some: {} },
+        },
+        include: {
+          rentValueRevisions: {
+            orderBy: [{ effectiveFrom: 'asc' }, { createdAt: 'asc' }],
+            take: 1,
+          },
         },
       })
-      .then((count) => count > 0);
+      .then((obligation) => {
+        const initial = obligation?.rentValueRevisions[0];
+        return Boolean(
+          obligation &&
+          initial &&
+          initial.effectiveFrom.getTime() === obligation.startsOn.getTime() &&
+          initial.currency === obligation.currency &&
+          initial.amount.gt(0) &&
+          obligation.defaultAmount != null &&
+          initial.amount.equals(obligation.defaultAmount),
+        );
+      });
   }
 
   async activateWithRentRequirement(id: string, tenantId: string) {
@@ -311,7 +365,18 @@ export class RentalContractRepository {
           },
         },
         obligations: {
-          some: { isActive: true, concept: { systemCode: 'RENT' } },
+          some: {
+            isActive: true,
+            concept: { systemCode: 'RENT' },
+            kind: RentalObligationKind.RECURRING,
+            recurrenceMonths: 1,
+            dueMode: 'FIXED_DAY',
+            dueDay: { gte: 1, lte: 31 },
+            amountMode: 'FIXED',
+            defaultAmount: { gt: 0 },
+            adjustmentIntervalMonths: { gte: 1, lte: 12 },
+            rentValueRevisions: { some: {} },
+          },
         },
       },
       data: { status: RentalContractStatus.ACTIVE },

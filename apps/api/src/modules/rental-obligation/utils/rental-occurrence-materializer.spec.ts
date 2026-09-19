@@ -1,8 +1,15 @@
 jest.mock('../../../../generated/prisma/client', () => ({
   RentalObligationKind: { RECURRING: 'RECURRING', ONE_TIME: 'ONE_TIME' },
+  RentalDueMode: {
+    FIXED_DAY: 'FIXED_DAY',
+    MANUAL_PER_PERIOD: 'MANUAL_PER_PERIOD',
+  },
 }));
 
-import { RentalObligationKind } from '../../../../generated/prisma/client';
+import {
+  RentalDueMode,
+  RentalObligationKind,
+} from '../../../../generated/prisma/client';
 import {
   buildOccurrenceSeeds,
   formatDateOnly,
@@ -16,6 +23,7 @@ function recurring(overrides: Record<string, unknown> = {}) {
   return buildOccurrenceSeeds({
     kind: RentalObligationKind.RECURRING,
     recurrenceMonths: 1,
+    dueMode: RentalDueMode.FIXED_DAY,
     dueDay: 31,
     obligationStartsOn: date('2024-01-01'),
     obligationEndsOn: null,
@@ -31,7 +39,7 @@ describe('rental occurrence materializer', () => {
   it('clamps days 29/30/31 to the calendar month, including leap years', () => {
     expect(
       recurring({ localToday: date('2024-02-01') }).map((item) =>
-        formatDateOnly(item.dueDate),
+        formatDateOnly(item.dueDate!),
       ),
     ).toEqual(['2024-02-29', '2024-03-31', '2024-04-30']);
     expect(
@@ -51,7 +59,7 @@ describe('rental occurrence materializer', () => {
       localToday: date('2025-02-01'),
       horizonMonths: 1,
     });
-    expect(formatDateOnly(seed.dueDate)).toBe(expected);
+    expect(formatDateOnly(seed.dueDate!)).toBe(expected);
   });
 
   it('anchors multi-month recurrence and respects contract bounds', () => {
@@ -71,6 +79,7 @@ describe('rental occurrence materializer', () => {
       buildOccurrenceSeeds({
         kind: RentalObligationKind.ONE_TIME,
         recurrenceMonths: null,
+        dueMode: RentalDueMode.FIXED_DAY,
         dueDay: null,
         oneTimeDueDate: date('2024-03-20'),
         obligationStartsOn: date('2024-03-01'),
@@ -84,6 +93,18 @@ describe('rental occurrence materializer', () => {
         periodKey: 'ONE_TIME',
         dueDate: date('2024-03-20'),
       }),
+    ]);
+  });
+
+  it('materializes manual periods without inventing due dates', () => {
+    expect(
+      recurring({
+        dueMode: RentalDueMode.MANUAL_PER_PERIOD,
+        dueDay: null,
+        horizonMonths: 1,
+      }),
+    ).toEqual([
+      expect.objectContaining({ periodKey: '2024-01', dueDate: null }),
     ]);
   });
 

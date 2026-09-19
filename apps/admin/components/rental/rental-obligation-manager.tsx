@@ -52,7 +52,13 @@ export function RentalObligationManager({
   const [endsOn, setEndsOn] = useState(contract.endsOn?.slice(0, 10) ?? "");
   const [oneTimeDueDate, setOneTimeDueDate] = useState("");
   const [recurrenceMonths, setRecurrenceMonths] = useState("1");
+  const [dueMode, setDueMode] = useState<"FIXED_DAY" | "MANUAL_PER_PERIOD">(
+    "FIXED_DAY",
+  );
   const [dueDay, setDueDay] = useState("10");
+  const [adjustmentIntervalMonths, setAdjustmentIntervalMonths] = useState("");
+  const selectedConcept = concepts.find((item) => item.id === conceptId);
+  const isRent = selectedConcept?.systemCode === "RENT";
 
   const submit = (event: FormEvent) => {
     event.preventDefault();
@@ -65,10 +71,18 @@ export function RentalObligationManager({
         conceptId,
         kind,
         recurrenceMonths:
-          kind === "RECURRING" ? Number(recurrenceMonths) : null,
-        dueDay: kind === "RECURRING" ? Number(dueDay) : null,
+          kind === "RECURRING" ? (isRent ? 1 : Number(recurrenceMonths)) : null,
+        dueMode: kind === "RECURRING" && !isRent ? dueMode : "FIXED_DAY",
+        dueDay:
+          kind === "RECURRING" && (isRent || dueMode === "FIXED_DAY")
+            ? Number(dueDay)
+            : null,
         amountMode,
         defaultAmount: amountMode === "FIXED" ? parsedAmount : null,
+        adjustmentIntervalMonths:
+          isRent && adjustmentIntervalMonths
+            ? Number(adjustmentIntervalMonths)
+            : null,
         currency,
         startsOn,
         endsOn: endsOn || null,
@@ -134,9 +148,11 @@ export function RentalObligationManager({
                 </div>
                 <p className="mt-1 text-sm text-zinc-600">
                   {item.kind === "RECURRING"
-                    ? item.recurrenceMonths === 1
-                      ? `Mensual · vence el día ${item.dueDay}`
-                      : `Cada ${item.recurrenceMonths} meses · vence el día ${item.dueDay}`
+                    ? item.dueMode === "MANUAL_PER_PERIOD"
+                      ? `Cada ${item.recurrenceMonths} meses · fecha manual`
+                      : item.recurrenceMonths === 1
+                        ? `Mensual · vence el día ${item.dueDay}`
+                        : `Cada ${item.recurrenceMonths} meses · vence el día ${item.dueDay}`
                     : "Pago puntual"}{" "}
                   ·{" "}
                   {item.amountMode === "VARIABLE" && item.defaultAmount == null
@@ -144,6 +160,13 @@ export function RentalObligationManager({
                     : formatPrice(item.defaultAmount ?? 0, item.currency)}{" "}
                   · {item.isActive ? "Activa" : "Inactiva"}
                 </p>
+                {item.concept.systemCode === "RENT" ? (
+                  <p className="mt-1 text-xs text-zinc-500">
+                    {item.adjustmentConfigurationPending
+                      ? "Frecuencia de actualización pendiente de configurar"
+                      : `Próxima actualización: ${item.nextAdjustmentDate ?? "sin fecha"}`}
+                  </p>
+                ) : null}
               </div>
               {canManage &&
               !["ENDED", "CANCELLED"].includes(contract.status) ? (
@@ -267,21 +290,57 @@ export function RentalObligationManager({
                         { value: "1", label: "Mensual" },
                         { value: "2", label: "Bimestral" },
                         { value: "3", label: "Trimestral" },
+                        { value: "4", label: "Cuatrimestral" },
                         { value: "6", label: "Semestral" },
                         { value: "12", label: "Anual" },
                       ]}
                     />
                   </FormField>
-                  <FormField>
-                    <Label required>Día de vencimiento</Label>
-                    <Input
-                      type="number"
-                      min="1"
-                      max="31"
-                      value={dueDay}
-                      onChange={(event) => setDueDay(event.target.value)}
-                    />
-                  </FormField>
+                  {!isRent ? (
+                    <FormField>
+                      <Label required>Política de vencimiento</Label>
+                      <Select
+                        value={dueMode}
+                        onChange={(value) =>
+                          setDueMode(value as typeof dueMode)
+                        }
+                        options={[
+                          { value: "FIXED_DAY", label: "Día fijo" },
+                          {
+                            value: "MANUAL_PER_PERIOD",
+                            label: "Fecha manual por período",
+                          },
+                        ]}
+                      />
+                    </FormField>
+                  ) : null}
+                  {isRent || dueMode === "FIXED_DAY" ? (
+                    <FormField>
+                      <Label required>Día de vencimiento</Label>
+                      <Input
+                        type="number"
+                        min="1"
+                        max="31"
+                        value={dueDay}
+                        onChange={(event) => setDueDay(event.target.value)}
+                      />
+                    </FormField>
+                  ) : null}
+                  {isRent ? (
+                    <FormField>
+                      <Label>Actualización cada (meses)</Label>
+                      <Input
+                        type="number"
+                        min="1"
+                        max="12"
+                        value={adjustmentIntervalMonths}
+                        onChange={(event) =>
+                          setAdjustmentIntervalMonths(event.target.value)
+                        }
+                        placeholder="3, 4, 6 u otro"
+                      />
+                    </FormField>
+                  ) : null}
                 </>
               ) : (
                 <FormField>

@@ -2,7 +2,7 @@
 
 Versión: V1.1
 
-Estado: **implementación parcial**. A, B, B.1 y Rental V1.1 Fase 1 están implementados. Fase 2 y Migración C no fueron iniciadas.
+Estado: **implementación parcial**. A, B, B.1 y Rental V1.1 Fases 1–2 están implementados. Migración C no fue iniciada.
 
 Reglas funcionales canónicas: `docs/04-modules/rental-management-v1.md`.
 
@@ -84,7 +84,7 @@ Tenant
 └── Notification[] ── User recipient
 ```
 
-`RentalContractSequence`, `previousContractId` e `isPrimary` están **IMPLEMENTADOS en Fase 1**. `RentalRentValueRevision`, `RentalContractEvent`, `Notification` y las columnas de fases posteriores siguen **APROBADOS / PENDIENTES**.
+`RentalContractSequence`, `previousContractId` e `isPrimary` están **IMPLEMENTADOS en Fase 1**. `RentalRentValueRevision`, reglas de obligations y vencimientos manuales están **IMPLEMENTADOS en Fase 2**. `RentalContractEvent`, `Notification` y Migración C siguen **APROBADOS / PENDIENTES**.
 
 ## 4. Contact
 
@@ -304,15 +304,15 @@ Varias rutas pueden estar habilitadas simultáneamente. Ser parte primaria no mo
 
 La occurrence aplica clamp al último día calendario cuando el mes no contiene `dueDay`.
 
-### 11.2 Recurrencia y vigencia objetivo
+### 11.2 Recurrencia y vigencia
 
-**APROBADO / PENDIENTE**: `recurrenceMonths` aceptará 1–12. La UX ofrece presets 1, 2, 3, 4, 6 y 12, más un valor personalizado.
+**IMPLEMENTADO en Fase 2**: `recurrenceMonths` acepta 1–12. La UX ofrece presets y el backend acepta cualquier entero del rango.
 
 La vigencia admite fecha final específica o “hasta fin del contrato”. La representación elegida deberá diferenciar esa intención sin duplicar fechas silenciosamente.
 
-### 11.3 Política de vencimiento objetivo
+### 11.3 Política de vencimiento
 
-**APROBADO / PENDIENTE** agregar una política equivalente a:
+**IMPLEMENTADO en Fase 2**:
 
 ```txt
 FIXED_DAY
@@ -324,7 +324,7 @@ MANUAL_PER_PERIOD
 
 ### 11.4 Configuración previa a avisos
 
-**APROBADO / PENDIENTE** agregar:
+**IMPLEMENTADO en Fase 2**:
 
 | Campo             | Tipo conceptual | Regla                                   |
 | ----------------- | --------------- | --------------------------------------- |
@@ -351,13 +351,13 @@ Backfill:
 
 ### 11.5 Configuración específica de RENT
 
-**APROBADO / PENDIENTE**: la obligación `RENT` tiene pago mensual y agrega un intervalo de actualización de 1–12 meses. La UX ofrece 3, 4, 6 y “Otro”.
+**IMPLEMENTADO en Fase 2**: la obligación `RENT` tiene pago mensual y un intervalo nullable de actualización. Nuevas activaciones exigen 1–12; `null` sólo representa configuración pendiente en DRAFT o ACTIVE legacy migrado.
 
 La moneda queda fijada para el flujo ordinario de revisiones. Un cambio de moneda requiere una modificación contractual excepcional separada.
 
 ## 12. RentalRentValueRevision
 
-**APROBADO / PENDIENTE**: historial append-only de valores de la obligación `RENT`.
+**IMPLEMENTADO en Fase 2**: historial append-only de valores de la obligación `RENT`.
 
 | Campo                    | Tipo conceptual     | Regla                                   |
 | ------------------------ | ------------------- | --------------------------------------- |
@@ -367,9 +367,9 @@ La moneda queda fijada para el flujo ordinario de revisiones. Un cambio de moned
 | `effectiveFrom`          | `DateTime @db.Date` | Primer período/fecha efectiva           |
 | `amount`                 | Decimal(14,2)       | Mayor que cero                          |
 | `currency`               | Currency            | Igual a la moneda contractual ordinaria |
-| `actorId`                | String?             | Usuario que registró el cambio          |
+| `recordedById`           | String?             | Usuario que registró el cambio          |
 | `reason`                 | String?             | Motivo opcional                         |
-| `createdAt`, `updatedAt` | DateTime            | Auditoría                               |
+| `createdAt`              | DateTime            | Auditoría                               |
 
 Constraints mínimos:
 
@@ -383,10 +383,12 @@ Operación específica y transaccional:
 2. insertar la revisión;
 3. actualizar el importe snapshot de occurrences con período no anterior a `effectiveFrom` y estado `PENDING`;
 4. no tocar occurrences cumplidas, canceladas ni períodos anteriores;
-5. registrar el evento contractual correspondiente;
+5. dejar disponible el punto de integración con `RentalContractEvent`, todavía pendiente;
 6. confirmar todo o revertir todo.
 
 La próxima actualización se deriva de la última revisión efectiva más el intervalo de actualización; no necesita una fecha duplicada mutable.
+
+Si existen varias revisiones futuras, cada occurrence usa la revisión más reciente cuyo `effectiveFrom` sea menor o igual al inicio de su período. Registrar una revisión intermedia recalcula ese rango sin pisar el rango de una revisión posterior. `defaultAmount` se mantiene como valor base de compatibilidad de la revisión cronológicamente más reciente; los snapshots operativos siempre se resuelven por vigencia.
 
 ## 13. RentalObligationOccurrence
 
@@ -401,9 +403,9 @@ La próxima actualización se deriva de la última revisión efectiva más el in
 - estados `PENDING`, `FULFILLED`, `CANCELLED`;
 - `OVERDUE` derivado, nunca persistido.
 
-### Objetivo V1.1
+### Vencimiento manual V1.1
 
-**APROBADO / PENDIENTE**: `dueDate` será nullable o se usará un mecanismo semánticamente equivalente para `MANUAL_PER_PERIOD`.
+**IMPLEMENTADO en Fase 2**: `dueDate` es nullable para `MANUAL_PER_PERIOD`.
 
 Una occurrence sin fecha definitiva:
 
@@ -598,11 +600,13 @@ La regla “exactamente un renter principal” para contratos activos necesita a
 - IDs existentes de partes y rutas preservados;
 - occurrences cumplidas o canceladas sin modificaciones.
 
-**APROBADOS / PENDIENTES para fases posteriores**:
+**IMPLEMENTADOS en Fase 2**:
 
-- crear la revisión inicial de `RENT` desde el valor vigente preservando moneda;
-- configurar `RENT` con `includeInNotice = true` y `showAmount = true`;
-- configurar las demás obligaciones con ambos flags en `false`.
+- revisión inicial de cada `RENT` con importe conocido, desde `startsOn` y preservando moneda;
+- `RENT` sin importe en DRAFT preservado sin revisión inicial;
+- `RENT` con `includeInNotice = true` y `showAmount = true`;
+- demás obligaciones con ambos flags en `false`;
+- `adjustmentIntervalMonths = null` preservado como configuración legacy pendiente.
 
 Cada backfill deberá ser determinístico, reejecutable cuando corresponda y validado con consultas pre/post migración.
 
@@ -611,13 +615,12 @@ Cada backfill deberá ser determinístico, reejecutable cuando corresponda y val
 El orden exacto se resolverá en planes de implementación separados, respetando estas dependencias:
 
 1. **Fase 1 implementada**: invariantes contractuales, numeración, documento canónico, referente principal, edición estable y renovación;
-2. experiencia `RENT`, revisiones y reglas de occurrences;
-3. obligaciones adicionales y flags de aviso;
-4. historial contractual;
-5. notificaciones internas globales;
-6. Migración C de ejecución de comunicaciones.
+2. **Fase 2 implementada**: experiencia `RENT`, revisiones, reglas de occurrences, obligaciones adicionales y flags de aviso;
+3. historial contractual;
+4. notificaciones internas globales;
+5. Migración C de ejecución de comunicaciones.
 
-Los puntos 2 a 6 no están implementados por la sola existencia de esta documentación.
+Los puntos 3 a 5 no están implementados por la sola existencia de esta documentación.
 
 ## 24. Decisiones diferidas
 

@@ -134,7 +134,18 @@ describe('RentalContractRepository terminal transition', () => {
         },
         endsOn: { not: null },
         obligations: {
-          some: { isActive: true, concept: { systemCode: 'RENT' } },
+          some: {
+            isActive: true,
+            concept: { systemCode: 'RENT' },
+            kind: 'RECURRING',
+            recurrenceMonths: 1,
+            dueMode: 'FIXED_DAY',
+            dueDay: { gte: 1, lte: 31 },
+            amountMode: 'FIXED',
+            defaultAmount: { gt: 0 },
+            adjustmentIntervalMonths: { gte: 1, lte: 12 },
+            rentValueRevisions: { some: {} },
+          },
         },
       },
       data: { status: RentalContractStatus.ACTIVE },
@@ -319,10 +330,21 @@ describe('RentalContractRepository terminal transition', () => {
           conceptId: 'rent-concept',
           kind: 'RECURRING',
           recurrenceMonths: 1,
+          dueMode: 'FIXED_DAY',
           dueDay: 10,
           amountMode: 'FIXED',
           defaultAmount: 1000,
           currency: 'ARS',
+          adjustmentIntervalMonths: 3,
+          includeInNotice: true,
+          showAmount: true,
+          concept: { systemCode: 'RENT' },
+          rentValueRevisions: [
+            {
+              effectiveFrom: new Date('2026-01-01T00:00:00.000Z'),
+              amount: 1000,
+            },
+          ],
         },
       ],
     };
@@ -361,7 +383,10 @@ describe('RentalContractRepository terminal transition', () => {
         create: jest.fn().mockResolvedValue({ id: 'route-new' }),
       },
       rentalObligation: {
-        createMany: jest.fn().mockResolvedValue({ count: 1 }),
+        create: jest.fn().mockResolvedValue({ id: 'obligation-new' }),
+      },
+      rentalRentValueRevision: {
+        create: jest.fn().mockResolvedValue({ id: 'revision-new' }),
       },
     };
     const prisma = {
@@ -378,9 +403,9 @@ describe('RentalContractRepository terminal transition', () => {
       expect.objectContaining({
         where: { id: 'contract-1', tenantId: 'tenant-1' },
         include: expect.objectContaining({
-          obligations: {
+          obligations: expect.objectContaining({
             where: { isActive: true, kind: 'RECURRING' },
-          },
+          }),
         }),
       }),
     );
@@ -393,15 +418,23 @@ describe('RentalContractRepository terminal transition', () => {
         startsOn: new Date('2027-01-01T00:00:00.000Z'),
       }),
     });
-    expect(tx.rentalObligation.createMany).toHaveBeenCalledWith({
-      data: [
-        expect.objectContaining({
-          contractId: 'contract-2',
-          kind: 'RECURRING',
-          startsOn: new Date('2027-01-01T00:00:00.000Z'),
-          endsOn: null,
-        }),
-      ],
+    expect(tx.rentalObligation.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        contractId: 'contract-2',
+        kind: 'RECURRING',
+        startsOn: new Date('2027-01-01T00:00:00.000Z'),
+        endsOn: null,
+        adjustmentIntervalMonths: 3,
+        includeInNotice: true,
+        showAmount: true,
+      }),
+    });
+    expect(tx.rentalRentValueRevision.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        obligationId: 'obligation-new',
+        effectiveFrom: new Date('2027-01-01T00:00:00.000Z'),
+        amount: 1000,
+      }),
     });
     expect(tx.rentalContractNotificationRoute.create).toHaveBeenCalledTimes(1);
     expect(tx.rentalContractNotificationRoute.create).toHaveBeenCalledWith({

@@ -21,6 +21,7 @@ import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../../auth/guards/roles.guard';
 import { TenantGuard } from '../../auth/guards/tenant.guard';
 import { CreateRentalObligationDto } from '../dto/create-rental-obligation.dto';
+import { CreateRentValueRevisionDto } from '../dto/create-rent-value-revision.dto';
 import { ListRentalObligationsQueryDto } from '../dto/rental-obligation-query.dto';
 import {
   CancelRentalOccurrenceDto,
@@ -28,6 +29,7 @@ import {
   RecordRentalFulfillmentDto,
   ReverseRentalFulfillmentDto,
   UpdateRentalOccurrenceAmountDto,
+  UpdateRentalOccurrenceDueDateDto,
 } from '../dto/rental-occurrence.dto';
 import { UpdateRentalObligationDto } from '../dto/update-rental-obligation.dto';
 import { RentalObligationService } from '../services/rental-obligation.service';
@@ -67,6 +69,23 @@ export class RentalObligationController {
     @Body() dto: UpdateRentalObligationDto,
   ) {
     return this.service.update(id, tenantId, dto);
+  }
+
+  @Post(':id/rent-adjustments')
+  @RequirePermissions('rental.obligation.manage')
+  @ApiCreatedResponse()
+  createRentAdjustment(
+    @Param('id') id: string,
+    @CurrentTenant() tenantId: string,
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: CreateRentValueRevisionDto,
+  ) {
+    return this.service.createRentAdjustment(
+      id,
+      tenantId,
+      user.role === UserRole.SUPER_ADMIN ? null : user.id,
+      dto,
+    );
   }
 
   @Post(':id/materialize')
@@ -109,6 +128,16 @@ export class RentalOccurrenceController {
     @Body() dto: UpdateRentalOccurrenceAmountDto,
   ) {
     return this.service.updateAmount(id, tenantId, dto.amount);
+  }
+
+  @Patch(':id/due-date')
+  @RequirePermissions('rental.obligation.manage')
+  updateDueDate(
+    @Param('id') id: string,
+    @CurrentTenant() tenantId: string,
+    @Body() dto: UpdateRentalOccurrenceDueDateDto,
+  ) {
+    return this.service.updateDueDate(id, tenantId, dto.dueDate);
   }
 
   @Post(':id/cancel')
