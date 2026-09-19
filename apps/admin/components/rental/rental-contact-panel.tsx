@@ -17,6 +17,7 @@ import { Switch } from "@repo/ui/switch";
 import { useToast } from "@repo/ui/toast";
 import { createRentalContactAction } from "@/lib/api/rental-actions";
 import type {
+  ContactDocumentType,
   NotificationChannel,
   RentalContact,
   RentalContractParty,
@@ -63,7 +64,9 @@ export function RentalContactPanel({
   const [search, setSearch] = useState("");
   const [creating, setCreating] = useState(false);
   const [name, setName] = useState("");
-  const [documentType, setDocumentType] = useState("");
+  const [documentType, setDocumentType] = useState<ContactDocumentType | "">(
+    "",
+  );
   const [documentNumber, setDocumentNumber] = useState("");
   const [emails, setEmails] = useState([""]);
   const [phones, setPhones] = useState([
@@ -140,7 +143,7 @@ export function RentalContactPanel({
       ];
       const result = await createRentalContactAction({
         name: name.trim(),
-        documentType: documentType.trim() || undefined,
+        documentType: documentType || undefined,
         documentNumber: documentNumber.trim() || undefined,
         contactPoints,
       });
@@ -166,6 +169,7 @@ export function RentalContactPanel({
       id: party?.id,
       contactId: selected.id,
       role,
+      isPrimary: party?.isPrimary ?? false,
       contact: selected,
       notificationRoutes,
     });
@@ -270,10 +274,18 @@ export function RentalContactPanel({
             <div className="grid gap-3 sm:grid-cols-2">
               <FormField>
                 <Label>Tipo de documento</Label>
-                <Input
+                <Select
                   value={documentType}
-                  onChange={(event) => setDocumentType(event.target.value)}
-                  placeholder="DNI, CUIT, Pasaporte…"
+                  onChange={(value) =>
+                    setDocumentType(value as ContactDocumentType | "")
+                  }
+                  options={[
+                    { value: "", label: "Sin especificar" },
+                    { value: "DNI", label: "DNI" },
+                    { value: "CUIT", label: "CUIT" },
+                    { value: "CUIL", label: "CUIL" },
+                    { value: "PASSPORT", label: "Pasaporte" },
+                  ]}
                 />
               </FormField>
               <FormField>

@@ -3,12 +3,14 @@ import { Type } from 'class-transformer';
 import {
   IsArray,
   IsBoolean,
+  IsEnum,
   IsNotEmpty,
   IsOptional,
   IsString,
   Length,
   ValidateNested,
 } from 'class-validator';
+import { ContactDocumentType } from '../../../../generated/prisma/client';
 import { CreateContactPointDto } from './contact-point.dto';
 
 export class CreateContactDto {
@@ -18,11 +20,10 @@ export class CreateContactDto {
   @Length(1, 160)
   name: string;
 
-  @ApiPropertyOptional({ example: 'DNI' })
+  @ApiPropertyOptional({ enum: ContactDocumentType, example: 'DNI' })
   @IsOptional()
-  @IsString()
-  @Length(1, 40)
-  documentType?: string;
+  @IsEnum(ContactDocumentType)
+  documentType?: ContactDocumentType;
 
   @ApiPropertyOptional({ example: '30123456' })
   @IsOptional()

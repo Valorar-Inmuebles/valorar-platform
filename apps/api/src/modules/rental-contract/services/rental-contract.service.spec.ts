@@ -10,13 +10,25 @@ jest.mock('../../../../generated/prisma/client', () => ({
     ENDED: 'ENDED',
     CANCELLED: 'CANCELLED',
   },
+  Prisma: {
+    PrismaClientKnownRequestError: class PrismaClientKnownRequestError extends Error {
+      code: string;
+      constructor(message: string, options?: { code?: string }) {
+        super(message);
+        this.code = options?.code ?? message;
+      }
+    },
+  },
 }));
 
 jest.mock('../repositories/rental-contract.repository', () => ({
   RentalContractRepository: class RentalContractRepository {},
 }));
 
-import { RentalContractStatus } from '../../../../generated/prisma/client';
+import {
+  Prisma,
+  RentalContractStatus,
+} from '../../../../generated/prisma/client';
 import { RentalContractRepository } from '../repositories/rental-contract.repository';
 import { RentalContractService } from './rental-contract.service';
 
@@ -25,10 +37,13 @@ const now = new Date('2026-09-09T00:00:00.000Z');
 function contract(overrides: Record<string, unknown> = {}) {
   return {
     id: 'contract-1',
+    internalNumber: 'ALQ-000001',
     tenantId: 'tenant-1',
     propertyId: null,
     property: null,
     parties: [],
+    previousContract: null,
+    renewedContract: null,
     createdById: 'user-1',
     propertyAddressSnapshot: 'Av. Rivadavia 1234',
     propertyCountryId: null,
@@ -68,6 +83,8 @@ describe('RentalContractService', () => {
     activateWithRentRequirement: jest.fn(),
     tenantTimeZone: jest.fn(),
     transitionToTerminal: jest.fn(),
+    renew: jest.fn(),
+    findRenewalByPrevious: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -288,13 +305,27 @@ describe('RentalContractService', () => {
     repository.findById
       .mockResolvedValueOnce(
         contract({
-          parties: [{ role: 'RENTER', contact: { isActive: true } }],
+          endsOn: new Date('2027-09-01T00:00:00.000Z'),
+          parties: [
+            {
+              role: 'RENTER',
+              isPrimary: true,
+              contact: { isActive: true },
+            },
+          ],
         }),
       )
       .mockResolvedValueOnce(
         contract({
           status: RentalContractStatus.ACTIVE,
-          parties: [{ role: 'RENTER', contact: { isActive: true } }],
+          endsOn: new Date('2027-09-01T00:00:00.000Z'),
+          parties: [
+            {
+              role: 'RENTER',
+              isPrimary: true,
+              contact: { isActive: true },
+            },
+          ],
         }),
       );
     repository.hasActiveRentObligation.mockResolvedValue(true);
@@ -318,7 +349,16 @@ describe('RentalContractService', () => {
 
   it('rejects activation without an active RENT obligation', async () => {
     repository.findById.mockResolvedValue(
-      contract({ parties: [{ role: 'RENTER', contact: { isActive: true } }] }),
+      contract({
+        endsOn: new Date('2027-09-01T00:00:00.000Z'),
+        parties: [
+          {
+            role: 'RENTER',
+            isPrimary: true,
+            contact: { isActive: true },
+          },
+        ],
+      }),
     );
     repository.hasActiveRentObligation.mockResolvedValue(false);
 
@@ -341,7 +381,14 @@ describe('RentalContractService', () => {
     repository.findById.mockResolvedValue(
       contract({
         status: RentalContractStatus.ACTIVE,
-        parties: [{ role: 'RENTER', contact: { isActive: true } }],
+        endsOn: new Date('2027-09-01T00:00:00.000Z'),
+        parties: [
+          {
+            role: 'RENTER',
+            isPrimary: true,
+            contact: { isActive: true },
+          },
+        ],
       }),
     );
 
@@ -349,5 +396,155 @@ describe('RentalContractService', () => {
       service.update('contract-1', 'tenant-1', { parties: [] }),
     ).rejects.toThrow(BadRequestException);
     expect(repository.update).not.toHaveBeenCalled();
+  });
+
+  it('rejects activation without exactly one primary renter', async () => {
+    repository.findById.mockResolvedValue(
+      contract({
+        endsOn: new Date('2027-09-01T00:00:00.000Z'),
+        parties: [
+          { role: 'RENTER', isPrimary: false, contact: { isActive: true } },
+          { role: 'RENTER', isPrimary: false, contact: { isActive: true } },
+        ],
+      }),
+    );
+
+    await expect(service.activate('contract-1', 'tenant-1')).rejects.toThrow(
+      /Exactly one primary renter/,
+    );
+    expect(repository.activateWithRentRequirement).not.toHaveBeenCalled();
+  });
+
+  it('activates with multiple renters when exactly one is primary', async () => {
+    repository.findById.mockResolvedValue(
+      contract({
+        endsOn: new Date('2027-09-01T00:00:00.000Z'),
+        parties: [
+          {
+            role: 'RENTER',
+            isPrimary: true,
+            contact: { isActive: true },
+          },
+          {
+            role: 'RENTER',
+            isPrimary: false,
+            contact: { isActive: true },
+          },
+        ],
+      }),
+    );
+    repository.hasActiveRentObligation.mockResolvedValue(true);
+    repository.activateWithRentRequirement.mockResolvedValue(
+      contract({ status: RentalContractStatus.ACTIVE }),
+    );
+
+    await expect(service.activate('contract-1', 'tenant-1')).resolves.toEqual(
+      expect.objectContaining({ status: 'ACTIVE' }),
+    );
+  });
+
+  it('rejects a landlord marked as primary', async () => {
+    repository.contactsByIds.mockResolvedValue([
+      { id: 'landlord-1', contactPoints: [] },
+    ]);
+    await expect(
+      service.create('tenant-1', 'user-1', {
+        propertyStreetSnapshot: 'Av. Rivadavia',
+        startsOn: '2026-09-01',
+        parties: [
+          {
+            contactId: 'landlord-1',
+            role: 'LANDLORD',
+            isPrimary: true,
+          },
+        ],
+      }),
+    ).rejects.toThrow(/Only a renter/);
+  });
+
+  it('rejects activation when the term is shorter than one calendar month', async () => {
+    repository.findById.mockResolvedValue(
+      contract({
+        startsOn: new Date('2026-01-31T00:00:00.000Z'),
+        endsOn: new Date('2026-02-27T00:00:00.000Z'),
+        parties: [
+          {
+            role: 'RENTER',
+            isPrimary: true,
+            contact: { isActive: true },
+          },
+        ],
+      }),
+    );
+
+    await expect(service.activate('contract-1', 'tenant-1')).rejects.toThrow(
+      /at least one calendar month/,
+    );
+  });
+
+  it.each([RentalContractStatus.ACTIVE, RentalContractStatus.ENDED])(
+    'renews a contract in %s status',
+    async (status) => {
+      repository.renew.mockResolvedValue({
+        outcome: 'CREATED',
+        contract: contract({
+          id: 'contract-2',
+          internalNumber: 'ALQ-000002',
+          previousContract: {
+            id: 'contract-1',
+            internalNumber: 'ALQ-000001',
+            status,
+          },
+        }),
+      });
+
+      const result = await service.renew('contract-1', 'tenant-1', 'user-1');
+      expect(result.internalNumber).toBe('ALQ-000002');
+      expect(repository.renew).toHaveBeenCalledWith(
+        'contract-1',
+        'tenant-1',
+        'user-1',
+      );
+    },
+  );
+
+  it.each([RentalContractStatus.DRAFT, RentalContractStatus.CANCELLED])(
+    'rejects renewal from %s',
+    async (status) => {
+      repository.renew.mockResolvedValue({ outcome: 'INVALID_STATUS', status });
+      await expect(
+        service.renew('contract-1', 'tenant-1', 'user-1'),
+      ).rejects.toThrow(ConflictException);
+    },
+  );
+
+  it('returns a conflict naming an existing renewal', async () => {
+    repository.renew.mockResolvedValue({
+      outcome: 'ALREADY_RENEWED',
+      contract: contract({ internalNumber: 'ALQ-000002' }),
+    });
+    await expect(
+      service.renew('contract-1', 'tenant-1', 'user-1'),
+    ).rejects.toThrow(/ALQ-000002/);
+  });
+
+  it('maps a concurrent successor unique conflict to the existing renewal', async () => {
+    repository.renew.mockRejectedValue(
+      new Prisma.PrismaClientKnownRequestError('unique successor', {
+        code: 'P2002',
+        clientVersion: 'test',
+      }),
+    );
+    repository.findRenewalByPrevious.mockResolvedValue(
+      contract({ id: 'contract-2', internalNumber: 'ALQ-000002' }),
+    );
+
+    await expect(
+      service.renew('contract-1', 'tenant-1', 'user-1'),
+    ).rejects.toThrow(/ALQ-000002/);
+    expect(repository.findRenewalByPrevious).toHaveBeenCalledWith(
+      'contract-1',
+      'tenant-1',
+    );
   });
 });

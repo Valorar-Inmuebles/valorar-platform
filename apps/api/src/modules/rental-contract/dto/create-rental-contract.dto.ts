@@ -40,6 +40,10 @@ export class RentalContractPartyInputDto {
   @ApiProperty({ enum: RentalContractPartyRole })
   @IsEnum(RentalContractPartyRole)
   role: RentalContractPartyRole;
+  @ApiPropertyOptional({ default: false })
+  @IsOptional()
+  @IsBoolean()
+  isPrimary?: boolean;
   @ApiPropertyOptional({
     type: RentalContractNotificationRouteInputDto,
     isArray: true,

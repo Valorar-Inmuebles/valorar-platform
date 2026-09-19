@@ -1,15 +1,25 @@
 import { Injectable } from '@nestjs/common';
 import {
+  NotificationChannel,
   Prisma,
   RentalContractStatus,
+  RentalObligationKind,
 } from '../../../../generated/prisma/client';
 import { PrismaService } from '../../../prisma/prisma.service';
 import type { RentalContractPartyInputDto } from '../dto/create-rental-contract.dto';
+
+const relationSummarySelect = {
+  id: true,
+  internalNumber: true,
+  status: true,
+} satisfies Prisma.RentalContractSelect;
 
 const rentalContractInclude = {
   property: {
     select: { id: true, title: true, propertyType: true, isActive: true },
   },
+  previousContract: { select: relationSummarySelect },
+  renewedContract: { select: relationSummarySelect },
   parties: {
     include: {
       contact: {
@@ -32,21 +42,47 @@ const rentalContractInclude = {
   },
 } satisfies Prisma.RentalContractInclude;
 
+const renewalSourceInclude = {
+  parties: {
+    include: {
+      contact: { include: { contactPoints: true } },
+      notificationRoutes: { include: { contactPoint: true } },
+    },
+  },
+  obligations: {
+    where: { isActive: true, kind: RentalObligationKind.RECURRING },
+  },
+} satisfies Prisma.RentalContractInclude;
+
 export type RentalContractRecord = Prisma.RentalContractGetPayload<{
   include: typeof rentalContractInclude;
 }>;
+
+export type RentalContractRenewalResult =
+  | { outcome: 'NOT_FOUND' }
+  | { outcome: 'INVALID_STATUS'; status: RentalContractStatus }
+  | { outcome: 'ALREADY_RENEWED'; contract: RentalContractRecord }
+  | { outcome: 'CREATED'; contract: RentalContractRecord };
+
+type CreateContractData = Omit<
+  Prisma.RentalContractUncheckedCreateInput,
+  'internalNumber'
+>;
 
 @Injectable()
 export class RentalContractRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  create(
-    data: Prisma.RentalContractUncheckedCreateInput,
-    parties: RentalContractPartyInputDto[],
-  ) {
+  create(data: CreateContractData, parties: RentalContractPartyInputDto[]) {
     return this.prisma.$transaction(async (tx) => {
-      const contract = await tx.rentalContract.create({ data });
-      await this.replaceParties(tx, contract.id, contract.tenantId, parties);
+      const internalNumber = await this.allocateInternalNumber(
+        tx,
+        data.tenantId,
+      );
+      const contract = await tx.rentalContract.create({
+        data: { ...data, internalNumber },
+      });
+      await this.syncParties(tx, contract.id, contract.tenantId, parties);
       return tx.rentalContract.findUniqueOrThrow({
         where: { id: contract.id },
         include: rentalContractInclude,
@@ -54,9 +90,30 @@ export class RentalContractRepository {
     });
   }
 
-  findMany(tenantId: string, status?: RentalContractStatus) {
+  findMany(tenantId: string, status?: RentalContractStatus, search?: string) {
     return this.prisma.rentalContract.findMany({
-      where: { tenantId, ...(status ? { status } : {}) },
+      where: {
+        tenantId,
+        ...(status ? { status } : {}),
+        ...(search
+          ? {
+              OR: [
+                {
+                  internalNumber: {
+                    contains: search,
+                    mode: 'insensitive' as const,
+                  },
+                },
+                {
+                  propertyAddressSnapshot: {
+                    contains: search,
+                    mode: 'insensitive' as const,
+                  },
+                },
+              ],
+            }
+          : {}),
+      },
       include: rentalContractInclude,
       orderBy: [{ startsOn: 'desc' }, { createdAt: 'desc' }],
     });
@@ -65,6 +122,13 @@ export class RentalContractRepository {
   findById(id: string, tenantId: string) {
     return this.prisma.rentalContract.findFirst({
       where: { id, tenantId },
+      include: rentalContractInclude,
+    });
+  }
+
+  findRenewalByPrevious(previousContractId: string, tenantId: string) {
+    return this.prisma.rentalContract.findFirst({
+      where: { previousContractId, tenantId },
       include: rentalContractInclude,
     });
   }
@@ -81,12 +145,129 @@ export class RentalContractRepository {
         data,
       });
       if (changed.count === 0) return null;
-      if (parties) await this.replaceParties(tx, id, tenantId, parties);
+      if (parties) await this.syncParties(tx, id, tenantId, parties);
       return tx.rentalContract.findFirst({
         where: { id, tenantId },
         include: rentalContractInclude,
       });
     });
+  }
+
+  renew(
+    sourceId: string,
+    tenantId: string,
+    createdById: string | null,
+  ): Promise<RentalContractRenewalResult> {
+    return this.prisma.$transaction(
+      async (tx) => {
+        const source = await tx.rentalContract.findFirst({
+          where: { id: sourceId, tenantId },
+          include: renewalSourceInclude,
+        });
+        if (!source) return { outcome: 'NOT_FOUND' } as const;
+        if (
+          source.status !== RentalContractStatus.ACTIVE &&
+          source.status !== RentalContractStatus.ENDED
+        ) {
+          return {
+            outcome: 'INVALID_STATUS',
+            status: source.status,
+          } as const;
+        }
+
+        const existingRenewal = await tx.rentalContract.findFirst({
+          where: { tenantId, previousContractId: source.id },
+          include: rentalContractInclude,
+        });
+        if (existingRenewal) {
+          return {
+            outcome: 'ALREADY_RENEWED',
+            contract: existingRenewal,
+          } as const;
+        }
+
+        const startsOn = source.endsOn
+          ? new Date(source.endsOn.getTime() + 86_400_000)
+          : source.startsOn;
+        const internalNumber = await this.allocateInternalNumber(tx, tenantId);
+        const renewed = await tx.rentalContract.create({
+          data: {
+            tenantId,
+            internalNumber,
+            previousContractId: source.id,
+            createdById,
+            propertyId: source.propertyId,
+            propertyCountryId: source.propertyCountryId,
+            propertyProvinceId: source.propertyProvinceId,
+            propertyLocalityId: source.propertyLocalityId,
+            propertyNeighborhoodId: source.propertyNeighborhoodId,
+            propertyAddressSnapshot: source.propertyAddressSnapshot,
+            propertyCountrySnapshot: source.propertyCountrySnapshot,
+            propertyProvinceSnapshot: source.propertyProvinceSnapshot,
+            propertyLocalitySnapshot: source.propertyLocalitySnapshot,
+            propertyNeighborhoodSnapshot: source.propertyNeighborhoodSnapshot,
+            propertyStreetSnapshot: source.propertyStreetSnapshot,
+            propertyStreetNumberSnapshot: source.propertyStreetNumberSnapshot,
+            propertyFloorSnapshot: source.propertyFloorSnapshot,
+            propertyUnitSnapshot: source.propertyUnitSnapshot,
+            propertyPostalCodeSnapshot: source.propertyPostalCodeSnapshot,
+            propertyNotesSnapshot: source.propertyNotesSnapshot,
+            startsOn,
+            endsOn: null,
+            status: RentalContractStatus.DRAFT,
+          },
+        });
+
+        const parties: RentalContractPartyInputDto[] = source.parties.map(
+          (party) => ({
+            contactId: party.contactId,
+            role: party.role,
+            isPrimary: party.isPrimary,
+            notificationRoutes:
+              party.role === 'RENTER'
+                ? party.notificationRoutes
+                    .filter((route) =>
+                      this.isCompatibleRoute(party.contactId, route),
+                    )
+                    .map((route) => ({
+                      channel: route.channel,
+                      contactPointId: route.contactPointId,
+                      isEnabled: route.isEnabled,
+                    }))
+                : [],
+          }),
+        );
+        await this.syncParties(tx, renewed.id, tenantId, parties);
+
+        if (source.obligations.length) {
+          await tx.rentalObligation.createMany({
+            data: source.obligations.map((obligation) => ({
+              tenantId,
+              contractId: renewed.id,
+              conceptId: obligation.conceptId,
+              kind: obligation.kind,
+              recurrenceMonths: obligation.recurrenceMonths,
+              dueDay: obligation.dueDay,
+              amountMode: obligation.amountMode,
+              defaultAmount: obligation.defaultAmount,
+              currency: obligation.currency,
+              startsOn,
+              endsOn: null,
+              isActive: true,
+            })),
+          });
+        }
+
+        return {
+          outcome: 'CREATED',
+          contract: await tx.rentalContract.findUniqueOrThrow({
+            where: { id: renewed.id },
+            include: rentalContractInclude,
+          }),
+        } as const;
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+    );
   }
 
   propertyBelongsToTenant(propertyId: string, tenantId: string) {
@@ -121,7 +302,14 @@ export class RentalContractRepository {
         id,
         tenantId,
         status: RentalContractStatus.DRAFT,
-        parties: { some: { role: 'RENTER', contact: { isActive: true } } },
+        endsOn: { not: null },
+        parties: {
+          some: {
+            role: 'RENTER',
+            isPrimary: true,
+            contact: { isActive: true },
+          },
+        },
         obligations: {
           some: { isActive: true, concept: { systemCode: 'RENT' } },
         },
@@ -185,35 +373,158 @@ export class RentalContractRepository {
     });
   }
 
-  private async replaceParties(
+  private async allocateInternalNumber(
+    tx: Prisma.TransactionClient,
+    tenantId: string,
+  ): Promise<string> {
+    const sequence = await tx.rentalContractSequence.upsert({
+      where: { tenantId },
+      create: { tenantId, lastValue: 1 },
+      update: { lastValue: { increment: 1 } },
+    });
+    if (sequence.lastValue > 999_999) {
+      throw new Error('Rental contract number sequence exhausted');
+    }
+    return `ALQ-${String(sequence.lastValue).padStart(6, '0')}`;
+  }
+
+  private async syncParties(
     tx: Prisma.TransactionClient,
     contractId: string,
     tenantId: string,
     parties: RentalContractPartyInputDto[],
   ) {
-    await tx.rentalContractParty.deleteMany({
+    const existing = await tx.rentalContractParty.findMany({
       where: { contractId, tenantId },
+      include: { notificationRoutes: true },
     });
-    for (const input of parties) {
-      const party = await tx.rentalContractParty.create({
-        data: {
-          tenantId,
-          contractId,
-          contactId: input.contactId,
-          role: input.role,
-        },
+    const desiredKeys = new Set(
+      parties.map((party) => `${party.role}:${party.contactId}`),
+    );
+    const removedIds = existing
+      .filter((party) => !desiredKeys.has(`${party.role}:${party.contactId}`))
+      .map((party) => party.id);
+    if (removedIds.length) {
+      await tx.rentalContractParty.deleteMany({
+        where: { id: { in: removedIds }, contractId, tenantId },
       });
-      if (input.notificationRoutes?.length) {
-        await tx.rentalContractNotificationRoute.createMany({
-          data: input.notificationRoutes.map((route) => ({
+    }
+
+    const primaryContactId = parties.find(
+      (party) => party.role === 'RENTER' && party.isPrimary,
+    )?.contactId;
+    await tx.rentalContractParty.updateMany({
+      where: {
+        contractId,
+        tenantId,
+        role: 'RENTER',
+        isPrimary: true,
+        ...(primaryContactId ? { contactId: { not: primaryContactId } } : {}),
+      },
+      data: { isPrimary: false },
+    });
+
+    const existingByKey = new Map(
+      existing.map((party) => [`${party.role}:${party.contactId}`, party]),
+    );
+    for (const input of parties) {
+      const key = `${input.role}:${input.contactId}`;
+      const current = existingByKey.get(key);
+      const party = current
+        ? await tx.rentalContractParty.update({
+            where: { id: current.id },
+            data: { isPrimary: input.isPrimary ?? false },
+          })
+        : await tx.rentalContractParty.create({
+            data: {
+              tenantId,
+              contractId,
+              contactId: input.contactId,
+              role: input.role,
+              isPrimary: input.isPrimary ?? false,
+            },
+          });
+      await this.syncRoutes(
+        tx,
+        tenantId,
+        party.id,
+        current?.notificationRoutes ?? [],
+        input.notificationRoutes ?? [],
+      );
+    }
+  }
+
+  private async syncRoutes(
+    tx: Prisma.TransactionClient,
+    tenantId: string,
+    contractPartyId: string,
+    existing: Array<{
+      id: string;
+      channel: NotificationChannel;
+      contactPointId: string;
+      isEnabled: boolean;
+    }>,
+    desired: NonNullable<RentalContractPartyInputDto['notificationRoutes']>,
+  ) {
+    const desiredChannels = new Set(desired.map((route) => route.channel));
+    const removedIds = existing
+      .filter((route) => !desiredChannels.has(route.channel))
+      .map((route) => route.id);
+    if (removedIds.length) {
+      await tx.rentalContractNotificationRoute.deleteMany({
+        where: { id: { in: removedIds }, tenantId, contractPartyId },
+      });
+    }
+
+    const existingByChannel = new Map(
+      existing.map((route) => [route.channel, route]),
+    );
+    for (const route of desired) {
+      const current = existingByChannel.get(route.channel);
+      if (current) {
+        const isEnabled = route.isEnabled ?? true;
+        if (
+          current.contactPointId !== route.contactPointId ||
+          current.isEnabled !== isEnabled
+        ) {
+          await tx.rentalContractNotificationRoute.update({
+            where: { id: current.id },
+            data: { contactPointId: route.contactPointId, isEnabled },
+          });
+        }
+      } else {
+        await tx.rentalContractNotificationRoute.create({
+          data: {
             tenantId,
-            contractPartyId: party.id,
+            contractPartyId,
             channel: route.channel,
             contactPointId: route.contactPointId,
             isEnabled: route.isEnabled ?? true,
-          })),
+          },
         });
       }
     }
+  }
+
+  private isCompatibleRoute(
+    contactId: string,
+    route: {
+      channel: NotificationChannel;
+      contactPoint: {
+        contactId: string;
+        type: 'EMAIL' | 'PHONE';
+        isActive: boolean;
+        canReceiveSms: boolean;
+        canReceiveWhatsapp: boolean;
+      };
+    },
+  ): boolean {
+    const point = route.contactPoint;
+    if (!point.isActive || point.contactId !== contactId) return false;
+    if (route.channel === NotificationChannel.EMAIL)
+      return point.type === 'EMAIL';
+    if (route.channel === NotificationChannel.WHATSAPP)
+      return point.type === 'PHONE' && point.canReceiveWhatsapp;
+    return point.type === 'PHONE' && point.canReceiveSms;
   }
 }

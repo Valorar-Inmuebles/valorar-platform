@@ -2,7 +2,7 @@
 
 Versión: V1.1
 
-Estado: **especificación funcional aprobada**. Las migraciones A, B y el refinamiento B.1 están implementados. El refactor posterior a B.1 está aprobado y pendiente de implementación. Migración C no fue iniciada.
+Estado: **implementación parcial**. A, B, B.1 y Rental V1.1 Fase 1 están implementados. Fase 2 y Migración C no fueron iniciadas.
 
 Diseño de datos canónico: `docs/03-database/rental-domain.md`.
 
@@ -16,7 +16,7 @@ Este documento separa estrictamente:
 
 `docs/03-database/current-schema.md` describe únicamente lo realmente migrado. Ninguna definición objetivo de este documento debe interpretarse como schema actual.
 
-## 2. Baseline implementado: A + B + B.1
+## 2. Baseline implementado: A + B + B.1 + Fase 1
 
 **IMPLEMENTADO**:
 
@@ -30,8 +30,13 @@ Este documento separa estrictamente:
 - `OVERDUE` derivado, no persistido;
 - activación condicionada a una obligación `RENT` activa;
 - aislamiento tenant, permisos Rental existentes y pantallas operativas actuales.
+- número interno `ALQ-000001` tenant-scoped, inmutable y buscable;
+- tipos canónicos de documento;
+- renter referente mediante `isPrimary` y edición diff/upsert de partes/rutas;
+- vigencia mínima de un mes calendario para activar;
+- renovación explícita con sucesor único y copia selectiva.
 
-B.1 no implementó referente principal, número de contrato, revisiones de valor, renovación, historial contractual unificado, inclusión selectiva en avisos, fechas manuales ni notificaciones globales.
+Permanecen pendientes las revisiones de valor, el historial contractual unificado, la inclusión selectiva en avisos, las fechas manuales y las notificaciones globales.
 
 ## 3. Objetivo V1.1
 
@@ -68,7 +73,7 @@ No se reabre un estado terminal.
 
 ### 4.2 Requisitos de activación
 
-**APROBADO / PENDIENTE** ampliar la validación de activación. Para pasar de `DRAFT` a `ACTIVE` se requiere:
+**IMPLEMENTADO en Fase 1**. Para pasar de `DRAFT` a `ACTIVE` se requiere:
 
 1. fecha de inicio;
 2. fecha final;
@@ -90,7 +95,7 @@ Alquileres temporarios inferiores a un mes: **DEFER**.
 
 ## 5. Identidad del contrato
 
-**APROBADO / PENDIENTE**: todo contrato tendrá un identificador visible con formato:
+**IMPLEMENTADO en Fase 1**: todo contrato tiene un identificador visible con formato:
 
 ```txt
 ALQ-000001
@@ -153,7 +158,7 @@ Datos funcionales:
 - múltiples emails;
 - múltiples teléfonos.
 
-**APROBADO / PENDIENTE** normalizar los tipos canónicos de documento:
+**IMPLEMENTADO en Fase 1** con los tipos canónicos de documento:
 
 - `DNI`;
 - `CUIT`;
@@ -171,14 +176,14 @@ Datos funcionales:
 
 **IMPLEMENTADO en B.1**: un contrato puede tener múltiples partes `RENTER` y múltiples partes `LANDLORD`. Los propietarios son opcionales.
 
-**APROBADO / PENDIENTE**:
+**IMPLEMENTADO en Fase 1**:
 
 - una parte `RENTER` puede marcarse `isPrimary`;
 - un contrato activo tiene exactamente un `RENTER` principal;
 - `isPrimary` significa referente administrativo;
 - ser principal no implica ser el único destinatario de avisos.
 
-La edición de partes y rutas deberá preservar IDs estables mediante diff/upsert transaccional. No se borrarán y recrearán relaciones o rutas que no cambiaron.
+La edición de partes y rutas preserva IDs estables mediante diff/upsert transaccional. No se borran y recrean relaciones o rutas que no cambiaron.
 
 ## 8. Alquiler
 
@@ -368,7 +373,7 @@ UX aprobada: tabla o lista filtrable, ordenable y paginada.
 
 ## 13. Renovación
 
-**APROBADO / PENDIENTE**: renovar crea un contrato nuevo relacionado. Nunca modifica ni reutiliza el anterior.
+**IMPLEMENTADO en Fase 1**: renovar crea un contrato nuevo relacionado. Nunca modifica ni reutiliza el anterior.
 
 Reglas:
 
@@ -377,7 +382,8 @@ Reglas:
 - la prevención de doble renovación debe ser concurrent-safe;
 - se permite renovar desde `ACTIVE` o `ENDED`;
 - no se permite desde `DRAFT` ni `CANCELLED`;
-- el nuevo contrato siempre comienza `DRAFT` y recibe un nuevo número.
+- el nuevo contrato siempre comienza `DRAFT` y recibe un nuevo número;
+- su inicio se precarga al día siguiente del fin del contrato anterior y su fecha final queda incompleta para edición.
 
 Se precarga como sugerencia:
 
@@ -429,11 +435,14 @@ Toda entidad funcional pertenece a un tenant. Toda referencia funcional se valid
 
 Se mantiene el comportamiento actual: `AGENT` opera dentro del tenant según sus permisos Rental. No se introduce todavía asignación o scoping de contratos por agente.
 
-Permisos **APROBADOS / PENDIENTES**, sin cambios RBAC en esta fase documental:
+Permiso **IMPLEMENTADO en Fase 1**:
+
+- `rental.contract.renew` para `SUPER_ADMIN`, `TENANT_ADMIN` y `MANAGER`.
+
+Permisos **APROBADOS / PENDIENTES**:
 
 - `rental.fulfillment.reverse`;
 - `rental.reminder.manage`;
-- `rental.contract.renew`;
 - evaluar `rental.concept.manage`.
 
 ## 16. Arquitectura de pantallas aprobada
@@ -464,19 +473,14 @@ Los mockups visuales existen externamente y se proporcionarán durante los gates
 - Migración A: contactos, puntos de contacto, conceptos, contrato y timezone.
 - Migración B: obligaciones, occurrences, fulfillment y reversión.
 - Refinamiento B.1: dirección estructurada, partes múltiples, rutas por persona/canal y documento libre opcional.
+- Rental V1.1 Fase 1: identidad contractual, documentos canónicos, renter principal, diff/upsert estable, vigencia reforzada y renovación.
 
-### 17.2 Aprobado pero pendiente después de B.1
+### 17.2 Aprobado pero pendiente después de Fase 1
 
-- invariantes completas de activación;
-- número correlativo tenant-scoped;
-- tipos canónicos de documento;
-- inquilino principal;
-- edición diff/upsert con IDs estables;
 - experiencia específica de alquiler y revisiones de valor;
 - presets de recurrencia y vencimiento manual por período;
 - flags de inclusión y visualización de importe;
 - historial contractual;
-- renovación;
 - notificaciones internas globales;
 - arquitectura de pantallas V1.1;
 - permisos pendientes.

@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import {
   NotificationChannel,
+  Prisma,
   RentalContractPartyRole,
   RentalContractStatus,
 } from '../../../../generated/prisma/client';
@@ -17,6 +18,7 @@ import { RentalContractResponseDto } from '../dto/rental-contract-response.dto';
 import { UpdateRentalContractDto } from '../dto/update-rental-contract.dto';
 import { RentalContractRepository } from '../repositories/rental-contract.repository';
 import { localDateForTimeZone } from '../../rental-obligation/utils/rental-occurrence-materializer';
+import { hasMinimumCalendarMonth } from '../utils/rental-contract-term';
 
 @Injectable()
 export class RentalContractService {
@@ -48,10 +50,18 @@ export class RentalContractService {
     return RentalContractResponseDto.fromEntity(contract);
   }
 
-  async findAll(tenantId: string, status?: RentalContractStatus) {
-    return (await this.repository.findMany(tenantId, status)).map((contract) =>
-      RentalContractResponseDto.fromEntity(contract),
-    );
+  async findAll(
+    tenantId: string,
+    status?: RentalContractStatus,
+    search?: string,
+  ) {
+    return (
+      await this.repository.findMany(
+        tenantId,
+        status,
+        search?.trim() || undefined,
+      )
+    ).map((contract) => RentalContractResponseDto.fromEntity(contract));
   }
 
   async findOne(id: string, tenantId: string) {
@@ -68,17 +78,6 @@ export class RentalContractService {
     )
       throw new ConflictException('Terminal rental contracts cannot be edited');
     await this.assertReferences(tenantId, dto);
-    if (
-      existing.status === RentalContractStatus.ACTIVE &&
-      dto.parties &&
-      !dto.parties.some(
-        (party) => party.role === RentalContractPartyRole.RENTER,
-      )
-    ) {
-      throw new BadRequestException(
-        'At least one renter is required on an active rental contract',
-      );
-    }
     const startsOn = dto.startsOn
       ? this.parseDate(dto.startsOn, 'startsOn')
       : existing.startsOn;
@@ -87,6 +86,11 @@ export class RentalContractService {
         ? this.parseOptionalDate(dto.endsOn, 'endsOn')
         : existing.endsOn;
     this.assertDateRange(startsOn, endsOn);
+    if (existing.status === RentalContractStatus.ACTIVE) {
+      const parties = dto.parties ?? existing.parties;
+      this.assertActiveTerm(startsOn, endsOn);
+      this.assertActiveParties(parties);
+    }
     const updated = await this.repository.update(
       id,
       tenantId,
@@ -106,6 +110,50 @@ export class RentalContractService {
     if (!updated)
       throw new NotFoundException(`Rental contract with id "${id}" not found`);
     return RentalContractResponseDto.fromEntity(updated);
+  }
+
+  async renew(id: string, tenantId: string, createdById: string | null) {
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      try {
+        const result = await this.repository.renew(id, tenantId, createdById);
+        if (result.outcome === 'NOT_FOUND')
+          throw new NotFoundException(
+            `Rental contract with id "${id}" not found`,
+          );
+        if (result.outcome === 'INVALID_STATUS')
+          throw new ConflictException(
+            `Rental contract cannot be renewed from ${result.status}`,
+          );
+        if (result.outcome === 'ALREADY_RENEWED')
+          throw new ConflictException(
+            `Rental contract already renewed as ${result.contract.internalNumber}`,
+          );
+        return RentalContractResponseDto.fromEntity(result.contract);
+      } catch (error) {
+        if (
+          error instanceof Prisma.PrismaClientKnownRequestError &&
+          error.code === 'P2034' &&
+          attempt === 0
+        ) {
+          continue;
+        }
+        if (
+          error instanceof Prisma.PrismaClientKnownRequestError &&
+          (error.code === 'P2002' || error.code === 'P2034')
+        ) {
+          const existing = await this.repository.findRenewalByPrevious(
+            id,
+            tenantId,
+          );
+          if (existing)
+            throw new ConflictException(
+              `Rental contract already renewed as ${existing.internalNumber}`,
+            );
+        }
+        throw error;
+      }
+    }
+    throw new ConflictException('Rental contract renewal conflicted');
   }
 
   activate(id: string, tenantId: string) {
@@ -143,16 +191,8 @@ export class RentalContractService {
         `Rental contract cannot transition from ${existing.status} to ${target}`,
       );
     if (target === RentalContractStatus.ACTIVE) {
-      if (
-        !existing.parties.some(
-          (party) =>
-            party.role === RentalContractPartyRole.RENTER &&
-            party.contact.isActive,
-        )
-      )
-        throw new BadRequestException(
-          'At least one active renter is required to activate a rental contract',
-        );
+      this.assertActiveTerm(existing.startsOn, existing.endsOn);
+      this.assertActiveParties(existing.parties);
       if (
         existing.propertyId &&
         !(await this.repository.propertyBelongsToTenant(
@@ -212,6 +252,7 @@ export class RentalContractService {
     parties: RentalContractPartyInputDto[],
   ) {
     const partyKeys = new Set<string>();
+    let primaryRenters = 0;
     for (const party of parties) {
       const key = `${party.role}:${party.contactId}`;
       if (partyKeys.has(key))
@@ -219,6 +260,13 @@ export class RentalContractService {
           'A contact cannot repeat in the same contract role',
         );
       partyKeys.add(key);
+      if (party.isPrimary) {
+        if (party.role !== RentalContractPartyRole.RENTER)
+          throw new BadRequestException(
+            'Only a renter can be the primary contract party',
+          );
+        primaryRenters += 1;
+      }
       const channels = new Set<NotificationChannel>();
       for (const route of party.notificationRoutes ?? []) {
         if (channels.has(route.channel))
@@ -228,6 +276,10 @@ export class RentalContractService {
         channels.add(route.channel);
       }
     }
+    if (primaryRenters > 1)
+      throw new BadRequestException(
+        'Only one primary renter is allowed per rental contract',
+      );
     const ids = [...new Set(parties.map((party) => party.contactId))];
     const contacts = await this.repository.contactsByIds(ids, tenantId);
     if (contacts.length !== ids.length)
@@ -330,8 +382,40 @@ export class RentalContractService {
     return value ? this.parseDate(value, field) : null;
   }
   private assertDateRange(startsOn: Date, endsOn: Date | null) {
-    if (endsOn && endsOn < startsOn)
-      throw new BadRequestException('endsOn must not be before startsOn');
+    if (endsOn && endsOn <= startsOn)
+      throw new BadRequestException('endsOn must be after startsOn');
+  }
+  private assertActiveTerm(startsOn: Date, endsOn: Date | null) {
+    if (!endsOn)
+      throw new BadRequestException(
+        'endsOn is required to activate a rental contract',
+      );
+    this.assertDateRange(startsOn, endsOn);
+    if (!hasMinimumCalendarMonth(startsOn, endsOn))
+      throw new BadRequestException(
+        'A rental contract must last at least one calendar month',
+      );
+  }
+  private assertActiveParties(
+    parties: Array<{
+      role: RentalContractPartyRole;
+      isPrimary?: boolean;
+      contact?: { isActive: boolean };
+    }>,
+  ) {
+    const renters = parties.filter(
+      (party) =>
+        party.role === RentalContractPartyRole.RENTER &&
+        (party.contact?.isActive ?? true),
+    );
+    if (renters.length === 0)
+      throw new BadRequestException(
+        'At least one active renter is required to activate a rental contract',
+      );
+    if (renters.filter((party) => party.isPrimary).length !== 1)
+      throw new BadRequestException(
+        'Exactly one primary renter is required to activate a rental contract',
+      );
   }
   private normalizeOptionalText(
     value: string | null | undefined,

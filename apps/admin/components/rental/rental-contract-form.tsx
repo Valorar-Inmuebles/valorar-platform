@@ -165,11 +165,19 @@ export function RentalContractForm({
   };
 
   const saveParty = (party: RentalContractParty) =>
-    setParties((current) =>
-      party.id
-        ? current.map((item) => (item.id === party.id ? party : item))
-        : [...current, { ...party, id: `draft-${crypto.randomUUID()}` }],
-    );
+    setParties((current) => {
+      const nextParty =
+        party.role === "RENTER" &&
+        !current.some(
+          (item) =>
+            item.role === "RENTER" && item.isPrimary && item.id !== party.id,
+        )
+          ? { ...party, isPrimary: true }
+          : party;
+      return nextParty.id
+        ? current.map((item) => (item.id === nextParty.id ? nextParty : item))
+        : [...current, { ...nextParty, id: `draft-${crypto.randomUUID()}` }];
+    });
   const removeParty = (id?: string) =>
     setParties((current) => current.filter((item) => item.id !== id));
 
@@ -203,6 +211,7 @@ export function RentalContractForm({
       parties: parties.map((party) => ({
         contactId: party.contactId,
         role: party.role,
+        isPrimary: party.isPrimary,
         notificationRoutes: party.notificationRoutes.map(
           ({ channel, contactPointId, isEnabled }) => ({
             channel,
@@ -274,6 +283,11 @@ export function RentalContractForm({
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <p className="font-medium">{party.contact.name}</p>
+                    {party.isPrimary ? (
+                      <p className="text-xs font-medium text-indigo-700">
+                        Referente principal
+                      </p>
+                    ) : null}
                     <p className="text-xs text-zinc-500">
                       {party.contact.documentNumber
                         ? `${party.contact.documentType ?? "Documento"} ${party.contact.documentNumber}`
@@ -289,6 +303,24 @@ export function RentalContractForm({
                   </div>
                   {editable ? (
                     <div className="flex gap-1">
+                      {role === "RENTER" ? (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() =>
+                            setParties((current) =>
+                              current.map((item) => ({
+                                ...item,
+                                isPrimary:
+                                  item.role === "RENTER" &&
+                                  item.id === party.id,
+                              })),
+                            )
+                          }
+                        >
+                          Referente
+                        </Button>
+                      ) : null}
                       <Button
                         size="sm"
                         variant="ghost"

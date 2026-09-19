@@ -25,6 +25,13 @@ export function listRentalContracts(status?: RentalContractStatus) {
   });
 }
 
+export function renewRentalContract(id: string) {
+  return apiFetch<RentalContract>(`/rental-contracts/${id}/renew`, {
+    method: "POST",
+    cache: "no-store",
+  });
+}
+
 export function listRentalObligations(contractId: string) {
   return apiFetch<RentalObligation[]>(
     `/rental-obligations?contractId=${encodeURIComponent(contractId)}`,

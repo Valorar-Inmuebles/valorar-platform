@@ -20,6 +20,7 @@ export const PERMISSIONS = [
   'rental.contract.create',
   'rental.contract.update',
   'rental.contract.end',
+  'rental.contract.renew',
   'rental.contact.manage',
   'rental.obligation.manage',
   'rental.fulfillment.manage',

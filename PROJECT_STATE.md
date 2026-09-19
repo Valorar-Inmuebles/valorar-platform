@@ -19,7 +19,7 @@ Plataforma SaaS inmobiliaria multi-tenant orientada a:
 
 **Rental Management V1 — Migraciones A+B + refinamiento B.1** ✅ (baseline consolidado y versionado)
 
-**Rental Management V1.1 — refactor funcional aprobado** 📋 (pendiente de implementación; Migración C no iniciada)
+**Rental Management V1.1 — Fase 1 identidad, partes estables y renovación** ✅ (Fase 2 y Migración C no iniciadas)
 
 Documentación: `docs/04-modules/rental-management-v1.md`, `docs/03-database/rental-domain.md`
 
@@ -275,6 +275,18 @@ Documentación: `docs/04-modules/rental-management-v1.md`, `docs/03-database/ren
 * API, aislamiento tenant y formularios admin actualizados. Migración C permanece pendiente.
 
 Documentación: `docs/04-modules/rental-management-v1.md`, `docs/03-database/rental-domain.md`.
+
+### Rental Management V1.1 — Fase 1 ✅
+
+* Migración `202609190001_rental_contract_identity_renewal_v1_1`: número interno tenant-scoped, secuencia atómica, documento canónico, renter primary y autorrelación de renovación.
+* Backfills determinísticos de `ALQ-000001` y primary por `createdAt ASC, id ASC`, preservando IDs contractuales.
+* Edición transaccional diff/upsert que preserva IDs de partes y rutas compatibles.
+* Activación con fecha final, duración mínima de un mes calendario, exactamente un renter primary y obligación `RENT` activa.
+* Endpoint `POST /rental-contracts/:id/renew`, sucesor único concurrent-safe y copia selectiva sin occurrences, fulfillments ni obligaciones puntuales.
+* RBAC `rental.contract.renew` para super admin, tenant admin y manager.
+* Fase 2 y Migración C permanecen pendientes.
+
+Documentación: `docs/04-modules/rental-management-v1.md`, `docs/03-database/rental-domain.md`, `docs/03-database/current-schema.md`.
 
 ### Lead Domain v1 (documentado)
 

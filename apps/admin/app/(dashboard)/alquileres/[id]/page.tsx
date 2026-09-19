@@ -50,12 +50,12 @@ export default async function AlquilerDetallePage({
       ]);
     return (
       <PageShell
-        title="Contrato de alquiler"
+        title={`Contrato ${contract.internalNumber}`}
         description={`Estado: ${{ DRAFT: "Borrador", ACTIVE: "Activo", ENDED: "Finalizado", CANCELLED: "Cancelado" }[contract.status]}`}
         breadcrumbs={[
           { label: "Inicio", href: "/" },
           { label: "Alquileres", href: "/alquileres" },
-          { label: contract.propertyAddressSnapshot },
+          { label: contract.internalNumber },
         ]}
       >
         <div className="space-y-6">

@@ -44,6 +44,7 @@ model Tenant {
   contactPoints                         ContactPoint[]
   rentalConcepts                        RentalConcept[]
   rentalContracts                       RentalContract[]
+  rentalContractSequence                RentalContractSequence?
   rentalContractParties                 RentalContractParty[]
   rentalContractNotificationRoutes      RentalContractNotificationRoute[]
   rentalObligations                     RentalObligation[]
@@ -764,6 +765,13 @@ enum ContactPointType {
   PHONE
 }
 
+enum ContactDocumentType {
+  DNI
+  CUIT
+  CUIL
+  PASSPORT
+}
+
 enum RentalConceptSystemCode {
   RENT
   EXPENSES
@@ -824,10 +832,10 @@ model Contact {
   tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   name           String
-  documentType   String?
+  documentType   ContactDocumentType?
   documentNumber String?
-  notes          String? @db.Text
-  isActive       Boolean @default(true)
+  notes          String?              @db.Text
+  isActive       Boolean              @default(true)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -916,6 +924,12 @@ model RentalContract {
   createdById String?
   createdBy   User?   @relation("RentalContractCreator", fields: [createdById], references: [id], onDelete: SetNull)
 
+  internalNumber String
+
+  previousContractId String?
+  previousContract   RentalContract? @relation("RentalContractRenewal", fields: [tenantId, previousContractId], references: [tenantId, id], onDelete: Restrict)
+  renewedContract    RentalContract? @relation("RentalContractRenewal")
+
   propertyAddressSnapshot      String
   propertyCountrySnapshot      String?
   propertyProvinceSnapshot     String?
@@ -939,6 +953,9 @@ model RentalContract {
   obligations RentalObligation[]
   parties     RentalContractParty[]
 
+  @@unique([tenantId, id])
+  @@unique([tenantId, internalNumber])
+  @@unique([tenantId, previousContractId])
   @@index([tenantId, status])
   @@index([tenantId, propertyId])
   @@index([propertyCountryId])
@@ -946,6 +963,14 @@ model RentalContract {
   @@index([propertyLocalityId])
   @@index([propertyNeighborhoodId])
   @@index([tenantId, endsOn])
+}
+
+model RentalContractSequence {
+  tenantId String @id
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  lastValue Int      @default(0)
+  updatedAt DateTime @updatedAt
 }
 
 model RentalContractParty {
@@ -960,7 +985,8 @@ model RentalContractParty {
   contactId String
   contact   Contact @relation(fields: [contactId], references: [id], onDelete: Restrict)
 
-  role RentalContractPartyRole
+  role      RentalContractPartyRole
+  isPrimary Boolean                 @default(false)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

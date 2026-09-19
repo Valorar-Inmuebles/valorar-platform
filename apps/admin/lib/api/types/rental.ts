@@ -1,4 +1,5 @@
 export type ContactPointType = "EMAIL" | "PHONE";
+export type ContactDocumentType = "DNI" | "CUIT" | "CUIL" | "PASSPORT";
 
 export type RentalContactPoint = {
   id: string;
@@ -19,7 +20,7 @@ export type RentalContact = {
   id: string;
   tenantId: string;
   name: string;
-  documentType: string | null;
+  documentType: ContactDocumentType | null;
   documentNumber: string | null;
   notes: string | null;
   isActive: boolean;
@@ -44,7 +45,7 @@ export type UpdateRentalContactPointPayload = Partial<
 
 export type CreateRentalContactPayload = {
   name: string;
-  documentType?: string;
+  documentType?: ContactDocumentType;
   documentNumber?: string;
   notes?: string;
   isActive?: boolean;
@@ -70,12 +71,14 @@ export type RentalContractParty = {
   id?: string;
   contactId: string;
   role: RentalContractPartyRole;
+  isPrimary: boolean;
   contact: RentalContact;
   notificationRoutes: RentalContractNotificationRoute[];
 };
 
 export type RentalContract = {
   id: string;
+  internalNumber: string;
   tenantId: string;
   propertyId: string | null;
   property: {
@@ -105,8 +108,16 @@ export type RentalContract = {
   status: RentalContractStatus;
   notes: string | null;
   parties: RentalContractParty[];
+  previousContract: RentalContractRelationSummary | null;
+  renewedContract: RentalContractRelationSummary | null;
   createdAt: string;
   updatedAt: string;
+};
+
+export type RentalContractRelationSummary = {
+  id: string;
+  internalNumber: string;
+  status: RentalContractStatus;
 };
 
 export type CreateRentalContractPayload = {
@@ -131,6 +142,7 @@ export type CreateRentalContractPayload = {
   parties?: Array<{
     contactId: string;
     role: RentalContractPartyRole;
+    isPrimary?: boolean;
     notificationRoutes?: Array<{
       channel: NotificationChannel;
       contactPointId: string;

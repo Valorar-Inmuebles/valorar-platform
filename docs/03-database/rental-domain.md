@@ -2,7 +2,7 @@
 
 Versión: V1.1
 
-Estado: **diseño objetivo aprobado**. A, B y B.1 están implementados. Los cambios V1.1 posteriores a B.1 están pendientes. Migración C no fue iniciada.
+Estado: **implementación parcial**. A, B, B.1 y Rental V1.1 Fase 1 están implementados. Fase 2 y Migración C no fueron iniciadas.
 
 Reglas funcionales canónicas: `docs/04-modules/rental-management-v1.md`.
 
@@ -51,6 +51,18 @@ Este documento describe tanto el baseline como el objetivo. `docs/03-database/cu
 
 B.1 persiste configuración de rutas, pero no envía comunicaciones.
 
+### Rental V1.1 — Fase 1
+
+**IMPLEMENTADO**:
+
+- `RentalContractSequence` y `RentalContract.internalNumber`;
+- autorrelación de renovación mediante `previousContractId`;
+- `RentalContractParty.isPrimary`;
+- `ContactDocumentType` canónico;
+- activación con fin obligatorio, mes calendario mínimo y renter primary;
+- diff/upsert estable de partes y rutas;
+- renovación transaccional y sucesor único.
+
 ## 3. Modelo objetivo V1.1
 
 ```txt
@@ -72,7 +84,7 @@ Tenant
 └── Notification[] ── User recipient
 ```
 
-Los nodos `RentalContractSequence`, `RentalRentValueRevision`, `RentalContractEvent`, `Notification` y las nuevas columnas V1.1 están **APROBADOS / PENDIENTES**.
+`RentalContractSequence`, `previousContractId` e `isPrimary` están **IMPLEMENTADOS en Fase 1**. `RentalRentValueRevision`, `RentalContractEvent`, `Notification` y las columnas de fases posteriores siguen **APROBADOS / PENDIENTES**.
 
 ## 4. Contact
 
@@ -82,20 +94,20 @@ Identidad de una persona externa dentro del tenant. No representa a un usuario d
 
 **IMPLEMENTADO**:
 
-| Campo            | Regla          |
-| ---------------- | -------------- |
-| `tenantId`       | Obligatorio    |
-| `name`           | Obligatorio    |
-| `documentType`   | Texto opcional |
-| `documentNumber` | Texto opcional |
-| `notes`          | Opcional       |
-| `isActive`       | Baja lógica    |
+| Campo            | Regla                          |
+| ---------------- | ------------------------------ |
+| `tenantId`       | Obligatorio                    |
+| `name`           | Obligatorio                    |
+| `documentType`   | `ContactDocumentType` opcional |
+| `documentNumber` | Texto opcional                 |
+| `notes`          | Opcional                       |
+| `isActive`       | Baja lógica                    |
 
 No existe unicidad global de documento.
 
-### Objetivo V1.1
+### Tipos canónicos
 
-**APROBADO / PENDIENTE**: `documentType` utilizará valores canónicos:
+**IMPLEMENTADO en Fase 1**: `documentType` utiliza valores canónicos:
 
 ```txt
 DNI
@@ -151,35 +163,34 @@ La dirección contractual es independiente de `Property` y constituye la fuente 
 
 ### 7.2 Identidad correlativa
 
-**APROBADO / PENDIENTE** agregar:
+**IMPLEMENTADO en Fase 1**:
 
 | Campo            | Tipo conceptual | Regla                                      |
 | ---------------- | --------------- | ------------------------------------------ |
-| `sequenceNumber` | Int             | Correlativo inmutable por tenant           |
-| `contractNumber` | String          | Formato `ALQ-000001`, inmutable y buscable |
+| `internalNumber` | String          | Formato `ALQ-000001`, inmutable y buscable |
 
 Constraints mínimos:
 
-- `UNIQUE (tenantId, sequenceNumber)`;
-- `UNIQUE (tenantId, contractNumber)`;
-- `sequenceNumber > 0`;
+- `UNIQUE (tenantId, internalNumber)`;
+- formato DB `ALQ-` + seis dígitos;
+- trigger DB que impide modificarlo;
 - el valor no se reutiliza después de cancelaciones o borrados administrativos.
 
 ### 7.3 Renovación
 
-**APROBADO / PENDIENTE** agregar una autorrelación opcional:
+**IMPLEMENTADO en Fase 1** mediante autorrelación opcional:
 
 | Campo                | Regla                              |
 | -------------------- | ---------------------------------- |
 | `previousContractId` | Contrato anterior del mismo tenant |
 
-`previousContractId` será único para impedir más de un sucesor directo. La creación del sucesor y el reclamo de esa relación se realizan en una única transacción concurrent-safe.
+`previousContractId` es único por tenant para impedir más de un sucesor directo. La creación del sucesor y el reclamo de esa relación se realizan en una única transacción concurrent-safe.
 
-La renovación sólo parte de `ACTIVE` o `ENDED`; el sucesor siempre nace `DRAFT` y obtiene un nuevo número.
+La renovación sólo parte de `ACTIVE` o `ENDED`; el sucesor siempre nace `DRAFT`, obtiene un nuevo número, comienza el día siguiente al fin del contrato anterior y deja `endsOn` incompleto para edición.
 
 ### 7.4 Activación objetivo
 
-**APROBADO / PENDIENTE**: la transición a `ACTIVE` valida atómicamente:
+**IMPLEMENTADO en Fase 1**: la transición a `ACTIVE` valida:
 
 - `startsOn` y `endsOn` presentes;
 - `endsOn > startsOn`;
@@ -192,7 +203,7 @@ El estado `DRAFT` puede permanecer incompleto.
 
 ## 8. RentalContractSequence
 
-**APROBADO / PENDIENTE**: secuencia tenant-scoped para numeración contractual.
+**IMPLEMENTADO en Fase 1**: secuencia tenant-scoped para numeración contractual.
 
 | Campo       | Tipo conceptual | Regla                        |
 | ----------- | --------------- | ---------------------------- |
@@ -205,8 +216,8 @@ Algoritmo concurrent-safe:
 1. iniciar la transacción de creación;
 2. crear la fila del tenant si todavía no existe mediante upsert seguro;
 3. ejecutar un incremento atómico de `lastValue` y obtener el valor resultante;
-4. derivar `contractNumber` con padding de seis dígitos;
-5. insertar el contrato con ambas constraints únicas;
+4. derivar `internalNumber` con padding de seis dígitos;
+5. insertar el contrato protegido por la constraint única tenant-scoped;
 6. confirmar la transacción.
 
 No se usa `COUNT(*) + 1`, `MAX(...) + 1` sin bloqueo ni cálculo en memoria. Un valor reservado no se reasigna; se priorizan unicidad y no reutilización sobre una secuencia sin huecos.
@@ -226,9 +237,9 @@ No se usa `COUNT(*) + 1`, `MAX(...) + 1` sin bloqueo ni cálculo en memoria. Un 
 
 La combinación `(contractId, contactId, role)` es única. Puede haber múltiples contactos por rol. Los propietarios son opcionales.
 
-### Objetivo V1.1
+### Referente administrativo
 
-**APROBADO / PENDIENTE** agregar:
+**IMPLEMENTADO en Fase 1**:
 
 | Campo       | Tipo conceptual | Regla                                   |
 | ----------- | --------------- | --------------------------------------- |
@@ -242,7 +253,7 @@ Constraints:
 
 `isPrimary` identifica al referente administrativo, no al único destinatario de avisos.
 
-La edición se implementará por diff/upsert:
+La edición se implementa por diff/upsert:
 
 - conservar filas e IDs sin cambios;
 - actualizar sólo atributos modificados;
@@ -268,9 +279,9 @@ La combinación `(contractPartyId, channel)` es única. El punto seleccionado de
 
 La ruta expresa `Contrato + Persona + Canal`; nunca una preferencia global de `Contact`.
 
-### Objetivo V1.1
+### Edición estable
 
-**APROBADO / PENDIENTE** reemplazar la recreación masiva durante edición por diff/upsert para preservar IDs estables y auditoría futura.
+**IMPLEMENTADO en Fase 1**: la edición usa diff/upsert para preservar IDs estables y rutas sin cambios.
 
 Varias rutas pueden estar habilitadas simultáneamente. Ser parte primaria no modifica automáticamente las rutas.
 
@@ -482,6 +493,12 @@ ContactPointType
   EMAIL
   PHONE
 
+ContactDocumentType
+  DNI
+  CUIT
+  CUIL
+  PASSPORT
+
 RentalContractPartyRole
   RENTER
   LANDLORD
@@ -518,12 +535,6 @@ RentalFulfillmentStatus
 ### Aprobados / pendientes
 
 ```txt
-ContactDocumentType
-  DNI
-  CUIT
-  CUIL
-  PASSPORT
-
 RentalDueMode
   FIXED_DAY
   MANUAL_PER_PERIOD
@@ -565,9 +576,8 @@ Además de los índices implementados, el diseño objetivo requiere:
 
 | Propósito                  | Restricción/índice                                            |
 | -------------------------- | ------------------------------------------------------------- |
-| Número secuencial          | `UNIQUE (tenantId, sequenceNumber)`                           |
-| Código visible             | `UNIQUE (tenantId, contractNumber)`                           |
-| Un sucesor directo         | `UNIQUE (previousContractId)` cuando no sea null              |
+| Código visible             | `UNIQUE (tenantId, internalNumber)`                           |
+| Un sucesor directo         | `UNIQUE (tenantId, previousContractId)` cuando no sea null    |
 | Parte no duplicada         | `UNIQUE (contractId, contactId, role)`                        |
 | Máximo un renter principal | único parcial por contrato para `role = RENTER AND isPrimary` |
 | Ruta por canal             | `UNIQUE (contractPartyId, channel)`                           |
@@ -577,35 +587,37 @@ Además de los índices implementados, el diseño objetivo requiere:
 
 La regla “exactamente un renter principal” para contratos activos necesita además validación transaccional, porque un índice parcial sólo garantiza el máximo.
 
-## 22. Backfills aprobados
+## 22. Backfills
 
-Cuando se implemente el refactor V1.1:
+**IMPLEMENTADOS en Fase 1**:
 
-- numerar contratos existentes por tenant con un orden determinístico documentado;
-- inicializar la secuencia de cada tenant por encima del mayor valor asignado;
-- elegir o requerir confirmación del referente principal sin inventar datos ambiguos;
-- normalizar tipos de documento sólo cuando el valor existente sea inequívoco;
+- contratos numerados por tenant según `createdAt ASC, id ASC`;
+- secuencia de cada tenant inicializada en el máximo asignado;
+- renter más antiguo por `createdAt ASC, id ASC` marcado primary;
+- tipos documentales compatibles convertidos al enum canónico;
+- IDs existentes de partes y rutas preservados;
+- occurrences cumplidas o canceladas sin modificaciones.
+
+**APROBADOS / PENDIENTES para fases posteriores**:
+
 - crear la revisión inicial de `RENT` desde el valor vigente preservando moneda;
 - configurar `RENT` con `includeInNotice = true` y `showAmount = true`;
-- configurar las demás obligaciones con ambos flags en `false`;
-- conservar IDs existentes de partes y rutas;
-- no tocar occurrences cumplidas o canceladas.
+- configurar las demás obligaciones con ambos flags en `false`.
 
 Cada backfill deberá ser determinístico, reejecutable cuando corresponda y validado con consultas pre/post migración.
 
-## 23. Orden de implementación posterior a B.1
+## 23. Estado de implementación V1.1
 
 El orden exacto se resolverá en planes de implementación separados, respetando estas dependencias:
 
-1. invariantes contractuales, numeración, documento canónico y referente principal;
-2. edición estable de partes y rutas;
-3. experiencia `RENT`, revisiones y reglas de occurrences;
-4. obligaciones adicionales y flags de aviso;
-5. historial y renovación;
-6. notificaciones internas globales;
-7. Migración C de ejecución de comunicaciones.
+1. **Fase 1 implementada**: invariantes contractuales, numeración, documento canónico, referente principal, edición estable y renovación;
+2. experiencia `RENT`, revisiones y reglas de occurrences;
+3. obligaciones adicionales y flags de aviso;
+4. historial contractual;
+5. notificaciones internas globales;
+6. Migración C de ejecución de comunicaciones.
 
-Ninguno de estos puntos está implementado por la sola existencia de esta documentación.
+Los puntos 2 a 6 no están implementados por la sola existencia de esta documentación.
 
 ## 24. Decisiones diferidas
 

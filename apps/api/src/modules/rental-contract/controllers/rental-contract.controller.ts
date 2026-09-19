@@ -38,7 +38,7 @@ export class RentalContractController {
     @CurrentTenant() tenantId: string,
     @Query() query: ListRentalContractsQueryDto,
   ) {
-    return this.service.findAll(tenantId, query.status);
+    return this.service.findAll(tenantId, query.status, query.search);
   }
 
   @Get(':id')
@@ -76,6 +76,18 @@ export class RentalContractController {
   @ApiOkResponse({ type: RentalContractResponseDto })
   activate(@Param('id') id: string, @CurrentTenant() tenantId: string) {
     return this.service.activate(id, tenantId);
+  }
+
+  @Post(':id/renew')
+  @RequirePermissions('rental.contract.renew')
+  @ApiCreatedResponse({ type: RentalContractResponseDto })
+  renew(
+    @Param('id') id: string,
+    @CurrentTenant() tenantId: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    const createdById = user.role === UserRole.SUPER_ADMIN ? null : user.id;
+    return this.service.renew(id, tenantId, createdById);
   }
 
   @Post(':id/end')

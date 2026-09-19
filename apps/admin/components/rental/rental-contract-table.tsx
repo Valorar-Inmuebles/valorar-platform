@@ -28,6 +28,7 @@ export function RentalContractTable({
           <table className="min-w-full text-sm">
             <thead>
               <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted">
+                <th className="px-4 py-3 font-medium">Número</th>
                 <th className="px-4 py-3 font-medium">Inmueble</th>
                 <th className="px-4 py-3 font-medium">Inquilino</th>
                 <th className="px-4 py-3 font-medium">Vigencia</th>
@@ -40,6 +41,9 @@ export function RentalContractTable({
                   key={contract.id}
                   className="border-b border-border last:border-0 hover:bg-zinc-50/80"
                 >
+                  <td className="px-4 py-3 font-semibold text-foreground">
+                    {contract.internalNumber}
+                  </td>
                   <td className="px-4 py-3">
                     <Link
                       href={`/alquileres/${contract.id}`}

@@ -17,6 +17,7 @@ export class RentalContractPartyResponseDto {
   @ApiProperty() id: string;
   @ApiProperty() contactId: string;
   @ApiProperty({ enum: RentalContractPartyRole }) role: RentalContractPartyRole;
+  @ApiProperty() isPrimary: boolean;
   @ApiProperty() contact: RentalContractRecord['parties'][number]['contact'];
   @ApiProperty({
     type: RentalContractNotificationRouteResponseDto,
@@ -27,6 +28,7 @@ export class RentalContractPartyResponseDto {
 
 export class RentalContractResponseDto {
   @ApiProperty() id: string;
+  @ApiProperty({ example: 'ALQ-000001' }) internalNumber: string;
   @ApiProperty() tenantId: string;
   @ApiPropertyOptional({ nullable: true }) propertyId: string | null;
   @ApiPropertyOptional({ nullable: true })
@@ -69,6 +71,10 @@ export class RentalContractResponseDto {
   @ApiPropertyOptional({ nullable: true }) notes: string | null;
   @ApiProperty({ type: RentalContractPartyResponseDto, isArray: true })
   parties: RentalContractRecord['parties'];
+  @ApiPropertyOptional({ nullable: true })
+  previousContract: RentalContractRecord['previousContract'];
+  @ApiPropertyOptional({ nullable: true })
+  renewedContract: RentalContractRecord['renewedContract'];
   @ApiProperty() createdAt: Date;
   @ApiProperty() updatedAt: Date;
 

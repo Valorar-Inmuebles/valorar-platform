@@ -1,4 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ContactDocumentType } from '../../../../generated/prisma/client';
 import type { ContactRecord } from '../repositories/contact.repository';
 import { ContactPointResponseDto } from './contact-point.dto';
 
@@ -12,8 +13,8 @@ export class ContactResponseDto {
   @ApiProperty()
   name: string;
 
-  @ApiPropertyOptional({ nullable: true })
-  documentType: string | null;
+  @ApiPropertyOptional({ enum: ContactDocumentType, nullable: true })
+  documentType: ContactDocumentType | null;
 
   @ApiPropertyOptional({ nullable: true })
   documentNumber: string | null;
