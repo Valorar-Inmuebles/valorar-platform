@@ -17,7 +17,9 @@ Plataforma SaaS inmobiliaria multi-tenant orientada a:
 
 ## Foco actual del producto
 
-**Rental Management V1 — Migraciones A+B + refinamiento B.1** ✅ (dirección contractual, partes y rutas por persona; C pendiente)
+**Rental Management V1 — Migraciones A+B + refinamiento B.1** ✅ (baseline consolidado y versionado)
+
+**Rental Management V1.1 — refactor funcional aprobado** 📋 (pendiente de implementación; Migración C no iniciada)
 
 Documentación: `docs/04-modules/rental-management-v1.md`, `docs/03-database/rental-domain.md`
 

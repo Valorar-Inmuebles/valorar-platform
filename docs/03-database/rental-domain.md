@@ -1,417 +1,501 @@
-# Rental Management — Diseño de datos
+# Rental Management V1.1 — Diseño de datos
 
-Versión: V1 — Migraciones A, B y refinamiento correctivo B.1
+Versión: V1.1
 
-Estado: **Migraciones A y B implementadas; B.1 corrige dirección contractual, partes y rutas de contacto sin implementar comunicaciones; Migración C permanece pendiente**.
-
-## Refinamiento correctivo B.1
-
-`RentalContract` conserva una dirección administrativa independiente de `Property` mediante columnas estructuradas: referencias geo opcionales y snapshots de país, provincia, localidad, barrio, calle, número, piso, unidad y código postal. `propertyAddressSnapshot` permanece como resumen derivado para listados y compatibilidad. Elegir una propiedad precarga estos datos, pero las ediciones posteriores nunca escriben sobre `Property` ni se resincronizan automáticamente.
-
-Las partes dejan de representarse con `renterContactId` y `landlordContactId`. La fuente de verdad es `RentalContractParty`, con rol `RENTER` o `LANDLORD`, permitiendo varias personas por rol. Los registros existentes se migran antes de retirar las columnas singulares.
-
-`RentalContractNotificationRoute` guarda, por contrato y persona, la selección de un único `ContactPoint` por canal (`EMAIL`, `WHATSAPP`, `SMS`). Puede haber varios canales habilitados simultáneamente y una misma persona puede elegir puntos diferentes en contratos distintos. `ContactPoint.isDefault` es sólo la sugerencia inicial. B.1 no envía mensajes ni implementa reglas, planificación o entregas.
-
-`Contact` incorpora `documentType` y `documentNumber` opcionales, sin unicidad global ni inferencias de identidad.
+Estado: **diseño objetivo aprobado**. A, B y B.1 están implementados. Los cambios V1.1 posteriores a B.1 están pendientes. Migración C no fue iniciada.
 
 Reglas funcionales canónicas: `docs/04-modules/rental-management-v1.md`.
 
----
+## 1. Convención de estado
 
-## Propósito
+- **IMPLEMENTADO**: presente en el schema y migraciones actuales.
+- **APROBADO / PENDIENTE**: diseño objetivo cerrado, todavía sin schema ni migración.
+- **DEFER**: fuera de las próximas fases.
 
-Definir el modelo de datos mínimo para que una inmobiliaria pueda registrar un contrato de alquiler, materializar sus obligaciones por período, avisarlas y marcar su cumplimiento sin convertir Valorar en un sistema contable.
+Este documento describe tanto el baseline como el objetivo. `docs/03-database/current-schema.md` es la única descripción del schema efectivamente migrado y no debe anticipar modelos futuros.
 
-El flujo central es:
+## 2. Baseline implementado
 
-```txt
-RentalContract
-  → RentalObligation
-    → RentalObligationOccurrence
-      → RentalFulfillment
-      → RentalReminderDispatchOccurrence
-        → RentalReminderDispatch
-          → RentalReminderDelivery
-```
+### Migración A
 
-`Contact` y `ContactPoint` representan a las personas destinatarias. `RentalConcept` clasifica las obligaciones y `RentalReminderRule` define cuándo y por qué canales deben avisarse.
+**IMPLEMENTADO**:
 
----
+- `Contact`;
+- `ContactPoint`;
+- `RentalConcept`;
+- `RentalContract`;
+- `TenantSetting.timeZone`;
+- conceptos base tenant-scoped.
 
-## Límites con dominios existentes
+### Migración B
 
-- `Property` representa el inmueble físico. Un contrato puede referenciar una sola `Property` del mismo tenant.
-- `PropertyListing` y `PropertyPrice` describen la comercialización pública; nunca son la referencia contractual ni la fuente del importe de alquiler.
-- El contrato conserva además un snapshot textual obligatorio del inmueble para preservar contexto histórico aun si la `Property` cambia o se archiva.
-- `User` representa una identidad autenticada de la plataforma. Un inquilino o propietario se modela como `Contact`, aunque por evolución futura una misma persona pudiera tener también un `User`.
-- `Lead` sigue siendo inquiry-centric. La consolidación futura con `Contact` requerirá un diseño específico y no forma parte de esta fase.
-- `PropertyImage` no se reutiliza para contratos ni comprobantes.
+**IMPLEMENTADO**:
 
----
+- `RentalObligation`;
+- `RentalObligationOccurrence`;
+- `RentalFulfillment`;
+- materialización idempotente;
+- cumplimiento y reversión transaccionales;
+- `OVERDUE` derivado.
 
-## Entidades propuestas
+### Refinamiento B.1
 
-Todas las entidades funcionales de este documento llevan `tenantId`, incluso las tablas puente y los registros de auditoría operativa.
+**IMPLEMENTADO**:
 
-### Contact
+- dirección contractual estructurada con referencias geo opcionales y snapshots;
+- `RentalContractParty` con múltiples roles `RENTER` y `LANDLORD`;
+- `RentalContractNotificationRoute` por parte, canal y punto de contacto;
+- `Contact.documentType` y `Contact.documentNumber` opcionales;
+- backfill de las partes singulares previas;
+- retiro del modelo singular de partes.
 
-Persona o contraparte del tenant reutilizable por alquileres y por futuros dominios de clientes.
+B.1 persiste configuración de rutas, pero no envía comunicaciones.
 
-| Campo       | Tipo conceptual | Regla                                                               |
-| ----------- | --------------- | ------------------------------------------------------------------- |
-| `id`        | String          | `cuid`                                                              |
-| `tenantId`  | String          | Obligatorio                                                         |
-| `name`      | String          | Nombre visible obligatorio                                          |
-| `notes`     | String?         | Notas internas                                                      |
-| `isActive`  | Boolean         | Default `true`; se desactiva en lugar de eliminar si tiene historia |
-| `createdAt` | DateTime        | Auditoría                                                           |
-| `updatedAt` | DateTime        | Auditoría                                                           |
-
-Restricciones e índices propuestos:
-
-- Índices `[tenantId, name]` y `[tenantId, isActive]`.
-- No imponer unicidad por nombre, email o teléfono: los duplicados se gestionarán con una política de consolidación futura.
-- Un contacto referenciado históricamente no se elimina físicamente.
-
-### ContactPoint
-
-Medio de contacto perteneciente a un `Contact`.
-
-| Campo                | Tipo conceptual    | Regla                                                   |
-| -------------------- | ------------------ | ------------------------------------------------------- |
-| `id`                 | String             | `cuid`                                                  |
-| `tenantId`           | String             | Debe coincidir con el contacto                          |
-| `contactId`          | String             | FK a `Contact`                                          |
-| `type`               | `ContactPointType` | `EMAIL` o `PHONE`                                       |
-| `value`              | String             | Valor ingresado para visualización                      |
-| `normalizedValue`    | String             | Valor normalizado para comparación y envío              |
-| `label`              | String?            | Ej.: personal, trabajo                                  |
-| `isDefault`          | Boolean            | Default `false`; principal del tipo dentro del contacto |
-| `isActive`           | Boolean            | Default `true`; habilitación operativa                  |
-| `canReceiveSms`      | Boolean            | Default `false`; sólo válido para `PHONE`               |
-| `canReceiveWhatsapp` | Boolean            | Default `false`; sólo válido para `PHONE`               |
-| `createdAt`          | DateTime           | Auditoría                                               |
-| `updatedAt`          | DateTime           | Auditoría                                               |
-
-Reglas:
-
-- Como máximo un punto activo default por contacto y tipo. Se garantiza en Service mediante una transacción, siguiendo el patrón existente de precio principal e imagen de portada; V1 no requiere un índice único parcial manual.
-- `EMAIL` no admite capacidades SMS o WhatsApp.
-- WhatsApp y SMS son capacidades de un teléfono, no tipos de teléfono duplicados.
-- Índices `[tenantId, contactId]`, `[tenantId, type, normalizedValue]` y `[contactId, type, isDefault]`.
-- Las preferencias o restricciones legales por canal podrán extender este modelo; no se define un centro de consentimiento en V1.
-
-### RentalConcept
-
-Catálogo configurable por tenant para clasificar obligaciones.
-
-| Campo        | Tipo conceptual            | Regla                            |
-| ------------ | -------------------------- | -------------------------------- |
-| `id`         | String                     | `cuid`                           |
-| `tenantId`   | String                     | Obligatorio                      |
-| `systemCode` | `RentalConceptSystemCode`? | Presente sólo en conceptos base  |
-| `name`       | String                     | Nombre visible                   |
-| `slug`       | String                     | Identificador estable por tenant |
-| `isActive`   | Boolean                    | Desactivación lógica             |
-| `sortOrder`  | Int                        | Orden de UI                      |
-| `createdAt`  | DateTime                   | Auditoría                        |
-| `updatedAt`  | DateTime                   | Auditoría                        |
-
-Códigos base estables:
+## 3. Modelo objetivo V1.1
 
 ```txt
-RENT
-EXPENSES
-ELECTRICITY
-GAS
-ABL
-AYSA
-INSURANCE
+Tenant
+├── Contact
+│   └── ContactPoint
+├── RentalConcept
+├── RentalContractSequence
+├── RentalContract
+│   ├── Property? + dirección contractual histórica
+│   ├── RentalContractParty[] ── Contact
+│   │   └── RentalContractNotificationRoute[] ── ContactPoint
+│   ├── RentalObligation[] ── RentalConcept
+│   │   ├── RentalRentValueRevision[]
+│   │   └── RentalObligationOccurrence[]
+│   │       └── RentalFulfillment[]
+│   ├── RentalContractEvent[]
+│   └── previousContract? / renewedContract?
+└── Notification[] ── User recipient
 ```
 
-Restricciones:
+Los nodos `RentalContractSequence`, `RentalRentValueRevision`, `RentalContractEvent`, `Notification` y las nuevas columnas V1.1 están **APROBADOS / PENDIENTES**.
 
-- `@@unique([tenantId, slug])`.
-- `@@unique([tenantId, systemCode])`; PostgreSQL permite múltiples valores `null`.
-- `systemCode != null` identifica un concepto base; `systemCode == null` identifica uno personalizado. No se persiste un booleano `isSystem` redundante.
-- Los conceptos base conservan código y nombre en V1; el tenant puede activarlos o desactivarlos.
-- Un concepto ya utilizado se desactiva, no se elimina.
-- Los conceptos personalizados no usan `systemCode`.
+## 4. Contact
 
-Los conceptos base se crean mediante upsert idempotente por `[tenantId, systemCode]`: un backfill explícito cubre tenants existentes y el flujo transaccional de alta de tenant crea los siete defaults para tenants nuevos. No se utiliza catálogo global ni trigger PostgreSQL.
+Identidad de una persona externa dentro del tenant. No representa a un usuario del sistema.
 
-### RentalContract
+### Baseline
 
-Acuerdo operativo de alquiler. No reemplaza un documento legal ni representa una publicación.
+**IMPLEMENTADO**:
 
-| Campo                                  | Tipo conceptual       | Regla                                                  |
-| -------------------------------------- | --------------------- | ------------------------------------------------------ |
-| `id`                                   | String                | `cuid`                                                 |
-| `tenantId`                             | String                | Obligatorio                                            |
-| `propertyId`                           | String?               | Una `Property` opcional del mismo tenant               |
-| `propertyCountryId`                    | String?               | Referencia geo opcional                                |
-| `propertyProvinceId`                   | String?               | Referencia geo opcional                                |
-| `propertyLocalityId`                   | String?               | Referencia geo opcional                                |
-| `propertyNeighborhoodId`               | String?               | Referencia geo opcional                                |
-| `propertyAddressSnapshot`              | String                | Resumen derivado obligatorio                           |
-| `propertyCountrySnapshot`              | String?               | País histórico                                         |
-| `propertyProvinceSnapshot`             | String?               | Provincia histórica                                    |
-| `propertyLocalitySnapshot`             | String?               | Localidad histórica                                    |
-| `propertyNeighborhoodSnapshot`         | String?               | Barrio histórico                                       |
-| `propertyStreetSnapshot`               | String?               | Calle histórica; requerida por la API B.1 al crear     |
-| `propertyStreetNumberSnapshot`         | String?               | Número histórico                                       |
-| `propertyFloorSnapshot`                | String?               | Piso histórico                                         |
-| `propertyUnitSnapshot`                 | String?               | Unidad histórica                                       |
-| `propertyPostalCodeSnapshot`           | String?               | Código postal histórico                                |
-| `propertyNotesSnapshot`                | String?               | Aclaraciones de identificación                         |
-| `startsOn`                             | `DateTime @db.Date`   | Inicio contractual                                     |
-| `endsOn`                               | `DateTime? @db.Date`  | Fin contractual                                        |
-| `status`                               | `RentalContractStatus`| Default `DRAFT`; luego `ACTIVE`, `ENDED` o `CANCELLED` |
-| `notes`                                | String?               | Notas internas                                         |
-| `createdById`                          | String?               | Usuario responsable, si aplica                         |
-| `createdAt`                            | DateTime              | Auditoría                                              |
-| `updatedAt`                            | DateTime              | Auditoría                                              |
+| Campo            | Regla          |
+| ---------------- | -------------- |
+| `tenantId`       | Obligatorio    |
+| `name`           | Obligatorio    |
+| `documentType`   | Texto opcional |
+| `documentNumber` | Texto opcional |
+| `notes`          | Opcional       |
+| `isActive`       | Baja lógica    |
 
-Reglas:
+No existe unicidad global de documento.
 
-- Un contrato referencia como máximo una `Property`; contratos multi-property quedan fuera de V1.
-- La referencia textual siempre existe, incluso cuando hay `propertyId`.
-- `propertyAddressSnapshot` y `startsOn` son obligatorios incluso en `DRAFT`; las partes pueden completarse antes de activar.
-- El snapshot no se sincroniza automáticamente con cambios posteriores de `Property`.
-- `ACTIVE` requiere al menos una parte `RENTER` con contacto activo, fechas válidas y una obligación activa con concepto `RENT` correctamente configurada.
-- El propietario no participa en liquidaciones ni reglas financieras en V1.
-- Índices `[tenantId, status]`, `[tenantId, propertyId]`, referencias geográficas y `[tenantId, endsOn]`.
+### Objetivo V1.1
 
-### RentalContractParty
+**APROBADO / PENDIENTE**: `documentType` utilizará valores canónicos:
 
-Asocia múltiples contactos a un contrato con rol `RENTER` o `LANDLORD`. Es tenant-scoped, elimina en cascada al borrar el contrato y restringe el borrado del contacto. La combinación `[contractId, contactId, role]` es única. Un contrato activo exige al menos una parte `RENTER` cuyo contacto esté activo.
+```txt
+DNI
+CUIT
+CUIL
+PASSPORT
+```
 
-### RentalContractNotificationRoute
+La UX traduce `PASSPORT` como “Pasaporte”. La normalización no debe inferir que dos contactos con igual documento son la misma persona entre tenants.
 
-Persiste el `ContactPoint` seleccionado para un canal dentro de una parte contractual. La combinación `[contractPartyId, channel]` es única. El punto debe pertenecer al contacto de la parte, estar activo y ser compatible con el canal. Estas rutas son configuración; B.1 no planifica ni envía comunicaciones.
+## 5. ContactPoint
 
-### RentalObligation
+**IMPLEMENTADO**:
 
-Regla contractual que genera uno o más vencimientos.
+| Campo                | Regla                           |
+| -------------------- | ------------------------------- |
+| `tenantId`           | Obligatorio                     |
+| `contactId`          | Contacto propietario            |
+| `type`               | `EMAIL` o `PHONE`               |
+| `value`              | Valor visible                   |
+| `normalizedValue`    | Valor normalizado para búsqueda |
+| `label`              | Opcional                        |
+| `isDefault`          | Sugerencia por tipo             |
+| `isActive`           | Estado operativo                |
+| `canReceiveWhatsapp` | Capacidad del teléfono          |
+| `canReceiveSms`      | Capacidad del teléfono          |
 
-| Campo              | Tipo conceptual        | Regla                                                                                   |
-| ------------------ | ---------------------- | --------------------------------------------------------------------------------------- |
-| `id`               | String                 | `cuid`                                                                                  |
-| `tenantId`         | String                 | Obligatorio                                                                             |
-| `contractId`       | String                 | FK a `RentalContract`                                                                   |
-| `conceptId`        | String                 | FK a `RentalConcept`                                                                    |
-| `kind`             | `RentalObligationKind` | `RECURRING` o `ONE_TIME`                                                                |
-| `recurrenceMonths` | Int?                   | Intervalo mensual simple para recurrentes                                               |
-| `dueDay`           | Int?                   | Día 1–31 para recurrentes                                                               |
-| `amountMode`       | `RentalAmountMode`     | `FIXED` o `VARIABLE`                                                                    |
-| `defaultAmount`    | Decimal?               | `Decimal(14,2)`; obligatorio para importe fijo y nullable para variable aún desconocido |
-| `currency`         | `Currency`             | `ARS` o `USD`; obligatoria en toda obligación V1                                        |
-| `startsOn`         | `DateTime @db.Date`    | Inicio de vigencia                                                                      |
-| `endsOn`           | `DateTime? @db.Date`   | Fin de vigencia opcional                                                                |
-| `isActive`         | Boolean                | Habilitación de generación                                                              |
-| `createdAt`        | DateTime               | Auditoría                                                                               |
-| `updatedAt`        | DateTime               | Auditoría                                                                               |
+El default pertenece al contacto y al tipo. No representa la selección contractual de avisos.
 
-Reglas:
+## 6. RentalConcept
 
-- `RECURRING` requiere `recurrenceMonths >= 1` y `dueDay` entre 1 y 31.
-- `ONE_TIME` no utiliza recurrencia; su fecha e importe efectivo viven en la ocurrencia materializada.
-- `FIXED` requiere `defaultAmount > 0`. `VARIABLE` puede materializar una ocurrencia inicialmente sin importe, que debe completarse antes de notificar si el mensaje lo requiere. La moneda siempre está definida porque V1 sólo modela obligaciones monetarias.
-- La obligación de alquiler usa el concepto base `RENT`; no se duplican importe ni recurrencia en `RentalContract`.
-- Desactivar una obligación detiene nuevas ocurrencias y avisos, sin alterar las ya materializadas.
-- Índices `[tenantId, contractId, isActive]` y `[tenantId, conceptId]`.
+**IMPLEMENTADO**: catálogo tenant-scoped para `RENT`, expensas, servicios y conceptos personalizados.
 
-### RentalObligationOccurrence
+`systemCode != null` identifica conceptos base. La obligación `RENT` es la única fuente de verdad técnica del alquiler.
 
-Vencimiento materializado para un período determinado. Es la unidad operativa que se avisa y se cumple.
+## 7. RentalContract
 
-| Campo                | Tipo conceptual          | Regla                                                        |
-| -------------------- | ------------------------ | ------------------------------------------------------------ |
-| `id`                 | String                   | `cuid`                                                       |
-| `tenantId`           | String                   | Obligatorio                                                  |
-| `obligationId`       | String                   | FK a `RentalObligation`                                      |
-| `periodKey`          | String                   | `YYYY-MM` para recurrentes; `ONE_TIME` para obligación única |
-| `periodStartsOn`     | `DateTime? @db.Date`     | Inicio del período, si corresponde                           |
-| `periodEndsOn`       | `DateTime? @db.Date`     | Fin del período, si corresponde                              |
-| `dueDate`            | `DateTime @db.Date`      | Vencimiento según zona horaria del tenant                    |
-| `amount`             | Decimal?                 | Snapshot `Decimal(14,2)`                                     |
-| `currency`           | `Currency`               | Snapshot obligatorio de moneda                               |
-| `status`             | `RentalOccurrenceStatus` | `PENDING`, `FULFILLED`, `CANCELLED`                          |
-| `cancelledAt`        | DateTime?                | Auditoría de cancelación                                     |
-| `cancelledById`      | String?                  | Usuario que canceló                                          |
-| `cancellationReason` | String?                  | Motivo obligatorio al cancelar                               |
-| `createdAt`          | DateTime                 | Auditoría                                                    |
-| `updatedAt`          | DateTime                 | Auditoría                                                    |
+### 7.1 Baseline
 
-Restricciones:
+**IMPLEMENTADO**:
 
-- `@@unique([obligationId, periodKey])` garantiza materialización idempotente.
-- Para recurrentes, `periodKey` se obtiene del mes local del vencimiento; una obligación `ONE_TIME` materializa como máximo una ocurrencia.
-- Índices `[tenantId, status, dueDate]`, `[tenantId, obligationId, dueDate]`.
-- Una obligación `FIXED` materializa importe y moneda definidos; una `VARIABLE` materializa siempre la moneda y puede dejar `amount = null` hasta conocerlo.
-- El importe y la moneda son snapshots: modificar la obligación no reescribe ocurrencias existentes.
-- `OVERDUE` no se persiste. Se deriva cuando `status = PENDING` y `dueDate` es anterior a la fecha local actual del tenant.
-- Una ocurrencia cancelada o cumplida no es elegible para nuevos avisos.
+- pertenencia obligatoria a tenant;
+- referencia opcional a `Property`;
+- referencias geo opcionales;
+- snapshots de país, provincia, localidad, barrio, calle, número, piso, unidad, código postal y notas;
+- resumen `propertyAddressSnapshot`;
+- fechas contractuales;
+- estados `DRAFT`, `ACTIVE`, `ENDED`, `CANCELLED`;
+- creador opcional y timestamps;
+- múltiples partes y obligaciones.
 
-### RentalFulfillment
+La dirección contractual es independiente de `Property` y constituye la fuente histórica.
 
-Registro auditable de que una ocurrencia fue cumplida y, si corresponde, de su reversión.
+### 7.2 Identidad correlativa
 
-| Campo            | Tipo conceptual           | Regla                                    |
-| ---------------- | ------------------------- | ---------------------------------------- |
-| `id`             | String                    | `cuid`                                   |
-| `tenantId`       | String                    | Obligatorio                              |
-| `occurrenceId`   | String                    | FK a la ocurrencia                       |
-| `status`         | `RentalFulfillmentStatus` | `RECORDED` o `REVERSED`                  |
-| `fulfilledOn`    | `DateTime @db.Date`       | Fecha informada de cumplimiento          |
-| `amount`         | Decimal?                  | Importe informado, sin parcialidad en V1 |
-| `notes`          | String?                   | Observación                              |
-| `origin`         | `RentalFulfillmentOrigin` | V1: `ADMIN`                              |
-| `recordedById`   | String?                   | Usuario responsable                      |
-| `reversedAt`     | DateTime?                 | Momento de reversión                     |
-| `reversedById`   | String?                   | Usuario responsable de revertir          |
-| `reversalReason` | String?                   | Obligatorio al revertir                  |
-| `createdAt`      | DateTime                  | Auditoría                                |
-| `updatedAt`      | DateTime                  | Auditoría                                |
+**APROBADO / PENDIENTE** agregar:
 
-Reglas:
+| Campo            | Tipo conceptual | Regla                                      |
+| ---------------- | --------------- | ------------------------------------------ |
+| `sequenceNumber` | Int             | Correlativo inmutable por tenant           |
+| `contractNumber` | String          | Formato `ALQ-000001`, inmutable y buscable |
 
-- V1 no admite pagos parciales: una ocurrencia tiene como máximo un cumplimiento vigente, aunque puede conservar varios registros históricos revertidos.
-- Registrar el cumplimiento y mover la ocurrencia a `FULFILLED` ocurre en una transacción que bloquea o revalida la ocurrencia `PENDING`; no se necesita unique parcial ni entidad separada de reversión.
-- Revertir no elimina el registro: cambia a `REVERSED`, devuelve la ocurrencia a `PENDING` y exige motivo.
-- La reversión vuelve a habilitar avisos sólo si la regla sigue activa y la ejecución correspondiente aún es válida; nunca reenvía automáticamente una entrega histórica.
-- Índices `[tenantId, occurrenceId, status]` y `[tenantId, fulfilledOn]`.
+Constraints mínimos:
 
-### RentalReminderRule
+- `UNIQUE (tenantId, sequenceNumber)`;
+- `UNIQUE (tenantId, contractNumber)`;
+- `sequenceNumber > 0`;
+- el valor no se reutiliza después de cancelaciones o borrados administrativos.
 
-Configuración que programa avisos antes, el día o después del vencimiento.
+### 7.3 Renovación
 
-| Campo          | Tipo conceptual         | Regla                                                    |
-| -------------- | ----------------------- | -------------------------------------------------------- |
-| `id`           | String                  | `cuid`                                                   |
-| `tenantId`     | String                  | Obligatorio                                              |
-| `obligationId` | String                  | FK a `RentalObligation`                                  |
-| `dayOffset`    | Int                     | Negativo antes, cero el día, positivo después            |
-| `channels`     | `NotificationChannel[]` | Uno o más de `EMAIL`, `WHATSAPP`, `SMS`                  |
-| `sendTime`     | `DateTime? @db.Time(0)` | Override opcional; si falta usa configuración del tenant |
-| `isActive`     | Boolean                 | Habilitación operativa                                   |
-| `createdAt`    | DateTime                | Auditoría                                                |
-| `updatedAt`    | DateTime                | Auditoría                                                |
+**APROBADO / PENDIENTE** agregar una autorrelación opcional:
 
-Reglas:
+| Campo                | Regla                              |
+| -------------------- | ---------------------------------- |
+| `previousContractId` | Contrato anterior del mismo tenant |
 
-- Canal y proveedor son conceptos distintos.
-- No existen valores combinados como `EMAIL_AND_WHATSAPP`.
-- El array no puede quedar vacío ni contener duplicados; Service valida ambas reglas. No se crea una tabla puente de canales en V1.
-- La combinación obligación, offset y hora no debe duplicarse dentro del tenant. Se valida en Service porque `sendTime = null` representa el default del tenant y un unique nullable no expresa correctamente la regla.
-- Índices `[tenantId, obligationId, isActive]`.
+`previousContractId` será único para impedir más de un sucesor directo. La creación del sucesor y el reclamo de esa relación se realizan en una única transacción concurrent-safe.
 
-### RentalReminderDispatch
+La renovación sólo parte de `ACTIVE` o `ENDED`; el sucesor siempre nace `DRAFT` y obtiene un nuevo número.
 
-Ejecución planificada e idempotente de uno o varios avisos compatibles.
+### 7.4 Activación objetivo
 
-| Campo             | Tipo conceptual                | Regla                                                                             |
-| ----------------- | ------------------------------ | --------------------------------------------------------------------------------- |
-| `id`              | String                         | `cuid`                                                                            |
-| `tenantId`        | String                         | Obligatorio                                                                       |
-| `contractId`      | String                         | Contrato del grupo                                                                |
-| `renterContactId` | String                         | Destinatario lógico                                                               |
-| `scheduledFor`    | DateTime                       | Instante UTC calculado desde la zona del tenant                                   |
-| `groupingMode`    | `RentalReminderGroupingMode`   | `INDIVIDUAL` o `GROUPED`                                                          |
-| `idempotencyKey`  | String                         | Clave determinística                                                              |
-| `status`          | `RentalReminderDispatchStatus` | `PLANNED`, `PROCESSING`, `COMPLETED`, `PARTIALLY_FAILED`, `FAILED` o `SUPPRESSED` |
-| `claimedAt`       | DateTime?                      | Claim transaccional de worker                                                     |
-| `completedAt`     | DateTime?                      | Finalización                                                                      |
-| `createdAt`       | DateTime                       | Auditoría                                                                         |
-| `updatedAt`       | DateTime                       | Auditoría                                                                         |
+**APROBADO / PENDIENTE**: la transición a `ACTIVE` valida atómicamente:
 
-Restricciones:
+- `startsOn` y `endsOn` presentes;
+- `endsOn > startsOn`;
+- `endsOn >= startsOn + 1 mes calendario`, con clamp al último día del mes;
+- al menos una parte `RENTER` activa;
+- exactamente una parte `RENTER` primaria;
+- una obligación `RENT` válida.
 
-- `@@unique([tenantId, idempotencyKey])`.
-- En modo `GROUPED`, la clave lógica se basa en tenant, destinatario, contrato y fecha/hora compatible; el conjunto de ocurrencias puede reducirse durante la revalidación sin cambiar la identidad del dispatch.
-- En modo `INDIVIDUAL`, la clave incorpora además ocurrencia y regla efectiva.
-- El agrupamiento nunca cruza contratos ni tenants.
-- El claim `PLANNED → PROCESSING` es transaccional. `claimedAt` permite recuperar ejecuciones abandonadas mediante un timeout operativo sin agregar leases o tablas de workers.
-- Índices `[tenantId, status, scheduledFor]` y `[tenantId, contractId]`.
+El estado `DRAFT` puede permanecer incompleto.
 
-### RentalReminderDispatchOccurrence
+## 8. RentalContractSequence
 
-Tabla puente necesaria para saber qué ocurrencias integró una ejecución agrupada.
+**APROBADO / PENDIENTE**: secuencia tenant-scoped para numeración contractual.
 
-| Campo          | Tipo conceptual | Regla                                    |
-| -------------- | --------------- | ---------------------------------------- |
-| `id`           | String          | `cuid`                                   |
-| `tenantId`     | String          | Debe coincidir con dispatch y ocurrencia |
-| `dispatchId`   | String          | FK a `RentalReminderDispatch`            |
-| `occurrenceId` | String          | FK a `RentalObligationOccurrence`        |
-| `createdAt`    | DateTime        | Auditoría                                |
+| Campo       | Tipo conceptual | Regla                        |
+| ----------- | --------------- | ---------------------------- |
+| `tenantId`  | String          | PK/FK a tenant               |
+| `lastValue` | Int             | Último correlativo reservado |
+| `updatedAt` | DateTime        | Auditoría técnica            |
 
-Restricciones: `@@unique([dispatchId, occurrenceId])`; índices `[tenantId, occurrenceId]` y `[tenantId, dispatchId]`.
+Algoritmo concurrent-safe:
 
-### RentalReminderDelivery
+1. iniciar la transacción de creación;
+2. crear la fila del tenant si todavía no existe mediante upsert seguro;
+3. ejecutar un incremento atómico de `lastValue` y obtener el valor resultante;
+4. derivar `contractNumber` con padding de seis dígitos;
+5. insertar el contrato con ambas constraints únicas;
+6. confirmar la transacción.
 
-Intento de entrega por canal. Conserva el destino histórico y los datos mínimos del proveedor.
+No se usa `COUNT(*) + 1`, `MAX(...) + 1` sin bloqueo ni cálculo en memoria. Un valor reservado no se reasigna; se priorizan unicidad y no reutilización sobre una secuencia sin huecos.
 
-| Campo                 | Tipo conceptual                | Regla                                                 |
-| --------------------- | ------------------------------ | ----------------------------------------------------- |
-| `id`                  | String                         | `cuid`                                                |
-| `tenantId`            | String                         | Obligatorio                                           |
-| `dispatchId`          | String                         | FK a `RentalReminderDispatch`                         |
-| `channel`             | `NotificationChannel`          | Canal único de esta entrega                           |
-| `contactPointId`      | String?                        | Punto utilizado, si aún existe                        |
-| `destinationSnapshot` | String                         | Email o teléfono normalizado usado                    |
-| `subjectSnapshot`     | String?                        | Asunto final renderizado, cuando el canal lo utiliza  |
-| `bodySnapshot`        | String `@db.Text`              | Contenido final renderizado utilizado para el intento |
-| `deliveryKey`         | String                         | Idempotencia por entrega                              |
-| `attemptNumber`       | Int                            | Número de intento                                     |
-| `status`              | `RentalReminderDeliveryStatus` | Estado del intento                                    |
-| `providerCode`        | String?                        | Adaptador usado, sin acoplar el dominio               |
-| `providerMessageId`   | String?                        | Identificador externo opcional                        |
-| `attemptedAt`         | DateTime?                      | Inicio del intento                                    |
-| `sentAt`              | DateTime?                      | Confirmación de envío                                 |
-| `failedAt`            | DateTime?                      | Fallo                                                 |
-| `errorCode`           | String?                        | Código sanitizado                                     |
-| `errorMessage`        | String?                        | Mensaje técnico sin secretos                          |
-| `createdAt`           | DateTime                       | Auditoría                                             |
-| `updatedAt`           | DateTime                       | Auditoría                                             |
+## 9. RentalContractParty
 
-Restricciones:
+### Baseline
 
-- `@@unique([tenantId, deliveryKey])`.
-- `@@unique([dispatchId, channel, destinationSnapshot, attemptNumber])`.
-- El snapshot de destino nunca se recalcula para una entrega histórica.
-- Cada fila representa un intento. Reejecutar el mismo intento conserva su `deliveryKey`; un retry intencional crea otra fila con `attemptNumber` incremental, sin agregar una entidad `RentalReminderDeliveryAttempt`.
-- `subjectSnapshot` y `bodySnapshot` conservan exactamente el contenido intentado aunque cambien las plantillas. No se persisten payloads crudos, secretos, credenciales ni datos innecesarios del proveedor.
-- Antes de reintentar se verifica que no exista una entrega `SENT` para la misma combinación lógica de dispatch, canal y destino.
-- Índices `[tenantId, dispatchId, status]` y `[tenantId, status, createdAt]`.
+**IMPLEMENTADO**:
 
----
+| Campo        | Regla                                       |
+| ------------ | ------------------------------------------- |
+| `tenantId`   | Obligatorio                                 |
+| `contractId` | Contrato                                    |
+| `contactId`  | Contacto activo del mismo tenant al asociar |
+| `role`       | `RENTER` o `LANDLORD`                       |
 
-## Enums conceptuales
+La combinación `(contractId, contactId, role)` es única. Puede haber múltiples contactos por rol. Los propietarios son opcionales.
+
+### Objetivo V1.1
+
+**APROBADO / PENDIENTE** agregar:
+
+| Campo       | Tipo conceptual | Regla                                   |
+| ----------- | --------------- | --------------------------------------- |
+| `isPrimary` | Boolean         | Sólo aplica a `RENTER`; default `false` |
+
+Constraints:
+
+- una parte `LANDLORD` no puede ser primaria;
+- como máximo una parte `RENTER` primaria por contrato, reforzada con índice único parcial o mecanismo equivalente;
+- `ACTIVE` exige exactamente una parte `RENTER` primaria.
+
+`isPrimary` identifica al referente administrativo, no al único destinatario de avisos.
+
+La edición se implementará por diff/upsert:
+
+- conservar filas e IDs sin cambios;
+- actualizar sólo atributos modificados;
+- crear sólo partes nuevas;
+- eliminar sólo asociaciones retiradas;
+- validar en la misma transacción el referente principal y sus rutas.
+
+## 10. RentalContractNotificationRoute
+
+### Baseline
+
+**IMPLEMENTADO**:
+
+| Campo             | Regla                                 |
+| ----------------- | ------------------------------------- |
+| `tenantId`        | Obligatorio                           |
+| `contractPartyId` | Parte contractual                     |
+| `channel`         | `EMAIL`, `WHATSAPP` o `SMS`           |
+| `contactPointId`  | Punto activo del contacto de la parte |
+| `isEnabled`       | Habilitación de la ruta               |
+
+La combinación `(contractPartyId, channel)` es única. El punto seleccionado debe soportar el canal.
+
+La ruta expresa `Contrato + Persona + Canal`; nunca una preferencia global de `Contact`.
+
+### Objetivo V1.1
+
+**APROBADO / PENDIENTE** reemplazar la recreación masiva durante edición por diff/upsert para preservar IDs estables y auditoría futura.
+
+Varias rutas pueden estar habilitadas simultáneamente. Ser parte primaria no modifica automáticamente las rutas.
+
+## 11. RentalObligation
+
+### 11.1 Baseline
+
+**IMPLEMENTADO**:
+
+| Campo                | Regla                                 |
+| -------------------- | ------------------------------------- |
+| `kind`               | `RECURRING` o `ONE_TIME`              |
+| `recurrenceMonths`   | Intervalo mensual para recurrentes    |
+| `dueDay`             | Día fijo 1–31                         |
+| `amountMode`         | `FIXED` o `VARIABLE`                  |
+| `defaultAmount`      | Importe base opcional según modalidad |
+| `currency`           | Obligatoria                           |
+| `startsOn`, `endsOn` | Vigencia                              |
+| `isActive`           | Estado operativo                      |
+
+La occurrence aplica clamp al último día calendario cuando el mes no contiene `dueDay`.
+
+### 11.2 Recurrencia y vigencia objetivo
+
+**APROBADO / PENDIENTE**: `recurrenceMonths` aceptará 1–12. La UX ofrece presets 1, 2, 3, 4, 6 y 12, más un valor personalizado.
+
+La vigencia admite fecha final específica o “hasta fin del contrato”. La representación elegida deberá diferenciar esa intención sin duplicar fechas silenciosamente.
+
+### 11.3 Política de vencimiento objetivo
+
+**APROBADO / PENDIENTE** agregar una política equivalente a:
+
+```txt
+FIXED_DAY
+MANUAL_PER_PERIOD
+```
+
+- `FIXED_DAY` requiere `dueDay` entre 1 y 31.
+- `MANUAL_PER_PERIOD` no fabrica fecha; cada occurrence puede quedar con `dueDate = null` hasta ser completada.
+
+### 11.4 Configuración previa a avisos
+
+**APROBADO / PENDIENTE** agregar:
+
+| Campo             | Tipo conceptual | Regla                                   |
+| ----------------- | --------------- | --------------------------------------- |
+| `includeInNotice` | Boolean         | Incluye la obligación en futuros avisos |
+| `showAmount`      | Boolean         | Muestra el importe en futuros avisos    |
+
+Constraint:
+
+```txt
+showAmount = false OR includeInNotice = true
+```
+
+Al deshabilitar `includeInNotice`, el servicio fuerza `showAmount = false` en la misma operación.
+
+Defaults para contratos nuevos:
+
+- `RENT`: `true / true`;
+- adicionales: elección explícita durante configuración, sin asumir inclusión.
+
+Backfill:
+
+- `RENT`: `true / true`;
+- cualquier otra obligación: `false / false`.
+
+### 11.5 Configuración específica de RENT
+
+**APROBADO / PENDIENTE**: la obligación `RENT` tiene pago mensual y agrega un intervalo de actualización de 1–12 meses. La UX ofrece 3, 4, 6 y “Otro”.
+
+La moneda queda fijada para el flujo ordinario de revisiones. Un cambio de moneda requiere una modificación contractual excepcional separada.
+
+## 12. RentalRentValueRevision
+
+**APROBADO / PENDIENTE**: historial append-only de valores de la obligación `RENT`.
+
+| Campo                    | Tipo conceptual     | Regla                                   |
+| ------------------------ | ------------------- | --------------------------------------- |
+| `id`                     | String              | `cuid`                                  |
+| `tenantId`               | String              | Obligatorio                             |
+| `obligationId`           | String              | Debe apuntar a la obligación `RENT`     |
+| `effectiveFrom`          | `DateTime @db.Date` | Primer período/fecha efectiva           |
+| `amount`                 | Decimal(14,2)       | Mayor que cero                          |
+| `currency`               | Currency            | Igual a la moneda contractual ordinaria |
+| `actorId`                | String?             | Usuario que registró el cambio          |
+| `reason`                 | String?             | Motivo opcional                         |
+| `createdAt`, `updatedAt` | DateTime            | Auditoría                               |
+
+Constraints mínimos:
+
+- único por `(obligationId, effectiveFrom)`;
+- pertenencia tenant validada en backend y transacción;
+- no se edita destructivamente una revisión efectiva; las correcciones deben conservar trazabilidad.
+
+Operación específica y transaccional:
+
+1. validar obligación `RENT`, moneda y fecha efectiva;
+2. insertar la revisión;
+3. actualizar el importe snapshot de occurrences con período no anterior a `effectiveFrom` y estado `PENDING`;
+4. no tocar occurrences cumplidas, canceladas ni períodos anteriores;
+5. registrar el evento contractual correspondiente;
+6. confirmar todo o revertir todo.
+
+La próxima actualización se deriva de la última revisión efectiva más el intervalo de actualización; no necesita una fecha duplicada mutable.
+
+## 13. RentalObligationOccurrence
+
+### Baseline
+
+**IMPLEMENTADO**:
+
+- pertenencia a obligación y tenant;
+- `periodKey` idempotente;
+- `dueDate` persistida;
+- snapshots de importe y moneda;
+- estados `PENDING`, `FULFILLED`, `CANCELLED`;
+- `OVERDUE` derivado, nunca persistido.
+
+### Objetivo V1.1
+
+**APROBADO / PENDIENTE**: `dueDate` será nullable o se usará un mecanismo semánticamente equivalente para `MANUAL_PER_PERIOD`.
+
+Una occurrence sin fecha definitiva:
+
+- permanece operativa como “Fecha pendiente”;
+- no se considera vencida;
+- puede recibir fecha mediante una operación explícita;
+- no usa fecha provisional.
+
+Los importes variables también pueden permanecer pendientes hasta completarse.
+
+## 14. RentalFulfillment
+
+**IMPLEMENTADO**: evidencia auditable de cumplimiento total, con reversión y un único fulfillment vigente garantizado transaccionalmente.
+
+La auditoría de fulfillment y reversal no se duplica dentro de `RentalContractEvent`; el historial de API puede proyectar ambas fuentes.
+
+## 15. RentalContractEvent
+
+**APROBADO / PENDIENTE**: eventos contractuales append-only.
+
+| Campo        | Tipo conceptual | Regla                                 |
+| ------------ | --------------- | ------------------------------------- |
+| `id`         | String          | `cuid`                                |
+| `tenantId`   | String          | Obligatorio                           |
+| `contractId` | String          | Contrato                              |
+| `type`       | Enum            | Tipo de evento contractual            |
+| `actorId`    | String?         | Usuario responsable                   |
+| `occurredAt` | DateTime        | Instante del evento                   |
+| `metadata`   | Json?           | Snapshot mínimo específico del evento |
+| `createdAt`  | DateTime        | Auditoría técnica                     |
+
+Eventos iniciales candidatos: activación, finalización, cancelación, cambio de partes, revisión de alquiler y renovación. La lista final se cerrará con la implementación, sin duplicar fulfillment/reversal.
+
+No se actualizan ni eliminan eventos mediante endpoints funcionales.
+
+## 16. Notification global
+
+**APROBADO / PENDIENTE**: entidad global del Admin, no exclusiva de Rental.
+
+| Campo              | Tipo conceptual | Regla                         |
+| ------------------ | --------------- | ----------------------------- |
+| `id`               | String          | `cuid`                        |
+| `tenantId`         | String          | Obligatorio                   |
+| `recipientUserId`  | String          | Destinatario individual       |
+| `type`             | String/enum     | Clasificación del evento      |
+| `title`            | String          | Título visible                |
+| `body`             | String          | Contenido visible             |
+| `resourceType`     | String          | Tipo de recurso relacionado   |
+| `resourceId`       | String          | ID del recurso relacionado    |
+| `actionUrl`        | String?         | Navegación contextual         |
+| `deduplicationKey` | String          | Idempotencia por destinatario |
+| `readAt`           | DateTime?       | Estado leído/no leído         |
+| `createdAt`        | DateTime        | Creación                      |
+
+Constraints mínimos:
+
+- único por `(tenantId, recipientUserId, deduplicationKey)`;
+- destinatario perteneciente al tenant;
+- persistencia por usuario, no por rol, para admitir preferencias futuras.
+
+`Notification` no reemplaza toast ni historial contractual.
+
+## 17. Migración C: ejecución de comunicaciones
+
+**NO INICIADA / DEFER hasta completar el refactor posterior a B.1**.
+
+Migración C cubrirá, en una especificación e implementación separadas:
+
+- anticipación y horario;
+- repetición;
+- templates;
+- planner;
+- dispatch;
+- delivery;
+- proveedores;
+- callbacks;
+- idempotencia y retries de envío.
+
+Antes de C sólo se implementarán las partes, rutas, canales, punto seleccionado y flags de contenido definidos en este documento. No se agregan ahora tablas de ejecución de comunicaciones al schema actual.
+
+## 18. Enums
+
+### Implementados
 
 ```txt
 ContactPointType
   EMAIL
   PHONE
 
-RentalConceptSystemCode
-  RENT
-  EXPENSES
-  ELECTRICITY
-  GAS
-  ABL
-  AYSA
-  INSURANCE
+RentalContractPartyRole
+  RENTER
+  LANDLORD
+
+NotificationChannel
+  EMAIL
+  WHATSAPP
+  SMS
 
 RentalContractStatus
   DRAFT
   ACTIVE
   ENDED
   CANCELLED
-
-RentalContractPartyRole
-  RENTER
-  LANDLORD
 
 RentalObligationKind
   RECURRING
@@ -429,237 +513,107 @@ RentalOccurrenceStatus
 RentalFulfillmentStatus
   RECORDED
   REVERSED
-
-RentalFulfillmentOrigin
-  ADMIN
-
-NotificationChannel
-  EMAIL
-  WHATSAPP
-  SMS
-
-RentalReminderGroupingMode
-  INDIVIDUAL
-  GROUPED
-
-RentalReminderDispatchStatus
-  PLANNED
-  PROCESSING
-  COMPLETED
-  PARTIALLY_FAILED
-  FAILED
-  SUPPRESSED
-
-RentalReminderDeliveryStatus
-  PENDING
-  PROCESSING
-  SENT
-  FAILED
-  SUPPRESSED
 ```
 
-Estos son los nombres canónicos para las migraciones V1. Los valores de orígenes, canales o estados futuros se agregarán sólo cuando exista un requerimiento implementable.
-
----
-
-## Relaciones
+### Aprobados / pendientes
 
 ```txt
-Tenant
-├── Contact
-│   └── ContactPoint
-├── RentalConcept
-└── RentalContract
-    ├── Property? (referencia opcional; snapshot siempre presente)
-    ├── RentalContractParty[] ── Contact
-    │   └── RentalContractNotificationRoute[] ── ContactPoint
-    └── RentalObligation
-        ├── RentalConcept
-        ├── RentalReminderRule
-        └── RentalObligationOccurrence
-            ├── RentalFulfillment
-            └── RentalReminderDispatchOccurrence
-                └── RentalReminderDispatch
-                    └── RentalReminderDelivery
+ContactDocumentType
+  DNI
+  CUIT
+  CUIL
+  PASSPORT
+
+RentalDueMode
+  FIXED_DAY
+  MANUAL_PER_PERIOD
+
+RentalContractEventType
+  valores a cerrar con la implementación sin duplicar fulfillment/reversal
 ```
 
-Las relaciones hacia `User` son de auditoría (`createdBy`, `recordedBy`, `reversedBy`, `cancelledBy`) y no convierten a usuarios en contactos.
+Los enums de planner, dispatch, delivery y proveedores pertenecen a Migración C y no forman parte del baseline ni del refactor previo.
 
----
+## 19. Invariantes multi-tenant
 
-## Fechas, recurrencia y zona horaria
+1. Toda entidad funcional contiene `tenantId`.
+2. Toda referencia funcional se valida contra el mismo tenant en backend.
+3. IDs provenientes del cliente nunca prueban pertenencia por sí solos.
+4. Las transacciones que crean o renuevan contratos validan propiedad, partes, contactos, puntos y obligaciones dentro del tenant.
+5. Una ruta sólo puede usar un punto activo perteneciente al contacto de su parte.
+6. Una revisión sólo puede modificar occurrences de su propia obligación y tenant.
+7. Una notificación interna sólo puede dirigirse a un usuario del tenant.
+8. Catálogos geográficos globales son la excepción documentada y no convierten datos de negocio en globales.
 
-- Fechas contractuales, períodos, vencimientos y `fulfilledOn` usan Prisma `DateTime` con tipo nativo PostgreSQL `@db.Date`.
-- Planificación, claims y entregas usan `DateTime` y se tratan como instantes UTC, en línea con los timestamps existentes del repositorio.
-- Migración A agrega `TenantSetting.timeZone String @default("America/Argentina/Buenos_Aires")`.
-- Migración C agrega `TenantSetting.rentalReminderSendTime DateTime? @db.Time(0)`; `null` usa el default operativo del sistema, cuyo valor concreto permanece diferido.
-- Si `dueDay` es 29, 30 o 31 y el mes no contiene ese día, se usa el último día calendario del mes.
-- Fines de semana no desplazan el vencimiento.
-- V1 no contempla feriados.
-- B materializa el mes local actual y los dos meses siguientes (`RENTAL_OCCURRENCE_HORIZON_MONTHS = 3`). La operación puede invocarse al crear/editar una obligación o mediante endpoint manual y repetirse sin duplicar debido a `@@unique([obligationId, periodKey])`.
-- Los intervalos de más de un mes se anclan al mes calendario de `RentalObligation.startsOn`. Sólo se crea una ocurrencia si su `dueDate` cae dentro de la intersección de vigencias de contrato y obligación.
+## 20. Concurrencia y transacciones
 
-Los campos de fechas, recurrencia y timezone correspondientes a A+B ya existen en `schema.prisma`; los campos exclusivos de planificación y entregas permanecen reservados para C.
+Operaciones que requieren transacción y constraints de base:
 
----
+- asignación del número contractual;
+- activación y validación del inquilino principal;
+- diff/upsert de partes y rutas;
+- revisión de valor y actualización de occurrences pendientes;
+- cumplimiento y reversión;
+- renovación y reserva del sucesor único;
+- creación idempotente de notificaciones.
 
-## Idempotencia y concurrencia
+Las validaciones de Service mejoran mensajes, pero no reemplazan constraints que protegen concurrencia.
 
-La automatización se divide conceptualmente en dos tareas:
+## 21. Índices y restricciones objetivo
 
-1. Un planificador materializa ocurrencias y dispatches mediante claves determinísticas.
-2. Un dispatcher reclama ejecuciones pendientes, revalida elegibilidad y delega cada canal a un puerto `MessageSender`.
+Además de los índices implementados, el diseño objetivo requiere:
 
-Garantías obligatorias:
+| Propósito                  | Restricción/índice                                            |
+| -------------------------- | ------------------------------------------------------------- |
+| Número secuencial          | `UNIQUE (tenantId, sequenceNumber)`                           |
+| Código visible             | `UNIQUE (tenantId, contractNumber)`                           |
+| Un sucesor directo         | `UNIQUE (previousContractId)` cuando no sea null              |
+| Parte no duplicada         | `UNIQUE (contractId, contactId, role)`                        |
+| Máximo un renter principal | único parcial por contrato para `role = RENTER AND isPrimary` |
+| Ruta por canal             | `UNIQUE (contractPartyId, channel)`                           |
+| Revisión efectiva          | `UNIQUE (obligationId, effectiveFrom)`                        |
+| Occurrence por período     | `UNIQUE (obligationId, periodKey)`                            |
+| Notificación idempotente   | `UNIQUE (tenantId, recipientUserId, deduplicationKey)`        |
 
-- creación por upsert o transacción contra claves únicas;
-- claim transaccional para evitar que dos instancias procesen la misma ejecución;
-- recuperación de dispatches `PROCESSING` abandonados mediante `claimedAt` y un timeout operativo;
-- relectura inmediata de cada ocurrencia antes de enviar;
-- exclusión de `FULFILLED` y `CANCELLED`;
-- si un grupo pierde una ocurrencia cumplida, se envían sólo las restantes; si no queda ninguna, el dispatch se marca `SUPPRESSED`;
-- una entrega `SENT` nunca vuelve a enviarse por un retry de la misma clave;
-- los intentos y fallos permanecen auditables.
+La regla “exactamente un renter principal” para contratos activos necesita además validación transaccional, porque un índice parcial sólo garantiza el máximo.
 
-No se prescribe Bull, una queue distribuida ni un proveedor de cron en V1. Railway Cron o un worker externo pueden invocar el proceso idempotente.
+## 22. Backfills aprobados
 
----
+Cuando se implemente el refactor V1.1:
 
-## Aislamiento multi-tenant
+- numerar contratos existentes por tenant con un orden determinístico documentado;
+- inicializar la secuencia de cada tenant por encima del mayor valor asignado;
+- elegir o requerir confirmación del referente principal sin inventar datos ambiguos;
+- normalizar tipos de documento sólo cuando el valor existente sea inequívoco;
+- crear la revisión inicial de `RENT` desde el valor vigente preservando moneda;
+- configurar `RENT` con `includeInNotice = true` y `showAmount = true`;
+- configurar las demás obligaciones con ambos flags en `false`;
+- conservar IDs existentes de partes y rutas;
+- no tocar occurrences cumplidas o canceladas.
 
-No alcanza con almacenar `tenantId`. Service y Repository deben validar que todas las referencias comparten el tenant resuelto por `TenantGuard`:
+Cada backfill deberá ser determinístico, reejecutable cuando corresponda y validado con consultas pre/post migración.
 
-- contrato ↔ propiedad;
-- contrato ↔ inquilino/propietario;
-- obligación ↔ contrato/concepto;
-- ocurrencia ↔ obligación;
-- fulfillment ↔ ocurrencia/usuarios responsables;
-- regla ↔ obligación;
-- dispatch ↔ contrato/contacto/ocurrencias;
-- delivery ↔ dispatch/contact point.
+## 23. Orden de implementación posterior a B.1
 
-Nunca se acepta un `tenantId` del cliente como autoridad. Las escrituras deben usar filtros compuestos o equivalentes que incluyan el tenant. Los procesos automáticos también se ejecutan con contexto explícito de tenant.
+El orden exacto se resolverá en planes de implementación separados, respetando estas dependencias:
 
----
+1. invariantes contractuales, numeración, documento canónico y referente principal;
+2. edición estable de partes y rutas;
+3. experiencia `RENT`, revisiones y reglas de occurrences;
+4. obligaciones adicionales y flags de aviso;
+5. historial y renovación;
+6. notificaciones internas globales;
+7. Migración C de ejecución de comunicaciones.
 
-## Eliminación y conservación histórica
+Ninguno de estos puntos está implementado por la sola existencia de esta documentación.
 
-- Contratos finalizados o cancelados conservan obligaciones, ocurrencias y comunicaciones.
-- En B, finalizar o cancelar desactiva todas las obligaciones del contrato y cancela sólo occurrences `PENDING` con `dueDate` posterior a la fecha local de cierre. Los vencimientos del día o anteriores y todos los cumplidos/cancelados se conservan sin alteración para resolución e historia operativa.
-- Conceptos, contactos y puntos usados se desactivan en lugar de eliminarse.
-- Fulfillments y deliveries nunca se borran para representar una corrección; se revierten o conservan con estado.
-- Una `Property` archivada sigue siendo referenciable históricamente; si la relación física se elimina en una evolución autorizada, el snapshot contractual continúa siendo suficiente.
-- Los actores `User` pueden quedar nulos en la relación si se eliminan, pero sus eventos conservan timestamps y contexto disponible.
+## 24. Decisiones diferidas
 
-Políticas `onDelete` canónicas:
-
-| Relación                                   | Política                                          |
-| ------------------------------------------ | ------------------------------------------------- |
-| `Tenant` → entidades tenant-scoped         | `Cascade`, consistente con el esquema actual      |
-| Aggregate root → hijos propios             | `Cascade`; la API no expone hard delete histórico |
-| `Contact` → `ContactPoint`                 | `Cascade`                                         |
-| `Contact` → contratos como renter/landlord | `Restrict`                                        |
-| `RentalConcept` → obligaciones             | `Restrict`                                        |
-| `Property` → contratos                     | `SetNull`; el snapshot permanece                  |
-| `User` → campos de auditoría opcionales    | `SetNull`                                         |
-| `ContactPoint` → deliveries                | `SetNull`; los snapshots permanecen               |
-
----
-
-## Índices y restricciones mínimas
-
-| Objetivo                  | Restricción o índice                                                         |
-| ------------------------- | ---------------------------------------------------------------------------- |
-| Concepto único por tenant | `[tenantId, slug]`; `systemCode` no nulo único por tenant                    |
-| Ocurrencia idempotente    | `[obligationId, periodKey]` único                                            |
-| Agenda operativa          | `[tenantId, status, dueDate]`                                                |
-| Dispatch idempotente      | `[tenantId, idempotencyKey]` único                                           |
-| Pertenencia al dispatch   | `[dispatchId, occurrenceId]` único                                           |
-| Delivery idempotente      | `[tenantId, deliveryKey]` único                                              |
-| Búsqueda de pendientes    | `[tenantId, status, scheduledFor]`                                           |
-| Intento de delivery       | `[dispatchId, channel, destinationSnapshot, attemptNumber]` único            |
-| Default de contacto       | `[contactId, type, isDefault]`; unicidad activa reforzada transaccionalmente |
-
-Las FKs no sustituyen la validación de pertenencia al tenant cuando la clave relacionada no incorpora `tenantId`.
-
----
-
-## Separación de migraciones
-
-### Migración fundacional A
-
-Estado: **implementada en `schema.prisma` y en `202609090001_rental_foundation_a`; no aplicada a producción durante este desarrollo**.
-
-Entidades:
-
-- `Contact`.
-- `ContactPoint`.
-- `RentalConcept`.
-- `RentalContract`.
-
-Incluye `TenantSetting.timeZone`, relaciones inversas y enums `ContactPointType`, `RentalConceptSystemCode` y `RentalContractStatus`. El backfill idempotente de conceptos base acompaña el despliegue.
-
-No incluye todavía `reminderGroupingMode` ni configuración de hora de avisos.
-
-### Migración B — Motor de vencimientos
-
-Estado: **implementada en schema, migración, API y admin; no aplicada a producción durante este desarrollo**.
-
-Entidades:
-
-- `RentalObligation`.
-- `RentalObligationOccurrence`.
-- `RentalFulfillment`.
-
-Incluye sus enums, fechas `@db.Date`, `periodKey`, snapshots monetarios, estados y reversión auditable.
-
-La materialización usa un horizonte fijo de tres meses (actual + dos siguientes), `createMany(skipDuplicates)` sobre la clave única y un endpoint manual. El cumplimiento reclama atómicamente una occurrence `PENDING` dentro de la misma transacción que crea el registro; la reversión conserva la fila y reabre la occurrence. `AGENT` puede registrar; `MANAGER`, `TENANT_ADMIN` y `SUPER_ADMIN` pueden revertir.
-
-### Refinamiento correctivo B.1 — Partes y dirección contractual
-
-Estado: **implementado en schema, migración, API y admin; aplicado en development y no aplicado a producción durante este desarrollo**.
-
-Incluye `RentalContractParty`, `RentalContractNotificationRoute`, los enums `RentalContractPartyRole` y `NotificationChannel`, documento opcional de contacto y la dirección contractual estructurada. Migra las referencias singulares existentes antes de eliminarlas. No implementa reglas, dispatches, deliveries, proveedores ni scheduler.
-
-### Migración C — Avisos/comunicaciones
-
-Estado: **pendiente**.
-
-Entidades:
-
-- `RentalReminderRule`.
-- `RentalReminderDispatch`.
-- `RentalReminderDispatchOccurrence`.
-- `RentalReminderDelivery`.
-
-Incluye `RentalContract.reminderGroupingMode`, `TenantSetting.rentalReminderSendTime`, enums de canal/agrupación/estados, canales múltiples, agrupación, snapshots e idempotencia.
-
----
-
-## Extensiones deliberadamente preparadas
-
-Sin implementarlas en V1, el modelo permite:
-
-- override de destino por contrato y canal;
-- preferencias/capacidades de contacto más detalladas;
-- portal del inquilino mediante una identidad vinculada a `Contact`;
-- evidencia privada asociada a un fulfillment u ocurrencia;
-- extracción OCR/IA que proponga una imputación, manteniendo decisión y confianza auditables;
-- adaptadores de email, WhatsApp o SMS intercambiables;
-- relación futura entre `Contact`, `Lead` y un dominio de cliente consolidado.
-
-Los archivos privados requerirán un futuro `StoredFile` agnóstico de proveedor, metadata y descarga autorizada. No se reutiliza `PropertyImage` ni el storage público actual.
-
----
-
-## Aspectos operativos diferidos
-
-No bloquean las migraciones A, B o C:
-
-- valor concreto de la hora default del sistema;
-- política de edición de snapshots contractuales después de activar;
-- algoritmo concreto de normalización de email y teléfonos argentinos/internacionales;
-- timeout de recuperación de claims abandonados;
-- retención y sanitización de errores devueltos por proveedores.
-
-Las decisiones estructurales necesarias para las tres migraciones quedaron cerradas en este documento. Los aspectos anteriores se resolverán en la fase de Service/operación correspondiente sin ampliar el schema inicial.
+- contratos temporarios inferiores a un mes;
+- índices automáticos IPC/ICL;
+- cambio ordinario de moneda;
+- asignación/scoping de contratos por agente;
+- preferencias personales de notificación;
+- portal externo de partes;
+- firma y storage de documentos;
+- ejecución de comunicaciones hasta Migración C.
