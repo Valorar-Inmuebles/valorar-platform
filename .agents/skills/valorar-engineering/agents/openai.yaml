@@ -1,0 +1,4 @@
+interface:
+  display_name: "Valorar Engineering"
+  short_description: "Workflow técnico seguro para Valorar"
+  default_prompt: "Usa $valorar-engineering para ejecutar este gate técnico en valorar-platform con alcance, seguridad y validaciones proporcionales."
