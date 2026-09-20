@@ -26,7 +26,10 @@ import {
   PropertyLocationFields,
   type PropertyLocationValue,
 } from "@/components/property/property-location-fields";
-import { RentalContactPanel } from "@/components/rental/rental-contact-panel";
+import {
+  RentalContactPanel,
+  type RentalPartyDraft,
+} from "@/components/rental/rental-contact-panel";
 import {
   createRentalContractAction,
   transitionRentalContractAction,
@@ -35,7 +38,6 @@ import {
 import type {
   RentalContact,
   RentalContract,
-  RentalContractParty,
   RentalContractPartyRole,
 } from "@/lib/api/types/rental";
 import type { AdminProperty } from "@/lib/api/types/property";
@@ -53,7 +55,6 @@ export function RentalContractForm({
   mode,
   contract,
   properties,
-  initialContacts,
   canUpdate = true,
   canEnd = false,
 }: {
@@ -66,13 +67,12 @@ export function RentalContractForm({
 }) {
   const router = useRouter();
   const { toast } = useToast();
-  const [contacts, setContacts] = useState(initialContacts);
-  const [parties, setParties] = useState<RentalContractParty[]>(
+  const [parties, setParties] = useState<RentalPartyDraft[]>(
     contract?.parties ?? [],
   );
   const [panel, setPanel] = useState<{
     role: RentalContractPartyRole;
-    party: RentalContractParty | null;
+    party: RentalPartyDraft | null;
   } | null>(null);
   const [propertyQuery, setPropertyQuery] = useState(
     contract?.property?.title ?? "",
@@ -164,7 +164,7 @@ export function RentalContractForm({
     setPropertyOpen(false);
   };
 
-  const saveParty = (party: RentalContractParty) =>
+  const saveParty = (party: RentalPartyDraft) =>
     setParties((current) => {
       const nextParty =
         party.role === "RENTER" &&
@@ -586,10 +586,16 @@ export function RentalContractForm({
           open
           role={panel.role}
           party={panel.party}
-          contacts={contacts.filter((contact) => contact.isActive)}
+          excludedContactIds={parties
+            .filter((party) => party.role === panel.role)
+            .map((party) => party.contactId)}
           onClose={() => setPanel(null)}
-          onContactCreated={(contact) =>
-            setContacts((current) => [...current, contact])
+          onContactUpserted={(contact) =>
+            setParties((current) =>
+              current.map((party) =>
+                party.contactId === contact.id ? { ...party, contact } : party,
+              ),
+            )
           }
           onSaved={saveParty}
         />

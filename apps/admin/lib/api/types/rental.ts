@@ -29,6 +29,45 @@ export type RentalContact = {
   updatedAt: string;
 };
 
+export type RentalContactSearchItem = Pick<
+  RentalContact,
+  "id" | "name" | "documentType" | "documentNumber" | "isActive"
+> & {
+  contactPoints: Array<
+    Pick<
+      RentalContactPoint,
+      | "id"
+      | "type"
+      | "value"
+      | "label"
+      | "isDefault"
+      | "canReceiveSms"
+      | "canReceiveWhatsapp"
+    >
+  >;
+};
+
+export type RentalPropertySearchItem = {
+  id: string;
+  title: string;
+  internalCode: string | null;
+  propertyType: string;
+  isActive: boolean;
+  street: string | null;
+  streetNumber: string | null;
+  floor: string | null;
+  apartment: string | null;
+  neighborhood: string | null;
+  city: string;
+  province: string | null;
+  country: string;
+  countryId: string | null;
+  provinceId: string | null;
+  localityId: string | null;
+  neighborhoodId: string | null;
+  postalCode: string | null;
+  formattedAddress: string | null;
+};
 export type CreateRentalContactPointPayload = {
   type: ContactPointType;
   value: string;

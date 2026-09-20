@@ -1,22 +1,23 @@
+import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
+import { Button } from "@repo/ui/button";
 import { RentalContractForm } from "@/components/rental/rental-contract-form";
+import { RentalObligationManager } from "@/components/rental/rental-obligation-manager";
 import { ApiErrorPanel } from "@/components/shared/api-error-panel";
 import { PageShell } from "@/components/shared/page-shell";
+import { SuperAdminTenantEmptyState } from "@/components/shared/super-admin-tenant-empty-state";
 import { ApiError } from "@/lib/api/client";
 import { mapUnknownError } from "@/lib/api/error-map";
-import { listProperties } from "@/lib/api/property";
-import { getRentalContract, listRentalContacts } from "@/lib/api/rental";
-import { getActiveTenantId } from "@/lib/auth/active-tenant";
-import { resolveActiveTenantGate } from "@/lib/auth/require-active-tenant";
-import { getSession } from "@/lib/auth/session";
-import { sessionHasPermission } from "@/lib/auth/types";
-import { SuperAdminTenantEmptyState } from "@/components/shared/super-admin-tenant-empty-state";
-import { RentalObligationManager } from "@/components/rental/rental-obligation-manager";
 import {
+  getRentalContract,
   listRentalConcepts,
   listRentalObligations,
   listRentalOccurrences,
 } from "@/lib/api/rental";
+import { getActiveTenantId } from "@/lib/auth/active-tenant";
+import { resolveActiveTenantGate } from "@/lib/auth/require-active-tenant";
+import { getSession } from "@/lib/auth/session";
+import { sessionHasPermission } from "@/lib/auth/types";
 
 export default async function AlquilerDetallePage({
   params,
@@ -39,35 +40,40 @@ export default async function AlquilerDetallePage({
   }
   const { id } = await params;
   try {
-    const [contract, properties, contacts, concepts, obligations, occurrences] =
-      await Promise.all([
-        getRentalContract(id),
-        listProperties(),
-        listRentalContacts(),
-        listRentalConcepts(),
-        listRentalObligations(id),
-        listRentalOccurrences({ contractId: id, pageSize: 100 }),
-      ]);
+    const [contract, concepts, obligations, occurrences] = await Promise.all([
+      getRentalContract(id),
+      listRentalConcepts(),
+      listRentalObligations(id),
+      listRentalOccurrences({ contractId: id, pageSize: 100 }),
+    ]);
+    const canUpdate =
+      sessionHasPermission(session.user, "rental.contract.update") &&
+      ["DRAFT", "ACTIVE"].includes(contract.status);
     return (
       <PageShell
         title={`Contrato ${contract.internalNumber}`}
         description={`Estado: ${{ DRAFT: "Borrador", ACTIVE: "Activo", ENDED: "Finalizado", CANCELLED: "Cancelado" }[contract.status]}`}
         breadcrumbs={[
           { label: "Inicio", href: "/" },
-          { label: "Alquileres", href: "/alquileres" },
+          { label: "Gestión de alquileres", href: "/alquileres" },
+          { label: "Contratos", href: "/alquileres/contratos" },
           { label: contract.internalNumber },
         ]}
+        actions={
+          canUpdate ? (
+            <Link href={`/alquileres/${contract.id}/editar`}>
+              <Button>Editar contrato</Button>
+            </Link>
+          ) : undefined
+        }
       >
         <div className="space-y-6">
           <RentalContractForm
             mode="edit"
             contract={contract}
-            properties={properties}
-            initialContacts={contacts}
-            canUpdate={sessionHasPermission(
-              session.user,
-              "rental.contract.update",
-            )}
+            properties={[]}
+            initialContacts={[]}
+            canUpdate={false}
             canEnd={sessionHasPermission(session.user, "rental.contract.end")}
           />
           <RentalObligationManager

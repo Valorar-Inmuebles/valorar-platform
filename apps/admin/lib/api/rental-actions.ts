@@ -15,11 +15,14 @@ import {
   updateRentalContract,
   createRentalObligation,
   materializeRentalObligation,
+  getRentalContact,
   recordRentalFulfillment,
   reverseRentalFulfillment,
   updateRentalObligation,
   updateRentalOccurrenceAmount,
   updateRentalOccurrenceDueDate,
+  searchRentalContacts,
+  searchRentalProperties,
 } from "@/lib/api/rental";
 import type {
   CreateRentalContactPayload,
@@ -28,6 +31,9 @@ import type {
   RentalConcept,
   RentalContact,
   RentalContactPoint,
+  RentalContactSearchItem,
+  RentalPropertySearchItem,
+  PaginatedResponse,
   RentalContract,
   UpdateRentalContactPayload,
   UpdateRentalContactPointPayload,
@@ -169,6 +175,21 @@ export async function transitionRentalContractAction(
   return result;
 }
 
+export async function searchRentalPropertiesAction(search: string) {
+  return run<PaginatedResponse<RentalPropertySearchItem>>(() =>
+    searchRentalProperties(search),
+  );
+}
+
+export async function searchRentalContactsAction(search: string) {
+  return run<PaginatedResponse<RentalContactSearchItem>>(() =>
+    searchRentalContacts(search),
+  );
+}
+
+export async function getRentalContactAction(id: string) {
+  return run<RentalContact>(() => getRentalContact(id));
+}
 export async function createRentalContactAction(
   payload: CreateRentalContactPayload,
 ) {

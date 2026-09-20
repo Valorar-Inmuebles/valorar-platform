@@ -19,7 +19,7 @@ Plataforma SaaS inmobiliaria multi-tenant orientada a:
 
 **Rental Management V1 — Migraciones A+B + refinamiento B.1** ✅ (baseline consolidado y versionado)
 
-**Rental Management V1.1 — Fases 1–3 + UI Foundation Fase 4 + Fase 5A** ✅ (Resumen + Listado implementados; Fase 5B y Migración C no iniciadas)
+**Rental Management V1.1 — Fases 1–3 + UI Foundation Fase 4 + Fases 5A–5B** ✅ (Resumen, Listado y Wizard Información básica + Partes implementados; Fase 5C y Migración C no iniciadas)
 
 Documentación: `docs/04-modules/rental-management-v1.md`, `docs/03-database/rental-domain.md`
 
@@ -322,6 +322,18 @@ Documentación: `docs/04-modules/rental-management-v1.md`, `docs/03-database/ren
 * El listado usa la proyección compacta de contratos y un próximo vencimiento resuelto en la misma consulta proyectada, sin requests por fila.
 * Navegación Rental distingue Resumen, Contratos y Vencimientos; Fase 5B, detalle, historial visual y refactor de Vencimientos siguen pendientes.
 * UI basada en primitives compartidas de Fase 4 (`AdminTable`, `FilterBar`, `Pagination`, `DropdownMenu`, `Tabs`, `Badge`) con estados loading/error/empty/sin resultados.
+
+Documentación: `docs/04-modules/rental-management-v1.md`, `PROJECT_STATE.md`.
+
+### Rental Management V1.1 — Fase 5B ✅
+
+* Alta y edición reutilizan el mismo wizard en `/alquileres/crear` y `/alquileres/:id/editar`; el Stepper deja visibles los cinco pasos y sólo habilita Información básica y Partes.
+* Información básica usa búsqueda Property server-side, incluye activas e inactivas, permite contrato sin Property y precarga una dirección contractual que permanece editable e independiente.
+* La vigencia usa `DatePicker`, deshabilita la fecha final hasta definir inicio y valida un mínimo de un mes calendario al continuar; el borrador conserva las reglas incompletas admitidas por el dominio.
+* Partes admite múltiples inquilinos y propietarios, garantiza una UX de referente principal y persiste mediante el diff/upsert existente sin borrar y recrear asociaciones.
+* El `SidePanel` busca Contact server-side por nombre/documento/email/teléfono, permite alta y administración de ContactPoints, principales y capacidades WhatsApp/SMS, sin configurar rutas de aviso del contrato.
+* El flujo protege cambios sin guardar, contempla estados de búsqueda/envío/error/empty/disabled y reutiliza primitives compartidas (`Stepper`, `SearchCombobox`, `DatePicker`, `SidePanel`, `Tabs`, `DropdownMenu`, `Toast`, `ConfirmModal`).
+* Pasos Alquiler, Obligaciones y Avisos permanecen pendientes de Fase 5C y posteriores; no hubo cambios de schema ni se inició Migración C.
 
 Documentación: `docs/04-modules/rental-management-v1.md`, `PROJECT_STATE.md`.
 

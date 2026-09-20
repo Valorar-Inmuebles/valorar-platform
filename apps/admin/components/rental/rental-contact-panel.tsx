@@ -1,9 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { Button } from "@repo/ui/button";
+import { Badge } from "@repo/ui/badge";
+import { ConfirmModal } from "@repo/ui/modal";
 import { FormField, HelperText, Label } from "@repo/ui/form-field";
 import { Input } from "@repo/ui/input";
+import { SearchCombobox } from "@repo/ui/search-combobox";
 import { Select } from "@repo/ui/select";
 import {
   SidePanel,
@@ -14,485 +17,683 @@ import {
   SidePanelTitle,
 } from "@repo/ui/side-panel";
 import { Switch } from "@repo/ui/switch";
+import { TabPanel, Tabs } from "@repo/ui/tabs";
 import { useToast } from "@repo/ui/toast";
-import { createRentalContactAction } from "@/lib/api/rental-actions";
+import {
+  addRentalContactPointAction,
+  createRentalContactAction,
+  getRentalContactAction,
+  markRentalContactPointDefaultAction,
+  searchRentalContactsAction,
+  updateRentalContactAction,
+  updateRentalContactPointAction,
+} from "@/lib/api/rental-actions";
 import type {
   ContactDocumentType,
-  NotificationChannel,
+  ContactPointType,
   RentalContact,
-  RentalContractParty,
+  RentalContactSearchItem,
+  RentalContractNotificationRoute,
   RentalContractPartyRole,
 } from "@/lib/api/types/rental";
 
-type RouteDraft = Partial<Record<NotificationChannel, string>>;
+export type RentalPartyDraft = {
+  id?: string;
+  contactId: string;
+  role: RentalContractPartyRole;
+  isPrimary: boolean;
+  contact: RentalContact | RentalContactSearchItem;
+  notificationRoutes: RentalContractNotificationRoute[];
+};
 
-function suggestedRoutes(contact: RentalContact): RouteDraft {
-  const active = contact.contactPoints.filter((point) => point.isActive);
-  const pick = (channel: NotificationChannel) => {
-    const compatible = active.filter((point) =>
-      channel === "EMAIL"
-        ? point.type === "EMAIL"
-        : point.type === "PHONE" &&
-          (channel === "WHATSAPP"
-            ? point.canReceiveWhatsapp
-            : point.canReceiveSms),
+type PointDraft = {
+  key: string;
+  id?: string;
+  type: ContactPointType;
+  value: string;
+  label: string;
+  isDefault: boolean;
+  isActive: boolean;
+  canReceiveSms: boolean;
+  canReceiveWhatsapp: boolean;
+};
+
+const documentOptions = [
+  { value: "", label: "Sin especificar" },
+  { value: "DNI", label: "DNI" },
+  { value: "CUIT", label: "CUIT" },
+  { value: "CUIL", label: "CUIL" },
+  { value: "PASSPORT", label: "Pasaporte" },
+];
+
+function pointKey() {
+  return `point-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+function contactPoints(
+  contact?: RentalContact | RentalContactSearchItem | null,
+): PointDraft[] {
+  if (!contact) return [];
+  return contact.contactPoints.map((point) => ({
+    key: point.id,
+    id: point.id,
+    type: point.type,
+    value: point.value,
+    label: point.label ?? "",
+    isDefault: point.isDefault,
+    isActive: "isActive" in point ? point.isActive : true,
+    canReceiveSms: point.canReceiveSms,
+    canReceiveWhatsapp: point.canReceiveWhatsapp,
+  }));
+}
+
+function primaryPoint(points: PointDraft[], type: ContactPointType) {
+  return points.find(
+    (point) => point.type === type && point.isActive && point.isDefault,
+  );
+}
+
+function ContactPointEditor({
+  points,
+  disabled,
+  onChange,
+}: {
+  points: PointDraft[];
+  disabled: boolean;
+  onChange: (points: PointDraft[]) => void;
+}) {
+  const update = (key: string, patch: Partial<PointDraft>) =>
+    onChange(
+      points.map((point) =>
+        point.key === key ? { ...point, ...patch } : point,
+      ),
     );
-    return compatible.find((point) => point.isDefault)?.id ?? compatible[0]?.id;
+
+  const setPrimary = (key: string, type: ContactPointType) =>
+    onChange(
+      points.map((point) => ({
+        ...point,
+        isDefault:
+          point.type === type && point.isActive
+            ? point.key === key
+            : point.isDefault,
+      })),
+    );
+
+  const add = (type: ContactPointType) => {
+    const hasActive = points.some(
+      (point) => point.type === type && point.isActive,
+    );
+    onChange([
+      ...points,
+      {
+        key: pointKey(),
+        type,
+        value: "",
+        label: "",
+        isDefault: !hasActive,
+        isActive: true,
+        canReceiveSms: false,
+        canReceiveWhatsapp: type === "PHONE",
+      },
+    ]);
   };
-  return { EMAIL: pick("EMAIL"), WHATSAPP: pick("WHATSAPP"), SMS: pick("SMS") };
+
+  const remove = (point: PointDraft) => {
+    const next = point.id
+      ? points.map((item) =>
+          item.key === point.key
+            ? { ...item, isActive: false, isDefault: false }
+            : item,
+        )
+      : points.filter((item) => item.key !== point.key);
+    const sameType = next.filter(
+      (item) => item.type === point.type && item.isActive,
+    );
+    if (sameType.length && !primaryPoint(next, point.type)) {
+      const first = sameType[0];
+      onChange(
+        next.map((item) =>
+          item.key === first?.key ? { ...item, isDefault: true } : item,
+        ),
+      );
+    } else onChange(next);
+  };
+
+  return (
+    <div className="space-y-5">
+      {(["EMAIL", "PHONE"] as ContactPointType[]).map((type) => {
+        const items = points.filter((point) => point.type === type);
+        return (
+          <section key={type} className="space-y-3">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <h4 className="text-sm font-semibold text-foreground">
+                  {type === "EMAIL" ? "Emails" : "Teléfonos"}
+                </h4>
+                <HelperText>
+                  Podés cargar varios y elegir uno principal.
+                </HelperText>
+              </div>
+              <Button
+                type="button"
+                size="sm"
+                variant="secondary"
+                disabled={disabled}
+                onClick={() => add(type)}
+              >
+                Agregar
+              </Button>
+            </div>
+            {items.length === 0 ? (
+              <p className="rounded-lg border border-dashed border-border p-3 text-xs text-muted">
+                No hay {type === "EMAIL" ? "emails" : "teléfonos"} cargados.
+              </p>
+            ) : null}
+            {items.map((point) => (
+              <div
+                key={point.key}
+                className="space-y-3 rounded-xl border border-border p-3"
+              >
+                <div className="flex items-start gap-2">
+                  <Input
+                    type={type === "EMAIL" ? "email" : "tel"}
+                    value={point.value}
+                    disabled={disabled || !point.isActive}
+                    placeholder={
+                      type === "EMAIL" ? "persona@email.com" : "+54 9 11…"
+                    }
+                    aria-label={type === "EMAIL" ? "Email" : "Teléfono"}
+                    onChange={(event) =>
+                      update(point.key, { value: event.target.value })
+                    }
+                  />
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    disabled={disabled}
+                    onClick={() =>
+                      point.isActive
+                        ? remove(point)
+                        : update(point.key, {
+                            isActive: true,
+                            isDefault: !primaryPoint(points, type),
+                          })
+                    }
+                  >
+                    {point.isActive ? "Quitar" : "Reactivar"}
+                  </Button>
+                </div>
+                {point.isActive ? (
+                  <div className="flex flex-wrap items-center gap-4">
+                    <Switch
+                      label="Principal"
+                      checked={point.isDefault}
+                      disabled={disabled}
+                      onChange={() => setPrimary(point.key, type)}
+                    />
+                    {type === "PHONE" ? (
+                      <>
+                        <Switch
+                          label="WhatsApp"
+                          checked={point.canReceiveWhatsapp}
+                          disabled={disabled}
+                          onChange={(checked) =>
+                            update(point.key, { canReceiveWhatsapp: checked })
+                          }
+                        />
+                        <Switch
+                          label="SMS"
+                          checked={point.canReceiveSms}
+                          disabled={disabled}
+                          onChange={(checked) =>
+                            update(point.key, { canReceiveSms: checked })
+                          }
+                        />
+                      </>
+                    ) : null}
+                  </div>
+                ) : (
+                  <Badge variant="neutral">Desactivado</Badge>
+                )}
+              </div>
+            ))}
+          </section>
+        );
+      })}
+    </div>
+  );
 }
 
 export function RentalContactPanel({
   open,
   role,
-  contacts,
   party,
+  excludedContactIds,
   onClose,
-  onContactCreated,
+  onContactUpserted,
   onSaved,
 }: {
   open: boolean;
   role: RentalContractPartyRole;
-  contacts: RentalContact[];
-  party: RentalContractParty | null;
+  party: RentalPartyDraft | null;
+  excludedContactIds: string[];
   onClose: () => void;
-  onContactCreated: (contact: RentalContact) => void;
-  onSaved: (party: RentalContractParty) => void;
+  onContactUpserted: (contact: RentalContact) => void;
+  onSaved: (party: RentalPartyDraft) => void;
 }) {
   const { toast } = useToast();
-  const [selectedId, setSelectedId] = useState("");
-  const [search, setSearch] = useState("");
-  const [creating, setCreating] = useState(false);
+  const cache = useRef(new Map<string, RentalContactSearchItem>());
+  const [tab, setTab] = useState("existing");
+  const [selected, setSelected] = useState<
+    RentalContact | RentalContactSearchItem | null
+  >(null);
+  const [editing, setEditing] = useState(false);
   const [name, setName] = useState("");
   const [documentType, setDocumentType] = useState<ContactDocumentType | "">(
     "",
   );
   const [documentNumber, setDocumentNumber] = useState("");
-  const [emails, setEmails] = useState([""]);
-  const [phones, setPhones] = useState([
-    { value: "", whatsapp: true, sms: false },
-  ]);
-  const [routes, setRoutes] = useState<RouteDraft>({});
+  const [points, setPoints] = useState<PointDraft[]>([]);
+  const [dirty, setDirty] = useState(false);
+  const [confirmClose, setConfirmClose] = useState(false);
   const [pending, startTransition] = useTransition();
 
-  useEffect(() => {
-    setSelectedId(party?.contactId ?? "");
-    setSearch("");
-    setCreating(false);
-    const stored = party
-      ? Object.fromEntries(
-          party.notificationRoutes
-            .filter((item) => item.isEnabled)
-            .map((item) => [item.channel, item.contactPointId]),
-        )
-      : {};
-    setRoutes(
-      party && role === "RENTER" && party.notificationRoutes.length === 0
-        ? suggestedRoutes(party.contact)
-        : stored,
-    );
-  }, [open, party, role]);
+  const roleLabel = role === "RENTER" ? "inquilino" : "propietario";
 
-  const selected =
-    contacts.find((contact) => contact.id === selectedId) ??
-    party?.contact ??
-    null;
-  const filtered = useMemo(
-    () =>
-      contacts.filter((contact) => {
-        const query = search.trim().toLowerCase();
-        return (
-          !query ||
-          contact.name.toLowerCase().includes(query) ||
-          contact.documentNumber?.includes(query) ||
-          contact.contactPoints.some((point) =>
-            point.value.toLowerCase().includes(query),
-          )
-        );
-      }),
-    [contacts, search],
-  );
-
-  const choose = (contact: RentalContact) => {
-    setSelectedId(contact.id);
-    setRoutes(
-      party?.contactId === contact.id ? routes : suggestedRoutes(contact),
-    );
+  const resetPerson = (
+    contact?: RentalContact | RentalContactSearchItem | null,
+  ) => {
+    setName(contact?.name ?? "");
+    setDocumentType(contact?.documentType ?? "");
+    setDocumentNumber(contact?.documentNumber ?? "");
+    setPoints(contactPoints(contact));
+    setDirty(false);
   };
 
-  const createPerson = () =>
+  useEffect(() => {
+    if (!open) return;
+    setTab("existing");
+    setSelected(party?.contact ?? null);
+    setEditing(false);
+    resetPerson(null);
+  }, [open, party]);
+
+  const loadOptions = async (query: string) => {
+    const result = await searchRentalContactsAction(query);
+    if (!result.ok) throw new Error(result.error);
+    result.value.items.forEach((contact) =>
+      cache.current.set(contact.id, contact),
+    );
+    return result.value.items.map((contact) => ({
+      value: contact.id,
+      label: contact.name,
+      description: [
+        contact.documentNumber
+          ? `${contact.documentType ?? "Documento"} ${contact.documentNumber}`
+          : null,
+        contact.contactPoints.find((point) => point.isDefault)?.value,
+        contact.isActive ? null : "Inactiva",
+      ]
+        .filter(Boolean)
+        .join(" · "),
+      disabled:
+        excludedContactIds.includes(contact.id) &&
+        contact.id !== party?.contactId,
+    }));
+  };
+
+  const requestClose = () => (dirty ? setConfirmClose(true) : onClose());
+
+  const editExisting = () => {
+    if (!selected) return;
     startTransition(async () => {
-      if (!name.trim()) return toast.error("Ingresá el nombre de la persona.");
-      const contactPoints = [
-        ...emails
-          .filter((value) => value.trim())
-          .map((value, index) => ({
-            type: "EMAIL" as const,
-            value: value.trim(),
-            isDefault: index === 0,
-          })),
-        ...phones
-          .filter((item) => item.value.trim())
-          .map((item, index) => ({
-            type: "PHONE" as const,
-            value: item.value.trim(),
-            isDefault: index === 0,
-            canReceiveWhatsapp: item.whatsapp,
-            canReceiveSms: item.sms,
-          })),
-      ];
-      const result = await createRentalContactAction({
+      const result = await getRentalContactAction(selected.id);
+      if (!result.ok) return toast.error(result.error);
+      setSelected(result.value);
+      resetPerson(result.value);
+      setEditing(true);
+    });
+  };
+
+  const validatePerson = () => {
+    if (!name.trim()) return "Ingresá el nombre de la persona.";
+    if (Boolean(documentType) !== Boolean(documentNumber.trim()))
+      return "Completá tipo y número de documento, o dejá ambos vacíos.";
+    if (points.some((point) => point.isActive && !point.value.trim()))
+      return "Completá o quitá los medios de contacto vacíos.";
+    const active = points.filter(
+      (point) => point.isActive && point.value.trim(),
+    );
+    for (const type of ["EMAIL", "PHONE"] as ContactPointType[]) {
+      const typed = active.filter((point) => point.type === type);
+      if (typed.length && typed.filter((point) => point.isDefault).length !== 1)
+        return `Elegí exactamente un ${type === "EMAIL" ? "email" : "teléfono"} principal.`;
+    }
+    return null;
+  };
+
+  const savePerson = () => {
+    const validation = validatePerson();
+    if (validation) return toast.error(validation);
+    startTransition(async () => {
+      if (!editing) {
+        const result = await createRentalContactAction({
+          name: name.trim(),
+          documentType: documentType || undefined,
+          documentNumber: documentNumber.trim() || undefined,
+          contactPoints: points
+            .filter((point) => point.isActive && point.value.trim())
+            .map((point) => ({
+              type: point.type,
+              value: point.value.trim(),
+              label: point.label || undefined,
+              isDefault: point.isDefault,
+              canReceiveSms: point.type === "PHONE" && point.canReceiveSms,
+              canReceiveWhatsapp:
+                point.type === "PHONE" && point.canReceiveWhatsapp,
+            })),
+        });
+        if (!result.ok) return toast.error(result.error);
+        setSelected(result.value);
+        onContactUpserted(result.value);
+        setDirty(false);
+        setEditing(false);
+        setTab("existing");
+        toast.success("Persona creada.");
+        return;
+      }
+      if (!selected) return;
+      const contactResult = await updateRentalContactAction(selected.id, {
         name: name.trim(),
         documentType: documentType || undefined,
         documentNumber: documentNumber.trim() || undefined,
-        contactPoints,
       });
-      if (!result.ok) return toast.error(result.error);
-      onContactCreated(result.value);
-      choose(result.value);
-      setCreating(false);
-      toast.success("Persona creada.");
-    });
+      if (!contactResult.ok) return toast.error(contactResult.error);
 
-  const save = () => {
+      const ordered = [...points].sort(
+        (a, b) => Number(a.isDefault) - Number(b.isDefault),
+      );
+      const ids = new Map<string, string>();
+      for (const point of ordered) {
+        if (point.id) {
+          const result = await updateRentalContactPointAction(
+            selected.id,
+            point.id,
+            {
+              value: point.value.trim(),
+              label: point.label || undefined,
+              isDefault: point.isDefault,
+              isActive: point.isActive,
+              canReceiveSms: point.type === "PHONE" && point.canReceiveSms,
+              canReceiveWhatsapp:
+                point.type === "PHONE" && point.canReceiveWhatsapp,
+            },
+          );
+          if (!result.ok) return toast.error(result.error);
+          ids.set(point.key, result.value.id);
+        } else if (point.isActive && point.value.trim()) {
+          const result = await addRentalContactPointAction(selected.id, {
+            type: point.type,
+            value: point.value.trim(),
+            label: point.label || undefined,
+            isDefault: false,
+            canReceiveSms: point.type === "PHONE" && point.canReceiveSms,
+            canReceiveWhatsapp:
+              point.type === "PHONE" && point.canReceiveWhatsapp,
+          });
+          if (!result.ok) return toast.error(result.error);
+          ids.set(point.key, result.value.id);
+        }
+      }
+      for (const point of points.filter(
+        (item) => item.isActive && item.isDefault,
+      )) {
+        const id = ids.get(point.key) ?? point.id;
+        if (!id) continue;
+        const result = await markRentalContactPointDefaultAction(
+          selected.id,
+          id,
+        );
+        if (!result.ok) return toast.error(result.error);
+      }
+      const refreshed = await getRentalContactAction(selected.id);
+      if (!refreshed.ok) return toast.error(refreshed.error);
+      setSelected(refreshed.value);
+      onContactUpserted(refreshed.value);
+      setDirty(false);
+      setEditing(false);
+      toast.success("Datos de la persona actualizados.");
+    });
+  };
+
+  const addParty = () => {
     if (!selected) return toast.error("Seleccioná o creá una persona.");
-    const notificationRoutes = (
-      Object.entries(routes) as Array<[NotificationChannel, string]>
-    )
-      .filter(([, pointId]) => Boolean(pointId))
-      .map(([channel, contactPointId]) => ({
-        channel,
-        contactPointId,
-        isEnabled: true,
-      }));
     onSaved({
       id: party?.id,
       contactId: selected.id,
       role,
       isPrimary: party?.isPrimary ?? false,
       contact: selected,
-      notificationRoutes,
+      notificationRoutes: party?.notificationRoutes ?? [],
     });
+    setDirty(false);
     onClose();
   };
 
-  const channelOptions = (channel: NotificationChannel) =>
-    selected?.contactPoints
-      .filter(
-        (point) =>
-          point.isActive &&
-          (channel === "EMAIL"
-            ? point.type === "EMAIL"
-            : point.type === "PHONE" &&
-              (channel === "WHATSAPP"
-                ? point.canReceiveWhatsapp
-                : point.canReceiveSms)),
-      )
-      .map((point) => ({
-        value: point.id,
-        label: `${point.value}${point.isDefault ? " · principal" : ""}`,
-      })) ?? [];
+  const renderPersonForm = () => (
+    <div className="space-y-5">
+      <div className="grid gap-4 sm:grid-cols-2">
+        <FormField className="sm:col-span-2">
+          <Label required>Nombre completo</Label>
+          <Input
+            value={name}
+            disabled={pending}
+            onChange={(event) => {
+              setName(event.target.value);
+              setDirty(true);
+            }}
+          />
+        </FormField>
+        <FormField>
+          <Label>Tipo de documento</Label>
+          <Select
+            value={documentType}
+            options={documentOptions}
+            disabled={pending}
+            onChange={(value) => {
+              setDocumentType(value as ContactDocumentType | "");
+              setDirty(true);
+            }}
+          />
+        </FormField>
+        <FormField>
+          <Label>Número de documento</Label>
+          <Input
+            value={documentNumber}
+            disabled={pending}
+            onChange={(event) => {
+              setDocumentNumber(event.target.value);
+              setDirty(true);
+            }}
+          />
+        </FormField>
+      </div>
+      <ContactPointEditor
+        points={points}
+        disabled={pending}
+        onChange={(value) => {
+          setPoints(value);
+          setDirty(true);
+        }}
+      />
+      <Button type="button" loading={pending} onClick={savePerson}>
+        {editing ? "Guardar cambios" : "Crear persona"}
+      </Button>
+    </div>
+  );
 
   return (
-    <SidePanel open={open} onClose={onClose} width="lg">
-      <SidePanelHeader>
-        <SidePanelTitle>
-          {party ? "Editar" : "Agregar"}{" "}
-          {role === "RENTER" ? "inquilino" : "propietario"}
-        </SidePanelTitle>
-        <SidePanelDescription>
-          Buscá una persona existente o creala sin salir del contrato.
-        </SidePanelDescription>
-      </SidePanelHeader>
-      <SidePanelContent className="space-y-6">
-        {!selected ? (
-          <>
-            <FormField>
-              <Label>Buscar persona existente</Label>
-              <Input
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
-                placeholder="Nombre, documento, email o teléfono"
-              />
-            </FormField>
-            <div className="space-y-2">
-              {filtered.slice(0, 8).map((contact) => (
-                <button
-                  key={contact.id}
-                  type="button"
-                  onClick={() => choose(contact)}
-                  className="w-full rounded-xl border border-zinc-200 p-3 text-left hover:border-indigo-300 hover:bg-indigo-50/40"
-                >
-                  <span className="font-medium">{contact.name}</span>
-                  <span className="mt-1 block text-xs text-zinc-500">
-                    {contact.documentNumber
-                      ? `${contact.documentType ?? "Documento"} ${contact.documentNumber} · `
-                      : ""}
-                    {contact.contactPoints
-                      .map((point) => point.value)
-                      .join(" · ") || "Sin medios cargados"}
-                  </span>
-                </button>
-              ))}
-            </div>
-            <Button variant="secondary" onClick={() => setCreating(true)}>
-              Crear nueva persona
-            </Button>
-          </>
-        ) : (
-          <div className="rounded-xl border border-indigo-200 bg-indigo-50/50 p-4">
-            <p className="font-semibold">{selected.name}</p>
-            <p className="text-xs text-zinc-500">
-              {selected.documentNumber
-                ? `${selected.documentType ?? "Documento"} ${selected.documentNumber}`
-                : "Sin documento informado"}
-            </p>
-            <Button
-              className="mt-3"
-              size="sm"
-              variant="ghost"
-              onClick={() => {
-                setSelectedId("");
-                setRoutes({});
-              }}
-            >
-              Cambiar persona
-            </Button>
-          </div>
-        )}
-
-        {creating && !selected ? (
-          <div className="space-y-4 rounded-xl border border-zinc-200 p-4">
-            <h3 className="font-semibold">Nueva persona</h3>
-            <FormField>
-              <Label required>Nombre completo</Label>
-              <Input
-                value={name}
-                onChange={(event) => setName(event.target.value)}
-              />
-            </FormField>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <FormField>
-                <Label>Tipo de documento</Label>
-                <Select
-                  value={documentType}
-                  onChange={(value) =>
-                    setDocumentType(value as ContactDocumentType | "")
-                  }
-                  options={[
-                    { value: "", label: "Sin especificar" },
-                    { value: "DNI", label: "DNI" },
-                    { value: "CUIT", label: "CUIT" },
-                    { value: "CUIL", label: "CUIL" },
-                    { value: "PASSPORT", label: "Pasaporte" },
-                  ]}
-                />
-              </FormField>
-              <FormField>
-                <Label>Número de documento</Label>
-                <Input
-                  value={documentNumber}
-                  onChange={(event) => setDocumentNumber(event.target.value)}
-                />
-              </FormField>
-            </div>
-            <div className="space-y-2">
-              <Label>Emails</Label>
-              {emails.map((value, index) => (
-                <div key={index} className="flex gap-2">
-                  <Input
-                    type="email"
-                    value={value}
-                    onChange={(event) =>
-                      setEmails((items) =>
-                        items.map((item, i) =>
-                          i === index ? event.target.value : item,
-                        ),
+    <>
+      <SidePanel
+        open={open}
+        onClose={requestClose}
+        closeOnOverlay={!dirty}
+        width="lg"
+      >
+        <SidePanelHeader>
+          <SidePanelTitle>
+            {party ? "Editar" : "Agregar"} {roleLabel}
+          </SidePanelTitle>
+          <SidePanelDescription>
+            Buscá una persona existente o creá una nueva.
+          </SidePanelDescription>
+        </SidePanelHeader>
+        <SidePanelContent className="space-y-5">
+          <Tabs
+            id="rental-person-tabs"
+            ariaLabel="Origen de la persona"
+            value={tab}
+            items={[
+              { value: "existing", label: "Buscar existente" },
+              { value: "new", label: "Nueva persona" },
+            ]}
+            onChange={(value) => {
+              if (dirty) return setConfirmClose(true);
+              setTab(value);
+              setEditing(false);
+              if (value === "new") {
+                setSelected(null);
+                resetPerson(null);
+              }
+            }}
+          />
+          <TabPanel
+            tabsId="rental-person-tabs"
+            index={0}
+            value={tab}
+            tabValue="existing"
+            className="space-y-5 pt-1"
+          >
+            {!editing ? (
+              <>
+                <FormField>
+                  <Label>Buscar persona</Label>
+                  <SearchCombobox
+                    value={
+                      selected
+                        ? { value: selected.id, label: selected.name }
+                        : null
+                    }
+                    onChange={(option) =>
+                      setSelected(
+                        option
+                          ? (cache.current.get(option.value) ?? null)
+                          : null,
                       )
                     }
-                    placeholder="persona@email.com"
+                    loadOptions={loadOptions}
+                    minQueryLength={2}
+                    placeholder="Nombre, DNI, CUIT, CUIL, email o teléfono…"
+                    searchPlaceholder="Escribí al menos 2 caracteres"
+                    emptyMessage="No encontramos personas con esa búsqueda"
+                    loadingMessage="Buscando personas…"
                   />
-                  {emails.length > 1 ? (
+                  <HelperText>No cargamos toda la agenda al abrir.</HelperText>
+                </FormField>
+                {selected ? (
+                  <div className="rounded-xl border border-primary/25 bg-primary/5 p-4">
+                    <p className="font-semibold text-foreground">
+                      {selected.name}
+                    </p>
+                    <p className="mt-1 text-xs text-muted">
+                      {selected.documentNumber
+                        ? `${selected.documentType ?? "Documento"} ${selected.documentNumber}`
+                        : "Sin documento informado"}
+                    </p>
+                    <p className="mt-2 text-sm text-muted">
+                      {selected.contactPoints
+                        .map((point) => point.value)
+                        .join(" · ") || "Sin medios de contacto"}
+                    </p>
                     <Button
+                      type="button"
                       size="sm"
                       variant="ghost"
-                      onClick={() =>
-                        setEmails((items) =>
-                          items.filter((_, i) => i !== index),
-                        )
-                      }
+                      className="mt-3"
+                      loading={pending}
+                      onClick={editExisting}
                     >
-                      Quitar
+                      Administrar datos de contacto
                     </Button>
-                  ) : null}
-                </div>
-              ))}
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() => setEmails((items) => [...items, ""])}
-              >
-                + Otro email
-              </Button>
-            </div>
-            <div className="space-y-3">
-              <Label>Teléfonos</Label>
-              {phones.map((phone, index) => (
-                <div
-                  key={index}
-                  className="rounded-lg border border-zinc-200 p-3"
-                >
-                  <div className="flex gap-2">
-                    <Input
-                      value={phone.value}
-                      onChange={(event) =>
-                        setPhones((items) =>
-                          items.map((item, i) =>
-                            i === index
-                              ? { ...item, value: event.target.value }
-                              : item,
-                          ),
-                        )
-                      }
-                      placeholder="+54 9 11…"
-                    />
-                    {phones.length > 1 ? (
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() =>
-                          setPhones((items) =>
-                            items.filter((_, i) => i !== index),
-                          )
-                        }
-                      >
-                        Quitar
-                      </Button>
-                    ) : null}
                   </div>
-                  <div className="mt-3 flex gap-4">
-                    <Switch
-                      label="WhatsApp"
-                      checked={phone.whatsapp}
-                      onChange={(checked) =>
-                        setPhones((items) =>
-                          items.map((item, i) =>
-                            i === index ? { ...item, whatsapp: checked } : item,
-                          ),
-                        )
-                      }
-                    />
-                    <Switch
-                      label="SMS"
-                      checked={phone.sms}
-                      onChange={(checked) =>
-                        setPhones((items) =>
-                          items.map((item, i) =>
-                            i === index ? { ...item, sms: checked } : item,
-                          ),
-                        )
-                      }
-                    />
+                ) : (
+                  <div className="rounded-xl border border-dashed border-border p-6 text-center">
+                    <p className="font-medium text-foreground">
+                      ¿No encontrás la persona?
+                    </p>
+                    <p className="mt-1 text-sm text-muted">
+                      Podés crearla con sus datos y medios de contacto.
+                    </p>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      className="mt-4"
+                      onClick={() => {
+                        setTab("new");
+                        resetPerson(null);
+                      }}
+                    >
+                      Crear nueva persona
+                    </Button>
                   </div>
-                </div>
-              ))}
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() =>
-                  setPhones((items) => [
-                    ...items,
-                    { value: "", whatsapp: true, sms: false },
-                  ])
-                }
-              >
-                + Otro teléfono
-              </Button>
-            </div>
-            <Button onClick={createPerson} loading={pending}>
-              Guardar persona
-            </Button>
-          </div>
-        ) : null}
-
-        {selected && role === "RENTER" ? (
-          <div className="space-y-4">
-            <div>
-              <h3 className="font-semibold">Recibir avisos por</h3>
-              <HelperText>
-                La selección queda vinculada a este contrato. Todavía no se
-                enviarán mensajes.
-              </HelperText>
-            </div>
-            {(["WHATSAPP", "EMAIL", "SMS"] as NotificationChannel[]).map(
-              (channel) => {
-                const options = channelOptions(channel);
-                const enabled = Boolean(routes[channel]);
-                return (
-                  <div
-                    key={channel}
-                    className="rounded-xl border border-zinc-200 p-3"
-                  >
-                    <Switch
-                      label={
-                        channel === "WHATSAPP"
-                          ? "WhatsApp"
-                          : channel === "EMAIL"
-                            ? "Email"
-                            : "SMS"
-                      }
-                      checked={enabled}
-                      disabled={!options.length}
-                      onChange={(checked) =>
-                        setRoutes((current) => ({
-                          ...current,
-                          [channel]: checked
-                            ? (suggestedRoutes(selected)[channel] ??
-                              options[0]?.value)
-                            : undefined,
-                        }))
-                      }
-                    />
-                    {enabled ? (
-                      <div className="mt-3">
-                        <Select
-                          value={routes[channel]}
-                          options={options}
-                          onChange={(value) =>
-                            setRoutes((current) => ({
-                              ...current,
-                              [channel]: value,
-                            }))
-                          }
-                        />
-                      </div>
-                    ) : null}
-                    {!options.length ? (
-                      <HelperText>
-                        No hay un medio compatible activo.
-                      </HelperText>
-                    ) : null}
-                  </div>
-                );
-              },
+                )}
+              </>
+            ) : (
+              renderPersonForm()
             )}
-          </div>
-        ) : null}
-        {selected && role === "LANDLORD" ? (
-          <p className="rounded-xl bg-zinc-50 p-3 text-sm text-zinc-600">
-            La asociación del propietario es administrativa. Los avisos no se
-            habilitan automáticamente en V1.
-          </p>
-        ) : null}
-      </SidePanelContent>
-      <SidePanelFooter>
-        <Button variant="secondary" onClick={onClose}>
-          Cancelar
-        </Button>
-        <Button onClick={save} disabled={!selected}>
-          Guardar asociación
-        </Button>
-      </SidePanelFooter>
-    </SidePanel>
+          </TabPanel>
+          <TabPanel
+            tabsId="rental-person-tabs"
+            index={1}
+            value={tab}
+            tabValue="new"
+            className="pt-1"
+          >
+            {renderPersonForm()}
+          </TabPanel>
+        </SidePanelContent>
+        <SidePanelFooter>
+          <Button
+            type="button"
+            variant="secondary"
+            disabled={pending}
+            onClick={requestClose}
+          >
+            Cancelar
+          </Button>
+          <Button
+            type="button"
+            disabled={!selected || editing || tab !== "existing"}
+            onClick={addParty}
+          >
+            Agregar como {roleLabel}
+          </Button>
+        </SidePanelFooter>
+      </SidePanel>
+      <ConfirmModal
+        open={confirmClose}
+        onClose={() => setConfirmClose(false)}
+        onConfirm={() => {
+          setConfirmClose(false);
+          setDirty(false);
+          onClose();
+        }}
+        title="Descartar cambios de la persona"
+        description="Los datos que todavía no guardaste se perderán."
+        confirmLabel="Descartar cambios"
+      />
+    </>
   );
 }

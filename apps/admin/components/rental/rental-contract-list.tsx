@@ -55,6 +55,7 @@ type Props = {
   result: PaginatedResponse<RentalContractListItem>;
   filters: Filters;
   provinceOptions: Array<{ value: string; label: string }>;
+  canUpdate?: boolean;
 };
 
 const STATUS_VARIANTS: Record<RentalContractStatus, BadgeVariant> = {
@@ -98,6 +99,7 @@ export function RentalContractList({
   result,
   filters,
   provinceOptions,
+  canUpdate = false,
 }: Props) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -553,6 +555,19 @@ export function RentalContractList({
                             onSelect: () =>
                               router.push(`/alquileres/${contract.id}`),
                           },
+                          ...(canUpdate &&
+                          ["DRAFT", "ACTIVE"].includes(contract.status)
+                            ? [
+                                {
+                                  id: "edit",
+                                  label: "Editar contrato",
+                                  onSelect: () =>
+                                    router.push(
+                                      `/alquileres/${contract.id}/editar`,
+                                    ),
+                                },
+                              ]
+                            : []),
                         ]}
                       />
                     </AdminTableActions>

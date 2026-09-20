@@ -122,6 +122,10 @@ export default async function RentalContractsPage({
             localityName: first(raw.localityName),
             neighborhoodName: first(raw.neighborhoodName),
           }}
+          canUpdate={sessionHasPermission(
+            session.user,
+            "rental.contract.update",
+          )}
           provinceOptions={provinces.map((province) => ({
             value: province.id,
             label: province.name,

@@ -6,6 +6,8 @@ import type {
   RentalConcept,
   RentalContact,
   RentalContactPoint,
+  RentalContactSearchItem,
+  RentalPropertySearchItem,
   RentalContract,
   RentalContractListItem,
   RentalContractListQuery,
@@ -209,6 +211,34 @@ export function listRentalContacts(
   return apiFetch<RentalContact[]>(`/contacts${suffix}`, { cache: "no-store" });
 }
 
+export function searchRentalProperties(search: string, pageSize = 12) {
+  const query = new URLSearchParams({
+    search,
+    page: "1",
+    pageSize: String(pageSize),
+  });
+  return apiFetch<PaginatedResponse<RentalPropertySearchItem>>(
+    `/properties/rental-search?${query.toString()}`,
+    { cache: "no-store" },
+  );
+}
+
+export function searchRentalContacts(search: string, pageSize = 12) {
+  const query = new URLSearchParams({
+    search,
+    isActive: "true",
+    page: "1",
+    pageSize: String(pageSize),
+  });
+  return apiFetch<PaginatedResponse<RentalContactSearchItem>>(
+    `/contacts/rental-search?${query.toString()}`,
+    { cache: "no-store" },
+  );
+}
+
+export function getRentalContact(id: string) {
+  return apiFetch<RentalContact>(`/contacts/${id}`, { cache: "no-store" });
+}
 export function createRentalContact(payload: CreateRentalContactPayload) {
   return apiFetch<RentalContact>("/contacts", {
     method: "POST",
