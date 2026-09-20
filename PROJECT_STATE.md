@@ -19,7 +19,7 @@ Plataforma SaaS inmobiliaria multi-tenant orientada a:
 
 **Rental Management V1 — Migraciones A+B + refinamiento B.1** ✅ (baseline consolidado y versionado)
 
-**Rental Management V1.1 — Fases 1–3 + UI Foundation Fase 4 + Fases 5A–5C** ✅ (wizard completo hasta configuración previa de avisos; Migración C no iniciada)
+**Rental Management V1.1 — Fases 1–3 + UI Foundation Fase 4 + Fases 5A–5D** ✅ (wizard completo hasta configuración previa de avisos; Migración C no iniciada)
 
 Documentación: `docs/04-modules/rental-management-v1.md`, `docs/03-database/rental-domain.md`
 
@@ -346,6 +346,18 @@ Documentación: `docs/04-modules/rental-management-v1.md`, `PROJECT_STATE.md`.
 * La activación reutiliza las invariantes backend existentes y orienta al paso asociado cuando la validación falla.
 * No se implementaron proveedores, templates, scheduler, planner, dispatch, delivery ni reglas temporales; Migración C continúa no iniciada.
 * No hubo cambios de schema ni migraciones.
+
+Documentación: `docs/04-modules/rental-management-v1.md`, `PROJECT_STATE.md`.
+
+
+### Rental Management V1.1 — Fase 5D ✅
+
+* El detalle `/alquileres/:id` consume el read model General y presenta cabecera operativa, alquiler vigente, información contractual, partes, obligaciones, configuración previa de avisos, observaciones, renovaciones y próximos vencimientos reales.
+* La pestaña Historial consume `GET /rental-contracts/:id/history` con tabla, filtros server-side por categoría/tipo/rango y paginación descendente; los eventos sin actor conservan “Sin actor registrado”.
+* `/alquileres/vencimientos` usa período mensual, categorías con conteos reales, búsqueda/filtros/sorting/paginación server-side y representa explícitamente fecha o importe pendientes.
+* El registro, edición de fecha/importe y consulta/reversión de cumplimiento se realizan en `SidePanel`; las acciones contractuales secundarias usan confirmación y RBAC existente.
+* No se fabrican comunicaciones ni actividad, no hubo cambios de schema/API y Migración C continúa no iniciada.
+* Renovación visual completa permanece para Fase 5E; Fase 5D únicamente enlaza el borrador generado al wizard existente.
 
 Documentación: `docs/04-modules/rental-management-v1.md`, `PROJECT_STATE.md`.
 

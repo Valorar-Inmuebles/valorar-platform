@@ -1,31 +1,25 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useTransition } from "react";
-import { Button } from "@repo/ui/button";
-import { CurrencyInput } from "@repo/ui/currency-input";
-import { DatePicker } from "@repo/ui/date-picker";
+import { useState } from "react";
 import { formatPrice } from "@repo/shared-types/format-money";
-import { useToast } from "@repo/ui/toast";
 import {
-  recordRentalFulfillmentAction,
-  reverseRentalFulfillmentAction,
-  updateRentalOccurrenceAmountAction,
-  updateRentalOccurrenceDueDateAction,
-} from "@/lib/api/rental-actions";
+  AdminTable,
+  AdminTableBody,
+  AdminTableCell,
+  AdminTableHead,
+  AdminTableHeader,
+  AdminTableRow,
+  AdminTableState,
+} from "@repo/ui/admin-table";
+import { Badge } from "@repo/ui/badge";
+import { Button } from "@repo/ui/button";
+import { RentalFulfillmentPanel } from "@/components/rental/rental-fulfillment-panel";
 import type { RentalOccurrence } from "@/lib/api/types/rental";
-
-const labels = {
-  PENDING: "Pendiente",
-  OVERDUE: "Vencido",
-  FULFILLED: "Cumplido",
-  CANCELLED: "Cancelado",
-};
-
-function localToday() {
-  const date = new Date();
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
-}
+import {
+  formatDateOnly,
+  OCCURRENCE_STATUS_LABELS,
+} from "@/lib/rental/rental-ui";
 
 export function RentalOccurrenceTable({
   initialOccurrences,
@@ -40,233 +34,132 @@ export function RentalOccurrenceTable({
   canReverse: boolean;
   showContract?: boolean;
 }) {
-  const [occurrences, setOccurrences] = useState(initialOccurrences);
-  if (occurrences.length === 0) {
-    return (
-      <p className="text-sm text-zinc-500">No hay vencimientos para mostrar.</p>
+  const [items, setItems] = useState(initialOccurrences);
+  const [selected, setSelected] = useState<RentalOccurrence | null>(null);
+  const update = (value: RentalOccurrence) => {
+    setItems((current) =>
+      current.map((item) => (item.id === value.id ? value : item)),
     );
-  }
+    setSelected(value);
+  };
   return (
-    <div className="overflow-x-auto rounded-xl border border-zinc-200">
-      <table className="w-full min-w-[760px] text-left text-sm">
-        <thead className="bg-zinc-50 text-xs uppercase text-zinc-500">
+    <>
+      <AdminTable className="min-w-[760px]">
+        <AdminTableHead>
           <tr>
-            {showContract ? <th className="px-3 py-2">Contrato</th> : null}
-            <th className="px-3 py-2">Concepto</th>
-            <th className="px-3 py-2">Período</th>
-            <th className="px-3 py-2">Vence</th>
-            <th className="px-3 py-2">Importe</th>
-            <th className="px-3 py-2">Estado</th>
-            <th className="px-3 py-2">Acciones</th>
+            {showContract ? (
+              <AdminTableHeader>Contrato</AdminTableHeader>
+            ) : null}
+            <AdminTableHeader>Concepto</AdminTableHeader>
+            <AdminTableHeader>Período</AdminTableHeader>
+            <AdminTableHeader>Vencimiento</AdminTableHeader>
+            <AdminTableHeader>Importe</AdminTableHeader>
+            <AdminTableHeader>Estado</AdminTableHeader>
+            <AdminTableHeader className="text-right">Acción</AdminTableHeader>
           </tr>
-        </thead>
-        <tbody>
-          {occurrences.map((occurrence) => (
-            <OccurrenceRow
-              key={occurrence.id}
-              occurrence={occurrence}
-              canManage={canManage}
-              canFulfill={canFulfill}
-              canReverse={canReverse}
-              showContract={showContract}
-              onChange={(updated) =>
-                setOccurrences((current) =>
-                  current.map((item) =>
-                    item.id === updated.id ? updated : item,
-                  ),
-                )
-              }
+        </AdminTableHead>
+        <AdminTableBody>
+          {items.length ? (
+            items.map((item) => {
+              const contract = item.obligation.contract;
+              const canOpen =
+                item.status === "FULFILLED" ||
+                (item.status === "PENDING" &&
+                  ((canFulfill && item.actions.canFulfill) ||
+                    (canManage &&
+                      (item.actions.canSetAmount ||
+                        item.actions.canSetDueDate))));
+              return (
+                <AdminTableRow key={item.id}>
+                  {showContract ? (
+                    <AdminTableCell>
+                      <Link
+                        className="font-medium text-primary hover:underline"
+                        href={`/alquileres/${contract.id}`}
+                      >
+                        {contract.internalNumber}
+                      </Link>
+                      <p className="text-xs text-muted">
+                        {contract.propertyAddressSnapshot}
+                      </p>
+                    </AdminTableCell>
+                  ) : null}
+                  <AdminTableCell className="font-medium">
+                    {item.obligation.concept.name}
+                  </AdminTableCell>
+                  <AdminTableCell>
+                    {item.periodKey === "ONE_TIME"
+                      ? "Pago puntual"
+                      : item.periodKey}
+                  </AdminTableCell>
+                  <AdminTableCell>
+                    {item.dueDatePending
+                      ? "Fecha pendiente"
+                      : formatDateOnly(item.dueDate)}
+                  </AdminTableCell>
+                  <AdminTableCell>
+                    {item.amount == null
+                      ? "Importe pendiente"
+                      : formatPrice(item.amount, item.currency)}
+                  </AdminTableCell>
+                  <AdminTableCell>
+                    <Badge
+                      variant={
+                        item.operationalStatus === "OVERDUE"
+                          ? "danger"
+                          : item.operationalStatus === "FULFILLED"
+                            ? "success"
+                            : item.operationalStatus === "CANCELLED"
+                              ? "neutral"
+                              : "warning"
+                      }
+                    >
+                      {OCCURRENCE_STATUS_LABELS[item.operationalStatus]}
+                    </Badge>
+                  </AdminTableCell>
+                  <AdminTableCell className="text-right">
+                    {canOpen ? (
+                      <Button
+                        size="sm"
+                        variant={
+                          item.status === "PENDING"
+                            ? "outline-primary"
+                            : "secondary"
+                        }
+                        onClick={() => setSelected(item)}
+                      >
+                        {item.status === "FULFILLED"
+                          ? "Ver"
+                          : item.dueDatePending
+                            ? "Cargar fecha"
+                            : item.amount == null
+                              ? "Cargar valor"
+                              : "Registrar"}
+                      </Button>
+                    ) : null}
+                  </AdminTableCell>
+                </AdminTableRow>
+              );
+            })
+          ) : (
+            <AdminTableState
+              colSpan={showContract ? 7 : 6}
+              state="empty"
+              title="Sin vencimientos"
+              description="No hay vencimientos para mostrar."
             />
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-}
-
-function OccurrenceRow({
-  occurrence,
-  canManage,
-  canFulfill,
-  canReverse,
-  showContract,
-  onChange,
-}: {
-  occurrence: RentalOccurrence;
-  canManage: boolean;
-  canFulfill: boolean;
-  canReverse: boolean;
-  showContract: boolean;
-  onChange: (value: RentalOccurrence) => void;
-}) {
-  const { toast } = useToast();
-  const [amount, setAmount] = useState(occurrence.amount?.toString() ?? "");
-  const [dueDate, setDueDate] = useState(
-    occurrence.dueDate?.slice(0, 10) ?? "",
-  );
-  const [pending, startTransition] = useTransition();
-  const contractId = occurrence.obligation.contract.id;
-  const activeFulfillment = occurrence.fulfillments.find(
-    (item) => item.status === "RECORDED",
-  );
-
-  const saveAmount = () =>
-    startTransition(async () => {
-      const parsed = amount.trim() ? Number(amount) : null;
-      if (parsed !== null && (!Number.isFinite(parsed) || parsed <= 0)) {
-        toast.error("Ingresá un importe válido.");
-        return;
-      }
-      const result = await updateRentalOccurrenceAmountAction(
-        occurrence.id,
-        contractId,
-        parsed,
-      );
-      if (!result.ok) return toast.error(result.error);
-      onChange(result.value);
-      toast.success("Importe actualizado.");
-    });
-
-  const saveDueDate = () => {
-    if (!dueDate) return toast.error("Seleccioná una fecha de vencimiento.");
-    startTransition(async () => {
-      const result = await updateRentalOccurrenceDueDateAction(
-        occurrence.id,
-        contractId,
-        dueDate,
-      );
-      if (!result.ok) return toast.error(result.error);
-      onChange(result.value);
-      toast.success("Fecha de vencimiento actualizada.");
-    });
-  };
-
-  const fulfill = () =>
-    startTransition(async () => {
-      const result = await recordRentalFulfillmentAction(
-        occurrence.id,
-        contractId,
-        localToday(),
-      );
-      if (!result.ok) return toast.error(result.error);
-      onChange(result.value.occurrence);
-      toast.success("Vencimiento marcado como cumplido.");
-    });
-
-  const reverse = () => {
-    if (!activeFulfillment) return;
-    const reason = window.prompt("Motivo de la reversión");
-    if (!reason?.trim()) return;
-    startTransition(async () => {
-      const result = await reverseRentalFulfillmentAction(
-        activeFulfillment.id,
-        contractId,
-        reason,
-      );
-      if (!result.ok) return toast.error(result.error);
-      onChange(result.value);
-      toast.success("Cumplimiento revertido.");
-    });
-  };
-
-  return (
-    <tr className="border-t border-zinc-200 align-top">
-      {showContract ? (
-        <td className="px-3 py-3">
-          <Link
-            className="font-medium text-blue-700 hover:underline"
-            href={`/alquileres/${contractId}`}
-          >
-            {occurrence.obligation.contract.propertyAddressSnapshot}
-          </Link>
-          <div className="text-xs text-zinc-500">
-            {occurrence.obligation.contract.parties
-              .map((party) => party.contact.name)
-              .join(", ") || "Sin inquilino"}
-          </div>
-        </td>
-      ) : null}
-      <td className="px-3 py-3 font-medium">
-        {occurrence.obligation.concept.name}
-      </td>
-      <td className="px-3 py-3">
-        {occurrence.periodKey === "ONE_TIME" ? "Único" : occurrence.periodKey}
-      </td>
-      <td className="px-3 py-3">
-        {occurrence.dueDatePending && canManage ? (
-          <div className="flex min-w-56 gap-2">
-            <DatePicker value={dueDate} onChange={setDueDate} />
-            <Button
-              size="sm"
-              variant="secondary"
-              onClick={saveDueDate}
-              disabled={pending}
-            >
-              Guardar
-            </Button>
-          </div>
-        ) : occurrence.dueDate ? (
-          new Intl.DateTimeFormat("es-AR", { timeZone: "UTC" }).format(
-            new Date(occurrence.dueDate),
-          )
-        ) : (
-          "Fecha pendiente"
-        )}
-      </td>
-      <td className="px-3 py-3">
-        {occurrence.status === "PENDING" && canManage ? (
-          <div className="flex gap-2">
-            <CurrencyInput
-              allowDecimals
-              className="w-32"
-              value={amount}
-              onChange={setAmount}
-              placeholder="Variable"
-            />
-            <Button
-              size="sm"
-              variant="secondary"
-              onClick={saveAmount}
-              disabled={pending}
-            >
-              Guardar
-            </Button>
-          </div>
-        ) : occurrence.amount == null ? (
-          "A definir"
-        ) : (
-          formatPrice(occurrence.amount, occurrence.currency)
-        )}
-      </td>
-      <td className="px-3 py-3">
-        <span
-          className={
-            occurrence.operationalStatus === "OVERDUE"
-              ? "font-semibold text-red-700"
-              : "font-medium"
-          }
-        >
-          {labels[occurrence.operationalStatus]}
-        </span>
-      </td>
-      <td className="px-3 py-3">
-        {occurrence.status === "PENDING" && canFulfill ? (
-          <Button size="sm" onClick={fulfill} loading={pending}>
-            Marcar cumplido
-          </Button>
-        ) : occurrence.status === "FULFILLED" &&
-          canReverse &&
-          activeFulfillment ? (
-          <Button
-            size="sm"
-            variant="secondary"
-            onClick={reverse}
-            loading={pending}
-          >
-            Revertir
-          </Button>
-        ) : null}
-      </td>
-    </tr>
+          )}
+        </AdminTableBody>
+      </AdminTable>
+      <RentalFulfillmentPanel
+        occurrence={selected}
+        open={Boolean(selected)}
+        canManage={canManage}
+        canFulfill={canFulfill}
+        canReverse={canReverse}
+        onClose={() => setSelected(null)}
+        onChange={update}
+      />
+    </>
   );
 }

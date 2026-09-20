@@ -12,6 +12,8 @@ import type {
   RentalContractListItem,
   RentalContractListQuery,
   RentalContractGeneral,
+  RentalContractHistoryItem,
+  RentalContractHistoryQuery,
   RentalDashboard,
   PaginatedResponse,
   UpdateRentalContactPayload,
@@ -180,6 +182,21 @@ export function getRentalContractGeneral(id: string) {
   return apiFetch<RentalContractGeneral>(`/rental-contracts/${id}/general`, {
     cache: "no-store",
   });
+}
+
+export function getRentalContractHistory(
+  id: string,
+  options: RentalContractHistoryQuery = {},
+) {
+  const query = new URLSearchParams();
+  Object.entries(options).forEach(([key, value]) => {
+    if (value !== undefined && value !== "") query.set(key, String(value));
+  });
+  const suffix = query.size ? `?${query.toString()}` : "";
+  return apiFetch<PaginatedResponse<RentalContractHistoryItem>>(
+    `/rental-contracts/${id}/history${suffix}`,
+    { cache: "no-store" },
+  );
 }
 export function createRentalContract(payload: CreateRentalContractPayload) {
   return apiFetch<RentalContract>("/rental-contracts", {

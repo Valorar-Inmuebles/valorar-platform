@@ -196,6 +196,25 @@ export type PaginatedResponse<T> = {
   totalPages: number;
 };
 
+export type RentalContractGeneralOccurrence = {
+  id: string;
+  periodKey: string;
+  dueDate: string | null;
+  dueDatePending: boolean;
+  amount: number | null;
+  currency: "ARS" | "USD";
+  operationalStatus: RentalOccurrenceStatus;
+  fulfillmentSummary: {
+    id: string;
+    status: "RECORDED";
+    fulfilledOn: string;
+    amount: number | null;
+    actorId: string | null;
+    notes: string | null;
+  } | null;
+  concept: Pick<RentalConcept, "id" | "name" | "systemCode">;
+};
+
 export type RentalContractGeneral = RentalContract & {
   currentRent: {
     obligationId: string;
@@ -205,6 +224,37 @@ export type RentalContractGeneral = RentalContract & {
     adjustmentConfigurationPending: boolean;
     nextAdjustmentDate: string | null;
   } | null;
+  obligations: Array<{
+    id: string;
+    concept: Pick<RentalConcept, "id" | "name" | "systemCode" | "isActive">;
+    kind: RentalObligationKind;
+    dueMode: RentalDueMode;
+    dueDay: number | null;
+    includeInNotice: boolean;
+    showAmount: boolean;
+    isActive: boolean;
+  }>;
+  nextDueOccurrence: RentalContractGeneralOccurrence | null;
+  upcomingOccurrences: RentalContractGeneralOccurrence[];
+  communicationActivity: null;
+};
+
+export type RentalContractHistoryItem = {
+  id: string;
+  category: "CONTRACT" | "FULFILLMENT";
+  type: string;
+  occurredAt: string;
+  actor: { id: string; name: string } | null;
+  metadata: Record<string, unknown> | null;
+};
+
+export type RentalContractHistoryQuery = {
+  type?: string;
+  category?: "CONTRACT" | "FULFILLMENT";
+  from?: string;
+  to?: string;
+  page?: number;
+  pageSize?: number;
 };
 export type RentalDashboard = {
   contracts: Record<RentalContractStatus, number>;

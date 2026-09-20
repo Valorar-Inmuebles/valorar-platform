@@ -19,6 +19,7 @@ import {
   getRentalContact,
   recordRentalFulfillment,
   reverseRentalFulfillment,
+  renewRentalContract,
   updateRentalObligation,
   updateRentalOccurrenceAmount,
   updateRentalOccurrenceDueDate,
@@ -139,10 +140,14 @@ export async function updateRentalOccurrenceDueDateAction(
 export async function recordRentalFulfillmentAction(
   id: string,
   contractId: string | undefined,
-  fulfilledOn: string,
+  payload: {
+    fulfilledOn: string;
+    amount?: number | null;
+    notes?: string | null;
+  },
 ) {
   const result = await run<{ occurrence: RentalOccurrence }>(() =>
-    recordRentalFulfillment(id, { fulfilledOn }),
+    recordRentalFulfillment(id, payload),
   );
   if (result.ok) revalidateRental(contractId);
   return result;
@@ -176,6 +181,12 @@ export async function updateRentalContractAction(
     updateRentalContract(id, payload),
   );
   if (result.ok) revalidateRental(id);
+  return result;
+}
+
+export async function renewRentalContractAction(id: string) {
+  const result = await run<RentalContract>(() => renewRentalContract(id));
+  if (result.ok) revalidateRental(result.value.id);
   return result;
 }
 
