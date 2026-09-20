@@ -1,0 +1,5 @@
+interface:
+  display_name: "Valorar Admin UI"
+  short_description: "Interfaces administrativas consistentes de Valorar"
+  brand_color: "#15361E"
+  default_prompt: "Usá $valorar-admin-ui para implementar o revisar esta interfaz de Admin respetando el UI Kit y el lenguaje visual de Valorar."
