@@ -3,6 +3,7 @@ import {
   Prisma,
   RentalFulfillmentOrigin,
   RentalFulfillmentStatus,
+  RentalContractEventType,
   RentalOccurrenceStatus,
 } from '../../../../generated/prisma/client';
 import { PrismaService } from '../../../prisma/prisma.service';
@@ -26,6 +27,8 @@ const occurrenceInclude = {
       contract: {
         select: {
           id: true,
+          internalNumber: true,
+          status: true,
           startsOn: true,
           endsOn: true,
           propertyAddressSnapshot: true,
@@ -178,6 +181,25 @@ export class RentalObligationRepository {
         const revision = await tx.rentalRentValueRevision.create({
           data: { tenantId, obligationId, ...input },
         });
+        const obligation = await tx.rentalObligation.findFirstOrThrow({
+          where: { id: obligationId, tenantId },
+          select: { contractId: true },
+        });
+        await tx.rentalContractEvent.create({
+          data: {
+            tenantId,
+            contractId: obligation.contractId,
+            type: RentalContractEventType.RENT_VALUE_REVISED,
+            actorId: input.recordedById,
+            metadata: {
+              obligationId,
+              revisionId: revision.id,
+              effectiveFrom: input.effectiveFrom.toISOString().slice(0, 10),
+              amount: input.amount,
+              currency: input.currency,
+            },
+          },
+        });
         await tx.$executeRaw`
           WITH resolved AS (
             SELECT occurrence.id, applicable.amount, applicable.currency
@@ -256,6 +278,44 @@ export class RentalObligationRepository {
       include: occurrenceInclude,
       orderBy: [{ dueDate: 'asc' }, { createdAt: 'asc' }],
       ...(take ? { take } : {}),
+    });
+  }
+
+  findOperationalOccurrences(
+    tenantId: string,
+    where: Prisma.RentalObligationOccurrenceWhereInput,
+    orderBy: Prisma.RentalObligationOccurrenceOrderByWithRelationInput[],
+    page: number,
+    pageSize: number,
+  ) {
+    const scopedWhere = { tenantId, ...where };
+    return this.prisma.$transaction([
+      this.prisma.rentalObligationOccurrence.findMany({
+        where: scopedWhere,
+        include: occurrenceInclude,
+        orderBy,
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+      this.prisma.rentalObligationOccurrence.count({ where: scopedWhere }),
+    ]);
+  }
+
+  findNextAttentionOccurrence(tenantId: string, contractId?: string) {
+    return this.prisma.rentalObligationOccurrence.findFirst({
+      where: {
+        tenantId,
+        status: RentalOccurrenceStatus.PENDING,
+        obligation: {
+          isActive: true,
+          ...(contractId ? { contractId } : {}),
+        },
+      },
+      include: occurrenceInclude,
+      orderBy: [
+        { dueDate: { sort: 'asc', nulls: 'last' } },
+        { createdAt: 'asc' },
+      ],
     });
   }
 

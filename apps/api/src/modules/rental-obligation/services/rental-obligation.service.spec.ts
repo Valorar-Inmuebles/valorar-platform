@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import { BadRequestException, ConflictException } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 
@@ -135,6 +136,8 @@ describe('RentalObligationService', () => {
     createMissingOccurrences: jest.fn(),
     tenantTimeZone: jest.fn(),
     findOccurrences: jest.fn(),
+    findOperationalOccurrences: jest.fn(),
+    findNextAttentionOccurrence: jest.fn(),
     findOccurrence: jest.fn(),
     updatePendingOccurrence: jest.fn(),
     recordFulfillment: jest.fn(),
@@ -302,19 +305,70 @@ describe('RentalObligationService', () => {
   });
 
   it('derives OVERDUE without persisting it', async () => {
-    repository.findOccurrences.mockResolvedValue([occurrence()]);
-    const [result] = await service.listOccurrences('tenant-1', {});
+    repository.findOperationalOccurrences.mockResolvedValue([
+      [occurrence()],
+      1,
+    ]);
+    const response = await service.listOccurrences('tenant-1', {});
+    if (Array.isArray(response)) throw new Error('Expected paginated response');
+    const [result] = response.items;
     expect(result.operationalStatus).toBe('OVERDUE');
     expect(result.status).toBe(RentalOccurrenceStatus.PENDING);
   });
 
   it('never derives OVERDUE when a manual due date is pending', async () => {
-    repository.findOccurrences.mockResolvedValue([
-      occurrence({ dueDate: null }),
+    repository.findOperationalOccurrences.mockResolvedValue([
+      [occurrence({ dueDate: null })],
+      1,
     ]);
-    const [result] = await service.listOccurrences('tenant-1', {});
+    const response = await service.listOccurrences('tenant-1', {});
+    if (Array.isArray(response)) throw new Error('Expected paginated response');
+    const [result] = response.items;
     expect(result.operationalStatus).toBe('PENDING');
     expect(result.dueDatePending).toBe(true);
+  });
+
+  it('builds monthly RENT filters and paginates server-side', async () => {
+    repository.findOperationalOccurrences.mockResolvedValue([[], 45]);
+    const result = await service.listOccurrences('tenant-1', {
+      month: '2026-09',
+      category: 'RENT',
+      search: 'ALQ-000001',
+      sortBy: 'dueDate',
+      sortOrder: 'asc',
+      page: 2,
+      pageSize: 20,
+    });
+    if (Array.isArray(result)) throw new Error('Expected paginated response');
+    expect(result).toEqual(
+      expect.objectContaining({ page: 2, pageSize: 20, totalPages: 3 }),
+    );
+    expect(repository.findOperationalOccurrences).toHaveBeenCalledWith(
+      'tenant-1',
+      expect.objectContaining({
+        dueDate: {
+          gte: new Date('2026-09-01T00:00:00.000Z'),
+          lt: new Date('2026-10-01T00:00:00.000Z'),
+        },
+        obligation: { concept: { systemCode: 'RENT' } },
+        AND: expect.any(Array),
+      }),
+      [{ dueDate: { sort: 'asc', nulls: 'last' } }, { id: 'asc' }],
+      2,
+      20,
+    );
+  });
+
+  it('uses one next-attention query where pending due dates sort last', async () => {
+    repository.findNextAttentionOccurrence.mockResolvedValue(
+      occurrence({ dueDate: new Date('2026-09-10T00:00:00.000Z') }),
+    );
+    const result = await service.nextOccurrence('tenant-1', 'contract-1');
+    expect(result?.id).toBe('occurrence-1');
+    expect(repository.findNextAttentionOccurrence).toHaveBeenCalledWith(
+      'tenant-1',
+      'contract-1',
+    );
   });
 
   it.each([0, 13])('rejects recurrenceMonths=%i', async (value) => {

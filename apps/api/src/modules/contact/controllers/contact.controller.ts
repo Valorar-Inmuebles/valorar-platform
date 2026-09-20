@@ -27,7 +27,10 @@ import {
   CreateContactPointDto,
   UpdateContactPointDto,
 } from '../dto/contact-point.dto';
-import { ListContactsQueryDto } from '../dto/contact-query.dto';
+import {
+  ListContactsQueryDto,
+  RentalContactSearchQueryDto,
+} from '../dto/contact-query.dto';
 import { ContactResponseDto } from '../dto/contact-response.dto';
 import { CreateContactDto } from '../dto/create-contact.dto';
 import { UpdateContactDto } from '../dto/update-contact.dto';
@@ -49,6 +52,15 @@ export class ContactController {
     @Query() query: ListContactsQueryDto,
   ) {
     return this.contactService.findAll(tenantId, query);
+  }
+
+  @Get('rental-search')
+  @RequirePermissions('rental.read')
+  rentalSearch(
+    @CurrentTenant() tenantId: string,
+    @Query() query: RentalContactSearchQueryDto,
+  ) {
+    return this.contactService.searchForRental(tenantId, query);
   }
 
   @Get(':id')

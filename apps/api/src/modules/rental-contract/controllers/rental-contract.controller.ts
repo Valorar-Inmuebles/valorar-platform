@@ -19,7 +19,10 @@ import { UserRole } from '../../../../generated/prisma/client';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { TenantGuard } from '../../auth/guards/tenant.guard';
 import { CreateRentalContractDto } from '../dto/create-rental-contract.dto';
-import { ListRentalContractsQueryDto } from '../dto/rental-contract-query.dto';
+import {
+  ListRentalContractsQueryDto,
+  RentalContractHistoryQueryDto,
+} from '../dto/rental-contract-query.dto';
 import { RentalContractResponseDto } from '../dto/rental-contract-response.dto';
 import { UpdateRentalContractDto } from '../dto/update-rental-contract.dto';
 import { RentalContractService } from '../services/rental-contract.service';
@@ -33,12 +36,34 @@ export class RentalContractController {
 
   @Get()
   @RequirePermissions('rental.read')
-  @ApiOkResponse({ type: RentalContractResponseDto, isArray: true })
+  @ApiOkResponse({ description: 'Paginated rental contract list' })
   findAll(
     @CurrentTenant() tenantId: string,
     @Query() query: ListRentalContractsQueryDto,
   ) {
-    return this.service.findAll(tenantId, query.status, query.search);
+    return this.service.findAll(tenantId, query);
+  }
+
+  @Get('dashboard')
+  @RequirePermissions('rental.read')
+  dashboard(@CurrentTenant() tenantId: string) {
+    return this.service.dashboard(tenantId);
+  }
+
+  @Get(':id/history')
+  @RequirePermissions('rental.read')
+  history(
+    @Param('id') id: string,
+    @CurrentTenant() tenantId: string,
+    @Query() query: RentalContractHistoryQueryDto,
+  ) {
+    return this.service.history(id, tenantId, query);
+  }
+
+  @Get(':id/general')
+  @RequirePermissions('rental.read')
+  general(@Param('id') id: string, @CurrentTenant() tenantId: string) {
+    return this.service.general(id, tenantId);
   }
 
   @Get(':id')
@@ -66,16 +91,23 @@ export class RentalContractController {
   update(
     @Param('id') id: string,
     @CurrentTenant() tenantId: string,
+    @CurrentUser() user: AuthenticatedUser,
     @Body() dto: UpdateRentalContractDto,
   ) {
-    return this.service.update(id, tenantId, dto);
+    const actorId = user.role === UserRole.SUPER_ADMIN ? null : user.id;
+    return this.service.update(id, tenantId, dto, actorId);
   }
 
   @Post(':id/activate')
   @RequirePermissions('rental.contract.update')
   @ApiOkResponse({ type: RentalContractResponseDto })
-  activate(@Param('id') id: string, @CurrentTenant() tenantId: string) {
-    return this.service.activate(id, tenantId);
+  activate(
+    @Param('id') id: string,
+    @CurrentTenant() tenantId: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    const actorId = user.role === UserRole.SUPER_ADMIN ? null : user.id;
+    return this.service.activate(id, tenantId, actorId);
   }
 
   @Post(':id/renew')

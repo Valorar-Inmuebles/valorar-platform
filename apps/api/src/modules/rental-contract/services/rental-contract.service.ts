@@ -14,11 +14,20 @@ import {
   CreateRentalContractDto,
   type RentalContractPartyInputDto,
 } from '../dto/create-rental-contract.dto';
+import {
+  ListRentalContractsQueryDto,
+  RentalContractHistoryQueryDto,
+} from '../dto/rental-contract-query.dto';
 import { RentalContractResponseDto } from '../dto/rental-contract-response.dto';
 import { UpdateRentalContractDto } from '../dto/update-rental-contract.dto';
 import { RentalContractRepository } from '../repositories/rental-contract.repository';
 import { localDateForTimeZone } from '../../rental-obligation/utils/rental-occurrence-materializer';
 import { hasMinimumCalendarMonth } from '../utils/rental-contract-term';
+import {
+  effectiveRevisionFor,
+  nextAdjustmentDate,
+} from '../../rental-obligation/utils/rent-value-revision';
+import { formatDateOnly } from '../../rental-obligation/utils/rental-occurrence-materializer';
 
 @Injectable()
 export class RentalContractService {
@@ -50,18 +59,54 @@ export class RentalContractService {
     return RentalContractResponseDto.fromEntity(contract);
   }
 
-  async findAll(
-    tenantId: string,
-    status?: RentalContractStatus,
-    search?: string,
-  ) {
-    return (
-      await this.repository.findMany(
-        tenantId,
-        status,
-        search?.trim() || undefined,
-      )
-    ).map((contract) => RentalContractResponseDto.fromEntity(contract));
+  async findAll(tenantId: string, query: ListRentalContractsQueryDto) {
+    const page = query.page ?? 1;
+    const pageSize = query.pageSize ?? 20;
+    if (query.endingBefore && query.endingWithinDays) {
+      throw new BadRequestException(
+        'endingBefore and endingWithinDays cannot be combined',
+      );
+    }
+    let endingFrom: Date | undefined;
+    let endingBefore = query.endingBefore
+      ? this.parseDate(query.endingBefore, 'endingBefore')
+      : undefined;
+    if (query.endingWithinDays) {
+      endingFrom = localDateForTimeZone(
+        new Date(),
+        await this.repository.tenantTimeZone(tenantId),
+      );
+      endingBefore = new Date(endingFrom);
+      endingBefore.setUTCDate(
+        endingBefore.getUTCDate() + query.endingWithinDays,
+      );
+    }
+    const [items, total] = await this.repository.findMany(tenantId, {
+      status:
+        query.endingWithinDays && !query.status
+          ? RentalContractStatus.ACTIVE
+          : query.status,
+      search: query.search?.trim() || undefined,
+      endingFrom,
+      endingBefore,
+      countryId: query.countryId,
+      provinceId: query.provinceId,
+      localityId: query.localityId,
+      neighborhoodId: query.neighborhoodId,
+      partyContactId: query.partyContactId,
+      partyRole: query.partyRole,
+      sortBy: query.sortBy ?? 'startsOn',
+      sortOrder: query.sortOrder ?? 'desc',
+      page,
+      pageSize,
+    });
+    return {
+      items,
+      page,
+      pageSize,
+      total,
+      totalPages: total === 0 ? 0 : Math.ceil(total / pageSize),
+    };
   }
 
   async findOne(id: string, tenantId: string) {
@@ -70,7 +115,12 @@ export class RentalContractService {
     );
   }
 
-  async update(id: string, tenantId: string, dto: UpdateRentalContractDto) {
+  async update(
+    id: string,
+    tenantId: string,
+    dto: UpdateRentalContractDto,
+    actorId: string | null = null,
+  ) {
     const existing = await this.requireContract(id, tenantId);
     if (
       existing.status === RentalContractStatus.ENDED ||
@@ -106,6 +156,7 @@ export class RentalContractService {
           : {}),
       },
       dto.parties,
+      actorId,
     );
     if (!updated)
       throw new NotFoundException(`Rental contract with id "${id}" not found`);
@@ -156,8 +207,8 @@ export class RentalContractService {
     throw new ConflictException('Rental contract renewal conflicted');
   }
 
-  activate(id: string, tenantId: string) {
-    return this.transition(id, tenantId, RentalContractStatus.ACTIVE);
+  activate(id: string, tenantId: string, actorId: string | null = null) {
+    return this.transition(id, tenantId, RentalContractStatus.ACTIVE, actorId);
   }
   end(id: string, tenantId: string, actorId: string | null) {
     return this.transition(id, tenantId, RentalContractStatus.ENDED, actorId);
@@ -210,7 +261,11 @@ export class RentalContractService {
     }
     const updated =
       target === RentalContractStatus.ACTIVE
-        ? await this.repository.activateWithRentRequirement(id, tenantId)
+        ? await this.repository.activateWithRentRequirement(
+            id,
+            tenantId,
+            actorId,
+          )
         : await this.repository.transitionToTerminal(
             id,
             tenantId,
@@ -224,6 +279,239 @@ export class RentalContractService {
     if (!updated)
       throw new ConflictException('Rental contract changed during transition');
     return RentalContractResponseDto.fromEntity(updated);
+  }
+
+  async history(
+    id: string,
+    tenantId: string,
+    query: RentalContractHistoryQueryDto,
+  ) {
+    await this.requireContract(id, tenantId);
+    const from = query.from ? this.parseDate(query.from, 'from') : undefined;
+    const to = query.to
+      ? new Date(this.parseDate(query.to, 'to').getTime() + 86_400_000 - 1)
+      : undefined;
+    if (from && to && from > to) {
+      throw new BadRequestException('from must be before or equal to to');
+    }
+    const page = query.page ?? 1;
+    const pageSize = query.pageSize ?? 20;
+    const includeContracts = query.category !== 'FULFILLMENT';
+    const includeFulfillments = query.category !== 'CONTRACT' && !query.type;
+    const contractPromise: Promise<
+      Awaited<ReturnType<RentalContractRepository['findContractEvents']>>
+    > = includeContracts
+      ? this.repository.findContractEvents(tenantId, id, {
+          type: query.type,
+          from,
+          to,
+          skip: 0,
+          take: page * pageSize,
+        })
+      : Promise.resolve([[], 0]);
+    const fulfillmentPromise: Promise<
+      Awaited<ReturnType<RentalContractRepository['findFulfillmentHistory']>>
+    > = includeFulfillments
+      ? this.repository.findFulfillmentHistory(tenantId, id, {
+          from,
+          to,
+          take: page * pageSize,
+        })
+      : Promise.resolve([[], 0, [], 0]);
+    const [contractResult, fulfillmentResult] = await Promise.all([
+      contractPromise,
+      fulfillmentPromise,
+    ]);
+    const [events, eventTotal] = contractResult;
+    const [fulfillments, fulfillmentTotal, reversals, reversalTotal] =
+      fulfillmentResult;
+    const contractItems = events.map((event) => ({
+      id: event.id,
+      category: 'CONTRACT' as const,
+      type: event.type,
+      occurredAt: event.occurredAt,
+      actor: event.actor,
+      metadata: event.metadata,
+    }));
+    const fulfillmentItems = fulfillments.map((fulfillment) => {
+      const context = {
+        fulfillmentId: fulfillment.id,
+        occurrenceId: fulfillment.occurrence.id,
+        periodKey: fulfillment.occurrence.periodKey,
+        dueDate: fulfillment.occurrence.dueDate,
+        concept: fulfillment.occurrence.obligation.concept,
+        amount: fulfillment.amount == null ? null : Number(fulfillment.amount),
+        notes: fulfillment.notes,
+      };
+      return {
+        id: `fulfillment:${fulfillment.id}:recorded`,
+        category: 'FULFILLMENT' as const,
+        type: 'FULFILLMENT_RECORDED',
+        occurredAt: fulfillment.createdAt,
+        actor: fulfillment.recordedBy,
+        metadata: context,
+      };
+    });
+    const reversalItems = reversals.map((fulfillment) => ({
+      id: `fulfillment:${fulfillment.id}:reversed`,
+      category: 'FULFILLMENT' as const,
+      type: 'FULFILLMENT_REVERSED',
+      occurredAt: fulfillment.reversedAt!,
+      actor: fulfillment.reversedBy,
+      metadata: {
+        fulfillmentId: fulfillment.id,
+        occurrenceId: fulfillment.occurrence.id,
+        periodKey: fulfillment.occurrence.periodKey,
+        dueDate: fulfillment.occurrence.dueDate,
+        concept: fulfillment.occurrence.obligation.concept,
+        amount: fulfillment.amount == null ? null : Number(fulfillment.amount),
+        notes: fulfillment.notes,
+        reversalReason: fulfillment.reversalReason,
+      },
+    }));
+    const merged = [
+      ...contractItems,
+      ...fulfillmentItems,
+      ...reversalItems,
+    ].sort(
+      (a, b) =>
+        b.occurredAt.getTime() - a.occurredAt.getTime() ||
+        b.id.localeCompare(a.id),
+    );
+    const total = eventTotal + fulfillmentTotal + reversalTotal;
+    const start = (page - 1) * pageSize;
+    return {
+      items: merged.slice(start, start + pageSize),
+      page,
+      pageSize,
+      total,
+      totalPages: total === 0 ? 0 : Math.ceil(total / pageSize),
+    };
+  }
+
+  async general(id: string, tenantId: string) {
+    const [contract, timeZone] = await Promise.all([
+      this.repository.findGeneralById(id, tenantId),
+      this.repository.tenantTimeZone(tenantId),
+    ]);
+    if (!contract) {
+      throw new NotFoundException(`Rental contract with id "${id}" not found`);
+    }
+    const localToday = localDateForTimeZone(new Date(), timeZone);
+    const rent = contract.obligations.find(
+      (item) => item.isActive && item.concept.systemCode === 'RENT',
+    );
+    const currentRentRevision = rent
+      ? effectiveRevisionFor(rent.rentValueRevisions, localToday)
+      : null;
+    const nextAdjustment = rent
+      ? nextAdjustmentDate(
+          [...rent.rentValueRevisions].reverse(),
+          rent.adjustmentIntervalMonths,
+        )
+      : null;
+    const pendingOccurrences = contract.obligations
+      .flatMap((obligation) =>
+        obligation.occurrences.map((occurrence) => ({
+          id: occurrence.id,
+          periodKey: occurrence.periodKey,
+          dueDate: occurrence.dueDate,
+          dueDatePending: occurrence.dueDate == null,
+          amount: occurrence.amount == null ? null : Number(occurrence.amount),
+          currency: occurrence.currency,
+          operationalStatus:
+            occurrence.dueDate != null && occurrence.dueDate < localToday
+              ? 'OVERDUE'
+              : occurrence.status,
+          fulfillmentSummary: occurrence.fulfillments[0]
+            ? {
+                id: occurrence.fulfillments[0].id,
+                status: occurrence.fulfillments[0].status,
+                fulfilledOn: occurrence.fulfillments[0].fulfilledOn,
+                amount:
+                  occurrence.fulfillments[0].amount == null
+                    ? null
+                    : Number(occurrence.fulfillments[0].amount),
+                actorId: occurrence.fulfillments[0].recordedById,
+                notes: occurrence.fulfillments[0].notes,
+              }
+            : null,
+          concept: {
+            id: obligation.concept.id,
+            name: obligation.concept.name,
+            systemCode: obligation.concept.systemCode,
+          },
+        })),
+      )
+      .sort((a, b) => {
+        if (a.dueDate == null) return b.dueDate == null ? 0 : 1;
+        if (b.dueDate == null) return -1;
+        return a.dueDate.getTime() - b.dueDate.getTime();
+      });
+    return {
+      ...RentalContractResponseDto.fromEntity(contract),
+      currentRent: rent
+        ? {
+            obligationId: rent.id,
+            amount:
+              currentRentRevision?.amount == null
+                ? rent.defaultAmount == null
+                  ? null
+                  : Number(rent.defaultAmount)
+                : Number(currentRentRevision.amount),
+            currency: rent.currency,
+            adjustmentIntervalMonths: rent.adjustmentIntervalMonths,
+            adjustmentConfigurationPending:
+              rent.adjustmentIntervalMonths == null,
+            nextAdjustmentDate: nextAdjustment
+              ? formatDateOnly(nextAdjustment)
+              : null,
+          }
+        : null,
+      obligations: contract.obligations.map((obligation) => ({
+        id: obligation.id,
+        concept: obligation.concept,
+        kind: obligation.kind,
+        dueMode: obligation.dueMode,
+        dueDay: obligation.dueDay,
+        includeInNotice: obligation.includeInNotice,
+        showAmount: obligation.showAmount,
+        isActive: obligation.isActive,
+      })),
+      nextDueOccurrence: pendingOccurrences[0] ?? null,
+      upcomingOccurrences: pendingOccurrences.slice(0, 5),
+      communicationActivity: null,
+    };
+  }
+
+  async dashboard(tenantId: string) {
+    const timeZone = await this.repository.tenantTimeZone(tenantId);
+    const today = localDateForTimeZone(new Date(), timeZone);
+    const attentionUntil = new Date(today);
+    attentionUntil.setUTCDate(attentionUntil.getUTCDate() + 60);
+    const [byStatus, endingSoon, pending, overdue, fulfilled, activity] =
+      await this.repository.dashboard(tenantId, today, attentionUntil);
+    return {
+      contracts: Object.fromEntries(
+        Object.values(RentalContractStatus).map((status) => [
+          status,
+          (() => {
+            const count = byStatus.find(
+              (item) => item.status === status,
+            )?._count;
+            return typeof count === 'object' ? (count._all ?? 0) : 0;
+          })(),
+        ]),
+      ),
+      attention: {
+        endingSoon,
+        pendingOccurrences: pending,
+        overdueOccurrences: overdue,
+        fulfilledOccurrences: fulfilled,
+      },
+      activity,
+      communications: { available: false, sent: null },
+    };
   }
 
   private async requireContract(id: string, tenantId: string) {

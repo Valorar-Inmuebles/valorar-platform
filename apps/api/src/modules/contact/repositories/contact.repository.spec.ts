@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 jest.mock('../../../../generated/prisma/client', () => ({
   ContactPointType: { EMAIL: 'EMAIL', PHONE: 'PHONE' },
 }));
@@ -79,5 +80,47 @@ describe('ContactRepository tenant isolation', () => {
       data: { isDefault: false },
     });
     expect(tx.contactPoint.create).toHaveBeenCalledTimes(1);
+  });
+
+  it('searches name, document, email or phone without returning the full agenda', async () => {
+    const findMany = jest.fn().mockResolvedValue([]);
+    const count = jest.fn().mockResolvedValue(0);
+    const prisma = {
+      contact: { findMany, count },
+      $transaction: jest.fn((queries: Promise<unknown>[]) =>
+        Promise.all(queries),
+      ),
+    };
+    const repository = new ContactRepository(prisma as never);
+
+    await repository.searchForRental('tenant-1', {
+      search: '20-123',
+      page: 1,
+      pageSize: 20,
+    });
+
+    expect(findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          tenantId: 'tenant-1',
+          OR: expect.arrayContaining([
+            expect.objectContaining({
+              documentNumber: {
+                contains: '20-123',
+                mode: 'insensitive',
+              },
+            }),
+          ]),
+        }),
+        select: expect.objectContaining({
+          id: true,
+          name: true,
+          documentNumber: true,
+          contactPoints: expect.any(Object),
+        }),
+        skip: 0,
+        take: 20,
+      }),
+    );
   });
 });

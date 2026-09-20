@@ -430,9 +430,12 @@ export class RentalObligationService {
   ) {
     const timeZone = await this.repository.tenantTimeZone(tenantId);
     const today = localDateForTimeZone(new Date(), timeZone);
+    const page = query.page ?? 1;
+    const pageSize = query.pageSize ?? 20;
     const where: Prisma.RentalObligationOccurrenceWhereInput = {};
+    const obligationWhere: Prisma.RentalObligationWhereInput = {};
     const dueDateFilter: Prisma.DateTimeFilter = {};
-    if (query.contractId) where.obligation = { contractId: query.contractId };
+    if (query.contractId) obligationWhere.contractId = query.contractId;
     if (query.status === 'OVERDUE') {
       where.status = RentalOccurrenceStatus.PENDING;
       dueDateFilter.lt = today;
@@ -448,18 +451,123 @@ export class RentalObligationService {
       ...(query.dueTo ? { lte: this.parseDate(query.dueTo, 'dueTo') } : {}),
     };
     Object.assign(dueDateFilter, requestedRange);
+    if (query.month) {
+      const monthStart = this.parseDate(`${query.month}-01`, 'month');
+      const nextMonth = new Date(monthStart);
+      nextMonth.setUTCMonth(nextMonth.getUTCMonth() + 1);
+      dueDateFilter.gte = monthStart;
+      dueDateFilter.lt = nextMonth;
+    }
+    if (query.category === 'OVERDUE') {
+      where.status = RentalOccurrenceStatus.PENDING;
+      dueDateFilter.lt = today;
+    } else if (query.category === 'RENT') {
+      obligationWhere.concept = { systemCode: 'RENT' };
+    } else if (query.category === 'OTHER') {
+      obligationWhere.concept = { systemCode: { not: 'RENT' } };
+    }
+    if (query.conceptId) {
+      obligationWhere.conceptId = query.conceptId;
+    }
+    if (Object.keys(obligationWhere).length > 0) {
+      where.obligation = obligationWhere;
+    }
+    if (query.search?.trim()) {
+      const search = query.search.trim();
+      where.AND = [
+        ...(Array.isArray(where.AND)
+          ? where.AND
+          : where.AND
+            ? [where.AND]
+            : []),
+        {
+          OR: [
+            {
+              obligation: {
+                contract: {
+                  internalNumber: { contains: search, mode: 'insensitive' },
+                },
+              },
+            },
+            {
+              obligation: {
+                contract: {
+                  propertyAddressSnapshot: {
+                    contains: search,
+                    mode: 'insensitive',
+                  },
+                },
+              },
+            },
+            {
+              obligation: {
+                contract: {
+                  parties: {
+                    some: {
+                      role: 'RENTER',
+                      contact: {
+                        name: { contains: search, mode: 'insensitive' },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          ],
+        },
+      ];
+    }
     if (upcomingOnly) {
       where.status = RentalOccurrenceStatus.PENDING;
       dueDateFilter.gte = today;
     }
     if (Object.keys(dueDateFilter).length) where.dueDate = dueDateFilter;
-    return (
-      await this.repository.findOccurrences(
-        tenantId,
-        where,
-        upcomingOnly ? 20 : undefined,
-      )
-    ).map((item) => this.toOccurrenceResponse(item, today));
+    if (upcomingOnly) {
+      return (await this.repository.findOccurrences(tenantId, where, 20)).map(
+        (item) => this.toOccurrenceResponse(item, today),
+      );
+    }
+    const orderBy = this.occurrenceOrderBy(
+      query.sortBy ?? 'dueDate',
+      query.sortOrder ?? 'asc',
+    );
+    const [items, total] = await this.repository.findOperationalOccurrences(
+      tenantId,
+      where,
+      orderBy,
+      page,
+      pageSize,
+    );
+    return {
+      items: items.map((item) => this.toOccurrenceResponse(item, today)),
+      page,
+      pageSize,
+      total,
+      totalPages: total === 0 ? 0 : Math.ceil(total / pageSize),
+    };
+  }
+
+  async nextOccurrence(tenantId: string, contractId?: string) {
+    const item = await this.repository.findNextAttentionOccurrence(
+      tenantId,
+      contractId,
+    );
+    return item ? this.occurrenceResponseForTenant(item, tenantId) : null;
+  }
+
+  private occurrenceOrderBy(
+    sortBy: NonNullable<ListRentalOccurrencesQueryDto['sortBy']>,
+    sortOrder: 'asc' | 'desc',
+  ): Prisma.RentalObligationOccurrenceOrderByWithRelationInput[] {
+    const primary: Prisma.RentalObligationOccurrenceOrderByWithRelationInput =
+      sortBy === 'internalNumber'
+        ? { obligation: { contract: { internalNumber: sortOrder } } }
+        : sortBy === 'concept'
+          ? { obligation: { concept: { name: sortOrder } } }
+          : sortBy === 'dueDate'
+            ? { dueDate: { sort: sortOrder, nulls: 'last' } }
+            : { [sortBy]: sortOrder };
+    return [primary, { id: 'asc' }];
   }
 
   async updateAmount(
@@ -784,6 +892,10 @@ export class RentalObligationService {
   }
 
   private toOccurrenceResponse(item: RentalOccurrenceRecord, today: Date) {
+    const currentFulfillment =
+      item.fulfillments.find(
+        (fulfillment) => fulfillment.status === 'RECORDED',
+      ) ?? null;
     return {
       ...item,
       amount: item.amount == null ? null : Number(item.amount),
@@ -797,6 +909,28 @@ export class RentalObligationService {
       fulfillments: item.fulfillments.map((fulfillment) =>
         this.toFulfillmentResponse(fulfillment),
       ),
+      fulfillmentSummary: currentFulfillment
+        ? {
+            id: currentFulfillment.id,
+            status: currentFulfillment.status,
+            fulfilledOn: currentFulfillment.fulfilledOn,
+            amount:
+              currentFulfillment.amount == null
+                ? null
+                : Number(currentFulfillment.amount),
+            actorId: currentFulfillment.recordedById,
+            notes: currentFulfillment.notes,
+          }
+        : null,
+      actions: {
+        canSetDueDate:
+          item.status === RentalOccurrenceStatus.PENDING &&
+          item.obligation.dueMode === RentalDueMode.MANUAL_PER_PERIOD,
+        canSetAmount: item.status === RentalOccurrenceStatus.PENDING,
+        canFulfill: item.status === RentalOccurrenceStatus.PENDING,
+        canCancel: item.status === RentalOccurrenceStatus.PENDING,
+        canReverseFulfillment: currentFulfillment != null,
+      },
     };
   }
 

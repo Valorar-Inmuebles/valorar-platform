@@ -2,7 +2,7 @@
 
 Versión: V1.1
 
-Estado: **implementación parcial**. A, B, B.1 y Rental V1.1 Fases 1–2 están implementados. Migración C no fue iniciada.
+Estado: **implementación parcial**. A, B, B.1 y Rental V1.1 Fases 1–3 están implementados. Migración C no fue iniciada.
 
 Reglas funcionales canónicas: `docs/04-modules/rental-management-v1.md`.
 
@@ -84,7 +84,7 @@ Tenant
 └── Notification[] ── User recipient
 ```
 
-`RentalContractSequence`, `previousContractId` e `isPrimary` están **IMPLEMENTADOS en Fase 1**. `RentalRentValueRevision`, reglas de obligations y vencimientos manuales están **IMPLEMENTADOS en Fase 2**. `RentalContractEvent`, `Notification` y Migración C siguen **APROBADOS / PENDIENTES**.
+`RentalContractSequence`, `previousContractId` e `isPrimary` están **IMPLEMENTADOS en Fase 1**. `RentalRentValueRevision`, reglas de obligations y vencimientos manuales están **IMPLEMENTADOS en Fase 2**. `RentalContractEvent` y los read models operativos están **IMPLEMENTADOS en Fase 3**. `Notification` y Migración C siguen **APROBADOS / PENDIENTES**.
 
 ## 4. Contact
 
@@ -424,7 +424,7 @@ La auditoría de fulfillment y reversal no se duplica dentro de `RentalContractE
 
 ## 15. RentalContractEvent
 
-**APROBADO / PENDIENTE**: eventos contractuales append-only.
+**IMPLEMENTADO en Fase 3**: eventos contractuales append-only.
 
 | Campo        | Tipo conceptual | Regla                                 |
 | ------------ | --------------- | ------------------------------------- |
@@ -437,7 +437,7 @@ La auditoría de fulfillment y reversal no se duplica dentro de `RentalContractE
 | `metadata`   | Json?           | Snapshot mínimo específico del evento |
 | `createdAt`  | DateTime        | Auditoría técnica                     |
 
-Eventos iniciales candidatos: activación, finalización, cancelación, cambio de partes, revisión de alquiler y renovación. La lista final se cerrará con la implementación, sin duplicar fulfillment/reversal.
+Tipos implementados: activación, finalización, cancelación, cambio efectivo de partes, revisión de alquiler y renovación. No existe backfill: el historial comienza con las operaciones ejecutadas desde Fase 3 y no inventa actores ni eventos históricos.
 
 No se actualizan ni eliminan eventos mediante endpoints funcionales.
 
@@ -524,6 +524,10 @@ RentalAmountMode
   FIXED
   VARIABLE
 
+RentalDueMode
+  FIXED_DAY
+  MANUAL_PER_PERIOD
+
 RentalOccurrenceStatus
   PENDING
   FULFILLED
@@ -532,17 +536,20 @@ RentalOccurrenceStatus
 RentalFulfillmentStatus
   RECORDED
   REVERSED
+
+RentalContractEventType
+  ACTIVATED
+  ENDED
+  CANCELLED
+  PARTIES_CHANGED
+  RENT_VALUE_REVISED
+  RENEWED
 ```
 
 ### Aprobados / pendientes
 
 ```txt
-RentalDueMode
-  FIXED_DAY
-  MANUAL_PER_PERIOD
-
-RentalContractEventType
-  valores a cerrar con la implementación sin duplicar fulfillment/reversal
+Los enums de `Notification` y de Migración C permanecen pendientes.
 ```
 
 Los enums de planner, dispatch, delivery y proveedores pertenecen a Migración C y no forman parte del baseline ni del refactor previo.
@@ -585,6 +592,8 @@ Además de los índices implementados, el diseño objetivo requiere:
 | Ruta por canal             | `UNIQUE (contractPartyId, channel)`                           |
 | Revisión efectiva          | `UNIQUE (obligationId, effectiveFrom)`                        |
 | Occurrence por período     | `UNIQUE (obligationId, periodKey)`                            |
+| Historial por contrato     | `(tenantId, contractId, occurredAt DESC)`                    |
+| Historial por tipo         | `(tenantId, contractId, type, occurredAt DESC)`              |
 | Notificación idempotente   | `UNIQUE (tenantId, recipientUserId, deduplicationKey)`        |
 
 La regla “exactamente un renter principal” para contratos activos necesita además validación transaccional, porque un índice parcial sólo garantiza el máximo.
@@ -616,11 +625,11 @@ El orden exacto se resolverá en planes de implementación separados, respetando
 
 1. **Fase 1 implementada**: invariantes contractuales, numeración, documento canónico, referente principal, edición estable y renovación;
 2. **Fase 2 implementada**: experiencia `RENT`, revisiones, reglas de occurrences, obligaciones adicionales y flags de aviso;
-3. historial contractual;
+3. **Fase 3 implementada**: historial contractual y APIs/read models operativos;
 4. notificaciones internas globales;
 5. Migración C de ejecución de comunicaciones.
 
-Los puntos 3 a 5 no están implementados por la sola existencia de esta documentación.
+Los puntos 4 y 5 no están implementados por la sola existencia de esta documentación.
 
 ## 24. Decisiones diferidas
 

@@ -93,6 +93,66 @@ export class PropertyRepository {
     });
   }
 
+  searchForRental(
+    tenantId: string,
+    options: { search?: string; page: number; pageSize: number },
+  ) {
+    const where: Prisma.PropertyWhereInput = {
+      tenantId,
+      ...(options.search
+        ? {
+            OR: [
+              { title: { contains: options.search, mode: 'insensitive' } },
+              {
+                internalCode: {
+                  contains: options.search,
+                  mode: 'insensitive',
+                },
+              },
+              { street: { contains: options.search, mode: 'insensitive' } },
+              {
+                formattedAddress: {
+                  contains: options.search,
+                  mode: 'insensitive',
+                },
+              },
+              { city: { contains: options.search, mode: 'insensitive' } },
+            ],
+          }
+        : {}),
+    };
+    return this.prisma.$transaction([
+      this.prisma.property.findMany({
+        where,
+        select: {
+          id: true,
+          title: true,
+          internalCode: true,
+          propertyType: true,
+          isActive: true,
+          street: true,
+          streetNumber: true,
+          floor: true,
+          apartment: true,
+          neighborhood: true,
+          city: true,
+          province: true,
+          country: true,
+          countryId: true,
+          provinceId: true,
+          localityId: true,
+          neighborhoodId: true,
+          postalCode: true,
+          formattedAddress: true,
+        },
+        orderBy: [{ title: 'asc' }, { id: 'asc' }],
+        skip: (options.page - 1) * options.pageSize,
+        take: options.pageSize,
+      }),
+      this.prisma.property.count({ where }),
+    ]);
+  }
+
   async update(
     id: string,
     tenantId: string,
@@ -110,7 +170,10 @@ export class PropertyRepository {
     return this.findById(id, tenantId);
   }
 
-  async softArchive(id: string, tenantId: string): Promise<PropertyRecord | null> {
+  async softArchive(
+    id: string,
+    tenantId: string,
+  ): Promise<PropertyRecord | null> {
     const result = await this.prisma.property.updateMany({
       where: { id, tenantId },
       data: { isActive: false },

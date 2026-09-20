@@ -1,7 +1,6 @@
 import {
   BadRequestException,
   ConflictException,
-  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -11,6 +10,7 @@ import { ListingOperationalTrustService } from '../../property-listing/services/
 import { CreatePropertyDto } from '../dto/create-property.dto';
 import { PropertyResponseDto } from '../dto/property-response.dto';
 import { UpdatePropertyDto } from '../dto/update-property.dto';
+import { RentalPropertySearchQueryDto } from '../dto/property-query.dto';
 import { PropertyGeoService } from './property-geo.service';
 import { PropertyAccessService } from './property-access.service';
 import { PropertyRepository } from '../repositories/property.repository';
@@ -54,15 +54,21 @@ export class PropertyService {
     user: AuthenticatedUser,
     isActive?: boolean,
   ): Promise<PropertyResponseDto[]> {
-    const where = await this.propertyAccessService.buildListWhere(tenantId, user, {
-      ...(isActive !== undefined ? { isActive } : {}),
-    });
+    const where = await this.propertyAccessService.buildListWhere(
+      tenantId,
+      user,
+      {
+        ...(isActive !== undefined ? { isActive } : {}),
+      },
+    );
 
     const properties = await this.propertyRepository.findMany(tenantId, {
       where,
     });
 
-    return properties.map(PropertyResponseDto.fromEntity);
+    return properties.map((property) =>
+      PropertyResponseDto.fromEntity(property),
+    );
   }
 
   async findOne(
@@ -70,9 +76,13 @@ export class PropertyService {
     tenantId: string,
     user: AuthenticatedUser,
   ): Promise<PropertyResponseDto> {
-    const where = await this.propertyAccessService.buildListWhere(tenantId, user, {
-      id,
-    });
+    const where = await this.propertyAccessService.buildListWhere(
+      tenantId,
+      user,
+      {
+        id,
+      },
+    );
 
     const properties = await this.propertyRepository.findMany(tenantId, {
       where,
@@ -83,6 +93,24 @@ export class PropertyService {
     }
 
     return PropertyResponseDto.fromEntity(properties[0]);
+  }
+
+  async searchForRental(tenantId: string, query: RentalPropertySearchQueryDto) {
+    const [items, total] = await this.propertyRepository.searchForRental(
+      tenantId,
+      {
+        search: query.search?.trim() || undefined,
+        page: query.page,
+        pageSize: query.pageSize,
+      },
+    );
+    return {
+      items,
+      page: query.page,
+      pageSize: query.pageSize,
+      total,
+      totalPages: total === 0 ? 0 : Math.ceil(total / query.pageSize),
+    };
   }
 
   async update(

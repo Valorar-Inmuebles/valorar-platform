@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access */
 jest.mock('../../../../generated/prisma/client', () => ({
   Prisma: {},
 }));
@@ -44,5 +45,42 @@ describe('PropertyRepository propertyInclude', () => {
       email: true,
       isActive: true,
     });
+  });
+
+  it('searches active and inactive properties with a compact paginated projection', async () => {
+    const findMany = jest.fn().mockResolvedValue([]);
+    const count = jest.fn().mockResolvedValue(0);
+    const prisma = {
+      property: { findMany, count },
+      $transaction: jest.fn((queries: Promise<unknown>[]) =>
+        Promise.all(queries),
+      ),
+    };
+    const repository = new PropertyRepository(prisma as never);
+
+    await repository.searchForRental('tenant-1', {
+      search: 'Rivadavia',
+      page: 2,
+      pageSize: 10,
+    });
+
+    expect(findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          tenantId: 'tenant-1',
+          OR: expect.any(Array),
+        }),
+        select: expect.objectContaining({
+          id: true,
+          isActive: true,
+          street: true,
+          countryId: true,
+          localityId: true,
+        }),
+        skip: 10,
+        take: 10,
+      }),
+    );
+    expect(findMany.mock.calls[0][0].where).not.toHaveProperty('isActive');
   });
 });

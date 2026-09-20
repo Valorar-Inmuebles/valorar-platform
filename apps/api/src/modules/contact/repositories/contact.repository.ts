@@ -95,6 +95,87 @@ export class ContactRepository {
     });
   }
 
+  searchForRental(
+    tenantId: string,
+    options: {
+      search?: string;
+      isActive?: boolean;
+      page: number;
+      pageSize: number;
+    },
+  ) {
+    const where: Prisma.ContactWhereInput = {
+      tenantId,
+      ...(options.isActive !== undefined ? { isActive: options.isActive } : {}),
+      ...(options.search
+        ? {
+            OR: [
+              { name: { contains: options.search, mode: 'insensitive' } },
+              {
+                documentNumber: {
+                  contains: options.search,
+                  mode: 'insensitive',
+                },
+              },
+              {
+                contactPoints: {
+                  some: {
+                    OR: [
+                      {
+                        value: {
+                          contains: options.search,
+                          mode: 'insensitive',
+                        },
+                      },
+                      {
+                        normalizedValue: {
+                          contains: options.search,
+                          mode: 'insensitive',
+                        },
+                      },
+                    ],
+                  },
+                },
+              },
+            ],
+          }
+        : {}),
+    };
+    return this.prisma.$transaction([
+      this.prisma.contact.findMany({
+        where,
+        select: {
+          id: true,
+          name: true,
+          documentType: true,
+          documentNumber: true,
+          isActive: true,
+          contactPoints: {
+            where: { isActive: true },
+            select: {
+              id: true,
+              type: true,
+              value: true,
+              label: true,
+              isDefault: true,
+              canReceiveSms: true,
+              canReceiveWhatsapp: true,
+            },
+            orderBy: [
+              { type: 'asc' as const },
+              { isDefault: 'desc' as const },
+              { createdAt: 'asc' as const },
+            ],
+          },
+        },
+        orderBy: [{ name: 'asc' }, { id: 'asc' }],
+        skip: (options.page - 1) * options.pageSize,
+        take: options.pageSize,
+      }),
+      this.prisma.contact.count({ where }),
+    ]);
+  }
+
   findById(id: string, tenantId: string): Promise<ContactRecord | null> {
     return this.prisma.contact.findFirst({
       where: { id, tenantId },

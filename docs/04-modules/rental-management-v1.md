@@ -2,7 +2,7 @@
 
 Versión: V1.1
 
-Estado: **implementación parcial**. A, B, B.1 y Rental V1.1 Fases 1–2 están implementados. Migración C no fue iniciada.
+Estado: **implementación parcial**. A, B, B.1 y Rental V1.1 Fases 1–3 están implementados. Migración C no fue iniciada.
 
 Diseño de datos canónico: `docs/03-database/rental-domain.md`.
 
@@ -36,7 +36,7 @@ Este documento separa estrictamente:
 - vigencia mínima de un mes calendario para activar;
 - renovación explícita con sucesor único y copia selectiva.
 
-Permanecen pendientes el historial contractual unificado, las notificaciones globales y la ejecución de comunicaciones de Migración C.
+Permanecen pendientes el refactor visual Admin, las notificaciones globales y la ejecución de comunicaciones de Migración C.
 
 ## 3. Objetivo V1.1
 
@@ -354,6 +354,8 @@ La persistencia de rutas de B.1 y los flags por obligación de Fase 2 están **I
 
 Occurrences, cumplimiento, reversión y estado `OVERDUE` derivado permanecen como base operativa.
 
+**IMPLEMENTADO en Fase 3**: `GET /rental-occurrences` ofrece período mensual, categorías, concepto, status, búsqueda, sorting allowlisted y paginación server-side. La proyección incluye número contractual, dirección, renters, importe/moneda, estado operativo, fulfillment resumido y acciones derivables.
+
 La pantalla mensual tendrá categorías:
 
 - Todos;
@@ -363,15 +365,17 @@ La pantalla mensual tendrá categorías:
 
 `OVERDUE` no se persiste. Se deriva de la fecha de vencimiento, el estado y la zona horaria del tenant.
 
+`dueDate = null` nunca deriva `OVERDUE`. El próximo vencimiento reutilizable prioriza occurrences `PENDING` de obligaciones activas con fecha conocida; las fechas pendientes ordenan detrás y no desplazan una fecha conocida.
+
 Importes variables y fechas manuales pueden quedar pendientes. La UX debe mostrar claramente cada dato pendiente y permitir completarlo sin fabricar valores.
 
 ## 12. Historial contractual
 
-**APROBADO / PENDIENTE**: `RentalContractEvent` será append-only y registrará eventos contractuales relevantes, por ejemplo activación, finalización, cancelación, cambios de partes, revisiones de alquiler y renovación.
+**IMPLEMENTADO en Fase 3**: `RentalContractEvent` es append-only y registra activación, finalización, cancelación, cambios efectivos de partes, revisiones de alquiler y renovación dentro de la transacción funcional.
 
-No se duplicará auditoría detallada ya existente en fulfillment/reversal. La API de historial podrá unificar eventos contractuales y otras fuentes auditables en una cronología común.
+No se duplica auditoría detallada ya existente en fulfillment/reversal. `GET /rental-contracts/:id/history` proyecta ambas fuentes en una cronología común, descendente, tenant-scoped, paginada y filtrable por tipo/categoría/rango. No se generó backfill histórico.
 
-UX aprobada: tabla o lista filtrable, ordenable y paginada.
+La UI visual del historial continúa fuera de esta fase.
 
 ## 13. Renovación
 
@@ -449,7 +453,7 @@ Permisos **APROBADOS / PENDIENTES**:
 
 ## 16. Arquitectura de pantallas aprobada
 
-**APROBADO / PENDIENTE**:
+**APROBADO**; en Fase 3 se implementaron sólo sus APIs/read models, no el refactor visual:
 
 - Resumen Rental.
 - Listado de contratos con número visible y búsqueda.
@@ -477,13 +481,13 @@ Los mockups visuales existen externamente y se proporcionarán durante los gates
 - Refinamiento B.1: dirección estructurada, partes múltiples, rutas por persona/canal y documento libre opcional.
 - Rental V1.1 Fase 1: identidad contractual, documentos canónicos, renter principal, diff/upsert estable, vigencia reforzada y renovación.
 - Rental V1.1 Fase 2: revisiones de valor RENT, recurrencia 1–12, vencimiento fijo/manual, fechas pendientes y flags previos a avisos.
+- Rental V1.1 Fase 3: historial contractual, listado server-side, búsquedas Property/Contact, read model General, Dashboard operacional, vencimientos mensuales y próximo vencimiento.
 
-### 17.2 Aprobado pero pendiente después de Fase 2
+### 17.2 Aprobado pero pendiente después de Fase 3
 
 - refactor visual integral de la experiencia específica de alquiler;
-- historial contractual;
 - notificaciones internas globales;
-- arquitectura de pantallas V1.1;
+- implementación visual de la arquitectura de pantallas V1.1;
 - permisos pendientes.
 
 ### 17.3 Migración C

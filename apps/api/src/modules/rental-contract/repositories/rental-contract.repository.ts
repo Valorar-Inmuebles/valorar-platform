@@ -2,6 +2,8 @@ import { Injectable } from '@nestjs/common';
 import {
   NotificationChannel,
   Prisma,
+  RentalContractEventType,
+  RentalContractPartyRole,
   RentalContractStatus,
   RentalObligationKind,
 } from '../../../../generated/prisma/client';
@@ -42,6 +44,33 @@ const rentalContractInclude = {
   },
 } satisfies Prisma.RentalContractInclude;
 
+const rentalContractListSelect = {
+  id: true,
+  internalNumber: true,
+  status: true,
+  propertyId: true,
+  propertyAddressSnapshot: true,
+  propertyCountryId: true,
+  propertyProvinceId: true,
+  propertyLocalityId: true,
+  propertyNeighborhoodId: true,
+  startsOn: true,
+  endsOn: true,
+  createdAt: true,
+  updatedAt: true,
+  property: {
+    select: { id: true, title: true, propertyType: true, isActive: true },
+  },
+  parties: {
+    select: {
+      role: true,
+      isPrimary: true,
+      contact: { select: { id: true, name: true } },
+    },
+    orderBy: [{ role: 'asc' as const }, { createdAt: 'asc' as const }],
+  },
+} satisfies Prisma.RentalContractSelect;
+
 const renewalSourceInclude = {
   parties: {
     include: {
@@ -61,6 +90,32 @@ const renewalSourceInclude = {
 export type RentalContractRecord = Prisma.RentalContractGetPayload<{
   include: typeof rentalContractInclude;
 }>;
+export type RentalContractListRecord = Prisma.RentalContractGetPayload<{
+  select: typeof rentalContractListSelect;
+}>;
+
+export type RentalContractListOptions = {
+  status?: RentalContractStatus;
+  search?: string;
+  endingFrom?: Date;
+  endingBefore?: Date;
+  countryId?: string;
+  provinceId?: string;
+  localityId?: string;
+  neighborhoodId?: string;
+  partyContactId?: string;
+  partyRole?: RentalContractPartyRole;
+  sortBy:
+    | 'internalNumber'
+    | 'startsOn'
+    | 'endsOn'
+    | 'status'
+    | 'propertyAddress'
+    | 'createdAt';
+  sortOrder: 'asc' | 'desc';
+  page: number;
+  pageSize: number;
+};
 
 export type RentalContractRenewalResult =
   | { outcome: 'NOT_FOUND' }
@@ -94,33 +149,283 @@ export class RentalContractRepository {
     });
   }
 
-  findMany(tenantId: string, status?: RentalContractStatus, search?: string) {
-    return this.prisma.rentalContract.findMany({
-      where: {
-        tenantId,
-        ...(status ? { status } : {}),
-        ...(search
-          ? {
-              OR: [
-                {
-                  internalNumber: {
-                    contains: search,
-                    mode: 'insensitive' as const,
+  findMany(tenantId: string, options: RentalContractListOptions) {
+    const where: Prisma.RentalContractWhereInput = {
+      tenantId,
+      ...(options.status ? { status: options.status } : {}),
+      ...(options.endingFrom || options.endingBefore
+        ? {
+            endsOn: {
+              ...(options.endingFrom ? { gte: options.endingFrom } : {}),
+              ...(options.endingBefore ? { lte: options.endingBefore } : {}),
+            },
+          }
+        : {}),
+      ...(options.countryId ? { propertyCountryId: options.countryId } : {}),
+      ...(options.provinceId ? { propertyProvinceId: options.provinceId } : {}),
+      ...(options.localityId ? { propertyLocalityId: options.localityId } : {}),
+      ...(options.neighborhoodId
+        ? { propertyNeighborhoodId: options.neighborhoodId }
+        : {}),
+      ...(options.partyContactId || options.partyRole
+        ? {
+            parties: {
+              some: {
+                ...(options.partyContactId
+                  ? { contactId: options.partyContactId }
+                  : {}),
+                ...(options.partyRole ? { role: options.partyRole } : {}),
+              },
+            },
+          }
+        : {}),
+      ...(options.search
+        ? {
+            OR: [
+              {
+                internalNumber: {
+                  contains: options.search,
+                  mode: 'insensitive' as const,
+                },
+              },
+              {
+                propertyAddressSnapshot: {
+                  contains: options.search,
+                  mode: 'insensitive' as const,
+                },
+              },
+              {
+                property: {
+                  is: {
+                    OR: [
+                      {
+                        title: {
+                          contains: options.search,
+                          mode: 'insensitive' as const,
+                        },
+                      },
+                      {
+                        internalCode: {
+                          contains: options.search,
+                          mode: 'insensitive' as const,
+                        },
+                      },
+                    ],
                   },
                 },
-                {
-                  propertyAddressSnapshot: {
-                    contains: search,
-                    mode: 'insensitive' as const,
+              },
+              {
+                parties: {
+                  some: {
+                    contact: {
+                      name: {
+                        contains: options.search,
+                        mode: 'insensitive' as const,
+                      },
+                    },
                   },
                 },
+              },
+            ],
+          }
+        : {}),
+    };
+    const orderField =
+      options.sortBy === 'propertyAddress'
+        ? 'propertyAddressSnapshot'
+        : options.sortBy;
+    const orderBy = [
+      { [orderField]: options.sortOrder },
+      { id: 'asc' as const },
+    ] as Prisma.RentalContractOrderByWithRelationInput[];
+    return this.prisma.$transaction([
+      this.prisma.rentalContract.findMany({
+        where,
+        select: rentalContractListSelect,
+        orderBy,
+        skip: (options.page - 1) * options.pageSize,
+        take: options.pageSize,
+      }),
+      this.prisma.rentalContract.count({ where }),
+    ]);
+  }
+
+  findGeneralById(id: string, tenantId: string) {
+    return this.prisma.rentalContract.findFirst({
+      where: { id, tenantId },
+      include: {
+        ...rentalContractInclude,
+        obligations: {
+          include: {
+            concept: true,
+            rentValueRevisions: {
+              orderBy: [
+                { effectiveFrom: 'desc' as const },
+                { createdAt: 'desc' as const },
               ],
-            }
-          : {}),
+            },
+            occurrences: {
+              where: { status: 'PENDING' },
+              include: {
+                fulfillments: { orderBy: { createdAt: 'desc' as const } },
+              },
+              orderBy: [
+                {
+                  dueDate: {
+                    sort: 'asc' as const,
+                    nulls: 'last' as const,
+                  },
+                },
+                { createdAt: 'asc' as const },
+              ],
+              take: 10,
+            },
+          },
+          orderBy: [{ concept: { sortOrder: 'asc' as const } }],
+        },
       },
-      include: rentalContractInclude,
-      orderBy: [{ startsOn: 'desc' }, { createdAt: 'desc' }],
     });
+  }
+
+  findContractEvents(
+    tenantId: string,
+    contractId: string,
+    options: {
+      type?: RentalContractEventType;
+      from?: Date;
+      to?: Date;
+      skip: number;
+      take: number;
+    },
+  ) {
+    const where: Prisma.RentalContractEventWhereInput = {
+      tenantId,
+      contractId,
+      ...(options.type ? { type: options.type } : {}),
+      ...(options.from || options.to
+        ? {
+            occurredAt: {
+              ...(options.from ? { gte: options.from } : {}),
+              ...(options.to ? { lte: options.to } : {}),
+            },
+          }
+        : {}),
+    };
+    return this.prisma.$transaction([
+      this.prisma.rentalContractEvent.findMany({
+        where,
+        include: {
+          actor: { select: { id: true, name: true } },
+        },
+        orderBy: [{ occurredAt: 'desc' }, { id: 'desc' }],
+        skip: options.skip,
+        take: options.take,
+      }),
+      this.prisma.rentalContractEvent.count({ where }),
+    ]);
+  }
+
+  findFulfillmentHistory(
+    tenantId: string,
+    contractId: string,
+    options: { from?: Date; to?: Date; take: number },
+  ) {
+    const baseWhere: Prisma.RentalFulfillmentWhereInput = {
+      tenantId,
+      occurrence: { obligation: { contractId } },
+    };
+    const dateRange = {
+      ...(options.from ? { gte: options.from } : {}),
+      ...(options.to ? { lte: options.to } : {}),
+    };
+    const recordedWhere: Prisma.RentalFulfillmentWhereInput = {
+      ...baseWhere,
+      ...(options.from || options.to ? { createdAt: dateRange } : {}),
+    };
+    const reversedWhere: Prisma.RentalFulfillmentWhereInput = {
+      ...baseWhere,
+      reversedAt: {
+        not: null,
+        ...(options.from ? { gte: options.from } : {}),
+        ...(options.to ? { lte: options.to } : {}),
+      },
+    };
+    const include = {
+      recordedBy: { select: { id: true, name: true } },
+      reversedBy: { select: { id: true, name: true } },
+      occurrence: {
+        select: {
+          id: true,
+          periodKey: true,
+          dueDate: true,
+          obligation: {
+            select: { concept: { select: { id: true, name: true } } },
+          },
+        },
+      },
+    } satisfies Prisma.RentalFulfillmentInclude;
+    return this.prisma.$transaction([
+      this.prisma.rentalFulfillment.findMany({
+        where: recordedWhere,
+        include,
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        take: options.take,
+      }),
+      this.prisma.rentalFulfillment.count({ where: recordedWhere }),
+      this.prisma.rentalFulfillment.findMany({
+        where: reversedWhere,
+        include,
+        orderBy: [{ reversedAt: 'desc' }, { id: 'desc' }],
+        take: options.take,
+      }),
+      this.prisma.rentalFulfillment.count({
+        where: reversedWhere,
+      }),
+    ]);
+  }
+
+  dashboard(tenantId: string, today: Date, attentionUntil: Date) {
+    return this.prisma.$transaction([
+      this.prisma.rentalContract.groupBy({
+        by: ['status'],
+        where: { tenantId },
+        orderBy: { status: 'asc' },
+        _count: { _all: true },
+      }),
+      this.prisma.rentalContract.count({
+        where: {
+          tenantId,
+          status: RentalContractStatus.ACTIVE,
+          endsOn: { gte: today, lte: attentionUntil },
+        },
+      }),
+      this.prisma.rentalObligationOccurrence.count({
+        where: { tenantId, status: 'PENDING' },
+      }),
+      this.prisma.rentalObligationOccurrence.count({
+        where: {
+          tenantId,
+          status: 'PENDING',
+          dueDate: { lt: today },
+        },
+      }),
+      this.prisma.rentalObligationOccurrence.count({
+        where: { tenantId, status: 'FULFILLED' },
+      }),
+      this.prisma.rentalContractEvent.findMany({
+        where: { tenantId },
+        select: {
+          id: true,
+          contractId: true,
+          type: true,
+          occurredAt: true,
+          contract: { select: { internalNumber: true } },
+          actor: { select: { id: true, name: true } },
+        },
+        orderBy: [{ occurredAt: 'desc' }, { id: 'desc' }],
+        take: 10,
+      }),
+    ]);
   }
 
   findById(id: string, tenantId: string) {
@@ -142,6 +447,7 @@ export class RentalContractRepository {
     tenantId: string,
     data: Prisma.RentalContractUncheckedUpdateInput,
     parties?: RentalContractPartyInputDto[],
+    actorId: string | null = null,
   ) {
     return this.prisma.$transaction(async (tx) => {
       const changed = await tx.rentalContract.updateMany({
@@ -149,7 +455,22 @@ export class RentalContractRepository {
         data,
       });
       if (changed.count === 0) return null;
-      if (parties) await this.syncParties(tx, id, tenantId, parties);
+      if (parties) {
+        const partiesChanged = await this.syncParties(
+          tx,
+          id,
+          tenantId,
+          parties,
+        );
+        if (partiesChanged) {
+          await this.createEvent(tx, {
+            tenantId,
+            contractId: id,
+            type: RentalContractEventType.PARTIES_CHANGED,
+            actorId,
+          });
+        }
+      }
       return tx.rentalContract.findFirst({
         where: { id, tenantId },
         include: rentalContractInclude,
@@ -287,6 +608,17 @@ export class RentalContractRepository {
           }
         }
 
+        await this.createEvent(tx, {
+          tenantId,
+          contractId: source.id,
+          type: RentalContractEventType.RENEWED,
+          actorId: createdById,
+          metadata: {
+            renewedContractId: renewed.id,
+            renewedInternalNumber: internalNumber,
+          },
+        });
+
         return {
           outcome: 'CREATED',
           contract: await tx.rentalContract.findUniqueOrThrow({
@@ -350,38 +682,54 @@ export class RentalContractRepository {
       });
   }
 
-  async activateWithRentRequirement(id: string, tenantId: string) {
-    const changed = await this.prisma.rentalContract.updateMany({
-      where: {
-        id,
+  async activateWithRentRequirement(
+    id: string,
+    tenantId: string,
+    actorId: string | null = null,
+  ) {
+    return this.prisma.$transaction(async (tx) => {
+      const changed = await tx.rentalContract.updateMany({
+        where: {
+          id,
+          tenantId,
+          status: RentalContractStatus.DRAFT,
+          endsOn: { not: null },
+          parties: {
+            some: {
+              role: 'RENTER',
+              isPrimary: true,
+              contact: { isActive: true },
+            },
+          },
+          obligations: {
+            some: {
+              isActive: true,
+              concept: { systemCode: 'RENT' },
+              kind: RentalObligationKind.RECURRING,
+              recurrenceMonths: 1,
+              dueMode: 'FIXED_DAY',
+              dueDay: { gte: 1, lte: 31 },
+              amountMode: 'FIXED',
+              defaultAmount: { gt: 0 },
+              adjustmentIntervalMonths: { gte: 1, lte: 12 },
+              rentValueRevisions: { some: {} },
+            },
+          },
+        },
+        data: { status: RentalContractStatus.ACTIVE },
+      });
+      if (changed.count !== 1) return null;
+      await this.createEvent(tx, {
         tenantId,
-        status: RentalContractStatus.DRAFT,
-        endsOn: { not: null },
-        parties: {
-          some: {
-            role: 'RENTER',
-            isPrimary: true,
-            contact: { isActive: true },
-          },
-        },
-        obligations: {
-          some: {
-            isActive: true,
-            concept: { systemCode: 'RENT' },
-            kind: RentalObligationKind.RECURRING,
-            recurrenceMonths: 1,
-            dueMode: 'FIXED_DAY',
-            dueDay: { gte: 1, lte: 31 },
-            amountMode: 'FIXED',
-            defaultAmount: { gt: 0 },
-            adjustmentIntervalMonths: { gte: 1, lte: 12 },
-            rentValueRevisions: { some: {} },
-          },
-        },
-      },
-      data: { status: RentalContractStatus.ACTIVE },
+        contractId: id,
+        type: RentalContractEventType.ACTIVATED,
+        actorId,
+      });
+      return tx.rentalContract.findFirst({
+        where: { id, tenantId },
+        include: rentalContractInclude,
+      });
     });
-    return changed.count === 1 ? this.findById(id, tenantId) : null;
   }
 
   tenantTimeZone(tenantId: string) {
@@ -412,6 +760,15 @@ export class RentalContractRepository {
         data: { status },
       });
       if (changed.count !== 1) return null;
+      await this.createEvent(tx, {
+        tenantId,
+        contractId: id,
+        type:
+          status === RentalContractStatus.ENDED
+            ? RentalContractEventType.ENDED
+            : RentalContractEventType.CANCELLED,
+        actorId,
+      });
       await tx.rentalObligation.updateMany({
         where: { contractId: id, tenantId, isActive: true },
         data: { isActive: false },
@@ -463,6 +820,7 @@ export class RentalContractRepository {
       where: { contractId, tenantId },
       include: { notificationRoutes: true },
     });
+    const partiesChanged = this.partiesDiffer(existing, parties);
     const desiredKeys = new Set(
       parties.map((party) => `${party.role}:${party.contactId}`),
     );
@@ -517,6 +875,45 @@ export class RentalContractRepository {
         input.notificationRoutes ?? [],
       );
     }
+    return partiesChanged;
+  }
+
+  private partiesDiffer(
+    existing: Array<{
+      role: RentalContractPartyRole;
+      contactId: string;
+      isPrimary: boolean;
+      notificationRoutes: Array<{
+        channel: NotificationChannel;
+        contactPointId: string;
+        isEnabled: boolean;
+      }>;
+    }>,
+    desired: RentalContractPartyInputDto[],
+  ) {
+    if (existing.length !== desired.length) return true;
+    const byKey = new Map(
+      existing.map((party) => [`${party.role}:${party.contactId}`, party]),
+    );
+    return desired.some((input) => {
+      const current = byKey.get(`${input.role}:${input.contactId}`);
+      if (!current || current.isPrimary !== (input.isPrimary ?? false)) {
+        return true;
+      }
+      const routes = input.notificationRoutes ?? [];
+      if (current.notificationRoutes.length !== routes.length) return true;
+      const currentRoutes = new Map(
+        current.notificationRoutes.map((route) => [route.channel, route]),
+      );
+      return routes.some((route) => {
+        const currentRoute = currentRoutes.get(route.channel);
+        return (
+          !currentRoute ||
+          currentRoute.contactPointId !== route.contactPointId ||
+          currentRoute.isEnabled !== (route.isEnabled ?? true)
+        );
+      });
+    });
   }
 
   private async syncRoutes(
@@ -591,5 +988,18 @@ export class RentalContractRepository {
     if (route.channel === NotificationChannel.WHATSAPP)
       return point.type === 'PHONE' && point.canReceiveWhatsapp;
     return point.type === 'PHONE' && point.canReceiveSms;
+  }
+
+  private createEvent(
+    tx: Prisma.TransactionClient,
+    data: {
+      tenantId: string;
+      contractId: string;
+      type: RentalContractEventType;
+      actorId: string | null;
+      metadata?: Prisma.InputJsonValue;
+    },
+  ) {
+    return tx.rentalContractEvent.create({ data });
   }
 }

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 jest.mock('../../../../generated/prisma/client', () => ({
   RentalContractStatus: {
     DRAFT: 'DRAFT',
@@ -7,6 +8,14 @@ jest.mock('../../../../generated/prisma/client', () => ({
   },
   RentalObligationKind: { RECURRING: 'RECURRING', ONE_TIME: 'ONE_TIME' },
   NotificationChannel: { EMAIL: 'EMAIL', WHATSAPP: 'WHATSAPP', SMS: 'SMS' },
+  RentalContractEventType: {
+    ACTIVATED: 'ACTIVATED',
+    ENDED: 'ENDED',
+    CANCELLED: 'CANCELLED',
+    PARTIES_CHANGED: 'PARTIES_CHANGED',
+    RENT_VALUE_REVISED: 'RENT_VALUE_REVISED',
+    RENEWED: 'RENEWED',
+  },
   Prisma: { TransactionIsolationLevel: { Serializable: 'Serializable' } },
 }));
 jest.mock('../../../prisma/prisma.service', () => ({
@@ -17,6 +26,40 @@ import { RentalContractStatus } from '../../../../generated/prisma/client';
 import { RentalContractRepository } from './rental-contract.repository';
 
 describe('RentalContractRepository terminal transition', () => {
+  it('scopes searchable contract lists and related parties to the tenant', async () => {
+    const findMany = jest.fn().mockResolvedValue([]);
+    const count = jest.fn().mockResolvedValue(0);
+    const prisma = {
+      rentalContract: { findMany, count },
+      $transaction: jest.fn((queries: Promise<unknown>[]) =>
+        Promise.all(queries),
+      ),
+    };
+    const repository = new RentalContractRepository(prisma as never);
+
+    await repository.findMany('tenant-1', {
+      search: 'Ana',
+      partyRole: 'RENTER',
+      sortBy: 'internalNumber',
+      sortOrder: 'asc',
+      page: 2,
+      pageSize: 10,
+    });
+
+    expect(findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          tenantId: 'tenant-1',
+          parties: { some: { role: 'RENTER' } },
+          OR: expect.any(Array),
+        }),
+        skip: 10,
+        take: 10,
+        orderBy: [{ internalNumber: 'asc' }, { id: 'asc' }],
+      }),
+    );
+  });
+
   it('allocates unique tenant-scoped numbers under concurrent creates', async () => {
     const counters = new Map<string, number>();
     const createdNumbers: Array<{ tenantId: string; internalNumber: string }> =
@@ -107,7 +150,7 @@ describe('RentalContractRepository terminal transition', () => {
   });
 
   it('activates atomically only when an active RENT obligation exists', async () => {
-    const prisma = {
+    const tx = {
       rentalContract: {
         updateMany: jest.fn().mockResolvedValue({ count: 1 }),
         findFirst: jest.fn().mockResolvedValue({
@@ -115,6 +158,11 @@ describe('RentalContractRepository terminal transition', () => {
           status: RentalContractStatus.ACTIVE,
         }),
       },
+      rentalContractEvent: { create: jest.fn().mockResolvedValue({}) },
+    };
+    const prisma = {
+      ...tx,
+      $transaction: (callback: (client: typeof tx) => unknown) => callback(tx),
     };
     const repository = new RentalContractRepository(prisma as never);
 
@@ -185,6 +233,7 @@ describe('RentalContractRepository terminal transition', () => {
         update: jest.fn(),
         create: jest.fn(),
       },
+      rentalContractEvent: { create: jest.fn().mockResolvedValue({}) },
     };
     const prisma = {
       $transaction: (callback: (client: typeof tx) => unknown) => callback(tx),
@@ -209,6 +258,7 @@ describe('RentalContractRepository terminal transition', () => {
     expect(
       tx.rentalContractNotificationRoute.deleteMany,
     ).not.toHaveBeenCalled();
+    expect(tx.rentalContractEvent.create).not.toHaveBeenCalled();
   });
 
   it('removes only the party omitted from an update', async () => {
@@ -244,6 +294,7 @@ describe('RentalContractRepository terminal transition', () => {
         update: jest.fn(),
         create: jest.fn(),
       },
+      rentalContractEvent: { create: jest.fn().mockResolvedValue({}) },
     };
     const prisma = {
       $transaction: (callback: (client: typeof tx) => unknown) => callback(tx),
@@ -264,6 +315,13 @@ describe('RentalContractRepository terminal transition', () => {
         contractId: 'contract-1',
         tenantId: 'tenant-1',
       },
+    });
+    expect(tx.rentalContractEvent.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        tenantId: 'tenant-1',
+        contractId: 'contract-1',
+        type: 'PARTIES_CHANGED',
+      }),
     });
   });
 
@@ -388,6 +446,7 @@ describe('RentalContractRepository terminal transition', () => {
       rentalRentValueRevision: {
         create: jest.fn().mockResolvedValue({ id: 'revision-new' }),
       },
+      rentalContractEvent: { create: jest.fn().mockResolvedValue({}) },
     };
     const prisma = {
       $transaction: (callback: (client: typeof tx) => unknown) => callback(tx),
@@ -443,6 +502,13 @@ describe('RentalContractRepository terminal transition', () => {
         contractPartyId: 'party-new',
       }),
     });
+    expect(tx.rentalContractEvent.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        contractId: 'contract-1',
+        type: 'RENEWED',
+        actorId: 'user-1',
+      }),
+    });
     /* eslint-enable @typescript-eslint/no-unsafe-assignment */
   });
 
@@ -487,6 +553,7 @@ describe('RentalContractRepository terminal transition', () => {
       rentalObligationOccurrence: {
         updateMany: jest.fn().mockResolvedValue({ count: 3 }),
       },
+      rentalContractEvent: { create: jest.fn().mockResolvedValue({}) },
     };
     const prisma = {
       $transaction: (callback: (client: typeof tx) => unknown) => callback(tx),
@@ -517,6 +584,15 @@ describe('RentalContractRepository terminal transition', () => {
       data: expect.objectContaining({
         status: 'CANCELLED',
         cancelledById: 'manager-1',
+      }),
+    });
+    expect(tx.rentalContractEvent.create).toHaveBeenCalledWith({
+      // Jest asymmetric matchers are intentionally untyped here.
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+      data: expect.objectContaining({
+        contractId: 'contract-1',
+        type: 'ENDED',
+        actorId: 'manager-1',
       }),
     });
   });

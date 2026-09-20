@@ -120,6 +120,15 @@ export class RentalOccurrenceController {
     return this.service.listOccurrences(tenantId, query, true);
   }
 
+  @Get('next')
+  @RequirePermissions('rental.read')
+  next(
+    @CurrentTenant() tenantId: string,
+    @Query() query: ListRentalOccurrencesQueryDto,
+  ) {
+    return this.service.nextOccurrence(tenantId, query.contractId);
+  }
+
   @Patch(':id/amount')
   @RequirePermissions('rental.obligation.manage')
   updateAmount(

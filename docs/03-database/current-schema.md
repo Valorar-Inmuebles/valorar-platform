@@ -2,7 +2,7 @@
 
 ## Estado
 
-Versión: Foundation v1 + Auth Foundation Fase 1 + Property Domain v1 + Rental Management A+B+B.1+V1.1 Fases 1–2
+Versión: Foundation v1 + Auth Foundation Fase 1 + Property Domain v1 + Rental Management A+B+B.1+V1.1 Fases 1–3
 
 Base de datos:
 
@@ -13,7 +13,7 @@ Auth Foundation Fase 1: migrado (`20260616125024_auth_foundation`).
 
 Dominio Property: migrado (`202606150001_property_foundation`, `202606150002_property_location_v1_1`).
 
-Rental Management: A, B, B.1 y V1.1 Fases 1–2 implementadas en development. Migración C continúa pendiente; ninguna migración de estas fases se aplica a producción durante este desarrollo.
+Rental Management: A, B, B.1 y V1.1 Fases 1–3 implementadas en development. Migración C continúa pendiente; ninguna migración de estas fases se aplica a producción durante este desarrollo.
 
 ---
 
@@ -150,9 +150,9 @@ Relación 1:1 con `Tenant`.
 
 ---
 
-# Rental Management — A+B+B.1+V1.1 Fases 1–2
+# Rental Management — A+B+B.1+V1.1 Fases 1–3
 
-Estado: fundación, motor de vencimientos, B.1 e identidad/renovación Fase 1, más revisiones de alquiler y reglas de obligaciones Fase 2 implementados. Migración C no iniciada.
+Estado: fundación, motor de vencimientos, B.1, identidad/renovación, revisiones de alquiler y read models operativos con historial contractual implementados. Migración C no iniciada.
 
 Documentación canónica: `docs/03-database/rental-domain.md` y `docs/04-modules/rental-management-v1.md`.
 
@@ -170,6 +170,7 @@ Tenant
     │   └── RentalContractNotificationRoute[] ── ContactPoint
     ├── User? (createdBy)
     ├── previousContract? / renewedContract?
+    ├── RentalContractEvent[]
     └── RentalObligation
         ├── RentalConcept
         ├── RentalRentValueRevision
@@ -188,6 +189,7 @@ Tenant
 - `RentalRentValueRevision`: historial append-only tenant-scoped del valor de `RENT`, único por obligación y fecha efectiva.
 - `RentalObligationOccurrence`: vencimiento persistido e idempotente por `[obligationId, periodKey]`; admite `dueDate = null`, conserva snapshots y deriva `OVERDUE` sólo cuando existe fecha.
 - `RentalFulfillment`: cumplimiento total auditable, reversible y con un único registro vigente garantizado transaccionalmente.
+- `RentalContractEvent`: evento contractual append-only con actor opcional y metadata mínima. No duplica fulfillment/reversal; la API los unifica sólo al leer el historial.
 
 ## Enums
 
@@ -196,6 +198,7 @@ ContactPointType: EMAIL | PHONE
 ContactDocumentType: DNI | CUIT | CUIL | PASSPORT
 RentalConceptSystemCode: RENT | EXPENSES | ELECTRICITY | GAS | ABL | AYSA | INSURANCE
 RentalContractStatus: DRAFT | ACTIVE | ENDED | CANCELLED
+RentalContractEventType: ACTIVATED | ENDED | CANCELLED | PARTIES_CHANGED | RENT_VALUE_REVISED | RENEWED
 RentalContractPartyRole: RENTER | LANDLORD
 NotificationChannel: EMAIL | WHATSAPP | SMS
 RentalObligationKind: RECURRING | ONE_TIME
@@ -218,8 +221,10 @@ RentalFulfillmentOrigin: ADMIN
 - El horizonte operativo de materialización es el mes local actual y los dos meses siguientes; puede reejecutarse sin duplicar.
 - Nuevas activaciones exigen RENT mensual, día fijo, importe/revisión inicial válidos y `adjustmentIntervalMonths` entre 1 y 12; ACTIVE legacy puede conservar ese intervalo en `null` hasta configurarlo.
 - Las revisiones sólo recalculan occurrences `PENDING` del rango aplicable; cumplidas, canceladas y períodos anteriores permanecen intactos.
+- Los eventos contractuales no tienen endpoints funcionales de edición o eliminación y se escriben dentro de la transacción del cambio auditado.
+- El próximo vencimiento prioriza occurrences `PENDING` de obligaciones activas con fecha conocida; las fechas pendientes ordenan detrás y nunca derivan `OVERDUE`.
 
-Migraciones: `202609090001_rental_foundation_a`, `202609090002_rental_obligation_engine_b`, `202609100001_rental_uat_refinement_b1`, `202609190001_rental_contract_identity_renewal_v1_1`, `202609190002_rental_rent_revision_obligation_rules_v1_1`.
+Migraciones: `202609090001_rental_foundation_a`, `202609090002_rental_obligation_engine_b`, `202609100001_rental_uat_refinement_b1`, `202609190001_rental_contract_identity_renewal_v1_1`, `202609190002_rental_rent_revision_obligation_rules_v1_1`, `202609190003_rental_history_operational_read_models_v1_1`.
 
 ---
 

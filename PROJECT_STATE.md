@@ -301,6 +301,19 @@ Documentación: `docs/04-modules/rental-management-v1.md`, `docs/03-database/ren
 
 Documentación: `docs/04-modules/rental-management-v1.md`, `docs/03-database/rental-domain.md`, `docs/03-database/current-schema.md`.
 
+### Rental Management V1.1 — Fase 3 ✅
+
+* Migración `202609190003_rental_history_operational_read_models_v1_1`: `RentalContractEvent` append-only, tenant-scoped e indexado por contrato/fecha y tipo/fecha.
+* Los cambios de partes, activación, finalización, cancelación, revisiones de alquiler y renovación registran eventos en la misma transacción; no se fabricó historia previa.
+* `GET /rental-contracts/:id/history` unifica eventos contractuales con fulfillment/reversal existentes, con filtros y paginación descendente.
+* Listados de contratos y vencimientos operan server-side con búsqueda, filtros, sorting allowlisted y paginación; `OVERDUE` sigue derivado y `dueDate = null` nunca vence.
+* Property y Contact disponen de búsquedas Rental tenant-scoped, compactas y paginadas; Property incluye activos e inactivos.
+* Read models de General y Dashboard priorizan estado operativo, atención y actividad disponible, sin inventar comunicaciones.
+* Se reutiliza `rental.read`; no se agregaron permisos ni cambios visuales Admin.
+* Notificaciones internas, refactor visual y Migración C permanecen pendientes.
+
+Documentación: `docs/04-modules/rental-management-v1.md`, `docs/03-database/rental-domain.md`, `docs/03-database/current-schema.md`.
+
 ### Lead Domain v1 (documentado)
 
 * Lead (inquiry-centric — consulta capturada)

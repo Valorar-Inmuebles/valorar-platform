@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call */
 import { BadRequestException, ConflictException } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 
@@ -85,6 +86,10 @@ describe('RentalContractService', () => {
     transitionToTerminal: jest.fn(),
     renew: jest.fn(),
     findRenewalByPrevious: jest.fn(),
+    findContractEvents: jest.fn(),
+    findFulfillmentHistory: jest.fn(),
+    findGeneralById: jest.fn(),
+    dashboard: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -97,6 +102,9 @@ describe('RentalContractService', () => {
     }).compile();
     service = module.get(RentalContractService);
     repository.contactsByIds.mockResolvedValue([]);
+    repository.tenantTimeZone.mockResolvedValue(
+      'America/Argentina/Buenos_Aires',
+    );
   });
 
   it('creates contracts as DRAFT', async () => {
@@ -110,6 +118,192 @@ describe('RentalContractService', () => {
     expect(repository.create).toHaveBeenCalledWith(
       expect.objectContaining({ tenantId: 'tenant-1', status: 'DRAFT' }),
       [],
+    );
+  });
+
+  it('returns a server-side paginated contract list', async () => {
+    repository.findMany.mockResolvedValue([[contract()], 21]);
+    await expect(
+      service.findAll('tenant-1', {
+        search: 'Ana',
+        endingBefore: '2026-12-31',
+        sortBy: 'internalNumber',
+        sortOrder: 'asc',
+        page: 2,
+        pageSize: 10,
+      }),
+    ).resolves.toEqual(
+      expect.objectContaining({
+        page: 2,
+        pageSize: 10,
+        total: 21,
+        totalPages: 3,
+      }),
+    );
+    expect(repository.findMany).toHaveBeenCalledWith(
+      'tenant-1',
+      expect.objectContaining({
+        search: 'Ana',
+        endingBefore: new Date('2026-12-31T00:00:00.000Z'),
+        sortBy: 'internalNumber',
+        sortOrder: 'asc',
+        page: 2,
+        pageSize: 10,
+      }),
+    );
+  });
+
+  it('derives expiring-soon as an ACTIVE local-date window', async () => {
+    repository.findMany.mockResolvedValue([[], 0]);
+    await service.findAll('tenant-1', {
+      endingWithinDays: 30,
+      page: 1,
+      pageSize: 20,
+    });
+    const options = repository.findMany.mock.calls[0][1];
+    expect(options.status).toBe(RentalContractStatus.ACTIVE);
+    expect(options.endingFrom).toBeInstanceOf(Date);
+    expect(options.endingBefore.getTime() - options.endingFrom.getTime()).toBe(
+      30 * 86_400_000,
+    );
+  });
+
+  it('rejects ambiguous ending filters', async () => {
+    await expect(
+      service.findAll('tenant-1', {
+        endingBefore: '2026-12-31',
+        endingWithinDays: 30,
+      }),
+    ).rejects.toThrow(BadRequestException);
+    expect(repository.findMany).not.toHaveBeenCalled();
+  });
+
+  it('unifies contract and fulfillment history in descending order', async () => {
+    repository.findById.mockResolvedValue(contract());
+    repository.findContractEvents.mockResolvedValue([
+      [
+        {
+          id: 'event-1',
+          type: 'ACTIVATED',
+          occurredAt: new Date('2026-09-02T00:00:00.000Z'),
+          actor: null,
+          metadata: null,
+        },
+      ],
+      1,
+    ]);
+    repository.findFulfillmentHistory.mockResolvedValue([
+      [
+        {
+          id: 'fulfillment-1',
+          createdAt: new Date('2026-09-03T00:00:00.000Z'),
+          reversedAt: null,
+          recordedBy: { id: 'user-1', name: 'Manager' },
+          reversedBy: null,
+          amount: 100,
+          notes: null,
+          reversalReason: null,
+          occurrence: {
+            id: 'occurrence-1',
+            periodKey: '2026-09',
+            dueDate: new Date('2026-09-10T00:00:00.000Z'),
+            obligation: { concept: { id: 'concept-1', name: 'Alquiler' } },
+          },
+        },
+      ],
+      1,
+      [],
+      0,
+    ]);
+
+    const result = await service.history('contract-1', 'tenant-1', {
+      page: 1,
+      pageSize: 20,
+    });
+    expect(result.items.map((item) => item.type)).toEqual([
+      'FULFILLMENT_RECORDED',
+      'ACTIVATED',
+    ]);
+    expect(repository.findContractEvents).toHaveBeenCalledWith(
+      'tenant-1',
+      'contract-1',
+      expect.objectContaining({ skip: 0, take: 20 }),
+    );
+  });
+
+  it('keeps reversals in their own date-ordered history stream', async () => {
+    repository.findById.mockResolvedValue(contract());
+    repository.findContractEvents.mockResolvedValue([[], 0]);
+    repository.findFulfillmentHistory.mockResolvedValue([
+      [],
+      0,
+      [
+        {
+          id: 'fulfillment-1',
+          createdAt: new Date('2026-08-01T00:00:00.000Z'),
+          reversedAt: new Date('2026-09-04T00:00:00.000Z'),
+          recordedBy: { id: 'user-1', name: 'Manager' },
+          reversedBy: { id: 'user-2', name: 'Supervisor' },
+          amount: 100,
+          notes: null,
+          reversalReason: 'Corrección',
+          occurrence: {
+            id: 'occurrence-1',
+            periodKey: '2026-08',
+            dueDate: new Date('2026-08-10T00:00:00.000Z'),
+            obligation: { concept: { id: 'concept-1', name: 'Alquiler' } },
+          },
+        },
+      ],
+      1,
+    ]);
+
+    const result = await service.history('contract-1', 'tenant-1', {
+      from: '2026-09-01',
+      to: '2026-09-30',
+    });
+    expect(result.items).toEqual([
+      expect.objectContaining({ type: 'FULFILLMENT_REVERSED' }),
+    ]);
+  });
+
+  it('returns a consolidated General read model without fabricated activity', async () => {
+    repository.findGeneralById.mockResolvedValue({
+      ...contract(),
+      obligations: [],
+    });
+
+    await expect(service.general('contract-1', 'tenant-1')).resolves.toEqual(
+      expect.objectContaining({
+        currentRent: null,
+        nextDueOccurrence: null,
+        upcomingOccurrences: [],
+        communicationActivity: null,
+      }),
+    );
+  });
+
+  it('returns operational dashboard metrics and no communication fiction', async () => {
+    repository.dashboard.mockResolvedValue([
+      [{ status: 'ACTIVE', _count: { _all: 2 } }],
+      1,
+      5,
+      2,
+      7,
+      [],
+    ]);
+
+    await expect(service.dashboard('tenant-1')).resolves.toEqual(
+      expect.objectContaining({
+        contracts: expect.objectContaining({ ACTIVE: 2 }),
+        attention: {
+          endingSoon: 1,
+          pendingOccurrences: 5,
+          overdueOccurrences: 2,
+          fulfilledOccurrences: 7,
+        },
+        communications: { available: false, sent: null },
+      }),
     );
   });
 

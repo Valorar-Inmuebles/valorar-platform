@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 jest.mock('../../../../generated/prisma/client', () => ({
   RentalOccurrenceStatus: {
     PENDING: 'PENDING',
@@ -6,6 +7,7 @@ jest.mock('../../../../generated/prisma/client', () => ({
   },
   RentalFulfillmentStatus: { RECORDED: 'RECORDED', REVERSED: 'REVERSED' },
   RentalFulfillmentOrigin: { ADMIN: 'ADMIN' },
+  RentalContractEventType: { RENT_VALUE_REVISED: 'RENT_VALUE_REVISED' },
   Prisma: { TransactionIsolationLevel: { Serializable: 'Serializable' } },
 }));
 jest.mock('../../../prisma/prisma.service', () => ({
@@ -19,6 +21,29 @@ import {
 } from './rental-obligation.repository';
 
 describe('RentalObligationRepository fulfillment transactions', () => {
+  it('orders next attention by known due date with pending dates last', async () => {
+    const findFirst = jest.fn().mockResolvedValue(null);
+    const repository = new RentalObligationRepository({
+      rentalObligationOccurrence: { findFirst },
+    } as never);
+
+    await repository.findNextAttentionOccurrence('tenant-1', 'contract-1');
+
+    expect(findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          tenantId: 'tenant-1',
+          status: 'PENDING',
+          obligation: { isActive: true, contractId: 'contract-1' },
+        },
+        orderBy: [
+          { dueDate: { sort: 'asc', nulls: 'last' } },
+          { createdAt: 'asc' },
+        ],
+      }),
+    );
+  });
+
   it('records a revision and only recalculates future PENDING occurrences', async () => {
     const revision = {
       id: 'revision-2',
@@ -32,8 +57,12 @@ describe('RentalObligationRepository fulfillment transactions', () => {
         findFirstOrThrow: jest.fn().mockResolvedValue(revision),
       },
       rentalObligation: {
+        findFirstOrThrow: jest
+          .fn()
+          .mockResolvedValue({ contractId: 'contract-1' }),
         updateMany: jest.fn().mockResolvedValue({ count: 1 }),
       },
+      rentalContractEvent: { create: jest.fn().mockResolvedValue({}) },
       $executeRaw: jest.fn().mockResolvedValue(2),
     };
     const prisma = {
@@ -59,6 +88,14 @@ describe('RentalObligationRepository fulfillment transactions', () => {
     expect(tx.rentalObligation.updateMany).toHaveBeenCalledWith({
       where: { id: 'obligation-1', tenantId: 'tenant-1' },
       data: { defaultAmount: 150000 },
+    });
+    expect(tx.rentalContractEvent.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        tenantId: 'tenant-1',
+        contractId: 'contract-1',
+        type: 'RENT_VALUE_REVISED',
+        actorId: 'user-1',
+      }),
     });
   });
 
@@ -93,7 +130,6 @@ describe('RentalObligationRepository fulfillment transactions', () => {
     expect(tx.rentalObligationOccurrence.updateMany).toHaveBeenCalledWith(
       expect.objectContaining({
         // Jest asymmetric matchers are intentionally untyped at this assertion boundary.
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
         where: expect.objectContaining({
           tenantId: 'tenant-1',
           status: RentalOccurrenceStatus.PENDING,

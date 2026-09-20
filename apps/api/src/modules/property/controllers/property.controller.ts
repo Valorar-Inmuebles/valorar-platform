@@ -23,7 +23,10 @@ import {
 } from '@nestjs/swagger';
 import { CurrentTenant } from '../../../common/decorators/current-tenant.decorator';
 import { CurrentUser } from '../../../common/decorators/current-user.decorator';
-import { RequireAnyPermission, RequirePermissions } from '../../../common/decorators/require-permissions.decorator';
+import {
+  RequireAnyPermission,
+  RequirePermissions,
+} from '../../../common/decorators/require-permissions.decorator';
 import { RequireTenant } from '../../../common/decorators/require-tenant.decorator';
 import { PermissionsGuard } from '../../../common/guards/permissions.guard';
 import type { AuthenticatedUser } from '../../../common/types/authenticated-user.type';
@@ -33,7 +36,10 @@ import { CreatePropertyDto } from '../dto/create-property.dto';
 import { PropertyPublishabilityQueryDto } from '../dto/property-publishability-query.dto';
 import { PropertyPublishabilityResponseDto } from '../dto/property-publishability-response.dto';
 import { PropertyPublishabilitySummaryItemDto } from '../dto/property-publishability-summary.dto';
-import { ListPropertiesQueryDto } from '../dto/property-query.dto';
+import {
+  ListPropertiesQueryDto,
+  RentalPropertySearchQueryDto,
+} from '../dto/property-query.dto';
 import { PropertyResponseDto } from '../dto/property-response.dto';
 import { UpdatePropertyDto } from '../dto/update-property.dto';
 import { PropertyPublishabilityService } from '../services/property-publishability.service';
@@ -86,6 +92,16 @@ export class PropertyController {
     @Query() query: ListPropertiesQueryDto,
   ) {
     return this.propertyService.findAll(tenantId, user, query.isActive);
+  }
+
+  @Get('rental-search')
+  @RequirePermissions('rental.read')
+  @ApiOperation({ summary: 'Search active and inactive properties for Rental' })
+  rentalSearch(
+    @CurrentTenant() tenantId: string,
+    @Query() query: RentalPropertySearchQueryDto,
+  ) {
+    return this.propertyService.searchForRental(tenantId, query);
   }
 
   @Get('publishability-summary')

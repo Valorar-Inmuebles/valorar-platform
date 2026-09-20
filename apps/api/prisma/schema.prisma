@@ -51,6 +51,7 @@ model Tenant {
   rentalRentValueRevisions              RentalRentValueRevision[]
   rentalObligationOccurrences           RentalObligationOccurrence[]
   rentalFulfillments                    RentalFulfillment[]
+  rentalContractEvents                  RentalContractEvent[]
 }
 
 enum UserRole {
@@ -93,6 +94,7 @@ model User {
   reversedRentalFulfillments RentalFulfillment[]          @relation("RentalFulfillmentReverser")
   cancelledRentalOccurrences RentalObligationOccurrence[] @relation("RentalOccurrenceCanceller")
   recordedRentValueRevisions RentalRentValueRevision[]    @relation("RentalRentValueRevisionRecorder")
+  rentalContractEvents       RentalContractEvent[]        @relation("RentalContractEventActor")
 
   @@index([tenantId])
 }
@@ -826,6 +828,15 @@ enum RentalContractPartyRole {
   LANDLORD
 }
 
+enum RentalContractEventType {
+  ACTIVATED
+  ENDED
+  CANCELLED
+  PARTIES_CHANGED
+  RENT_VALUE_REVISED
+  RENEWED
+}
+
 enum NotificationChannel {
   EMAIL
   WHATSAPP
@@ -959,6 +970,7 @@ model RentalContract {
 
   obligations RentalObligation[]
   parties     RentalContractParty[]
+  events      RentalContractEvent[]
 
   @@unique([tenantId, id])
   @@unique([tenantId, internalNumber])
@@ -970,6 +982,29 @@ model RentalContract {
   @@index([propertyLocalityId])
   @@index([propertyNeighborhoodId])
   @@index([tenantId, endsOn])
+}
+
+model RentalContractEvent {
+  id String @id @default(cuid())
+
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  contractId String
+  contract   RentalContract @relation(fields: [tenantId, contractId], references: [tenantId, id], onDelete: Cascade)
+
+  type RentalContractEventType
+
+  actorId String?
+  actor   User?   @relation("RentalContractEventActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  occurredAt DateTime @default(now())
+  metadata   Json?
+  createdAt  DateTime @default(now())
+
+  @@index([tenantId, contractId, occurredAt(sort: Desc)])
+  @@index([tenantId, contractId, type, occurredAt(sort: Desc)])
+  @@index([actorId])
 }
 
 model RentalContractSequence {

@@ -10,7 +10,10 @@ import {
 } from '../dto/contact-point.dto';
 import { ContactResponseDto } from '../dto/contact-response.dto';
 import { CreateContactDto } from '../dto/create-contact.dto';
-import { ListContactsQueryDto } from '../dto/contact-query.dto';
+import {
+  ListContactsQueryDto,
+  RentalContactSearchQueryDto,
+} from '../dto/contact-query.dto';
 import { UpdateContactDto } from '../dto/update-contact.dto';
 import {
   ContactRepository,
@@ -64,6 +67,25 @@ export class ContactService {
   async findOne(id: string, tenantId: string): Promise<ContactResponseDto> {
     const contact = await this.requireContact(id, tenantId);
     return ContactResponseDto.fromEntity(contact);
+  }
+
+  async searchForRental(tenantId: string, query: RentalContactSearchQueryDto) {
+    const [items, total] = await this.contactRepository.searchForRental(
+      tenantId,
+      {
+        search: query.search?.trim() || undefined,
+        isActive: query.isActive,
+        page: query.page,
+        pageSize: query.pageSize,
+      },
+    );
+    return {
+      items,
+      page: query.page,
+      pageSize: query.pageSize,
+      total,
+      totalPages: total === 0 ? 0 : Math.ceil(total / query.pageSize),
+    };
   }
 
   async update(
