@@ -19,7 +19,7 @@ Plataforma SaaS inmobiliaria multi-tenant orientada a:
 
 **Rental Management V1 — Migraciones A+B + refinamiento B.1** ✅ (baseline consolidado y versionado)
 
-**Rental Management V1.1 — Fases 1–3 + UI Foundation Fase 4 + Fases 5A–5B** ✅ (Resumen, Listado y Wizard Información básica + Partes implementados; Fase 5C y Migración C no iniciadas)
+**Rental Management V1.1 — Fases 1–3 + UI Foundation Fase 4 + Fases 5A–5C** ✅ (wizard completo hasta configuración previa de avisos; Migración C no iniciada)
 
 Documentación: `docs/04-modules/rental-management-v1.md`, `docs/03-database/rental-domain.md`
 
@@ -333,7 +333,19 @@ Documentación: `docs/04-modules/rental-management-v1.md`, `PROJECT_STATE.md`.
 * Partes admite múltiples inquilinos y propietarios, garantiza una UX de referente principal y persiste mediante el diff/upsert existente sin borrar y recrear asociaciones.
 * El `SidePanel` busca Contact server-side por nombre/documento/email/teléfono, permite alta y administración de ContactPoints, principales y capacidades WhatsApp/SMS, sin configurar rutas de aviso del contrato.
 * El flujo protege cambios sin guardar, contempla estados de búsqueda/envío/error/empty/disabled y reutiliza primitives compartidas (`Stepper`, `SearchCombobox`, `DatePicker`, `SidePanel`, `Tabs`, `DropdownMenu`, `Toast`, `ConfirmModal`).
-* Pasos Alquiler, Obligaciones y Avisos permanecen pendientes de Fase 5C y posteriores; no hubo cambios de schema ni se inició Migración C.
+* Fase 5C completa Alquiler, Obligaciones y Avisos sin cambios de schema ni inicio de Migración C.
+
+Documentación: `docs/04-modules/rental-management-v1.md`, `PROJECT_STATE.md`.
+
+### Rental Management V1.1 — Fase 5C ✅
+
+* El wizard compartido completa Alquiler, Obligaciones y Avisos para alta y edición, manteniendo IDs estables y guardado de borradores incompletos admitidos por el dominio.
+* Alquiler utiliza una experiencia específica para `RENT`: importe localizado, moneda, día mensual, intervalo 1–12, estado legacy pendiente y próxima actualización; los cambios de valor con historial usan revisiones con fecha efectiva.
+* Obligaciones adicionales se crean/editan en `SidePanel`, distinguen recurrentes/puntuales, importe fijo/variable, vigencia y vencimiento fijo/manual; `RENT` permanece como obligación principal no desactivable desde el wizard.
+* Avisos persiste únicamente rutas por inquilino/canal/ContactPoint y flags `includeInNotice`/`showAmount`; la vista previa es derivada y no se guarda ni representa un envío.
+* La activación reutiliza las invariantes backend existentes y orienta al paso asociado cuando la validación falla.
+* No se implementaron proveedores, templates, scheduler, planner, dispatch, delivery ni reglas temporales; Migración C continúa no iniciada.
+* No hubo cambios de schema ni migraciones.
 
 Documentación: `docs/04-modules/rental-management-v1.md`, `PROJECT_STATE.md`.
 

@@ -11,6 +11,7 @@ import type {
   RentalContract,
   RentalContractListItem,
   RentalContractListQuery,
+  RentalContractGeneral,
   RentalDashboard,
   PaginatedResponse,
   UpdateRentalContactPayload,
@@ -18,6 +19,7 @@ import type {
   UpdateRentalContractPayload,
   CreateRentalObligationPayload,
   RentalObligation,
+  RentalRentValueRevision,
   RentalOccurrence,
   RentalOccurrenceStatus,
   UpdateRentalObligationPayload,
@@ -90,11 +92,14 @@ export function createRentAdjustment(
     reason?: string | null;
   },
 ) {
-  return apiFetch(`/rental-obligations/${id}/rent-adjustments`, {
-    method: "POST",
-    body: JSON.stringify(payload),
-    cache: "no-store",
-  });
+  return apiFetch<RentalRentValueRevision & { obligation: RentalObligation }>(
+    `/rental-obligations/${id}/rent-adjustments`,
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+      cache: "no-store",
+    },
+  );
 }
 
 export function listRentalOccurrences(
@@ -171,6 +176,11 @@ export function getRentalContract(id: string) {
   });
 }
 
+export function getRentalContractGeneral(id: string) {
+  return apiFetch<RentalContractGeneral>(`/rental-contracts/${id}/general`, {
+    cache: "no-store",
+  });
+}
 export function createRentalContract(payload: CreateRentalContractPayload) {
   return apiFetch<RentalContract>("/rental-contracts", {
     method: "POST",

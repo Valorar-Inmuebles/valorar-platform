@@ -196,6 +196,16 @@ export type PaginatedResponse<T> = {
   totalPages: number;
 };
 
+export type RentalContractGeneral = RentalContract & {
+  currentRent: {
+    obligationId: string;
+    amount: number | null;
+    currency: "ARS" | "USD";
+    adjustmentIntervalMonths: number | null;
+    adjustmentConfigurationPending: boolean;
+    nextAdjustmentDate: string | null;
+  } | null;
+};
 export type RentalDashboard = {
   contracts: Record<RentalContractStatus, number>;
   attention: {

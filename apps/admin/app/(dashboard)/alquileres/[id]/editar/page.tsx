@@ -5,7 +5,12 @@ import { PageShell } from "@/components/shared/page-shell";
 import { SuperAdminTenantEmptyState } from "@/components/shared/super-admin-tenant-empty-state";
 import { ApiError } from "@/lib/api/client";
 import { mapUnknownError } from "@/lib/api/error-map";
-import { getRentalContract } from "@/lib/api/rental";
+import {
+  getRentalContract,
+  getRentalContractGeneral,
+  listRentalConcepts,
+  listRentalObligations,
+} from "@/lib/api/rental";
 import { getActiveTenantId } from "@/lib/auth/active-tenant";
 import { resolveActiveTenantGate } from "@/lib/auth/require-active-tenant";
 import { getSession } from "@/lib/auth/session";
@@ -35,7 +40,17 @@ export default async function EditarAlquilerPage({
 
   const [{ id }, query] = await Promise.all([params, searchParams]);
   try {
-    const contract = await getRentalContract(id);
+    const [contract, general, concepts, obligations] = await Promise.all([
+      getRentalContract(id),
+      getRentalContractGeneral(id),
+      listRentalConcepts(true),
+      listRentalObligations(id),
+    ]);
+    const requestedStep = Number(query.paso);
+    const initialStep =
+      requestedStep >= 1 && requestedStep <= 5
+        ? (requestedStep as 1 | 2 | 3 | 4 | 5)
+        : 1;
     return (
       <PageShell
         title={`Editar contrato ${contract.internalNumber}`}
@@ -54,7 +69,14 @@ export default async function EditarAlquilerPage({
         <RentalContractWizard
           mode="edit"
           contract={contract}
-          initialStep={query.paso === "2" ? 2 : 1}
+          initialStep={initialStep}
+          concepts={concepts}
+          initialObligations={obligations}
+          initialCurrentRent={general.currentRent?.amount ?? null}
+          canManageObligations={sessionHasPermission(
+            session.user,
+            "rental.obligation.manage",
+          )}
         />
       </PageShell>
     );

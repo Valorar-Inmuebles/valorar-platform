@@ -7,6 +7,7 @@ import {
   createRentalConcept,
   createRentalContact,
   createRentalContract,
+  createRentAdjustment,
   markRentalContactPointDefault,
   setRentalConceptActive,
   transitionRentalContract,
@@ -64,6 +65,20 @@ function revalidateRental(id?: string) {
   if (id) revalidatePath(`/alquileres/${id}`);
 }
 
+export async function createRentAdjustmentAction(
+  obligationId: string,
+  contractId: string,
+  payload: {
+    effectiveFrom: string;
+    amount: number;
+    currency: "ARS" | "USD";
+    reason?: string | null;
+  },
+) {
+  const result = await run(() => createRentAdjustment(obligationId, payload));
+  if (result.ok) revalidateRental(contractId);
+  return result;
+}
 export async function createRentalObligationAction(
   payload: CreateRentalObligationPayload,
 ) {

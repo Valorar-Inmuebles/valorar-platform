@@ -25,15 +25,25 @@ import {
   RentalContactPanel,
   type RentalPartyDraft,
 } from "@/components/rental/rental-contact-panel";
+import { RentalNoticesStep } from "@/components/rental/rental-notices-step";
+import { RentalObligationsStep } from "@/components/rental/rental-obligations-step";
+import {
+  RentalRentStep,
+  type RentalRentStepHandle,
+} from "@/components/rental/rental-rent-step";
 import {
   createRentalContractAction,
   searchRentalPropertiesAction,
+  transitionRentalContractAction,
   updateRentalContractAction,
+  updateRentalObligationAction,
 } from "@/lib/api/rental-actions";
 import type {
+  RentalConcept,
   RentalContact,
   RentalContract,
   RentalContractPartyRole,
+  RentalObligation,
   RentalPropertySearchItem,
 } from "@/lib/api/types/rental";
 
@@ -79,21 +89,46 @@ function pointActive(
   return !("isActive" in point) || point.isActive;
 }
 
+type WizardStep = 1 | 2 | 3 | 4 | 5;
+
 export function RentalContractWizard({
   mode,
   contract,
   canUpdate = true,
+  canManageObligations = true,
+  concepts = [],
+  initialObligations = [],
+  initialCurrentRent = null,
   initialStep = 1,
 }: {
   mode: "create" | "edit";
   contract?: RentalContract;
   canUpdate?: boolean;
-  initialStep?: 1 | 2;
+  canManageObligations?: boolean;
+  concepts?: RentalConcept[];
+  initialObligations?: RentalObligation[];
+  initialCurrentRent?: number | null;
+  initialStep?: WizardStep;
 }) {
   const router = useRouter();
   const { toast } = useToast();
   const propertyCache = useRef(new Map<string, RentalPropertySearchItem>());
-  const [step, setStep] = useState<1 | 2>(initialStep);
+  const rentRef = useRef<RentalRentStepHandle>(null);
+  const persistedNotice = useRef(
+    new Map(
+      initialObligations.map((item) => [
+        item.id,
+        `${item.includeInNotice}:${item.showAmount}`,
+      ]),
+    ),
+  );
+  const [step, setStep] = useState<WizardStep>(initialStep);
+  const [maxStep, setMaxStep] = useState<WizardStep>(initialStep);
+  const [obligations, setObligations] = useState(initialObligations);
+  const [currentRentAmount, setCurrentRentAmount] =
+    useState(initialCurrentRent);
+  const [rentDirty, setRentDirty] = useState(false);
+  const [noticeDirty, setNoticeDirty] = useState(false);
   const [dirty, setDirty] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmCancel, setConfirmCancel] = useState(false);
@@ -151,13 +186,13 @@ export function RentalContractWizard({
 
   useEffect(() => {
     const handler = (event: BeforeUnloadEvent) => {
-      if (!dirty) return;
+      if (!dirty && !rentDirty && !noticeDirty) return;
       event.preventDefault();
       event.returnValue = "";
     };
     window.addEventListener("beforeunload", handler);
     return () => window.removeEventListener("beforeunload", handler);
-  }, [dirty]);
+  }, [dirty, noticeDirty, rentDirty]);
 
   const markChanged = () => {
     setDirty(true);
@@ -286,43 +321,165 @@ export function RentalContractWizard({
     })),
   });
 
-  const persist = (leaveWizard = false) => {
-    const validation = validateDraft();
-    if (validation) {
-      setError(validation);
-      return toast.error(validation);
+  const persist = (nextStep?: WizardStep, leaveWizard = false) =>
+    new Promise<boolean>((resolve) => {
+      const validation = validateDraft();
+      if (validation) {
+        setError(validation);
+        toast.error(validation);
+        resolve(false);
+        return;
+      }
+      setError(null);
+      startTransition(async () => {
+        const result = contract
+          ? await updateRentalContractAction(contract.id, payload())
+          : await createRentalContractAction(payload());
+        if (!result.ok) {
+          setError(result.error);
+          toast.error(result.error);
+          resolve(false);
+          return;
+        }
+        setParties(result.value.parties);
+        setDirty(false);
+        toast.success(
+          contract ? "Borrador actualizado." : "Contrato creado como borrador.",
+        );
+        if (leaveWizard) {
+          router.push(`/alquileres/${result.value.id}`);
+        } else if (nextStep && nextStep >= 3) {
+          router.replace(
+            `/alquileres/${result.value.id}/editar?paso=${nextStep}`,
+          );
+          router.refresh();
+        } else if (!contract) {
+          router.replace(
+            `/alquileres/${result.value.id}/editar?paso=${nextStep ?? step}`,
+          );
+        } else if (nextStep) {
+          setStep(nextStep);
+          setMaxStep((current) => Math.max(current, nextStep) as WizardStep);
+          window.scrollTo({ top: 0, behavior: "smooth" });
+        } else {
+          router.refresh();
+        }
+        resolve(true);
+      });
+    });
+
+  const next = async () => {
+    setError(null);
+    if (step === 1 || step === 2) {
+      const validation = step === 1 ? validateStepOne() : validateStepTwo();
+      if (validation) {
+        setError(validation);
+        toast.error(validation);
+        return;
+      }
+      if (step === 1) {
+        setStep(2);
+        setMaxStep((current) => Math.max(current, 2) as WizardStep);
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      } else {
+        await persist(3);
+      }
+      return;
     }
+    if (step === 3) {
+      const saved = await rentRef.current?.save(true);
+      if (!saved) return;
+      setStep(4);
+      setMaxStep((current) => Math.max(current, 4) as WizardStep);
+    } else if (step === 4) {
+      if (!obligations.some((item) => item.concept.systemCode === "RENT")) {
+        setError("Configurá el alquiler antes de continuar.");
+        toast.error("Configurá el alquiler antes de continuar.");
+        return;
+      }
+      setStep(5);
+      setMaxStep(5);
+    }
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const saveNotices = (activate: boolean) => {
+    if (!contract) return;
     setError(null);
     startTransition(async () => {
-      const result = contract
-        ? await updateRentalContractAction(contract.id, payload())
-        : await createRentalContractAction(payload());
-      if (!result.ok) {
-        setError(result.error);
-        return toast.error(result.error);
+      let nextObligations = obligations;
+      for (const item of obligations) {
+        const signature = `${item.includeInNotice}:${item.showAmount}`;
+        if (persistedNotice.current.get(item.id) === signature) continue;
+        const result = await updateRentalObligationAction(
+          item.id,
+          contract.id,
+          {
+            includeInNotice: item.includeInNotice,
+            showAmount: item.includeInNotice && item.showAmount,
+          },
+        );
+        if (!result.ok) {
+          setError(result.error);
+          toast.error(result.error);
+          return;
+        }
+        nextObligations = nextObligations.map((current) =>
+          current.id === item.id ? result.value : current,
+        );
+        persistedNotice.current.set(
+          item.id,
+          `${result.value.includeInNotice}:${result.value.showAmount}`,
+        );
       }
-      setDirty(false);
-      toast.success(
-        contract ? "Borrador actualizado." : "Contrato creado como borrador.",
+      setObligations(nextObligations);
+      const contractResult = await updateRentalContractAction(
+        contract.id,
+        payload(),
       );
-      if (leaveWizard) router.push(`/alquileres/${result.value.id}`);
-      else if (!contract)
-        router.replace(`/alquileres/${result.value.id}/editar?paso=${step}`);
+      if (!contractResult.ok) {
+        setError(contractResult.error);
+        toast.error(contractResult.error);
+        return;
+      }
+      setParties(contractResult.value.parties);
+      setDirty(false);
+      setNoticeDirty(false);
+      if (activate && contract.status === "DRAFT") {
+        const transition = await transitionRentalContractAction(
+          contract.id,
+          "activate",
+        );
+        if (!transition.ok) {
+          const message = transition.error;
+          setError(message);
+          if (/inquilino|referente|parte/i.test(message)) setStep(2);
+          else if (/alquiler|importe|actualizaci/i.test(message)) setStep(3);
+          else if (/obligaci/i.test(message)) setStep(4);
+          toast.error(message);
+          return;
+        }
+        toast.success("Contrato guardado y activado.");
+      } else {
+        toast.success(
+          activate ? "Contrato actualizado." : "Borrador guardado.",
+        );
+      }
+      if (activate) router.push(`/alquileres/${contract.id}`);
       else router.refresh();
     });
   };
 
-  const next = () => {
-    const validation = step === 1 ? validateStepOne() : validateStepTwo();
-    if (validation) {
-      setError(validation);
-      return toast.error(validation);
+  const saveDraft = async () => {
+    if (step <= 2) {
+      await persist();
+    } else if (step === 3) {
+      await rentRef.current?.save(false);
+    } else if (step === 4) {
+      toast.success("Las obligaciones se guardan al confirmar cada cambio.");
+    } else {
+      saveNotices(false);
     }
-    setError(null);
-    if (step === 1) {
-      setStep(2);
-      window.scrollTo({ top: 0, behavior: "smooth" });
-    } else persist(true);
   };
 
   const saveParty = (party: RentalPartyDraft) => {
@@ -512,42 +669,27 @@ export function RentalContractWizard({
   };
 
   const steps = useMemo(
-    () => [
-      {
-        id: "1",
-        label: "Información básica",
-        description: "Inmueble, dirección y vigencia",
-        status: step === 1 ? ("current" as const) : ("completed" as const),
-      },
-      {
-        id: "2",
-        label: "Partes",
-        description: "Inquilinos y propietarios",
-        status: step === 2 ? ("current" as const) : ("pending" as const),
-      },
-      {
-        id: "3",
-        label: "Alquiler",
-        description: "Valor y actualización",
-        status: "pending" as const,
-        disabled: true,
-      },
-      {
-        id: "4",
-        label: "Obligaciones",
-        description: "Servicios e impuestos",
-        status: "pending" as const,
-        disabled: true,
-      },
-      {
-        id: "5",
-        label: "Avisos",
-        description: "Destinatarios y contenido",
-        status: "pending" as const,
-        disabled: true,
-      },
-    ],
-    [step],
+    () =>
+      [
+        [1, "Información básica", "Inmueble, dirección y vigencia"],
+        [2, "Partes", "Inquilinos y propietarios"],
+        [3, "Alquiler", "Valor y actualización"],
+        [4, "Obligaciones", "Servicios e impuestos"],
+        [5, "Avisos", "Destinatarios y contenido"],
+      ].map(([number, label, description]) => ({
+        id: String(number),
+        label: String(label),
+        description: String(description),
+        status:
+          Number(number) === step
+            ? ("current" as const)
+            : Number(number) < step
+              ? ("completed" as const)
+              : ("pending" as const),
+        disabled:
+          Number(number) > maxStep || (Number(number) >= 3 && !contract),
+      })),
+    [contract, maxStep, step],
   );
 
   return (
@@ -582,8 +724,11 @@ export function RentalContractWizard({
           items={steps}
           ariaLabel="Pasos del contrato de alquiler"
           onStepChange={(id) => {
-            if (id === "1" || (id === "2" && step === 2))
-              setStep(Number(id) as 1 | 2);
+            const target = Number(id) as WizardStep;
+            if (target <= maxStep && (target < 3 || contract)) {
+              setStep(target);
+              window.scrollTo({ top: 0, behavior: "smooth" });
+            }
           }}
         />
 
@@ -775,7 +920,7 @@ export function RentalContractWizard({
               </CardContent>
             </Card>
           </div>
-        ) : (
+        ) : step === 2 ? (
           <Card>
             <CardHeader className="items-start">
               <div>
@@ -790,7 +935,54 @@ export function RentalContractWizard({
               {renderPartyColumn("LANDLORD")}
             </CardContent>
           </Card>
-        )}
+        ) : step === 3 && contract ? (
+          <RentalRentStep
+            ref={rentRef}
+            contract={contract}
+            concepts={concepts}
+            rent={
+              obligations.find((item) => item.concept.systemCode === "RENT") ??
+              null
+            }
+            currentAmount={currentRentAmount}
+            disabled={!editable || !canManageObligations || pending}
+            onDirtyChange={setRentDirty}
+            onSaved={(saved, savedAmount) => {
+              setObligations((current) =>
+                current.some((item) => item.id === saved.id)
+                  ? current.map((item) => (item.id === saved.id ? saved : item))
+                  : [...current, saved],
+              );
+              setCurrentRentAmount(savedAmount);
+              setRentDirty(false);
+            }}
+          />
+        ) : step === 4 && contract ? (
+          <RentalObligationsStep
+            contract={contract}
+            concepts={concepts}
+            obligations={obligations}
+            currentRentAmount={currentRentAmount}
+            disabled={!editable || !canManageObligations || pending}
+            onChange={setObligations}
+            onEditRent={() => setStep(3)}
+          />
+        ) : step === 5 && contract ? (
+          <RentalNoticesStep
+            parties={parties}
+            obligations={obligations}
+            currentRentAmount={currentRentAmount}
+            disabled={!editable || pending}
+            onPartiesChange={(nextParties) => {
+              setParties(nextParties);
+              setNoticeDirty(true);
+            }}
+            onObligationsChange={(nextObligations) => {
+              setObligations(nextObligations);
+              setNoticeDirty(true);
+            }}
+          />
+        ) : null}
 
         <div className="sticky bottom-0 z-20 flex flex-col-reverse gap-3 border-t border-border bg-white/95 px-1 py-4 backdrop-blur sm:flex-row sm:items-center sm:justify-between">
           <div>
@@ -812,7 +1004,7 @@ export function RentalContractWizard({
                 type="button"
                 variant="secondary"
                 disabled={pending}
-                onClick={() => setStep(1)}
+                onClick={() => setStep((step - 1) as WizardStep)}
               >
                 ← Anterior
               </Button>
@@ -824,7 +1016,7 @@ export function RentalContractWizard({
               variant="secondary"
               loading={pending}
               disabled={!editable}
-              onClick={() => persist(false)}
+              onClick={() => void saveDraft()}
             >
               Guardar borrador
             </Button>
@@ -832,9 +1024,13 @@ export function RentalContractWizard({
               type="button"
               loading={pending}
               disabled={!editable}
-              onClick={next}
+              onClick={() => (step === 5 ? saveNotices(true) : void next())}
             >
-              Siguiente →
+              {step === 5
+                ? contract?.status === "DRAFT"
+                  ? "Guardar y activar"
+                  : "Guardar cambios"
+                : "Siguiente →"}
             </Button>
           </div>
         </div>
