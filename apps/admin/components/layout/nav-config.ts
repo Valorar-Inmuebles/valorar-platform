@@ -113,9 +113,15 @@ export const navigation: NavSection[] = [
         permissions: ["rental.read"],
         children: [
           {
+            id: "rental-overview",
+            label: "Resumen",
+            href: "/alquileres",
+            permissions: ["rental.read"],
+          },
+          {
             id: "rental-contracts",
             label: "Contratos",
-            href: "/alquileres",
+            href: "/alquileres/contratos",
             permissions: ["rental.read"],
           },
           {

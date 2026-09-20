@@ -101,7 +101,26 @@ export class RentalContractService {
       pageSize,
     });
     return {
-      items,
+      items: items.map((item) => {
+        const { obligations, ...contract } = item;
+        const nextDueOccurrence =
+          obligations
+            .flatMap((obligation) =>
+              obligation.occurrences.map((occurrence) => ({
+                ...occurrence,
+                amount:
+                  occurrence.amount == null ? null : Number(occurrence.amount),
+                dueDatePending: occurrence.dueDate == null,
+                concept: obligation.concept,
+              })),
+            )
+            .sort((a, b) => {
+              if (a.dueDate == null) return b.dueDate == null ? 0 : 1;
+              if (b.dueDate == null) return -1;
+              return a.dueDate.getTime() - b.dueDate.getTime();
+            })[0] ?? null;
+        return { ...contract, nextDueOccurrence };
+      }),
       page,
       pageSize,
       total,

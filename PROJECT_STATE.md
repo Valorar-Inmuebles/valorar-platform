@@ -19,7 +19,7 @@ Plataforma SaaS inmobiliaria multi-tenant orientada a:
 
 **Rental Management V1 — Migraciones A+B + refinamiento B.1** ✅ (baseline consolidado y versionado)
 
-**Rental Management V1.1 — Fases 1 y 2** ✅ (identidad/renovación + revisiones de alquiler y reglas de obligaciones; Migración C no iniciada)
+**Rental Management V1.1 — Fases 1–3 + UI Foundation Fase 4 + Fase 5A** ✅ (Resumen + Listado implementados; Fase 5B y Migración C no iniciadas)
 
 Documentación: `docs/04-modules/rental-management-v1.md`, `docs/03-database/rental-domain.md`
 
@@ -313,6 +313,17 @@ Documentación: `docs/04-modules/rental-management-v1.md`, `docs/03-database/ren
 * Notificaciones internas, refactor visual y Migración C permanecen pendientes.
 
 Documentación: `docs/04-modules/rental-management-v1.md`, `docs/03-database/rental-domain.md`, `docs/03-database/current-schema.md`.
+
+### Rental Management V1.1 — Fase 5A ✅
+
+* `/alquileres` es el Resumen operacional: contratos activos, obligaciones pendientes del período, atención, próximos a vencer, cumplimiento acumulado y actividad contractual real.
+* No se muestran avisos/comunicaciones ni gráficos históricos sin datos: Migración C continúa no iniciada y el read model actual no expone una serie mensual.
+* `/alquileres/contratos` consume búsqueda, filtros GEO/estado/por vencer, sorting allowlisted y paginación server-side.
+* El listado usa la proyección compacta de contratos y un próximo vencimiento resuelto en la misma consulta proyectada, sin requests por fila.
+* Navegación Rental distingue Resumen, Contratos y Vencimientos; Fase 5B, detalle, historial visual y refactor de Vencimientos siguen pendientes.
+* UI basada en primitives compartidas de Fase 4 (`AdminTable`, `FilterBar`, `Pagination`, `DropdownMenu`, `Tabs`, `Badge`) con estados loading/error/empty/sin resultados.
+
+Documentación: `docs/04-modules/rental-management-v1.md`, `PROJECT_STATE.md`.
 
 ### Lead Domain v1 (documentado)
 

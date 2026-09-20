@@ -46,7 +46,7 @@ export default async function AlquilerDetallePage({
         listRentalContacts(),
         listRentalConcepts(),
         listRentalObligations(id),
-        listRentalOccurrences({ contractId: id }),
+        listRentalOccurrences({ contractId: id, pageSize: 100 }),
       ]);
     return (
       <PageShell
@@ -74,7 +74,7 @@ export default async function AlquilerDetallePage({
             contract={contract}
             concepts={concepts}
             initialObligations={obligations}
-            initialOccurrences={occurrences}
+            initialOccurrences={occurrences.items}
             canManage={sessionHasPermission(
               session.user,
               "rental.obligation.manage",

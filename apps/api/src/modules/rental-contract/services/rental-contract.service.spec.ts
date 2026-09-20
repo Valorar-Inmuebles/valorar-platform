@@ -122,7 +122,10 @@ describe('RentalContractService', () => {
   });
 
   it('returns a server-side paginated contract list', async () => {
-    repository.findMany.mockResolvedValue([[contract()], 21]);
+    repository.findMany.mockResolvedValue([
+      [contract({ obligations: [] })],
+      21,
+    ]);
     await expect(
       service.findAll('tenant-1', {
         search: 'Ana',
@@ -151,6 +154,55 @@ describe('RentalContractService', () => {
         pageSize: 10,
       }),
     );
+  });
+
+  it('projects the next known due occurrence without an extra per-contract query', async () => {
+    repository.findMany.mockResolvedValue([
+      [
+        contract({
+          obligations: [
+            {
+              concept: { id: 'rent', name: 'Alquiler', systemCode: 'RENT' },
+              occurrences: [
+                {
+                  id: 'pending-date',
+                  dueDate: null,
+                  amount: null,
+                  currency: 'ARS',
+                },
+              ],
+            },
+            {
+              concept: { id: 'abl', name: 'ABL', systemCode: 'ABL' },
+              occurrences: [
+                {
+                  id: 'known-date',
+                  dueDate: new Date('2026-09-12T00:00:00.000Z'),
+                  amount: { toString: () => '12500' },
+                  currency: 'ARS',
+                },
+              ],
+            },
+          ],
+        }),
+      ],
+      1,
+    ]);
+
+    const result = await service.findAll('tenant-1', {});
+
+    expect(result.items[0]).toEqual(
+      expect.objectContaining({
+        nextDueOccurrence: expect.objectContaining({
+          id: 'known-date',
+          amount: 12500,
+          dueDatePending: false,
+          concept: expect.objectContaining({ name: 'ABL' }),
+        }),
+      }),
+    );
+    expect(result.items[0]).not.toHaveProperty('obligations');
+    expect(repository.findMany).toHaveBeenCalledTimes(1);
   });
 
   it('derives expiring-soon as an ACTIVE local-date window', async () => {

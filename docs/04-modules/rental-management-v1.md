@@ -2,7 +2,7 @@
 
 Versión: V1.1
 
-Estado: **implementación parcial**. A, B, B.1 y Rental V1.1 Fases 1–3 están implementados. Migración C no fue iniciada.
+Estado: **implementación parcial**. A, B, B.1, Rental V1.1 Fases 1–3 y Fase 5A (Resumen + Listado) están implementados. Migración C no fue iniciada.
 
 Diseño de datos canónico: `docs/03-database/rental-domain.md`.
 
@@ -36,7 +36,7 @@ Este documento separa estrictamente:
 - vigencia mínima de un mes calendario para activar;
 - renovación explícita con sucesor único y copia selectiva.
 
-Permanecen pendientes el refactor visual Admin, las notificaciones globales y la ejecución de comunicaciones de Migración C.
+Permanecen pendientes las pantallas Admin posteriores a Fase 5A, las notificaciones globales y la ejecución de comunicaciones de Migración C.
 
 ## 3. Objetivo V1.1
 
@@ -453,7 +453,7 @@ Permisos **APROBADOS / PENDIENTES**:
 
 ## 16. Arquitectura de pantallas aprobada
 
-**APROBADO**; en Fase 3 se implementaron sólo sus APIs/read models, no el refactor visual:
+**IMPLEMENTACIÓN PARCIAL**: Fase 3 aportó APIs/read models y Fase 5A implementó el Resumen Rental y el listado visual de contratos:
 
 - Resumen Rental.
 - Listado de contratos con número visible y búsqueda.
@@ -482,12 +482,13 @@ Los mockups visuales existen externamente y se proporcionarán durante los gates
 - Rental V1.1 Fase 1: identidad contractual, documentos canónicos, renter principal, diff/upsert estable, vigencia reforzada y renovación.
 - Rental V1.1 Fase 2: revisiones de valor RENT, recurrencia 1–12, vencimiento fijo/manual, fechas pendientes y flags previos a avisos.
 - Rental V1.1 Fase 3: historial contractual, listado server-side, búsquedas Property/Contact, read model General, Dashboard operacional, vencimientos mensuales y próximo vencimiento.
+- Rental V1.1 Fase 5A: dashboard `/alquileres`, listado `/alquileres/contratos` y navegación Resumen/Contratos/Vencimientos; filtros, sorting y paginación permanecen server-side. La UI omite comunicaciones y series históricas no disponibles, sin fixtures.
 
-### 17.2 Aprobado pero pendiente después de Fase 3
+### 17.2 Aprobado pero pendiente después de Fase 5A
 
-- refactor visual integral de la experiencia específica de alquiler;
+- refactor visual de wizard, detalle, historial, vencimientos y renovación (Fase 5B y posteriores);
 - notificaciones internas globales;
-- implementación visual de la arquitectura de pantallas V1.1;
+- implementación visual restante de la arquitectura de pantallas V1.1;
 - permisos pendientes.
 
 ### 17.3 Migración C

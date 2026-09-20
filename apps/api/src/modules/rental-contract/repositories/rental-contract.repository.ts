@@ -69,6 +69,26 @@ const rentalContractListSelect = {
     },
     orderBy: [{ role: 'asc' as const }, { createdAt: 'asc' as const }],
   },
+  obligations: {
+    where: { isActive: true },
+    select: {
+      concept: { select: { id: true, name: true, systemCode: true } },
+      occurrences: {
+        where: { status: 'PENDING' as const },
+        select: {
+          id: true,
+          dueDate: true,
+          amount: true,
+          currency: true,
+        },
+        orderBy: [
+          { dueDate: { sort: 'asc' as const, nulls: 'last' as const } },
+          { createdAt: 'asc' as const },
+        ],
+        take: 1,
+      },
+    },
+  },
 } satisfies Prisma.RentalContractSelect;
 
 const renewalSourceInclude = {

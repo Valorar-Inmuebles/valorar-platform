@@ -114,6 +114,92 @@ export type RentalContract = {
   updatedAt: string;
 };
 
+export type RentalContractListItem = {
+  id: string;
+  internalNumber: string;
+  status: RentalContractStatus;
+  propertyId: string | null;
+  propertyAddressSnapshot: string;
+  propertyCountryId: string | null;
+  propertyProvinceId: string | null;
+  propertyLocalityId: string | null;
+  propertyNeighborhoodId: string | null;
+  startsOn: string;
+  endsOn: string | null;
+  createdAt: string;
+  updatedAt: string;
+  property: {
+    id: string;
+    title: string;
+    propertyType: string;
+    isActive: boolean;
+  } | null;
+  parties: Array<{
+    role: RentalContractPartyRole;
+    isPrimary: boolean;
+    contact: { id: string; name: string };
+  }>;
+  nextDueOccurrence: {
+    id: string;
+    dueDate: string | null;
+    dueDatePending: boolean;
+    amount: number | null;
+    currency: "ARS" | "USD";
+    concept: Pick<RentalConcept, "id" | "name" | "systemCode">;
+  } | null;
+};
+
+export type PaginatedResponse<T> = {
+  items: T[];
+  page: number;
+  pageSize: number;
+  total: number;
+  totalPages: number;
+};
+
+export type RentalDashboard = {
+  contracts: Record<RentalContractStatus, number>;
+  attention: {
+    endingSoon: number;
+    pendingOccurrences: number;
+    overdueOccurrences: number;
+    fulfilledOccurrences: number;
+  };
+  activity: Array<{
+    id: string;
+    contractId: string;
+    type:
+      | "ACTIVATED"
+      | "ENDED"
+      | "CANCELLED"
+      | "PARTIES_CHANGED"
+      | "RENT_VALUE_REVISED"
+      | "RENEWED";
+    occurredAt: string;
+    contract: { internalNumber: string };
+    actor: { id: string; name: string } | null;
+  }>;
+  communications: { available: false; sent: null };
+};
+
+export type RentalContractListQuery = {
+  status?: RentalContractStatus;
+  search?: string;
+  endingWithinDays?: number;
+  provinceId?: string;
+  localityId?: string;
+  neighborhoodId?: string;
+  sortBy?:
+    | "internalNumber"
+    | "startsOn"
+    | "endsOn"
+    | "status"
+    | "propertyAddress"
+    | "createdAt";
+  sortOrder?: "asc" | "desc";
+  page?: number;
+  pageSize?: number;
+};
 export type RentalContractRelationSummary = {
   id: string;
   internalNumber: string;
@@ -250,11 +336,28 @@ export type RentalOccurrence = {
     concept: Pick<RentalConcept, "id" | "name" | "systemCode">;
     contract: {
       id: string;
+      internalNumber: string;
+      status: RentalContractStatus;
       propertyAddressSnapshot: string;
       parties: Array<{ contact: { id: string; name: string } }>;
     };
   };
   fulfillments: RentalFulfillment[];
+  fulfillmentSummary: {
+    id: string;
+    status: "RECORDED";
+    fulfilledOn: string;
+    amount: number | null;
+    actorId: string | null;
+    notes: string | null;
+  } | null;
+  actions: {
+    canSetDueDate: boolean;
+    canSetAmount: boolean;
+    canFulfill: boolean;
+    canCancel: boolean;
+    canReverseFulfillment: boolean;
+  };
 };
 
 export type CreateRentalObligationPayload = {

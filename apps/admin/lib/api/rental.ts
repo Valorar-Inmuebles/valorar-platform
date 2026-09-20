@@ -7,7 +7,10 @@ import type {
   RentalContact,
   RentalContactPoint,
   RentalContract,
-  RentalContractStatus,
+  RentalContractListItem,
+  RentalContractListQuery,
+  RentalDashboard,
+  PaginatedResponse,
   UpdateRentalContactPayload,
   UpdateRentalContactPointPayload,
   UpdateRentalContractPayload,
@@ -18,9 +21,20 @@ import type {
   UpdateRentalObligationPayload,
 } from "@/lib/api/types/rental";
 
-export function listRentalContracts(status?: RentalContractStatus) {
-  const query = status ? `?status=${status}` : "";
-  return apiFetch<RentalContract[]>(`/rental-contracts${query}`, {
+export function listRentalContracts(options: RentalContractListQuery = {}) {
+  const query = new URLSearchParams();
+  Object.entries(options).forEach(([key, value]) => {
+    if (value !== undefined && value !== "") query.set(key, String(value));
+  });
+  const suffix = query.size ? `?${query.toString()}` : "";
+  return apiFetch<PaginatedResponse<RentalContractListItem>>(
+    `/rental-contracts${suffix}`,
+    { cache: "no-store" },
+  );
+}
+
+export function getRentalDashboard() {
+  return apiFetch<RentalDashboard>("/rental-contracts/dashboard", {
     cache: "no-store",
   });
 }
@@ -87,15 +101,25 @@ export function listRentalOccurrences(
     status?: RentalOccurrenceStatus;
     dueFrom?: string;
     dueTo?: string;
+    month?: string;
+    category?: "ALL" | "RENT" | "OTHER" | "OVERDUE";
+    conceptId?: string;
+    search?: string;
+    sortBy?: "dueDate" | "internalNumber" | "concept" | "amount" | "status";
+    sortOrder?: "asc" | "desc";
+    page?: number;
+    pageSize?: number;
   } = {},
 ) {
   const query = new URLSearchParams();
   Object.entries(options).forEach(([key, value]) => {
-    if (value) query.set(key, value);
+    if (value !== undefined && value !== "") query.set(key, String(value));
   });
-  return apiFetch<RentalOccurrence[]>(`/rental-occurrences?${query}`, {
-    cache: "no-store",
-  });
+  const suffix = query.size ? `?${query.toString()}` : "";
+  return apiFetch<PaginatedResponse<RentalOccurrence>>(
+    `/rental-occurrences${suffix}`,
+    { cache: "no-store" },
+  );
 }
 
 export function updateRentalOccurrenceAmount(

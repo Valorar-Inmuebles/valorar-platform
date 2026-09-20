@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@repo/ui/card";
+import { RentalModuleNav } from "@/components/rental/rental-module-nav";
 import { RentalOccurrenceTable } from "@/components/rental/rental-occurrence-table";
 import { PageShell } from "@/components/shared/page-shell";
 import { SuperAdminTenantEmptyState } from "@/components/shared/super-admin-tenant-empty-state";
@@ -25,8 +26,8 @@ export default async function RentalDueDatesPage() {
     );
   }
   const [overdue, pending] = await Promise.all([
-    listRentalOccurrences({ status: "OVERDUE" }),
-    listRentalOccurrences({ status: "PENDING" }),
+    listRentalOccurrences({ status: "OVERDUE", pageSize: 100 }),
+    listRentalOccurrences({ status: "PENDING", pageSize: 100 }),
   ]);
   const canManage = sessionHasPermission(
     session.user,
@@ -43,6 +44,7 @@ export default async function RentalDueDatesPage() {
   return (
     <PageShell
       title="Vencimientos de alquileres"
+      subNav={<RentalModuleNav />}
       description="Agenda operativa de obligaciones vencidas y próximas."
       breadcrumbs={[
         { label: "Inicio", href: "/" },
@@ -57,7 +59,7 @@ export default async function RentalDueDatesPage() {
           </CardHeader>
           <CardContent>
             <RentalOccurrenceTable
-              initialOccurrences={overdue}
+              initialOccurrences={overdue.items}
               canManage={canManage}
               canFulfill={canFulfill}
               canReverse={canReverse}
@@ -71,7 +73,7 @@ export default async function RentalDueDatesPage() {
           </CardHeader>
           <CardContent>
             <RentalOccurrenceTable
-              initialOccurrences={pending}
+              initialOccurrences={pending.items}
               canManage={canManage}
               canFulfill={canFulfill}
               canReverse={canReverse}
