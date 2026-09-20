@@ -7,13 +7,10 @@ import { Button } from "@repo/ui/button";
 import { DropdownMenu } from "@repo/ui/dropdown-menu";
 import { ConfirmModal } from "@repo/ui/modal";
 import { useToast } from "@repo/ui/toast";
-import {
-  renewRentalContractAction,
-  transitionRentalContractAction,
-} from "@/lib/api/rental-actions";
+import { transitionRentalContractAction } from "@/lib/api/rental-actions";
 import type { RentalContractGeneral } from "@/lib/api/types/rental";
 
-type Action = "end" | "cancel" | "renew";
+type Action = "end" | "cancel";
 const COPY = {
   end: [
     "Finalizar contrato",
@@ -24,11 +21,6 @@ const COPY = {
     "Cancelar contrato",
     "El contrato quedará cancelado y la acción se registrará en el historial.",
     "Cancelar contrato",
-  ],
-  renew: [
-    "Renovar contrato",
-    "Se creará un borrador relacionado para continuar su edición en el wizard.",
-    "Crear renovación",
   ],
 } satisfies Record<Action, [string, string, string]>;
 
@@ -50,12 +42,14 @@ export function RentalContractActions({
   const items = [
     ...(canRenew &&
     ["ACTIVE", "ENDED"].includes(contract.status) &&
-    !contract.renewedContract
+    (!contract.renewedContract || contract.renewedContract.status === "DRAFT")
       ? [
           {
             id: "renew",
-            label: "Renovar contrato",
-            onSelect: () => setAction("renew" as const),
+            label: contract.renewedContract
+              ? "Continuar renovación"
+              : "Renovar contrato",
+            onSelect: () => router.push(`/alquileres/${contract.id}/renovar`),
           },
         ]
       : []),
@@ -79,17 +73,11 @@ export function RentalContractActions({
         ]
       : []),
   ];
+
   async function confirm() {
     if (!action) return;
     setPending(true);
     try {
-      if (action === "renew") {
-        const result = await renewRentalContractAction(contract.id);
-        if (!result.ok) return toast.error(result.error);
-        toast.success("Borrador de renovación creado.");
-        router.push(`/alquileres/${result.value.id}/editar`);
-        return;
-      }
       const result = await transitionRentalContractAction(contract.id, action);
       if (!result.ok) return toast.error(result.error);
       toast.success(
@@ -101,6 +89,7 @@ export function RentalContractActions({
       setPending(false);
     }
   }
+
   return (
     <>
       <div className="flex items-center gap-2">

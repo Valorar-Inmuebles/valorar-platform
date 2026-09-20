@@ -19,7 +19,7 @@ Plataforma SaaS inmobiliaria multi-tenant orientada a:
 
 **Rental Management V1 — Migraciones A+B + refinamiento B.1** ✅ (baseline consolidado y versionado)
 
-**Rental Management V1.1 — Fases 1–3 + UI Foundation Fase 4 + Fases 5A–5D** ✅ (wizard completo hasta configuración previa de avisos; Migración C no iniciada)
+**Rental Management V1.1 — Fases 1–3 + UI Foundation Fase 4 + Fases 5A–5E** ✅ (wizard completo hasta configuración previa de avisos; Migración C no iniciada)
 
 Documentación: `docs/04-modules/rental-management-v1.md`, `docs/03-database/rental-domain.md`
 
@@ -358,6 +358,17 @@ Documentación: `docs/04-modules/rental-management-v1.md`, `PROJECT_STATE.md`.
 * El registro, edición de fecha/importe y consulta/reversión de cumplimiento se realizan en `SidePanel`; las acciones contractuales secundarias usan confirmación y RBAC existente.
 * No se fabrican comunicaciones ni actividad, no hubo cambios de schema/API y Migración C continúa no iniciada.
 * Renovación visual completa permanece para Fase 5E; Fase 5D únicamente enlaza el borrador generado al wizard existente.
+
+Documentación: `docs/04-modules/rental-management-v1.md`, `PROJECT_STATE.md`.
+
+### Rental Management V1.1 — Fase 5E ✅
+
+* `/alquileres/:id/renovar` presenta la comparación Contrato actual → Nuevo contrato con datos reales del read model General y una composición responsive.
+* `Más acciones` respeta `rental.contract.renew`, estados `ACTIVE`/`ENDED` y la existencia de un sucesor; un `DRAFT` existente se continúa sin crear otro.
+* `Continuar con renovación` usa `POST /rental-contracts/:id/renew` y navega al wizard compartido sobre el nuevo contrato `DRAFT`; el frontend no replica reglas de copia ni modifica el contrato anterior.
+* Los conflictos concurrentes se traducen, refrescan la relación real y ofrecen acceso al sucesor cuando queda disponible.
+* Detalle General expone `Renovado como ALQ-xxxxxx` y `Renovación de ALQ-xxxxxx` como relaciones navegables.
+* No hubo cambios de schema, migraciones ni dominio; Migración C continúa no iniciada.
 
 Documentación: `docs/04-modules/rental-management-v1.md`, `PROJECT_STATE.md`.
 

@@ -186,7 +186,10 @@ export async function updateRentalContractAction(
 
 export async function renewRentalContractAction(id: string) {
   const result = await run<RentalContract>(() => renewRentalContract(id));
-  if (result.ok) revalidateRental(result.value.id);
+  if (result.ok) {
+    revalidateRental(id);
+    revalidateRental(result.value.id);
+  }
   return result;
 }
 

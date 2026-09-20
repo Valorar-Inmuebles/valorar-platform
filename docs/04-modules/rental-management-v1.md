@@ -2,7 +2,7 @@
 
 Versión: V1.1
 
-Estado: **implementación parcial**. A, B, B.1, Rental V1.1 Fases 1–3 y Fases 5A–5D (Resumen, Listado y wizard completo hasta configuración previa de avisos) están implementados. Migración C no fue iniciada.
+Estado: **implementación parcial**. A, B, B.1, Rental V1.1 Fases 1–3 y Fases 5A–5E (Resumen, Listado y wizard completo hasta configuración previa de avisos) están implementados. Migración C no fue iniciada.
 
 Diseño de datos canónico: `docs/03-database/rental-domain.md`.
 
@@ -36,7 +36,7 @@ Este documento separa estrictamente:
 - vigencia mínima de un mes calendario para activar;
 - renovación explícita con sucesor único y copia selectiva.
 
-Permanecen pendientes las pantallas Admin posteriores a Fase 5D, las notificaciones globales y la ejecución de comunicaciones de Migración C.
+Permanecen pendientes las notificaciones globales y la ejecución de comunicaciones de Migración C.
 
 ## 3. Objetivo V1.1
 
@@ -453,7 +453,7 @@ Permisos **APROBADOS / PENDIENTES**:
 
 ## 16. Arquitectura de pantallas aprobada
 
-**IMPLEMENTACIÓN PARCIAL**: Fase 3 aportó APIs/read models, Fase 5A implementó el Resumen Rental y el listado visual de contratos, Fase 5B implementó Información básica + Partes y Fase 5C completó Alquiler + Obligaciones + Avisos del wizard:
+**IMPLEMENTACIÓN PARCIAL**: Fase 3 aportó APIs/read models, Fase 5A implementó el Resumen Rental y el listado visual de contratos, Fase 5B implementó Información básica + Partes, Fase 5C completó Alquiler + Obligaciones + Avisos, Fase 5D incorporó Detalle/Historial/Vencimientos y Fase 5E la experiencia de Renovación:
 
 - Resumen Rental.
 - Listado de contratos con número visible y búsqueda.
@@ -485,13 +485,12 @@ Los mockups visuales existen externamente y se proporcionarán durante los gates
 - Rental V1.1 Fase 5A: dashboard `/alquileres`, listado `/alquileres/contratos` y navegación Resumen/Contratos/Vencimientos; filtros, sorting y paginación permanecen server-side. La UI omite comunicaciones y series históricas no disponibles, sin fixtures.
 - Rental V1.1 Fase 5B: wizard compartido para alta/edición con Información básica y Partes; búsquedas Property/Contact server-side, dirección contractual editable, vigencia mínima al continuar, borrador incompleto permitido por dominio, renter principal y ABM de ContactPoints sin configurar canales del contrato.
 - Rental V1.1 Fase 5C: completa los pasos Alquiler, Obligaciones y Avisos del wizard compartido; `RENT` usa importe vigente e historial de revisiones, las obligaciones adicionales conservan identidad y la configuración previa de avisos persiste rutas/flags sin ejecutar comunicaciones.
-- Rental V1.1 Fase 5D: detalle General e Historial sobre read models de Fase 3, vencimientos mensuales server-side y operaciones de cumplimiento en `SidePanel`; no se representan envíos y la renovación visual completa queda para Fase 5E.
+- Rental V1.1 Fase 5D: detalle General e Historial sobre read models de Fase 3, vencimientos mensuales server-side y operaciones de cumplimiento en `SidePanel`; no se representan envíos.
+- Rental V1.1 Fase 5E: pantalla comparativa `/alquileres/:id/renovar`, creación mediante el endpoint existente, continuación en el wizard compartido, manejo de sucesor `DRAFT`/conflicto concurrente y relaciones de renovación navegables en Detalle General.
 
-### 17.2 Aprobado pero pendiente después de Fase 5D
+### 17.2 Aprobado pero pendiente después de Fase 5E
 
-- renovación visual completa;
 - notificaciones internas globales;
-- implementación visual restante de la arquitectura de pantallas V1.1;
 - permisos pendientes.
 
 ### 17.3 Migración C

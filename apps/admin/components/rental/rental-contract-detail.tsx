@@ -283,7 +283,7 @@ export function RentalContractGeneralView({
                     className="mr-5 text-primary hover:underline"
                     href={`/alquileres/${contract.previousContract.id}`}
                   >
-                    Anterior: {contract.previousContract.internalNumber}
+                    Renovación de {contract.previousContract.internalNumber}
                   </Link>
                 ) : null}
                 {contract.renewedContract ? (
@@ -291,7 +291,7 @@ export function RentalContractGeneralView({
                     className="text-primary hover:underline"
                     href={`/alquileres/${contract.renewedContract.id}`}
                   >
-                    Renovación: {contract.renewedContract.internalNumber}
+                    Renovado como {contract.renewedContract.internalNumber}
                   </Link>
                 ) : null}
               </div>

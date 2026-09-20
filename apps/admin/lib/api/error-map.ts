@@ -11,8 +11,7 @@ const MESSAGE_RULES: Array<{ match: string | RegExp; message: string }> = [
   },
   {
     match: "No podés desactivar al único administrador activo del tenant",
-    message:
-      "No podés desactivar al único administrador activo del tenant.",
+    message: "No podés desactivar al único administrador activo del tenant.",
   },
   {
     match: "No podés eliminar tu propia cuenta",
@@ -100,6 +99,14 @@ const MESSAGE_RULES: Array<{ match: string | RegExp; message: string }> = [
   {
     match: "amount must not be less than 0.01",
     message: "El monto debe ser mayor a 0.",
+  },
+  {
+    match: "Rental contract already renewed as",
+    message: "Ya existe una renovación para este contrato.",
+  },
+  {
+    match: "Rental contract cannot be renewed from",
+    message: "El estado actual del contrato no permite renovarlo.",
   },
   {
     match: "Property with slug",
