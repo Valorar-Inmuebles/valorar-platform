@@ -87,11 +87,13 @@ export class ListRentalOccurrencesQueryDto {
   @IsIn(['asc', 'desc'])
   sortOrder?: 'asc' | 'desc';
 
+  @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(1)
   page?: number;
 
+  @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(1)

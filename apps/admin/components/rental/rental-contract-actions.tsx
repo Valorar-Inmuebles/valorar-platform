@@ -101,6 +101,7 @@ export function RentalContractActions({
         {items.length ? (
           <DropdownMenu
             ariaLabel="Más acciones del contrato"
+            asChild
             trigger={<Button variant="secondary">Más acciones</Button>}
             items={items}
           />

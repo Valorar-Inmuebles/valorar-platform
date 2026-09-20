@@ -1,6 +1,7 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import { AdminTable, AdminTableHead, AdminTableHeader } from "./admin-table";
+import { Button } from "./button";
 import { DatePicker } from "./date-picker";
 import { DropdownMenu } from "./dropdown-menu";
 import { Pagination } from "./pagination";
@@ -115,6 +116,20 @@ describe("shared primitives semantics", () => {
       </>,
     );
     expect(html).toContain('aria-current="step"');
+    expect(html).toContain('aria-haspopup="menu"');
+  });
+
+  it("uses a custom button as the menu trigger without nesting buttons", () => {
+    const html = renderToStaticMarkup(
+      <DropdownMenu
+        ariaLabel="More actions"
+        asChild
+        trigger={<Button variant="secondary">More actions</Button>}
+        items={[{ id: "edit", label: "Edit", onSelect: vi.fn() }]}
+      />,
+    );
+
+    expect(html.match(/<button/g)).toHaveLength(1);
     expect(html).toContain('aria-haspopup="menu"');
   });
 });

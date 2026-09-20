@@ -99,12 +99,14 @@ export class ListRentalContractsQueryDto {
   sortOrder?: 'asc' | 'desc';
 
   @ApiPropertyOptional({ default: 1 })
+  @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(1)
   page?: number;
 
   @ApiPropertyOptional({ default: 20, maximum: 100 })
+  @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(1)
@@ -133,11 +135,13 @@ export class RentalContractHistoryQueryDto {
   @Matches(DATE_ONLY_PATTERN)
   to?: string;
 
+  @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(1)
   page?: number;
 
+  @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(1)

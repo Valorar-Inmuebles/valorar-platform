@@ -1,6 +1,6 @@
 "use client";
 
-import type { ButtonHTMLAttributes, ReactNode } from "react";
+import { forwardRef, type ButtonHTMLAttributes, type ReactNode } from "react";
 import { cn } from "./lib/cn";
 
 export type ButtonVariant =
@@ -67,42 +67,48 @@ function Spinner({ className }: { className?: string }) {
   );
 }
 
-export function Button({
-  variant = "primary",
-  size = "md",
-  loading = false,
-  leftIcon,
-  rightIcon,
-  className,
-  children,
-  type = "button",
-  disabled,
-  ...props
-}: ButtonProps) {
-  return (
-    <button
-      type={type}
-      disabled={disabled || loading}
-      aria-busy={loading || undefined}
-      className={cn(
-        "inline-flex cursor-pointer items-center justify-center gap-1.5 whitespace-nowrap rounded-md font-medium outline-none transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-offset-white disabled:cursor-not-allowed disabled:pointer-events-none disabled:opacity-50",
-        variantStyles[variant],
-        sizeStyles[size],
-        className,
-      )}
-      {...props}
-    >
-      {loading ? (
-        <Spinner className={spinnerSize[size]} />
-      ) : leftIcon != null ? (
-        <span className="inline-flex shrink-0">{leftIcon}</span>
-      ) : null}
+export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
+  function Button(
+    {
+      variant = "primary",
+      size = "md",
+      loading = false,
+      leftIcon,
+      rightIcon,
+      className,
+      children,
+      type = "button",
+      disabled,
+      ...props
+    }: ButtonProps,
+    ref,
+  ) {
+    return (
+      <button
+        ref={ref}
+        type={type}
+        disabled={disabled || loading}
+        aria-busy={loading || undefined}
+        className={cn(
+          "inline-flex cursor-pointer items-center justify-center gap-1.5 whitespace-nowrap rounded-md font-medium outline-none transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-offset-white disabled:cursor-not-allowed disabled:pointer-events-none disabled:opacity-50",
+          variantStyles[variant],
+          sizeStyles[size],
+          className,
+        )}
+        {...props}
+      >
+        {loading ? (
+          <Spinner className={spinnerSize[size]} />
+        ) : leftIcon != null ? (
+          <span className="inline-flex shrink-0">{leftIcon}</span>
+        ) : null}
 
-      {children}
+        {children}
 
-      {!loading && rightIcon != null && (
-        <span className="inline-flex shrink-0">{rightIcon}</span>
-      )}
-    </button>
-  );
-}
+        {!loading && rightIcon != null && (
+          <span className="inline-flex shrink-0">{rightIcon}</span>
+        )}
+      </button>
+    );
+  },
+);

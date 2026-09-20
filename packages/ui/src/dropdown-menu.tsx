@@ -1,11 +1,16 @@
 "use client";
 
 import {
+  cloneElement,
+  isValidElement,
   useId,
   useRef,
   useState,
+  type ButtonHTMLAttributes,
   type KeyboardEvent,
+  type ReactElement,
   type ReactNode,
+  type Ref,
 } from "react";
 import { createPortal } from "react-dom";
 import { useFloatingPanel } from "./hooks/use-floating-panel";
@@ -27,6 +32,7 @@ export type DropdownMenuItem = {
 
 export type DropdownMenuProps = {
   trigger: ReactNode;
+  asChild?: boolean;
   items: DropdownMenuItem[];
   ariaLabel: string;
   disabled?: boolean;
@@ -36,6 +42,7 @@ export type DropdownMenuProps = {
 
 export function DropdownMenu({
   trigger,
+  asChild = false,
   items,
   ariaLabel,
   disabled = false,
@@ -130,24 +137,63 @@ export function DropdownMenu({
       }
     : null;
 
-  return (
-    <div className={cn("inline-flex", className)}>
+  const triggerProps = {
+    type: "button" as const,
+    disabled,
+    "aria-label": ariaLabel,
+    "aria-haspopup": "menu" as const,
+    "aria-expanded": open,
+    "aria-controls": menuId,
+    onClick: () =>
+      open ? close(false) : openAt(firstEnabledIndex(disabledItems)),
+    onKeyDown: handleTriggerKeyDown,
+  };
+
+  let triggerElement: ReactNode;
+  if (asChild) {
+    if (!isValidElement<ButtonHTMLAttributes<HTMLButtonElement>>(trigger)) {
+      throw new Error(
+        "DropdownMenu with asChild requires a single element trigger.",
+      );
+    }
+    const child = trigger as ReactElement<
+      ButtonHTMLAttributes<HTMLButtonElement> & {
+        ref?: Ref<HTMLButtonElement>;
+      }
+    >;
+    triggerElement = cloneElement(child, {
+      ...triggerProps,
+      disabled: disabled || child.props.disabled,
+      ref: (node: HTMLButtonElement | null) => {
+        triggerRef.current = node;
+        const childRef = child.props.ref;
+        if (typeof childRef === "function") childRef(node);
+        else if (childRef) childRef.current = node;
+      },
+      onClick: (event) => {
+        child.props.onClick?.(event);
+        if (!event.defaultPrevented) triggerProps.onClick();
+      },
+      onKeyDown: (event) => {
+        child.props.onKeyDown?.(event);
+        if (!event.defaultPrevented) triggerProps.onKeyDown(event);
+      },
+    });
+  } else {
+    triggerElement = (
       <button
         ref={triggerRef}
-        type="button"
-        disabled={disabled}
-        aria-label={ariaLabel}
-        aria-haspopup="menu"
-        aria-expanded={open}
-        aria-controls={menuId}
-        onClick={() =>
-          open ? close(false) : openAt(firstEnabledIndex(disabledItems))
-        }
-        onKeyDown={handleTriggerKeyDown}
+        {...triggerProps}
         className="inline-flex items-center justify-center rounded-md outline-none focus-visible:ring-2 focus-visible:ring-primary/30 disabled:cursor-not-allowed disabled:opacity-50"
       >
         {trigger}
       </button>
+    );
+  }
+
+  return (
+    <div className={cn("inline-flex", className)}>
+      {triggerElement}
       {open && adjustedStyle
         ? createPortal(
             <div
