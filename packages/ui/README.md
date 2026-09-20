@@ -123,6 +123,34 @@ Montar `ToastProvider` en el layout raíz de la app consumidora.
 | `SidePanelFooter` | componente | Pie con acciones |
 | `SidePanelWidth` | type | `sm` \| `md` \| `lg` \| `xl` |
 
+### Entradas especializadas
+
+| Subpath | Export principal | Uso |
+| ------- | ---------------- | --- |
+| @repo/ui/date-picker | DatePicker | Fecha date-only con entrada DD/MM/AAAA, calendario, límites min/max y teclado |
+| @repo/ui/currency-input | CurrencyInput | Importe es-AR con valor raw separado y hasta dos decimales mediante allowDecimals |
+| @repo/ui/search-combobox | SearchCombobox | Búsqueda async con debounce, cancelación, estados y descripción secundaria |
+
+DatePicker conserva strings ISO YYYY-MM-DD. CurrencyInput es agnóstico de moneda, sirve para ARS/USD y mantiene la política existente de importes no negativos.
+
+### Navegación y acciones
+
+| Subpath | Exports | Uso |
+| ------- | ------- | --- |
+| @repo/ui/tabs | Tabs, TabPanel | Tabs controlados con badge, tono de atención, disabled y teclado |
+| @repo/ui/dropdown-menu | DropdownMenu | Acciones secundarias con items disabled/destructive y teclado |
+| @repo/ui/pagination | Pagination | Paginación server-side friendly |
+| @repo/ui/stepper | Stepper | Progreso responsive con navegación opcional |
+
+### Listados administrativos
+
+| Subpath | Exports | Uso |
+| ------- | ------- | --- |
+| @repo/ui/admin-table | AdminTable y subcomponentes | Tabla compuesta con sorting y estados, sin fetching |
+| @repo/ui/filter-bar | FilterBar, FilterChip | Buscador, filtros, acciones y chips removibles |
+
+Las colecciones grandes deben consultar API server-side. Las primitives sólo presentan estado y callbacks; no incorporan lógica de dominio.
+
 ## Ejemplo compuesto
 
 ```tsx
@@ -159,4 +187,5 @@ export function ExampleForm() {
 ```bash
 npm run lint --workspace=@repo/ui
 npm run check-types --workspace=@repo/ui
+npm run test --workspace=@repo/ui
 ```
