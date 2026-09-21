@@ -427,6 +427,14 @@ Documentación: `docs/04-modules/rental-communications-v1.md`, `docs/04-modules/
   subject determinístico y montos condicionados por `showAmount`.
 * Webhook MailerSend firmado sobre raw body, deduplicado y monotónico; persiste
   digest y evento normalizado, nunca payload crudo.
+* Cierre operacional real en `rental-management-dev`: MailerSend aceptó el
+  outbound con HTTP `202`, el email fue recibido y los eventos
+  `activity.sent`/`activity.delivered` verificaron HMAC y quedaron `APPLIED`.
+  El delivery finalizó `DELIVERED` con dos receipts, sin duplicados ni errores.
+* En Email, `SENT` representa aceptación del provider y `DELIVERED` confirmación
+  de entrega. `READ` deriva de tracking best-effort de apertura, no acredita de
+  forma inequívoca lectura humana. Gmail no emitió eventos de apertura durante
+  la prueba y esto no se considera un fallo de integración.
 * Configuración platform-wide y fail-closed mediante
   `MAILERSEND_API_TOKEN`, `MAILERSEND_FROM_EMAIL`,
   `MAILERSEND_FROM_NAME` y `MAILERSEND_WEBHOOK_SIGNING_SECRET`.

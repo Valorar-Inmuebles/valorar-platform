@@ -268,6 +268,12 @@ PENDING → PROCESSING → SENT → DELIVERED → READ
 
 `PENDING`, `PROCESSING` y `SKIPPED` son internos. `SENT` puede originarse en la aceptación síncrona o en webhook; `DELIVERED` y `READ` provienen del provider cuando existen. `FAILED` puede ser respuesta permanente, agotamiento de retries o webhook terminal. `statusSource` distingue `INTERNAL`, `PROVIDER_RESPONSE` y `PROVIDER_WEBHOOK`.
 
+Para Email, `SENT` significa que el provider aceptó el mensaje y `DELIVERED`
+que confirmó su entrega. `READ`, cuando existe, deriva de tracking best-effort
+de apertura (`activity.opened`/`activity.opened_unique` en MailerSend): es
+evidencia técnica de apertura y no prueba inequívoca de lectura humana. La
+ausencia de esos eventos no constituye por sí sola un fallo de integración.
+
 Los webhooks sólo avanzan el estado según una precedencia definida; un evento tardío no degrada `READ` a `DELIVERED` ni `DELIVERED` a `SENT`. Un fallo terminal tardío se conserva como evento normalizado y sólo cambia estado si la matriz del provider lo considera compatible.
 
 ### Attempt
@@ -617,6 +623,14 @@ C2 no agrega schema ni migración. La migración C1 contiene todos los campos e
 - runner development limitado a un delivery, preview enmascarada y envío sólo
   con `--apply --send` y `MAILERSEND_DEVELOPMENT_ALLOWED_RECIPIENT` exacto.
 
+El cierre operacional en `rental-management-dev` validó un outbound real
+MailerSend `202`, recepción correcta del email y callbacks reales
+`activity.sent` y `activity.delivered`, ambos verificados por HMAC y aplicados
+sin duplicados ni errores. El delivery avanzó de `SENT` a `DELIVERED` con dos
+`WebhookReceipt`. Gmail no produjo `activity.opened` ni
+`activity.opened_unique` durante la ventana observada; esto no invalida el
+circuito porque el tracking de apertura es best-effort.
+
 El comando es
 `npm run db:dev:reminder-email -- --tenant-id=<tenant> --delivery-id=<delivery>`;
 sin flags mutantes sólo muestra la preview. El único envío posible exige agregar
@@ -668,8 +682,8 @@ Cada fase mantiene Email y WhatsApp independientes, SMS oculto y providers fuera
 
 - scheduler/mecanismo de ejecución desplegado: worker background Railway o job autenticado equivalente; el runner core y el comando development quedaron cerrados en C2;
 - nombres, idioma y aprobación final del template Meta;
-- activación externa del webhook MailerSend y prueba real controlada en cada
-  runtime, condicionadas a secret/allowlist de development;
+- activación externa y prueba controlada de MailerSend en runtimes distintos
+  del development local ya validado, condicionadas a su configuración segura;
 
 ### DEFER
 
