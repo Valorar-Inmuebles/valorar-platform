@@ -144,7 +144,7 @@ export function RentalOverview({
       </section>
 
       <div className="grid gap-4 xl:grid-cols-[minmax(0,2fr)_minmax(300px,1fr)]">
-        <Card>
+        <Card className="overflow-hidden">
           <CardHeader>
             <div>
               <CardTitle>Requieren atención</CardTitle>
@@ -160,7 +160,7 @@ export function RentalOverview({
             </Link>
           </CardHeader>
           <CardContent className="p-0">
-            <AdminTable className="min-w-[720px] border-0">
+            <AdminTable variant="integrated" className="min-w-[720px]">
               <AdminTableHead>
                 <tr>
                   <AdminTableHeader>Inquilino</AdminTableHeader>

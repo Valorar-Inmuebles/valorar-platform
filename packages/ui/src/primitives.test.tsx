@@ -97,6 +97,20 @@ describe("shared primitives semantics", () => {
     expect(html.match(/<svg/g)).toHaveLength(3);
   });
 
+  it("supports integrated table chrome without changing the default variant", () => {
+    const defaultHtml = renderToStaticMarkup(<AdminTable />);
+    const integratedHtml = renderToStaticMarkup(
+      <AdminTable variant="integrated" />,
+    );
+
+    expect(defaultHtml).toContain("rounded-xl border border-border");
+    expect(integratedHtml).toContain(
+      'class="max-w-full overflow-x-auto bg-surface"',
+    );
+    expect(integratedHtml).not.toContain("rounded-xl");
+    expect(integratedHtml).not.toContain("border-border");
+  });
+
   it("renders Stepper and DropdownMenu without domain knowledge", () => {
     const html = renderToStaticMarkup(
       <>

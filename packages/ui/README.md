@@ -151,6 +151,11 @@ DatePicker conserva strings ISO YYYY-MM-DD. CurrencyInput es agnóstico de moned
 
 Las colecciones grandes deben consultar API server-side. Las primitives sólo presentan estado y callbacks; no incorporan lógica de dominio.
 
+Las tablas que forman una única superficie con una Card usan
+`AdminTable variant="integrated"` dentro de un `CardContent` sin padding. La
+Card contenedora debe usar `overflow-hidden` para respetar sus esquinas; el
+header y el footer conservan las primitives normales de Card.
+
 ## Ejemplo compuesto
 
 ```tsx

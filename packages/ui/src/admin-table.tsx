@@ -9,14 +9,23 @@ import type {
 import { cn } from "./lib/cn";
 
 export type SortDirection = "asc" | "desc";
+export type AdminTableVariant = "default" | "integrated";
 
 export function AdminTable({
   className,
   children,
+  variant = "default",
   ...props
-}: TableHTMLAttributes<HTMLTableElement>) {
+}: TableHTMLAttributes<HTMLTableElement> & {
+  variant?: AdminTableVariant;
+}) {
   return (
-    <div className="max-w-full overflow-x-auto rounded-xl border border-border bg-surface">
+    <div
+      className={cn(
+        "max-w-full overflow-x-auto bg-surface",
+        variant === "default" && "rounded-xl border border-border",
+      )}
+    >
       <table
         className={cn(
           "w-full min-w-[640px] border-collapse text-left text-sm",
