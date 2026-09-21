@@ -25,14 +25,6 @@ export class MailerSendWebhookService {
   constructor(private readonly repository: RentalReminderRepository) {}
 
   verify(signature: string | undefined, rawBody: Buffer) {
-    let configuredSecret: string;
-    try {
-      configuredSecret = getMailerSendWebhookSigningSecret();
-    } catch {
-      throw new ServiceUnavailableException(
-        'MailerSend webhook is not configured',
-      );
-    }
     let validationTest = false;
     try {
       validationTest =
@@ -41,9 +33,16 @@ export class MailerSendWebhookService {
     } catch {
       validationTest = false;
     }
-    const secret = validationTest
-      ? MAILERSEND_WEBHOOK_TEST_SECRET
-      : configuredSecret;
+    let secret = MAILERSEND_WEBHOOK_TEST_SECRET;
+    if (!validationTest) {
+      try {
+        secret = getMailerSendWebhookSigningSecret();
+      } catch {
+        throw new ServiceUnavailableException(
+          'MailerSend webhook is not configured',
+        );
+      }
+    }
     const expected = createHmac('sha256', secret).update(rawBody).digest('hex');
     const received = signature?.trim().toLowerCase() ?? '';
     if (

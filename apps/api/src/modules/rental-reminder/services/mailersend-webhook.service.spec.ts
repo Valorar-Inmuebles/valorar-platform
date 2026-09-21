@@ -55,8 +55,7 @@ describe('MailerSendWebhookService', () => {
     );
   });
 
-  it('accepts the official signed URL-validation event only when configured', async () => {
-    process.env.MAILERSEND_WEBHOOK_SIGNING_SECRET = 'future-real-secret';
+  it('accepts the official signed URL-validation event before the individual secret exists', async () => {
     const service = new MailerSendWebhookService({} as never);
     const raw = Buffer.from(
       JSON.stringify({
@@ -72,5 +71,20 @@ describe('MailerSendWebhookService', () => {
       .digest('hex');
     expect(() => service.verify(signature, raw)).not.toThrow();
     await expect(service.handle(raw)).resolves.toEqual({ status: 'TEST' });
+  });
+  it('rejects a URL-validation event without the official test signature', () => {
+    const service = new MailerSendWebhookService({} as never);
+    const raw = Buffer.from(
+      JSON.stringify({
+        type: 'webhook.test',
+        message: 'This is a ping test message',
+      }),
+    );
+    const signature = createHmac('sha256', 'not-the-official-test-secret')
+      .update(raw)
+      .digest('hex');
+    expect(() => service.verify(signature, raw)).toThrow(
+      'Invalid MailerSend webhook signature',
+    );
   });
 });
