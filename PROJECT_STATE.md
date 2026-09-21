@@ -21,7 +21,7 @@ Plataforma SaaS inmobiliaria multi-tenant orientada a:
 
 **Rental Management V1.1 — Fases 1–3 + UI Foundation Fase 4 + Fases 5A–5E** ✅ (wizard completo hasta configuración previa de avisos)
 
-**Rental Communications V1 — C1** ✅ Persistence Foundation implementada en development; C2–C4 pendientes.
+**Rental Communications V1 — C1–C2** ✅ Persistence Foundation + planner/orquestación no enviable implementados; C3–C4 pendientes.
 
 Documentación: `docs/04-modules/rental-management-v1.md`, `docs/04-modules/rental-communications-v1.md`, `docs/03-database/rental-domain.md`
 
@@ -392,7 +392,25 @@ Documentación: `docs/04-modules/rental-communications-v1.md`, `docs/04-modules/
 * Idempotencia, rangos, canales operativos, ciclos de estado y relaciones tenant-scoped protegidos por constraints/índices de PostgreSQL además del dominio.
 * `rental.reminder.manage` se asigna a Super Admin, Tenant Admin y Manager; API tenant-safe para GET/PUT policy y lectura paginada de issues/dispatches/deliveries/attempts.
 * Credenciales MailerSend/Meta son platform-wide y quedan exclusivamente en runtime/secret store. No se persisten secretos ni payloads crudos.
-* C1 no incorpora planner, scheduler, workers, providers, templates reales, webhooks HTTP, retry manual, Admin visual ni capacidad de envío. C2–C4 permanecen pendientes.
+* C1 no incorporó planner, scheduler, workers, providers, templates reales, webhooks HTTP, retry manual, Admin visual ni capacidad de envío; el planner/orquestación no enviable se agregó posteriormente en C2.
+
+Documentación: `docs/04-modules/rental-communications-v1.md`, `docs/04-modules/rental-management-v1.md`, `docs/03-database/rental-domain.md`, `docs/03-database/current-schema.md`.
+
+### Rental Communications V1 — C2 ✅
+
+* `ReminderPlannerService.run(now, { dryRun })` implementa timezone, ventana
+  solapada, PRE/DUE/POST, elegibilidad y agrupación determinística sin depender
+  del reloj ni de infraestructura de scheduler.
+* Dispatches y deliveries EMAIL/WhatsApp convergen mediante las constraints C1;
+  SMS no opera. Los bloqueos de fecha, importe, ruta y ContactPoint generan
+  planning issues deduplicadas/autorresolubles, no fallos de provider.
+* Revalidación pre-attempt conserva exclusiones parciales e inmutabilidad
+  posterior; claim/release usa leases compare-and-set y el schedule técnico
+  queda preparado para C3.
+* El runner development usa el guard de `rental-management-dev`, dry-run por
+  defecto y `--apply` explícito. No existe scheduler productivo.
+* Sin schema/migración nueva, providers, templates finales, attempts reales,
+  webhooks HTTP, Admin, Notification ni capacidad de envío.
 
 Documentación: `docs/04-modules/rental-communications-v1.md`, `docs/04-modules/rental-management-v1.md`, `docs/03-database/rental-domain.md`, `docs/03-database/current-schema.md`.
 

@@ -28,7 +28,7 @@ export function computeOccurrenceSetHash(occurrenceIds: readonly string[]) {
 
 export function computePlanningIssueKey(input: {
   tenantId: string;
-  contractId: string;
+  contractId?: string | null;
   occurrenceId?: string | null;
   recipientContactId?: string | null;
   channel?: NotificationChannel | null;
@@ -38,7 +38,7 @@ export function computePlanningIssueKey(input: {
     [
       'rental-planning-issue:v1',
       input.tenantId,
-      input.contractId,
+      input.contractId ?? 'none',
       input.occurrenceId ?? 'none',
       input.recipientContactId ?? 'none',
       input.channel ?? 'none',

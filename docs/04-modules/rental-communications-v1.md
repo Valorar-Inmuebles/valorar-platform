@@ -1,6 +1,6 @@
 # Rental Communications V1
 
-Estado: **C1 — Persistence Foundation implementada en development; C2–C4 pendientes**.
+Estado: **C2 — Planner y orquestación no enviable implementados; C3–C4 pendientes**.
 
 Esta especificación define Communications V1 y registra su avance por fases. C1 ya implementa tablas y endpoints de lectura/policy; no implica que existan planner, procesos de ejecución, proveedores ni envíos. El schema vigente continúa documentado exclusivamente en `docs/03-database/current-schema.md`.
 
@@ -334,7 +334,12 @@ Propiedad de snapshots:
 
 ## 10. Planner y ventana temporal
 
-No hay scheduler, queue ni worker versionados actualmente. La forma de invocar el runner queda **OPEN**, pero el contrato del planner queda cerrado:
+No hay scheduler, queue ni worker productivo versionado actualmente. C2 cierra la
+forma de invocar el core mediante un application service explícito
+`ReminderPlannerService.run(now, { dryRun })`, independiente de infraestructura y
+del reloj del sistema. El workflow development lo expone sólo detrás del guard de
+`rental-management-dev`; el scheduler desplegado continúa **OPEN**. El contrato
+del planner es:
 
 1. ejecución recomendada cada 5 minutos;
 2. por tenant, convertir `sendTimeMinutes` usando `TenantSetting.timeZone`;
@@ -570,18 +575,34 @@ El índice actual `RentalObligationOccurrence(tenantId, status, dueDate)` se reu
 C1 no puede enviar mensajes: no existe planner ejecutable, scheduler, worker,
 adapter concreto, provider SDK, callback HTTP ni endpoint “enviar ahora”.
 
-### C2 — Planner e idempotencia
+### C2 — Planner e idempotencia ✅
 
-- planner, ventana/lookback, agrupación y planning issues;
-- revalidación y snapshots pre-envío;
-- deliveries en modo no enviable/fake adapter de test;
-- pruebas de repetición, restart, concurrencia, dueDate/amount y agrupación;
-- resolver mecanismo real de ejecución antes de habilitarlo.
+- planner determinístico invocable con `now`, ventana/lookback, timezone,
+  PRE/DUE/POST, agrupación por destinatario/evento/vencimiento e
+  `occurrenceSetHash`;
+- elegibilidad tenant-scoped de occurrences, renters, rutas y ContactPoints;
+- planning issues deduplicadas y autorresolubles para fecha/importe/ruta/destino,
+  sin convertir bloqueos de datos en fallos de provider;
+- dispatches N:M y deliveries independientes EMAIL/WHATSAPP en `PENDING`, con
+  snapshots lógicos `PENDING_C3`; no existe render final, adapter ni envío;
+- revalidación previa al primer intento, exclusión parcial auditable e
+  inmutabilidad posterior al primer attempt;
+- claim compare-and-set mediante leases, release controlado y persistencia del
+  schedule técnico inicial/+5m/+30m/+2h, sin crear éxitos ni llamar providers;
+- runner development protegido: dry-run por defecto, escritura sólo con
+  `--apply`; el claim también exige `--apply` y libera el lease por defecto;
+- pruebas de repetición/restart, concurrencia, timezone, toggles, agrupación,
+  múltiples renters, EMAIL/WhatsApp, SMS ignorado, issues, fulfillments,
+  revalidación parcial, reversal, leases, retries y tenant isolation.
 
-### C3 — Providers, retries y webhooks
+C2 no agrega schema ni migración. La migración C1 contiene todos los campos e
+índices requeridos.
+
+### C3 — Providers, attempts, retries y webhooks
 
 - MailerSend y Meta adapters;
-- worker/claims, retries y leases;
+- adapters, creación/finalización de attempts reales y procesamiento del trabajo
+  reclamado por los leases C2;
 - templates aprobados/configuración segura;
 - webhooks verificados, idempotentes y monotónicos;
 - pruebas contractuales con sandbox/mocks, sin production.
@@ -620,7 +641,7 @@ Cada fase mantiene Email y WhatsApp independientes, SMS oculto y providers fuera
 
 ### OPEN
 
-- mecanismo de ejecución desplegado: worker background Railway o job autenticado equivalente;
+- scheduler/mecanismo de ejecución desplegado: worker background Railway o job autenticado equivalente; el runner core y el comando development quedaron cerrados en C2;
 - nombres, idioma y aprobación final del template Meta;
 - sender/domain final de MailerSend;
 

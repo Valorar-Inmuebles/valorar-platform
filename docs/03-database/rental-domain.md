@@ -2,7 +2,7 @@
 
 Versión: V1.1
 
-Estado: **implementación parcial**. A, B, B.1, Rental V1.1 Fases 1–3 y Communications V1 C1 están implementados. C2–C4 permanecen pendientes.
+Estado: **implementación parcial**. A, B, B.1, Rental V1.1 Fases 1–3 y Communications V1 C1–C2 están implementados. C3–C4 permanecen pendientes.
 
 Reglas funcionales canónicas: `docs/04-modules/rental-management-v1.md`.
 
@@ -84,7 +84,7 @@ Tenant
 └── Notification[] ── User recipient
 ```
 
-`RentalContractSequence`, `previousContractId` e `isPrimary` están **IMPLEMENTADOS en Fase 1**. `RentalRentValueRevision`, reglas de obligations y vencimientos manuales están **IMPLEMENTADOS en Fase 2**. `RentalContractEvent` y los read models operativos están **IMPLEMENTADOS en Fase 3**. Communications C1 está implementada; `Notification` y C2–C4 siguen **APROBADOS / PENDIENTES**.
+`RentalContractSequence`, `previousContractId` e `isPrimary` están **IMPLEMENTADOS en Fase 1**. `RentalRentValueRevision`, reglas de obligations y vencimientos manuales están **IMPLEMENTADOS en Fase 2**. `RentalContractEvent` y los read models operativos están **IMPLEMENTADOS en Fase 3**. Communications C1–C2 están implementadas; `Notification` y C3–C4 siguen **APROBADOS / PENDIENTES**.
 
 ## 4. Contact
 
@@ -483,7 +483,16 @@ La especificación canónica implementable vive en
 - snapshots, retries, adapters MailerSend/Meta y webhooks;
 - seguridad, RBAC, secretos, observabilidad y fases C1–C4.
 
-C1 agregó policy, planning issues, dispatches, relación N:M con occurrences, deliveries, attempts y webhook receipts. Email y WhatsApp son los únicos canales operativos persistibles; SMS y el override por contrato quedan diferidos. Las partes, rutas, ContactPoint y flags existentes continúan siendo la fuente de verdad para C2.
+C1 agregó policy, planning issues, dispatches, relación N:M con occurrences, deliveries, attempts y webhook receipts. Email y WhatsApp son los únicos canales operativos persistibles; SMS y el override por contrato quedan diferidos. Las partes, rutas, ContactPoint y flags existentes continúan siendo la fuente de verdad.
+
+**C2 — PLANNER Y ORQUESTACIÓN NO ENVIABLE IMPLEMENTADOS**.
+
+C2 incorpora el planner determinístico con timezone/ventana solapada,
+agrupación e idempotencia; crea dispatches y deliveries `PENDING`, mantiene
+planning issues, revalida el conjunto antes del primer attempt y permite
+claim/release concurrency-safe mediante leases. Los snapshots lógicos permanecen
+mutables sólo antes del primer attempt. No hay providers, templates finales,
+attempts reales, webhooks HTTP, scheduler productivo ni envío.
 
 La API C1 expone `GET/PUT /rental-reminder-policy` y lecturas paginadas de planning issues, dispatches, deliveries y attempts bajo `rental.reminder.manage`. No existen endpoints de envío, retry, planner ni callbacks HTTP.
 
@@ -652,7 +661,8 @@ El orden exacto se resolverá en planes de implementación separados, respetando
 4. notificaciones internas globales;
 5. **C0 documentado**: arquitectura canónica de Communications V1;
 6. **C1 implementada**: persistencia, policy, RBAC y lectura operativa mínima;
-7. **C2–C4 pendientes**: planner, providers/webhooks y Admin.
+7. **C2 implementada**: planner, elegibilidad, idempotencia, revalidación y leases sin capacidad de envío;
+8. **C3–C4 pendientes**: providers/attempts/webhooks y Admin.
 
 Los puntos 4 y 6 no están implementados por la sola existencia de esta documentación.
 
@@ -665,5 +675,5 @@ Los puntos 4 y 6 no están implementados por la sola existencia de esta document
 - preferencias personales de notificación;
 - portal externo de partes;
 - firma y storage de documentos;
-- ejecución del planner y de comunicaciones hasta C2/C3;
+- scheduler productivo y ejecución de providers hasta C3;
 - SMS y override de policy por contrato;

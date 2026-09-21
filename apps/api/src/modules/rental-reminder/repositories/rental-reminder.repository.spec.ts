@@ -1,4 +1,29 @@
-jest.mock('../../../../generated/prisma/client', () => ({ Prisma: {} }));
+jest.mock('../../../../generated/prisma/client', () => ({
+  Prisma: {},
+  NotificationChannel: { EMAIL: 'EMAIL', WHATSAPP: 'WHATSAPP', SMS: 'SMS' },
+  RentalContractPartyRole: { RENTER: 'RENTER', LANDLORD: 'LANDLORD' },
+  RentalContractStatus: { ACTIVE: 'ACTIVE', DRAFT: 'DRAFT' },
+  RentalOccurrenceStatus: {
+    PENDING: 'PENDING',
+    FULFILLED: 'FULFILLED',
+    CANCELLED: 'CANCELLED',
+  },
+  RentalReminderDeliveryStatus: {
+    PENDING: 'PENDING',
+    PROCESSING: 'PROCESSING',
+  },
+  RentalReminderDispatchOccurrenceStatus: {
+    INCLUDED: 'INCLUDED',
+    EXCLUDED_BEFORE_SEND: 'EXCLUDED_BEFORE_SEND',
+  },
+  RentalReminderDispatchStatus: {
+    PLANNED: 'PLANNED',
+    READY: 'READY',
+    PROCESSING: 'PROCESSING',
+  },
+  RentalReminderPlanningIssueStatus: { OPEN: 'OPEN', RESOLVED: 'RESOLVED' },
+  TenantStatus: { ACTIVE: 'ACTIVE', SUSPENDED: 'SUSPENDED' },
+}));
 jest.mock('../../../prisma/prisma.service', () => ({
   PrismaService: class PrismaService {},
 }));
@@ -77,6 +102,135 @@ describe('RentalReminderRepository tenant isolation', () => {
     expect(tx.rentalReminderPolicy.updateMany).toHaveBeenCalledWith({
       where: { tenantId: 'tenant-1' },
       data,
+    });
+  });
+
+  it('loads only pending active tenant occurrences for planning', async () => {
+    const findMany = jest.fn().mockResolvedValue([]);
+    const prisma = {
+      rentalObligationOccurrence: { findMany },
+    };
+    const repository = new RentalReminderRepository(prisma as never);
+    const dueFrom = new Date('2026-09-01T00:00:00.000Z');
+    const dueTo = new Date('2026-11-01T00:00:00.000Z');
+
+    await repository.findPlanningCandidates('tenant-1', dueFrom, dueTo);
+
+    type PlanningInput = {
+      where: {
+        tenantId: string;
+        status: string;
+        obligation: {
+          tenantId: string;
+          isActive: boolean;
+          includeInNotice: boolean;
+          contract: { tenantId: string; status: string };
+        };
+      };
+    };
+    const planningCalls = findMany.mock.calls as unknown as PlanningInput[][];
+    const planningInput = planningCalls[0][0];
+    expect(planningInput.where).toMatchObject({
+      tenantId: 'tenant-1',
+      status: 'PENDING',
+      obligation: {
+        tenantId: 'tenant-1',
+        isActive: true,
+        includeInNotice: true,
+        contract: { tenantId: 'tenant-1', status: 'ACTIVE' },
+      },
+    });
+  });
+
+  it('claims a delivery with compare-and-set so concurrent workers cannot both win', async () => {
+    const candidate = {
+      id: 'delivery-1',
+      tenantId: 'tenant-1',
+      dispatchId: 'dispatch-1',
+    };
+    const prisma = {
+      rentalReminderDelivery: {
+        findFirst: jest
+          .fn()
+          .mockResolvedValueOnce(candidate)
+          .mockResolvedValueOnce({ ...candidate, processingToken: 'token-1' }),
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+      },
+      rentalReminderDispatch: {
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+      },
+    };
+    const repository = new RentalReminderRepository(prisma as never);
+    const now = new Date('2026-10-10T13:00:00.000Z');
+
+    await expect(
+      repository.claimReadyDelivery({
+        tenantId: 'tenant-1',
+        now,
+        token: 'token-1',
+        lockedUntil: new Date('2026-10-10T13:02:00.000Z'),
+      }),
+    ).resolves.toMatchObject({ id: 'delivery-1' });
+    type ClaimInput = {
+      where: {
+        id: string;
+        tenantId: string;
+        OR: Array<{ status: string }>;
+      };
+      data: { status: string; processingToken: string };
+    };
+    const claimCalls = prisma.rentalReminderDelivery.updateMany.mock
+      .calls as unknown as ClaimInput[][];
+    const claimInput = claimCalls[0][0];
+    expect(claimInput).toMatchObject({
+      where: {
+        id: 'delivery-1',
+        tenantId: 'tenant-1',
+      },
+      data: {
+        status: 'PROCESSING',
+        processingToken: 'token-1',
+      },
+    });
+    expect(claimInput.where.OR[0]).toMatchObject({ status: 'PENDING' });
+  });
+
+  it('upserts detected issues and resolves managed issues no longer present', async () => {
+    const upsert = jest.fn().mockResolvedValue({});
+    const updateMany = jest.fn().mockResolvedValue({ count: 1 });
+    const tx = {
+      rentalReminderPlanningIssue: { upsert, updateMany },
+    };
+    const prisma = {
+      $transaction: (callback: (client: typeof tx) => unknown) => callback(tx),
+    };
+    const repository = new RentalReminderRepository(prisma as never);
+    const detectedAt = new Date('2026-10-10T13:00:00.000Z');
+
+    await repository.reconcilePlanningIssues(
+      'tenant-1',
+      [
+        {
+          contractId: 'contract-1',
+          occurrenceId: 'occ-1',
+          type: 'DUE_DATE_MISSING',
+          deduplicationKey: 'issue-key',
+        },
+      ],
+      ['DUE_DATE_MISSING'],
+      detectedAt,
+    );
+
+    expect(upsert).toHaveBeenCalledTimes(1);
+    const resolveCalls = updateMany.mock.calls as unknown as Array<
+      Array<{
+        where: { deduplicationKey: { notIn: string[] } };
+        data: { status: string; resolvedAt: Date };
+      }>
+    >;
+    expect(resolveCalls[0][0]).toMatchObject({
+      where: { deduplicationKey: { notIn: ['issue-key'] } },
+      data: { status: 'RESOLVED', resolvedAt: detectedAt },
     });
   });
 });

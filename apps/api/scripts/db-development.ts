@@ -14,7 +14,9 @@ type SupportedCommand =
   | 'migrate-deploy'
   | 'migrate-status'
   | 'seed'
-  | 'api';
+  | 'api'
+  | 'reminder-planner'
+  | 'reminder-claim';
 
 function readEnvironmentFile(path: string): Record<string, string> {
   return existsSync(path) ? parse(readFileSync(path)) : {};
@@ -35,6 +37,8 @@ function resolveCommand(command: string | undefined): SupportedCommand {
     'migrate-status',
     'seed',
     'api',
+    'reminder-planner',
+    'reminder-claim',
   ];
   if (!command || !supported.includes(command as SupportedCommand)) {
     fail([
@@ -129,6 +133,17 @@ if (command === 'seed') {
 }
 if (command === 'api') {
   runNodeCli('@nestjs/cli/bin/nest.js', ['start', '--watch'], childEnvironment);
+}
+if (command === 'reminder-planner' || command === 'reminder-claim') {
+  runNodeCli(
+    'tsx/cli',
+    [
+      resolve(apiDirectory, 'scripts', 'rental-reminder-development.ts'),
+      command === 'reminder-planner' ? 'planner' : 'claim',
+      ...process.argv.slice(3),
+    ],
+    childEnvironment,
+  );
 }
 
 process.exit(0);
