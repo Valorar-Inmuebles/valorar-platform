@@ -11,6 +11,25 @@ jest.mock('../../../../generated/prisma/client', () => ({
   RentalReminderDeliveryStatus: {
     PENDING: 'PENDING',
     PROCESSING: 'PROCESSING',
+    SENT: 'SENT',
+    DELIVERED: 'DELIVERED',
+    READ: 'READ',
+    FAILED: 'FAILED',
+    SKIPPED: 'SKIPPED',
+  },
+  RentalReminderAttemptStatus: {
+    PROCESSING: 'PROCESSING',
+    ACCEPTED: 'ACCEPTED',
+    FAILED: 'FAILED',
+  },
+  RentalReminderStatusSource: {
+    INTERNAL: 'INTERNAL',
+    PROVIDER_RESPONSE: 'PROVIDER_RESPONSE',
+    PROVIDER_WEBHOOK: 'PROVIDER_WEBHOOK',
+  },
+  RentalReminderWebhookReceiptStatus: {
+    APPLIED: 'APPLIED',
+    IGNORED: 'IGNORED',
   },
   RentalReminderDispatchOccurrenceStatus: {
     INCLUDED: 'INCLUDED',
@@ -149,6 +168,7 @@ describe('RentalReminderRepository tenant isolation', () => {
       dispatchId: 'dispatch-1',
     };
     const prisma = {
+      $transaction: jest.fn().mockResolvedValue(false),
       rentalReminderDelivery: {
         findFirst: jest
           .fn()
@@ -193,6 +213,73 @@ describe('RentalReminderRepository tenant isolation', () => {
       },
     });
     expect(claimInput.where.OR[0]).toMatchObject({ status: 'PENDING' });
+  });
+
+  it('closes an expired processing attempt before reclaiming its delivery', async () => {
+    const candidate = {
+      id: 'delivery-1',
+      tenantId: 'tenant-1',
+      dispatchId: 'dispatch-1',
+    };
+    const tx = {
+      rentalReminderDelivery: {
+        findFirst: jest.fn().mockResolvedValue({
+          ...candidate,
+          attemptCount: 1,
+          attempts: [{ id: 'attempt-1' }],
+        }),
+        update: jest.fn().mockResolvedValue({}),
+      },
+      rentalReminderDeliveryAttempt: {
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+      },
+    };
+    const prisma = {
+      $transaction: (callback: (client: typeof tx) => unknown) => callback(tx),
+      rentalReminderDelivery: {
+        findFirst: jest
+          .fn()
+          .mockResolvedValueOnce(candidate)
+          .mockResolvedValueOnce({ ...candidate, processingToken: 'token-2' }),
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+      },
+      rentalReminderDispatch: {
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+      },
+    };
+    const repository = new RentalReminderRepository(prisma as never);
+    const now = new Date('2026-10-10T13:00:00.000Z');
+
+    await repository.claimReadyDelivery({
+      tenantId: 'tenant-1',
+      now,
+      token: 'token-2',
+      lockedUntil: new Date('2026-10-10T13:02:00.000Z'),
+    });
+
+    expect(tx.rentalReminderDeliveryAttempt.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          id: 'attempt-1',
+          tenantId: 'tenant-1',
+          status: 'PROCESSING',
+        }) as unknown,
+        data: expect.objectContaining({
+          status: 'FAILED',
+          errorCategory: 'LEASE_EXPIRED',
+        }) as unknown,
+      }),
+    );
+    expect(tx.rentalReminderDelivery.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'delivery-1' },
+        data: expect.objectContaining({
+          status: 'PENDING',
+          nextAttemptAt: now,
+          processingToken: null,
+        }) as unknown,
+      }),
+    );
   });
 
   it('upserts detected issues and resolves managed issues no longer present', async () => {

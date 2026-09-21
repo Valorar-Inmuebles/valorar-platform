@@ -7,8 +7,12 @@ import { RentalReminderRepository } from '../src/modules/rental-reminder/reposit
 import { ReminderDeliveryOrchestratorService } from '../src/modules/rental-reminder/services/reminder-delivery-orchestrator.service';
 import { ReminderDeliveryRevalidationService } from '../src/modules/rental-reminder/services/reminder-delivery-revalidation.service';
 import { ReminderPlannerService } from '../src/modules/rental-reminder/services/reminder-planner.service';
+import { ReminderEmailProcessorService } from '../src/modules/rental-reminder/services/reminder-email-processor.service';
+import { RentalReminderEmailRenderer } from '../src/modules/rental-reminder/templates/rental-reminder-email.renderer';
+import { MailerSendAdapter } from '../src/modules/rental-reminder/providers/mailersend.adapter';
+import { mailerSendConfigurationPresence } from '../src/modules/rental-reminder/config/mailersend.config';
 
-type Command = 'planner' | 'claim';
+type Command = 'planner' | 'claim' | 'email';
 
 @Module({
   imports: [PrismaModule],
@@ -38,8 +42,8 @@ function parseNow() {
 
 async function main() {
   const command = process.argv[2] as Command | undefined;
-  if (command !== 'planner' && command !== 'claim')
-    fail('Expected planner or claim.');
+  if (!command || !['planner', 'claim', 'email'].includes(command))
+    fail('Expected planner, claim or email.');
 
   const apply = process.argv.includes('--apply');
   if (command === 'claim' && !apply)
@@ -63,6 +67,51 @@ async function main() {
       repository,
       revalidation,
     );
+    if (command === 'email') {
+      const tenantId = option('tenant-id');
+      const deliveryId = option('delivery-id');
+      if (!tenantId || !deliveryId)
+        fail('Email requires --tenant-id and --delivery-id.');
+      const processor = new ReminderEmailProcessorService(
+        repository,
+        orchestrator,
+        new RentalReminderEmailRenderer(),
+        new MailerSendAdapter(),
+      );
+      const preview = await processor.preview(tenantId, deliveryId);
+      if (!preview)
+        fail('No pending EMAIL delivery matched the requested IDs.');
+      const destination = preview.destinationSnapshot;
+      const masked = destination.replace(/^(.{2}).*(@.*)$/, '$1***$2');
+      process.stdout.write(
+        `${JSON.stringify(
+          {
+            mode: apply ? 'send' : 'dry-run',
+            tenantId,
+            deliveryId,
+            dispatchId: preview.dispatchId,
+            contractId: preview.dispatch.contractId,
+            contractNumber: preview.dispatch.contract.internalNumber,
+            channel: preview.channel,
+            destination: masked,
+          },
+          null,
+          2,
+        )}\n`,
+      );
+      if (!process.argv.includes('--send')) return;
+      if (!apply) fail('Real email requires both --apply and --send.');
+      const presence = mailerSendConfigurationPresence();
+      if (!presence.apiToken || !presence.fromEmail || !presence.fromName)
+        fail('MailerSend provider configuration is incomplete.');
+      const allowed =
+        process.env.MAILERSEND_DEVELOPMENT_ALLOWED_RECIPIENT?.trim();
+      if (!allowed || allowed.toLowerCase() !== destination.toLowerCase())
+        fail('Destination is not MAILERSEND_DEVELOPMENT_ALLOWED_RECIPIENT.');
+      const result = await processor.processOne(tenantId, deliveryId, now);
+      process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
+      return;
+    }
     const result = await orchestrator.claimNext(now, {
       tenantId: option('tenant-id'),
     });

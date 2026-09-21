@@ -21,7 +21,7 @@ Plataforma SaaS inmobiliaria multi-tenant orientada a:
 
 **Rental Management V1.1 — Fases 1–3 + UI Foundation Fase 4 + Fases 5A–5E** ✅ (wizard completo hasta configuración previa de avisos)
 
-**Rental Communications V1 — C1–C2** ✅ Persistence Foundation + planner/orquestación no enviable implementados; C3–C4 pendientes.
+**Rental Communications V1 — C1–C2 + C3A** ✅ Persistence Foundation, planner/orquestación y provider Email/MailerSend implementados; C3B–C4 pendientes.
 
 Documentación: `docs/04-modules/rental-management-v1.md`, `docs/04-modules/rental-communications-v1.md`, `docs/03-database/rental-domain.md`
 
@@ -413,6 +413,31 @@ Documentación: `docs/04-modules/rental-communications-v1.md`, `docs/04-modules/
   webhooks HTTP, Admin, Notification ni capacidad de envío.
 
 Documentación: `docs/04-modules/rental-communications-v1.md`, `docs/04-modules/rental-management-v1.md`, `docs/03-database/rental-domain.md`, `docs/03-database/current-schema.md`.
+
+### Rental Communications V1 — C3A ✅
+
+* Adapter Email/MailerSend concreto sobre el puerto provider-agnostic, mediante
+  HTTP oficial y sin dependencia SDK adicional; Rental/Planner no importan al
+  proveedor.
+* Procesamiento `claim → revalidate → render → snapshot/attempt → provider`,
+  snapshots inmutables desde el primer attempt, respuestas normalizadas y
+  retries C2. La aceptación MailerSend deja el delivery `SENT`, nunca
+  `DELIVERED`.
+* Template transaccional versionado en código con HTML y text/plain,
+  subject determinístico y montos condicionados por `showAmount`.
+* Webhook MailerSend firmado sobre raw body, deduplicado y monotónico; persiste
+  digest y evento normalizado, nunca payload crudo.
+* Configuración platform-wide y fail-closed mediante
+  `MAILERSEND_API_TOKEN`, `MAILERSEND_FROM_EMAIL`,
+  `MAILERSEND_FROM_NAME` y `MAILERSEND_WEBHOOK_SIGNING_SECRET`.
+* Runner development de un único delivery: preview enmascarada por defecto y
+  envío sólo con `--apply --send` más
+  `MAILERSEND_DEVELOPMENT_ALLOWED_RECIPIENT` exacto. No existe scheduler
+  productivo ni procesamiento masivo automático.
+* Sin cambios de schema/migración. C3B (Meta WhatsApp) y C4 permanecen
+  pendientes.
+
+Documentación: `docs/04-modules/rental-communications-v1.md`, `docs/03-database/rental-domain.md`, `docs/03-database/current-schema.md`.
 
 ### Lead Domain v1 (documentado)
 

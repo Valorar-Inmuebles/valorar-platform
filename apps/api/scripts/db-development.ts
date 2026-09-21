@@ -16,7 +16,8 @@ type SupportedCommand =
   | 'seed'
   | 'api'
   | 'reminder-planner'
-  | 'reminder-claim';
+  | 'reminder-claim'
+  | 'reminder-email';
 
 function readEnvironmentFile(path: string): Record<string, string> {
   return existsSync(path) ? parse(readFileSync(path)) : {};
@@ -39,6 +40,7 @@ function resolveCommand(command: string | undefined): SupportedCommand {
     'api',
     'reminder-planner',
     'reminder-claim',
+    'reminder-email',
   ];
   if (!command || !supported.includes(command as SupportedCommand)) {
     fail([
@@ -134,12 +136,20 @@ if (command === 'seed') {
 if (command === 'api') {
   runNodeCli('@nestjs/cli/bin/nest.js', ['start', '--watch'], childEnvironment);
 }
-if (command === 'reminder-planner' || command === 'reminder-claim') {
+if (
+  command === 'reminder-planner' ||
+  command === 'reminder-claim' ||
+  command === 'reminder-email'
+) {
   runNodeCli(
     'tsx/cli',
     [
       resolve(apiDirectory, 'scripts', 'rental-reminder-development.ts'),
-      command === 'reminder-planner' ? 'planner' : 'claim',
+      command === 'reminder-planner'
+        ? 'planner'
+        : command === 'reminder-claim'
+          ? 'claim'
+          : 'email',
       ...process.argv.slice(3),
     ],
     childEnvironment,

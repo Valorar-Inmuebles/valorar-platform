@@ -5,10 +5,13 @@ import {
   RentalContractPartyRole,
   RentalContractStatus,
   RentalOccurrenceStatus,
+  RentalReminderAttemptStatus,
   RentalReminderDeliveryStatus,
   RentalReminderDispatchOccurrenceStatus,
   RentalReminderDispatchStatus,
   RentalReminderPlanningIssueStatus,
+  RentalReminderStatusSource,
+  RentalReminderWebhookReceiptStatus,
   TenantStatus,
 } from '../../../../generated/prisma/client';
 import { PrismaService } from '../../../prisma/prisma.service';
@@ -18,6 +21,7 @@ import type {
   RentalReminderPlanningIssueQueryDto,
   UpdateRentalReminderPolicyDto,
 } from '../dto/rental-reminder.dto';
+import { computeAttemptKey } from '../domain/rental-reminder-domain';
 
 const pageOptions = (page = 1, pageSize = 20) => ({
   page,
@@ -630,14 +634,17 @@ export class RentalReminderRepository {
 
   async claimReadyDelivery(input: {
     tenantId?: string;
+    deliveryId?: string;
     now: Date;
     token: string;
     lockedUntil: Date;
   }) {
+    await this.recoverExpiredAttempt(input);
     for (let attempt = 0; attempt < 5; attempt += 1) {
       const candidate = await this.prisma.rentalReminderDelivery.findFirst({
         where: {
           ...(input.tenantId ? { tenantId: input.tenantId } : {}),
+          ...(input.deliveryId ? { id: input.deliveryId } : {}),
           OR: [
             {
               status: RentalReminderDeliveryStatus.PENDING,
@@ -701,6 +708,75 @@ export class RentalReminderRepository {
     return null;
   }
 
+  private recoverExpiredAttempt(input: {
+    tenantId?: string;
+    deliveryId?: string;
+    now: Date;
+  }) {
+    return this.prisma.$transaction(async (tx) => {
+      const delivery = await tx.rentalReminderDelivery.findFirst({
+        where: {
+          ...(input.tenantId ? { tenantId: input.tenantId } : {}),
+          ...(input.deliveryId ? { id: input.deliveryId } : {}),
+          status: RentalReminderDeliveryStatus.PROCESSING,
+          attemptCount: { gt: 0 },
+          lockedUntil: { lt: input.now },
+        },
+        include: {
+          attempts: {
+            where: { status: RentalReminderAttemptStatus.PROCESSING },
+            orderBy: { attemptNumber: 'desc' },
+            take: 1,
+          },
+        },
+      });
+      const attempt = delivery?.attempts[0];
+      if (!delivery || !attempt) return false;
+      const recovered = await tx.rentalReminderDeliveryAttempt.updateMany({
+        where: {
+          id: attempt.id,
+          tenantId: delivery.tenantId,
+          deliveryId: delivery.id,
+          status: RentalReminderAttemptStatus.PROCESSING,
+        },
+        data: {
+          status: RentalReminderAttemptStatus.FAILED,
+          finishedAt: input.now,
+          errorCategory: 'LEASE_EXPIRED',
+          errorCode: 'DELIVERY_LEASE_EXPIRED',
+          errorMessage: 'Delivery processing lease expired.',
+        },
+      });
+      if (recovered.count !== 1) return false;
+      const terminal = delivery.attemptCount >= 4;
+      await tx.rentalReminderDelivery.update({
+        where: { id: delivery.id },
+        data: {
+          status: terminal
+            ? RentalReminderDeliveryStatus.FAILED
+            : RentalReminderDeliveryStatus.PENDING,
+          statusSource: RentalReminderStatusSource.INTERNAL,
+          nextAttemptAt: terminal ? null : input.now,
+          failedAt: terminal ? input.now : null,
+          processingToken: null,
+          lockedUntil: null,
+          errorCategory: 'LEASE_EXPIRED',
+          errorCode: 'DELIVERY_LEASE_EXPIRED',
+          errorMessage: 'Delivery processing lease expired.',
+        },
+      });
+      if (terminal) {
+        await this.refreshDispatchStatus(
+          tx,
+          delivery.tenantId,
+          delivery.dispatchId,
+          input.now,
+        );
+      }
+      return true;
+    });
+  }
+
   async releaseDeliveryClaim(input: {
     tenantId: string;
     deliveryId: string;
@@ -754,6 +830,45 @@ export class RentalReminderRepository {
     });
   }
 
+  skipClaimedDeliveryBeforeRetry(input: {
+    tenantId: string;
+    deliveryId: string;
+    token: string;
+    skippedAt: Date;
+    reason: string;
+  }) {
+    return this.prisma.$transaction(async (tx) => {
+      const delivery = await tx.rentalReminderDelivery.findFirst({
+        where: {
+          id: input.deliveryId,
+          tenantId: input.tenantId,
+          status: RentalReminderDeliveryStatus.PROCESSING,
+          processingToken: input.token,
+        },
+        select: { id: true, dispatchId: true },
+      });
+      if (!delivery) return false;
+      await tx.rentalReminderDelivery.update({
+        where: { id: delivery.id },
+        data: {
+          status: RentalReminderDeliveryStatus.SKIPPED,
+          skippedAt: input.skippedAt,
+          nextAttemptAt: null,
+          processingToken: null,
+          lockedUntil: null,
+          errorCategory: input.reason,
+        },
+      });
+      await this.refreshDispatchStatus(
+        tx,
+        input.tenantId,
+        delivery.dispatchId,
+        input.skippedAt,
+      );
+      return true;
+    });
+  }
+
   async persistRetrySchedule(input: {
     tenantId: string;
     deliveryId: string;
@@ -784,6 +899,401 @@ export class RentalReminderRepository {
             processingToken: null,
             lockedUntil: null,
           },
+    });
+  }
+
+  findClaimedDelivery(input: {
+    tenantId: string;
+    deliveryId: string;
+    token: string;
+  }) {
+    return this.prisma.rentalReminderDelivery.findFirst({
+      where: {
+        id: input.deliveryId,
+        tenantId: input.tenantId,
+        status: RentalReminderDeliveryStatus.PROCESSING,
+        processingToken: input.token,
+      },
+      include: {
+        dispatch: {
+          include: {
+            contract: { select: { internalNumber: true } },
+          },
+        },
+      },
+    });
+  }
+
+  findReadyEmailDelivery(tenantId: string, deliveryId: string) {
+    return this.prisma.rentalReminderDelivery.findFirst({
+      where: {
+        id: deliveryId,
+        tenantId,
+        channel: NotificationChannel.EMAIL,
+        status: RentalReminderDeliveryStatus.PENDING,
+      },
+      select: {
+        id: true,
+        tenantId: true,
+        dispatchId: true,
+        channel: true,
+        destinationSnapshot: true,
+        nextAttemptAt: true,
+        dispatch: {
+          select: {
+            contractId: true,
+            contract: { select: { internalNumber: true } },
+          },
+        },
+      },
+    });
+  }
+
+  createDeliveryAttempt(input: {
+    tenantId: string;
+    deliveryId: string;
+    token: string;
+    startedAt: Date;
+    subject: string;
+    body: string;
+    contentSnapshot: Prisma.InputJsonValue;
+    templateKey: string;
+    templateVersion: string;
+  }) {
+    return this.prisma.$transaction(async (tx) => {
+      const delivery = await tx.rentalReminderDelivery.findFirst({
+        where: {
+          id: input.deliveryId,
+          tenantId: input.tenantId,
+          status: RentalReminderDeliveryStatus.PROCESSING,
+          processingToken: input.token,
+          attemptCount: { lt: 4 },
+        },
+        select: {
+          id: true,
+          dispatchId: true,
+          deliveryKey: true,
+          attemptCount: true,
+          providerKey: true,
+          dispatch: { select: { firstAttemptAt: true } },
+        },
+      });
+      if (!delivery) return null;
+      const attemptNumber = delivery.attemptCount + 1;
+      const attempt = await tx.rentalReminderDeliveryAttempt.create({
+        data: {
+          tenantId: input.tenantId,
+          deliveryId: delivery.id,
+          attemptNumber,
+          attemptKey: computeAttemptKey(delivery.deliveryKey, attemptNumber),
+          status: RentalReminderAttemptStatus.PROCESSING,
+          startedAt: input.startedAt,
+        },
+      });
+      await tx.rentalReminderDelivery.update({
+        where: { id: delivery.id },
+        data: {
+          ...(delivery.attemptCount === 0
+            ? {
+                subjectSnapshot: input.subject,
+                bodySnapshot: input.body,
+                contentSnapshot: input.contentSnapshot,
+                templateKey: input.templateKey,
+                templateVersion: input.templateVersion,
+              }
+            : {}),
+          attemptCount: attemptNumber,
+          nextAttemptAt: null,
+        },
+      });
+      await tx.rentalReminderDispatch.update({
+        where: { id: delivery.dispatchId },
+        data: {
+          status: RentalReminderDispatchStatus.PROCESSING,
+          ...(delivery.dispatch.firstAttemptAt
+            ? {}
+            : {
+                frozenAt: input.startedAt,
+                firstAttemptAt: input.startedAt,
+              }),
+        },
+      });
+      return { ...attempt, providerKey: delivery.providerKey };
+    });
+  }
+
+  acceptDeliveryAttempt(input: {
+    tenantId: string;
+    deliveryId: string;
+    attemptId: string;
+    token: string;
+    providerMessageId: string;
+    finishedAt: Date;
+    latencyMs: number;
+  }) {
+    return this.prisma.$transaction(async (tx) => {
+      const delivery = await tx.rentalReminderDelivery.findFirst({
+        where: {
+          id: input.deliveryId,
+          tenantId: input.tenantId,
+          status: RentalReminderDeliveryStatus.PROCESSING,
+          processingToken: input.token,
+        },
+        select: { id: true, dispatchId: true },
+      });
+      if (!delivery) return false;
+      const attempt = await tx.rentalReminderDeliveryAttempt.updateMany({
+        where: {
+          id: input.attemptId,
+          tenantId: input.tenantId,
+          deliveryId: delivery.id,
+          status: RentalReminderAttemptStatus.PROCESSING,
+        },
+        data: {
+          status: RentalReminderAttemptStatus.ACCEPTED,
+          finishedAt: input.finishedAt,
+          latencyMs: input.latencyMs,
+          providerMessageId: input.providerMessageId,
+        },
+      });
+      if (attempt.count !== 1) return false;
+      await tx.rentalReminderDelivery.update({
+        where: { id: delivery.id },
+        data: {
+          status: RentalReminderDeliveryStatus.SENT,
+          statusSource: RentalReminderStatusSource.PROVIDER_RESPONSE,
+          providerMessageId: input.providerMessageId,
+          sentAt: input.finishedAt,
+          processingToken: null,
+          lockedUntil: null,
+          errorCategory: null,
+          errorCode: null,
+          errorMessage: null,
+        },
+      });
+      await this.refreshDispatchStatus(
+        tx,
+        input.tenantId,
+        delivery.dispatchId,
+        input.finishedAt,
+      );
+      return true;
+    });
+  }
+
+  failDeliveryAttempt(input: {
+    tenantId: string;
+    deliveryId: string;
+    attemptId: string;
+    token: string;
+    finishedAt: Date;
+    latencyMs: number;
+    retryAt: Date | null;
+    errorCategory: string;
+    errorCode: string | null;
+    errorMessage: string;
+  }) {
+    return this.prisma.$transaction(async (tx) => {
+      const delivery = await tx.rentalReminderDelivery.findFirst({
+        where: {
+          id: input.deliveryId,
+          tenantId: input.tenantId,
+          status: RentalReminderDeliveryStatus.PROCESSING,
+          processingToken: input.token,
+        },
+        select: { id: true, dispatchId: true },
+      });
+      if (!delivery) return false;
+      const attempt = await tx.rentalReminderDeliveryAttempt.updateMany({
+        where: {
+          id: input.attemptId,
+          tenantId: input.tenantId,
+          deliveryId: delivery.id,
+          status: RentalReminderAttemptStatus.PROCESSING,
+        },
+        data: {
+          status: RentalReminderAttemptStatus.FAILED,
+          finishedAt: input.finishedAt,
+          latencyMs: input.latencyMs,
+          errorCategory: input.errorCategory,
+          errorCode: input.errorCode,
+          errorMessage: input.errorMessage,
+        },
+      });
+      if (attempt.count !== 1) return false;
+      await tx.rentalReminderDelivery.update({
+        where: { id: delivery.id },
+        data: {
+          status: input.retryAt
+            ? RentalReminderDeliveryStatus.PENDING
+            : RentalReminderDeliveryStatus.FAILED,
+          statusSource: RentalReminderStatusSource.PROVIDER_RESPONSE,
+          nextAttemptAt: input.retryAt,
+          failedAt: input.retryAt ? null : input.finishedAt,
+          processingToken: null,
+          lockedUntil: null,
+          errorCategory: input.errorCategory,
+          errorCode: input.errorCode,
+          errorMessage: input.errorMessage,
+        },
+      });
+      await this.refreshDispatchStatus(
+        tx,
+        input.tenantId,
+        delivery.dispatchId,
+        input.finishedAt,
+      );
+      return true;
+    });
+  }
+
+  private async refreshDispatchStatus(
+    tx: Prisma.TransactionClient,
+    tenantId: string,
+    dispatchId: string,
+    now: Date,
+  ) {
+    const deliveries = await tx.rentalReminderDelivery.findMany({
+      where: { tenantId, dispatchId },
+      select: { status: true },
+    });
+    const activeStatuses: RentalReminderDeliveryStatus[] = [
+      RentalReminderDeliveryStatus.PENDING,
+      RentalReminderDeliveryStatus.PROCESSING,
+    ];
+    const active = deliveries.some((item) =>
+      activeStatuses.includes(item.status),
+    );
+    if (active) return;
+    const successStatuses: RentalReminderDeliveryStatus[] = [
+      RentalReminderDeliveryStatus.SENT,
+      RentalReminderDeliveryStatus.DELIVERED,
+      RentalReminderDeliveryStatus.READ,
+    ];
+    const successes = deliveries.filter((item) =>
+      successStatuses.includes(item.status),
+    ).length;
+    const failures = deliveries.filter(
+      (item) => item.status === RentalReminderDeliveryStatus.FAILED,
+    ).length;
+    const status =
+      successes === deliveries.length
+        ? RentalReminderDispatchStatus.COMPLETED
+        : successes > 0
+          ? RentalReminderDispatchStatus.PARTIALLY_COMPLETED
+          : failures > 0
+            ? RentalReminderDispatchStatus.FAILED
+            : RentalReminderDispatchStatus.SKIPPED;
+    await tx.rentalReminderDispatch.update({
+      where: { id: dispatchId },
+      data: { status, completedAt: now },
+    });
+  }
+
+  applyProviderWebhook(input: {
+    providerKey: string;
+    providerAccountKey: string;
+    providerEventKey: string;
+    providerMessageId: string;
+    eventType: string;
+    providerOccurredAt: Date | null;
+    payloadDigest: string;
+    targetStatus: RentalReminderDeliveryStatus | null;
+    processedAt: Date;
+  }) {
+    return this.prisma.$transaction(async (tx) => {
+      const delivery = await tx.rentalReminderDelivery.findFirst({
+        where: {
+          providerKey: input.providerKey,
+          providerAccountKey: input.providerAccountKey,
+          providerMessageId: input.providerMessageId,
+        },
+        include: {
+          attempts: {
+            where: { providerMessageId: input.providerMessageId },
+            orderBy: { attemptNumber: 'desc' },
+            take: 1,
+          },
+        },
+      });
+      if (!delivery) return { status: 'UNMAPPED' as const };
+      const current = delivery.status;
+      const successfulStatuses: RentalReminderDeliveryStatus[] = [
+        RentalReminderDeliveryStatus.DELIVERED,
+        RentalReminderDeliveryStatus.READ,
+      ];
+      const successful = successfulStatuses.includes(current);
+      const canApply =
+        input.targetStatus !== null &&
+        !(
+          input.targetStatus === RentalReminderDeliveryStatus.FAILED &&
+          successful
+        ) &&
+        !(
+          input.targetStatus === RentalReminderDeliveryStatus.SENT &&
+          (successful || current === RentalReminderDeliveryStatus.FAILED)
+        ) &&
+        !(
+          input.targetStatus === RentalReminderDeliveryStatus.DELIVERED &&
+          current === RentalReminderDeliveryStatus.READ
+        );
+      const receipt = await tx.rentalReminderWebhookReceipt.createMany({
+        data: [
+          {
+            tenantId: delivery.tenantId,
+            deliveryId: delivery.id,
+            attemptId: delivery.attempts[0]?.id,
+            providerKey: input.providerKey,
+            providerAccountKey: input.providerAccountKey,
+            providerEventKey: input.providerEventKey,
+            providerMessageId: input.providerMessageId,
+            eventType: input.eventType,
+            providerOccurredAt: input.providerOccurredAt,
+            processedAt: input.processedAt,
+            status: canApply
+              ? RentalReminderWebhookReceiptStatus.APPLIED
+              : RentalReminderWebhookReceiptStatus.IGNORED,
+            payloadDigest: input.payloadDigest,
+          },
+        ],
+        skipDuplicates: true,
+      });
+      if (receipt.count === 0) return { status: 'DUPLICATE' as const };
+      if (canApply && input.targetStatus) {
+        await tx.rentalReminderDelivery.update({
+          where: { id: delivery.id },
+          data: {
+            status: input.targetStatus,
+            statusSource: RentalReminderStatusSource.PROVIDER_WEBHOOK,
+            ...(input.targetStatus === RentalReminderDeliveryStatus.SENT
+              ? {
+                  sentAt:
+                    delivery.sentAt ??
+                    input.providerOccurredAt ??
+                    input.processedAt,
+                }
+              : {}),
+            ...(input.targetStatus === RentalReminderDeliveryStatus.DELIVERED
+              ? { deliveredAt: input.providerOccurredAt ?? input.processedAt }
+              : {}),
+            ...(input.targetStatus === RentalReminderDeliveryStatus.READ
+              ? { readAt: input.providerOccurredAt ?? input.processedAt }
+              : {}),
+            ...(input.targetStatus === RentalReminderDeliveryStatus.FAILED
+              ? { failedAt: input.providerOccurredAt ?? input.processedAt }
+              : {}),
+          },
+        });
+        await this.refreshDispatchStatus(
+          tx,
+          delivery.tenantId,
+          delivery.dispatchId,
+          input.processedAt,
+        );
+      }
+      return {
+        status: canApply ? ('APPLIED' as const) : ('IGNORED' as const),
+      };
     });
   }
 }

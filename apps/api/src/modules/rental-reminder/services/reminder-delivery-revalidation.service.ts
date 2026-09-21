@@ -36,8 +36,6 @@ export class ReminderDeliveryRevalidationService {
       deliveryId,
     );
     if (!delivery) return { status: 'NOT_FOUND' };
-    if (delivery.attemptCount > 0)
-      return { status: 'IMMUTABLE', deliveryId: delivery.id };
 
     const dispatch = delivery.dispatch;
     const renter = dispatch.occurrences
@@ -124,6 +122,31 @@ export class ReminderDeliveryRevalidationService {
     const reason = routeEligible
       ? 'NO_LONGER_ELIGIBLE'
       : 'CONTACT_POINT_INELIGIBLE';
+
+    if (delivery.attemptCount > 0) {
+      const snapshot = delivery.contentSnapshot as {
+        occurrenceIds?: string[];
+        occurrences?: Array<{ occurrenceId: string }>;
+      };
+      const frozenIds = (
+        snapshot.occurrenceIds ??
+        snapshot.occurrences?.map((item) => item.occurrenceId) ??
+        []
+      ).sort();
+      const unchanged =
+        routeEligible &&
+        frozenIds.length > 0 &&
+        frozenIds.every((id) => includedIds.includes(id));
+      if (unchanged) return { status: 'IMMUTABLE', deliveryId: delivery.id };
+      await this.repository.skipClaimedDeliveryBeforeRetry({
+        tenantId,
+        deliveryId,
+        token: delivery.processingToken ?? '',
+        skippedAt: now,
+        reason,
+      });
+      return { status: 'SKIPPED', deliveryId: delivery.id, reason };
+    }
 
     await this.repository.applyDeliveryRevalidation({
       tenantId,

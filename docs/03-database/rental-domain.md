@@ -2,7 +2,7 @@
 
 Versión: V1.1
 
-Estado: **implementación parcial**. A, B, B.1, Rental V1.1 Fases 1–3 y Communications V1 C1–C2 están implementados. C3–C4 permanecen pendientes.
+Estado: **implementación parcial**. A, B, B.1, Rental V1.1 Fases 1–3 y Communications V1 C1–C2+C3A están implementados. C3B–C4 permanecen pendientes.
 
 Reglas funcionales canónicas: `docs/04-modules/rental-management-v1.md`.
 
@@ -84,7 +84,7 @@ Tenant
 └── Notification[] ── User recipient
 ```
 
-`RentalContractSequence`, `previousContractId` e `isPrimary` están **IMPLEMENTADOS en Fase 1**. `RentalRentValueRevision`, reglas de obligations y vencimientos manuales están **IMPLEMENTADOS en Fase 2**. `RentalContractEvent` y los read models operativos están **IMPLEMENTADOS en Fase 3**. Communications C1–C2 están implementadas; `Notification` y C3–C4 siguen **APROBADOS / PENDIENTES**.
+`RentalContractSequence`, `previousContractId` e `isPrimary` están **IMPLEMENTADOS en Fase 1**. `RentalRentValueRevision`, reglas de obligations y vencimientos manuales están **IMPLEMENTADOS en Fase 2**. `RentalContractEvent` y los read models operativos están **IMPLEMENTADOS en Fase 3**. Communications C1–C2+C3A están implementadas; `Notification`, C3B y C4 siguen **APROBADOS / PENDIENTES**.
 
 ## 4. Contact
 
@@ -494,6 +494,17 @@ claim/release concurrency-safe mediante leases. Los snapshots lógicos permanece
 mutables sólo antes del primer attempt. No hay providers, templates finales,
 attempts reales, webhooks HTTP, scheduler productivo ni envío.
 
+**C3A — EMAIL/MAILERSEND IMPLEMENTADO**.
+
+C3A agrega el renderer Email versionado, el adapter MailerSend, creación y
+finalización transaccional de attempts, retries sobre snapshots congelados y el
+webhook MailerSend HMAC/idempotente/monotónico. La aceptación del provider
+produce `SENT`; no se considera `DELIVERED` sin evidencia posterior. Secretos y
+sender se resuelven desde runtime, no PostgreSQL. El runner development permite
+como máximo el delivery indicado y exige preview, `--apply --send` y un
+destinatario allowlisted. No se agregó scheduler productivo ni procesamiento
+masivo.
+
 La API C1 expone `GET/PUT /rental-reminder-policy` y lecturas paginadas de planning issues, dispatches, deliveries y attempts bajo `rental.reminder.manage`. No existen endpoints de envío, retry, planner ni callbacks HTTP.
 
 Las credenciales de MailerSend y Meta son platform-wide y se resolverán exclusivamente desde environment/secret store. PostgreSQL conserva sólo referencias no secretas y snapshots funcionales mínimos; nunca API keys, access tokens o payloads crudos. No hay purga automática y el cifrado application-level de snapshots permanece diferido.
@@ -662,7 +673,8 @@ El orden exacto se resolverá en planes de implementación separados, respetando
 5. **C0 documentado**: arquitectura canónica de Communications V1;
 6. **C1 implementada**: persistencia, policy, RBAC y lectura operativa mínima;
 7. **C2 implementada**: planner, elegibilidad, idempotencia, revalidación y leases sin capacidad de envío;
-8. **C3–C4 pendientes**: providers/attempts/webhooks y Admin.
+8. **C3A implementada**: provider Email/MailerSend, attempts, retries y webhook;
+9. **C3B–C4 pendientes**: Meta/WhatsApp y Admin.
 
 Los puntos 4 y 6 no están implementados por la sola existencia de esta documentación.
 
@@ -675,5 +687,5 @@ Los puntos 4 y 6 no están implementados por la sola existencia de esta document
 - preferencias personales de notificación;
 - portal externo de partes;
 - firma y storage de documentos;
-- scheduler productivo y ejecución de providers hasta C3;
+- scheduler productivo y procesamiento masivo de providers;
 - SMS y override de policy por contrato;

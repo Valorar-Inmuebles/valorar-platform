@@ -9,7 +9,7 @@ import { PrismaExceptionFilter } from './common/filters/prisma-exception.filter'
 import { getCorsOrigin } from './modules/auth/constants/auth.constants';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, { rawBody: true });
 
   app.use(cookieParser());
 

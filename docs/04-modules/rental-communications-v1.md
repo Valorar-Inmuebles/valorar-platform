@@ -1,6 +1,6 @@
 # Rental Communications V1
 
-Estado: **C2 — Planner y orquestación no enviable implementados; C3–C4 pendientes**.
+Estado: **C3A — MailerSend Email implementado; C3B–C4 pendientes**.
 
 Esta especificación define Communications V1 y registra su avance por fases. C1 ya implementa tablas y endpoints de lectura/policy; no implica que existan planner, procesos de ejecución, proveedores ni envíos. El schema vigente continúa documentado exclusivamente en `docs/03-database/current-schema.md`.
 
@@ -598,13 +598,38 @@ adapter concreto, provider SDK, callback HTTP ni endpoint “enviar ahora”.
 C2 no agrega schema ni migración. La migración C1 contiene todos los campos e
 índices requeridos.
 
-### C3 — Providers, attempts, retries y webhooks
+### C3A — MailerSend Email ✅
 
-- MailerSend y Meta adapters;
-- adapters, creación/finalización de attempts reales y procesamiento del trabajo
-  reclamado por los leases C2;
-- templates aprobados/configuración segura;
-- webhooks verificados, idempotentes y monotónicos;
+- adapter HTTP concreto, sin SDK adicional, detrás del puerto Email;
+- renderer transaccional versionado con HTML/text, subject determinístico y
+  `showAmount` respetado;
+- flujo `claim → revalidate → render → snapshot → attempt → provider` y retries
+  sobre snapshot inmutable;
+- aceptación MailerSend normalizada a `SENT` con `providerMessageId`, nunca a
+  `DELIVERED`;
+- webhook sobre raw body con HMAC SHA-256, deduplicación DB y estados
+  monotónicos;
+- errores de configuración, autenticación, rate limit, validación, red y fallo
+  temporal normalizados sin persistir respuestas crudas;
+- variables runtime platform-wide:
+  `MAILERSEND_API_TOKEN`, `MAILERSEND_FROM_EMAIL`,
+  `MAILERSEND_FROM_NAME`, `MAILERSEND_WEBHOOK_SIGNING_SECRET`;
+- runner development limitado a un delivery, preview enmascarada y envío sólo
+  con `--apply --send` y `MAILERSEND_DEVELOPMENT_ALLOWED_RECIPIENT` exacto.
+
+El comando es
+`npm run db:dev:reminder-email -- --tenant-id=<tenant> --delivery-id=<delivery>`;
+sin flags mutantes sólo muestra la preview. El único envío posible exige agregar
+simultáneamente `--apply --send`.
+
+C3A no agrega schema/migración, scheduler productivo, consumo masivo, endpoint
+tenant “enviar ahora”, Admin ni Meta. La activación externa del webhook requiere
+configurar su signing secret en el runtime development.
+
+### C3B — Meta WhatsApp (pendiente)
+
+- Meta adapter y template aprobado;
+- procesamiento y webhook verificado de WhatsApp;
 - pruebas contractuales con sandbox/mocks, sin production.
 
 ### C4 — Admin y operación
@@ -643,7 +668,8 @@ Cada fase mantiene Email y WhatsApp independientes, SMS oculto y providers fuera
 
 - scheduler/mecanismo de ejecución desplegado: worker background Railway o job autenticado equivalente; el runner core y el comando development quedaron cerrados en C2;
 - nombres, idioma y aprobación final del template Meta;
-- sender/domain final de MailerSend;
+- activación externa del webhook MailerSend y prueba real controlada en cada
+  runtime, condicionadas a secret/allowlist de development;
 
 ### DEFER
 

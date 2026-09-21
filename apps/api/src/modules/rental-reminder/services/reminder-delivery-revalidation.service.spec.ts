@@ -126,6 +126,12 @@ function delivery(
     routeId: 'route-1',
     contactPointId: 'point-1',
     attemptCount,
+    contentSnapshot: {
+      occurrences: occurrences.map((item) => ({
+        occurrenceId: item.occurrenceId,
+      })),
+    },
+    processingToken: 'lease-token',
     dispatch: {
       id: 'dispatch-1',
       recipientContactId: 'contact-1',
@@ -199,6 +205,39 @@ describe('ReminderDeliveryRevalidationService', () => {
     await expect(
       service.revalidate('tenant-1', 'delivery-1', now),
     ).resolves.toEqual({ status: 'IMMUTABLE', deliveryId: 'delivery-1' });
+    expect(repository.applyDeliveryRevalidation).not.toHaveBeenCalled();
+  });
+
+  it('skips the complete retry when frozen content is no longer eligible', async () => {
+    const repository = {
+      findDeliveryForRevalidation: jest
+        .fn()
+        .mockResolvedValue(
+          delivery(
+            [occurrence('occ-1'), occurrence('occ-2', 'FULFILLED')],
+            1,
+            now,
+          ),
+        ),
+      applyDeliveryRevalidation: jest.fn(),
+      skipClaimedDeliveryBeforeRetry: jest.fn().mockResolvedValue(true),
+    };
+    const service = new ReminderDeliveryRevalidationService(
+      repository as never,
+    );
+    await expect(
+      service.revalidate('tenant-1', 'delivery-1', now),
+    ).resolves.toMatchObject({
+      status: 'SKIPPED',
+      reason: 'NO_LONGER_ELIGIBLE',
+    });
+    expect(repository.skipClaimedDeliveryBeforeRetry).toHaveBeenCalledWith(
+      expect.objectContaining({
+        tenantId: 'tenant-1',
+        deliveryId: 'delivery-1',
+        token: 'lease-token',
+      }),
+    );
     expect(repository.applyDeliveryRevalidation).not.toHaveBeenCalled();
   });
 

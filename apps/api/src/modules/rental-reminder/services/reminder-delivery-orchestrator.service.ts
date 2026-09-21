@@ -15,11 +15,12 @@ export class ReminderDeliveryOrchestratorService {
 
   async claimNext(
     now: Date,
-    options: { tenantId?: string; leaseMs?: number } = {},
+    options: { tenantId?: string; deliveryId?: string; leaseMs?: number } = {},
   ) {
     const token = randomUUID();
     const claimed = await this.repository.claimReadyDelivery({
       tenantId: options.tenantId,
+      deliveryId: options.deliveryId,
       now,
       token,
       lockedUntil: new Date(

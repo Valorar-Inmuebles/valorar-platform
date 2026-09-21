@@ -2,7 +2,7 @@
 
 ## Estado
 
-Versión: Foundation v1 + Auth Foundation Fase 1 + Property Domain v1 + Rental Management A+B+B.1+V1.1 Fases 1–3 + Communications C1/C2
+Versión: Foundation v1 + Auth Foundation Fase 1 + Property Domain v1 + Rental Management A+B+B.1+V1.1 Fases 1–3 + Communications C1/C2/C3A
 
 Base de datos:
 
@@ -13,7 +13,7 @@ Auth Foundation Fase 1: migrado (`20260616125024_auth_foundation`).
 
 Dominio Property: migrado (`202606150001_property_foundation`, `202606150002_property_location_v1_1`).
 
-Rental Management: A, B, B.1, V1.1 Fases 1–3 y Communications C1/C2 implementadas en development. C3–C4 continúan pendientes; C2 no requirió cambios de schema ni una migración nueva.
+Rental Management: A, B, B.1, V1.1 Fases 1–3 y Communications C1/C2/C3A implementadas en development. C3B–C4 continúan pendientes; C2/C3A no requirieron cambios de schema ni una migración nueva.
 
 ---
 
@@ -258,6 +258,25 @@ deliveries quedan `PENDING` con contenido lógico todavía no renderizado y
 
 No hay adapter, provider call, template final, attempt real, webhook HTTP,
 scheduler productivo ni capacidad de marcar mensajes como `SENT`.
+
+## Rental Communications C3A
+
+C3A utiliza sin cambios el schema y la migración C1. Email se procesa mediante
+un adapter MailerSend sobre el puerto provider-agnostic: el primer attempt
+congela subject, body, template/version y contenido funcional; cada resultado
+actualiza attempt/delivery en una transacción y los retries reutilizan el
+snapshot congelado. Los leases vencidos cierran el attempt `PROCESSING` con un
+error técnico sanitizado antes de habilitar otro.
+
+Una aceptación HTTP de MailerSend persiste `providerMessageId` y avanza a
+`SENT`; `DELIVERED`/`READ` sólo avanzan mediante webhook verificado. Los
+receipts se deduplican por la constraint C1, derivan tenant/delivery desde el
+mensaje externo y sólo guardan metadata normalizada más digest SHA-256, nunca
+el payload crudo. Las credenciales y el secreto HMAC permanecen exclusivamente
+en environment/secret store.
+
+No se agregó scheduler productivo, procesamiento masivo, endpoint “enviar
+ahora”, Meta/WhatsApp, SMS, Admin ni migración.
 
 ---
 
