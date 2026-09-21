@@ -19,9 +19,11 @@ Plataforma SaaS inmobiliaria multi-tenant orientada a:
 
 **Rental Management V1 — Migraciones A+B + refinamiento B.1** ✅ (baseline consolidado y versionado)
 
-**Rental Management V1.1 — Fases 1–3 + UI Foundation Fase 4 + Fases 5A–5E** ✅ (wizard completo hasta configuración previa de avisos; Migración C no iniciada)
+**Rental Management V1.1 — Fases 1–3 + UI Foundation Fase 4 + Fases 5A–5E** ✅ (wizard completo hasta configuración previa de avisos)
 
-Documentación: `docs/04-modules/rental-management-v1.md`, `docs/03-database/rental-domain.md`
+**Rental Communications V1 — C0** ✅ diseño canónico documentado; Migración C/C1 no iniciada.
+
+Documentación: `docs/04-modules/rental-management-v1.md`, `docs/04-modules/rental-communications-v1.md`, `docs/03-database/rental-domain.md`
 
 **Fase 6 — Plataforma (Super Admin)** ✅
 
@@ -371,6 +373,17 @@ Documentación: `docs/04-modules/rental-management-v1.md`, `PROJECT_STATE.md`.
 * No hubo cambios de schema, migraciones ni dominio; Migración C continúa no iniciada.
 
 Documentación: `docs/04-modules/rental-management-v1.md`, `PROJECT_STATE.md`.
+
+### Rental Communications V1 — C0 ✅
+
+* Arquitectura canónica provider-agnostic: policy tenant-wide → planner → dispatch agrupado → deliveries independientes por canal → attempts → adapters.
+* Email/MailerSend y WhatsApp/Meta Cloud API son los canales/providers iniciales planificados; SMS y overrides por contrato quedan diferidos.
+* Elegibilidad, bloqueos previos al provider, agrupación, idempotencia DB, leases, revalidación, snapshots y retries quedaron definidos.
+* Planner y delivery processing permanecen separados; el repositorio no tiene scheduler/queue/worker versionado y el mecanismo de ejecución desplegado continúa abierto.
+* Seguridad multi-tenant, RBAC futuro, secretos, webhooks, observabilidad, Admin y fases C1–C4 quedaron especificados.
+* No hubo cambios de schema, migraciones, API, Admin, RBAC, dependencias ni datos. Migración C/C1 no fue iniciada.
+
+Documentación: `docs/04-modules/rental-communications-v1.md`, `docs/04-modules/rental-management-v1.md`, `docs/03-database/rental-domain.md`.
 
 ### Lead Domain v1 (documentado)
 

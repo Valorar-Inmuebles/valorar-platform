@@ -2,7 +2,7 @@
 
 Versión: V1.1
 
-Estado: **implementación parcial**. A, B, B.1 y Rental V1.1 Fases 1–3 están implementados. Migración C no fue iniciada.
+Estado: **implementación parcial**. A, B, B.1 y Rental V1.1 Fases 1–3 están implementados. Communications V1 C0 está documentado; Migración C no fue iniciada.
 
 Reglas funcionales canónicas: `docs/04-modules/rental-management-v1.md`.
 
@@ -359,17 +359,17 @@ La moneda queda fijada para el flujo ordinario de revisiones. Un cambio de moned
 
 **IMPLEMENTADO en Fase 2**: historial append-only de valores de la obligación `RENT`.
 
-| Campo                    | Tipo conceptual     | Regla                                   |
-| ------------------------ | ------------------- | --------------------------------------- |
-| `id`                     | String              | `cuid`                                  |
-| `tenantId`               | String              | Obligatorio                             |
-| `obligationId`           | String              | Debe apuntar a la obligación `RENT`     |
-| `effectiveFrom`          | `DateTime @db.Date` | Primer período/fecha efectiva           |
-| `amount`                 | Decimal(14,2)       | Mayor que cero                          |
-| `currency`               | Currency            | Igual a la moneda contractual ordinaria |
-| `recordedById`           | String?             | Usuario que registró el cambio          |
-| `reason`                 | String?             | Motivo opcional                         |
-| `createdAt`              | DateTime            | Auditoría                               |
+| Campo           | Tipo conceptual     | Regla                                   |
+| --------------- | ------------------- | --------------------------------------- |
+| `id`            | String              | `cuid`                                  |
+| `tenantId`      | String              | Obligatorio                             |
+| `obligationId`  | String              | Debe apuntar a la obligación `RENT`     |
+| `effectiveFrom` | `DateTime @db.Date` | Primer período/fecha efectiva           |
+| `amount`        | Decimal(14,2)       | Mayor que cero                          |
+| `currency`      | Currency            | Igual a la moneda contractual ordinaria |
+| `recordedById`  | String?             | Usuario que registró el cambio          |
+| `reason`        | String?             | Motivo opcional                         |
+| `createdAt`     | DateTime            | Auditoría                               |
 
 Constraints mínimos:
 
@@ -468,23 +468,22 @@ Constraints mínimos:
 
 `Notification` no reemplaza toast ni historial contractual.
 
-## 17. Migración C: ejecución de comunicaciones
+## 17. Communications V1 / Migración C
 
-**NO INICIADA / DEFER hasta completar el refactor posterior a B.1**.
+**C0 DOCUMENTADO / MIGRACIÓN C NO INICIADA**.
 
-Migración C cubrirá, en una especificación e implementación separadas:
+La especificación canónica implementable vive en
+`docs/04-modules/rental-communications-v1.md`. Define:
 
-- anticipación y horario;
-- repetición;
-- templates;
-- planner;
-- dispatch;
-- delivery;
-- proveedores;
-- callbacks;
-- idempotencia y retries de envío.
+- policy tenant-wide con timezone existente;
+- elegibilidad, bloqueos de planificación y agrupación;
+- planner separado del procesamiento de deliveries;
+- dispatch N:M occurrences, delivery independiente por canal y attempts auditados;
+- claves determinísticas, constraints, leases y revalidación pre-envío;
+- snapshots, retries, adapters MailerSend/Meta y webhooks;
+- seguridad, RBAC, secretos, observabilidad y fases C1–C4.
 
-Antes de C sólo se implementarán las partes, rutas, canales, punto seleccionado y flags de contenido definidos en este documento. No se agregan ahora tablas de ejecución de comunicaciones al schema actual.
+No se agregaron tablas ni enums al schema vigente. Email y WhatsApp son los canales operativos planificados; SMS y el override por contrato quedan diferidos. Las partes, rutas, ContactPoint y flags ya implementados continúan siendo la fuente de verdad.
 
 ## 18. Enums
 
@@ -546,13 +545,20 @@ RentalContractEventType
   RENEWED
 ```
 
-### Aprobados / pendientes
+### Diseñados / pendientes de Migración C
 
 ```txt
-Los enums de `Notification` y de Migración C permanecen pendientes.
+RentalReminderEventType
+RentalReminderDispatchStatus
+RentalReminderDeliveryStatus
+RentalReminderAttemptStatus
+RentalReminderPlanningIssueType
+RentalReminderWebhookReceiptStatus
 ```
 
-Los enums de planner, dispatch, delivery y proveedores pertenecen a Migración C y no forman parte del baseline ni del refactor previo.
+Los valores y transiciones canónicos están en
+`docs/04-modules/rental-communications-v1.md`. `Notification` conserva su diseño
+global aprobado/pendiente. Ninguno de estos enums forma parte del schema actual.
 
 ## 19. Invariantes multi-tenant
 
@@ -592,11 +598,15 @@ Además de los índices implementados, el diseño objetivo requiere:
 | Ruta por canal             | `UNIQUE (contractPartyId, channel)`                           |
 | Revisión efectiva          | `UNIQUE (obligationId, effectiveFrom)`                        |
 | Occurrence por período     | `UNIQUE (obligationId, periodKey)`                            |
-| Historial por contrato     | `(tenantId, contractId, occurredAt DESC)`                    |
-| Historial por tipo         | `(tenantId, contractId, type, occurredAt DESC)`              |
+| Historial por contrato     | `(tenantId, contractId, occurredAt DESC)`                     |
+| Historial por tipo         | `(tenantId, contractId, type, occurredAt DESC)`               |
 | Notificación idempotente   | `UNIQUE (tenantId, recipientUserId, deduplicationKey)`        |
 
 La regla “exactamente un renter principal” para contratos activos necesita además validación transaccional, porque un índice parcial sólo garantiza el máximo.
+
+Los constraints futuros de Communications —group key, delivery por canal,
+attempt ordinal, provider message y webhook event— se especifican sin
+implementarse en `docs/04-modules/rental-communications-v1.md`.
 
 ## 22. Backfills
 
@@ -627,9 +637,10 @@ El orden exacto se resolverá en planes de implementación separados, respetando
 2. **Fase 2 implementada**: experiencia `RENT`, revisiones, reglas de occurrences, obligaciones adicionales y flags de aviso;
 3. **Fase 3 implementada**: historial contractual y APIs/read models operativos;
 4. notificaciones internas globales;
-5. Migración C de ejecución de comunicaciones.
+5. **C0 documentado**: arquitectura canónica de Communications V1;
+6. **C1–C4 pendientes**: persistencia, planner, providers/webhooks y Admin.
 
-Los puntos 4 y 5 no están implementados por la sola existencia de esta documentación.
+Los puntos 4 y 6 no están implementados por la sola existencia de esta documentación.
 
 ## 24. Decisiones diferidas
 
@@ -640,4 +651,5 @@ Los puntos 4 y 5 no están implementados por la sola existencia de esta document
 - preferencias personales de notificación;
 - portal externo de partes;
 - firma y storage de documentos;
-- ejecución de comunicaciones hasta Migración C.
+- ejecución de Communications V1 hasta iniciar C1;
+- SMS y override de policy por contrato;

@@ -2,7 +2,7 @@
 
 Versión: V1.1
 
-Estado: **implementación parcial**. A, B, B.1, Rental V1.1 Fases 1–3 y Fases 5A–5E (Resumen, Listado y wizard completo hasta configuración previa de avisos) están implementados. Migración C no fue iniciada.
+Estado: **implementación parcial**. A, B, B.1, Rental V1.1 Fases 1–3 y Fases 5A–5E (Resumen, Listado y wizard completo hasta configuración previa de avisos) están implementados. Communications V1 C0 está documentado; Migración C no fue iniciada.
 
 Diseño de datos canónico: `docs/03-database/rental-domain.md`.
 
@@ -336,17 +336,10 @@ Backfill conservador:
 
 Antes de Migración C sólo se consolidarán partes, rutas, canales, punto seleccionado, obligaciones incluidas y visibilidad del importe.
 
-**DEFER a Migración C**:
-
-- anticipación;
-- horario;
-- repetición;
-- templates;
-- planner;
-- dispatch;
-- delivery;
-- proveedores;
-- callbacks.
+Communications V1 C0 ya define canónicamente anticipación, horario, planner,
+agrupación, dispatch, delivery, retries, adapters y callbacks en
+`rental-communications-v1.md`. Esa definición es sólo documental: schema,
+ejecución y proveedores continúan pendientes de C1–C4.
 
 La persistencia de rutas de B.1 y los flags por obligación de Fase 2 están **IMPLEMENTADOS**. No existe todavía envío de mensajes.
 
@@ -492,10 +485,14 @@ Los mockups visuales existen externamente y se proporcionarán durante los gates
 
 - notificaciones internas globales;
 - permisos pendientes.
+- Communications V1 C0 documentado, sin implementación.
 
 ### 17.3 Migración C
 
-**NO INICIADA**. Contendrá el sistema de ejecución de avisos y comunicaciones sólo después de consolidar el refactor aprobado anterior.
+**NO INICIADA**. Su arquitectura canónica, modelos propuestos, idempotencia,
+planner, providers, webhooks y fases C1–C4 están definidos en
+`docs/04-modules/rental-communications-v1.md`. C0 no modificó schema,
+migraciones, API, Admin, RBAC ni datos.
 
 ## 18. Criterios de aceptación documental V1.1
 
@@ -510,7 +507,7 @@ La especificación queda consistente cuando:
 7. configuración previa a C se separa del envío de comunicaciones;
 8. renovación crea un contrato nuevo y evita sucesores duplicados;
 9. `Notification`, historial y toast permanecen conceptualmente separados;
-10. Migración C continúa explícitamente no iniciada.
+10. Communications C0 está documentado y Migración C continúa explícitamente no iniciada.
 
 ## 19. Decisiones diferidas
 
@@ -518,8 +515,9 @@ La especificación queda consistente cuando:
 - actualización automática por IPC o ICL;
 - cambio ordinario de moneda;
 - asignación de contratos por agente;
-- anticipación, horarios, repetición y templates de avisos;
-- planner, dispatch, delivery, proveedores y callbacks;
+- ejecución de C1–C4;
+- SMS y override de policy por contrato;
+- mecanismo desplegado del runner y alcance platform-wide/tenant-specific de credenciales;
 - preferencias personales de notificación;
 - portal de inquilinos o propietarios;
 - firma digital y almacenamiento de documentos legales.
