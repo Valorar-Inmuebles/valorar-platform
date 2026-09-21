@@ -65,7 +65,7 @@ export function DashboardRecentActivity({ items }: DashboardRecentActivityProps)
             Sin actividad reciente. Creá una propiedad o completá el catálogo.
           </p>
         ) : (
-          <ol className="divide-y divide-border/70">
+          <ol className="divide-y divide-border">
             {items.map((item) => (
               <li key={item.id} className="px-5 py-3.5">
                 <div className="flex items-start gap-3">

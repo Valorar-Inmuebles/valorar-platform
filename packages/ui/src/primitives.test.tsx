@@ -1,6 +1,11 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
-import { AdminTable, AdminTableHead, AdminTableHeader } from "./admin-table";
+import {
+  AdminTable,
+  AdminTableHead,
+  AdminTableHeader,
+  AdminTableRow,
+} from "./admin-table";
 import { Button } from "./button";
 import { CardContent } from "./card";
 import { DatePicker } from "./date-picker";
@@ -110,6 +115,13 @@ describe("shared primitives semantics", () => {
     );
     expect(integratedHtml).not.toContain("rounded-xl");
     expect(integratedHtml).not.toContain("border-border");
+  });
+
+  it("uses the neutral surface token for administrative row hover", () => {
+    const html = renderToStaticMarkup(<AdminTableRow />);
+
+    expect(html).toContain("hover:bg-surface-alt");
+    expect(html).not.toContain("hover:bg-surface-alt/70");
   });
 
   it("renders card content flush without residual padding utilities", () => {

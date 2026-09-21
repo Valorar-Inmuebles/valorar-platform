@@ -68,14 +68,14 @@ export function DashboardAttentionAlertsPanel({
             Todo en orden. No hay alertas pendientes.
           </p>
         ) : (
-          <ul className="divide-y divide-border/70">
+          <ul className="divide-y divide-border">
             {visibleAlerts.map((item) => (
               <li key={item.key}>
                 <Link
                   href={buildAttentionListHref(item.attentionFilter)}
                   className={cn(
                     "flex items-center justify-between gap-3 px-5 py-3.5 text-sm transition",
-                    "hover:bg-surface-alt/70",
+                    "hover:bg-surface-alt",
                   )}
                 >
                   <span className="flex min-w-0 items-center gap-2.5 text-foreground">

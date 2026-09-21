@@ -139,7 +139,7 @@ export function PropertyPriceTable({
                   return (
                     <tr
                       key={price.id}
-                      className="border-b border-border last:border-b-0 hover:bg-zinc-50/80"
+                      className="border-b border-border last:border-b-0 hover:bg-surface-alt"
                     >
                       <td className="px-4 py-3 font-medium text-foreground">
                         {price.currency}

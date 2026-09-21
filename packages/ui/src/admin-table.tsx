@@ -66,7 +66,7 @@ export function AdminTableRow({
 }: HTMLAttributes<HTMLTableRowElement>) {
   return (
     <tr
-      className={cn("transition-colors hover:bg-surface-alt/70", className)}
+      className={cn("transition-colors hover:bg-surface-alt", className)}
       {...props}
     />
   );

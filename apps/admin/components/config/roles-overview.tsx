@@ -91,7 +91,7 @@ function PermissionGroupRows({
 }) {
   return (
     <>
-      <tr className="bg-surface-alt/70">
+      <tr className="bg-surface-alt">
         <th
           scope="colgroup"
           colSpan={1 + TENANT_ROLES.length}
@@ -101,7 +101,7 @@ function PermissionGroupRows({
         </th>
       </tr>
       {group.permissions.map((permission) => (
-        <tr key={permission} className="hover:bg-zinc-50/80">
+        <tr key={permission} className="hover:bg-surface-alt">
           <th
             scope="row"
             className="sticky left-0 z-10 max-w-[14rem] border-r border-border bg-white px-4 py-2.5 text-left font-medium text-foreground"
