@@ -361,7 +361,7 @@ describe('validateDryRunReportForImport', () => {
         featureNames: [],
       },
     });
-    // Fingerprint matches forged payload � report-only check passes.
+    // Fingerprint matches forged payload — report-only check passes.
     expect(
       validateDryRunReportForImport({
         report: forged,
@@ -523,7 +523,7 @@ describe('live fingerprint recompute (independent of report blob)', () => {
     ).toBe(true);
 
     const live = liveFromReport(forged);
-    // Live transform still says LAND/Lote � must not match forged fingerprint.
+    // Live transform still says LAND/Lote — must not match forged fingerprint.
     const check = assertLiveFingerprintMatchesApprovedReport({
       approvedFingerprint: forged.reportFingerprint,
       live,
