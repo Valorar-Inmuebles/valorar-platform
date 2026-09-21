@@ -3,20 +3,20 @@
 @source "../../../packages/ui/src";
 
 :root {
-  --surface-base: #faf9f7;
-  --surface-alt: #f6f4ef;
+  --surface-base: #ffffff;
+  --surface-alt: #f9fafb;
   --surface-card: #ffffff;
 
   --brand-green: #15361e;
   --brand-orange: #ee680f;
 
-  --border-warm: #ece8df;
+  --border-neutral: #e5e7eb;
 
   --background: var(--surface-card);
   --foreground: #1f2937;
   --surface: var(--surface-card);
   --muted: #6b7280;
-  --border: var(--border-warm);
+  --border: var(--border-neutral);
 
   --sidebar-background: var(--brand-green);
   --sidebar-foreground: #faf9f7;

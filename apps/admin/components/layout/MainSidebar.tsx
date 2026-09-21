@@ -208,8 +208,8 @@ export function MainSidebar({
       >
         <div
           className={cn(
-            "flex shrink-0 flex-col justify-center border-b border-sidebar-border",
-            isCollapsed ? "items-center px-2 py-3" : "px-3 py-3",
+            "flex h-header shrink-0 flex-col justify-center border-b border-border",
+            isCollapsed ? "items-center px-2" : "px-3",
           )}
         >
           {isCollapsed ? (

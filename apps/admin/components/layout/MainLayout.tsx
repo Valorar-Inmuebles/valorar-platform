@@ -34,7 +34,7 @@ export function MainLayout({
         />
 
         <div className="flex min-w-0 flex-1 flex-col">
-          <div className="sticky top-0 z-30 border-b border-border/60 bg-surface-base/85 backdrop-blur-xl supports-[backdrop-filter]:bg-surface-base/75">
+          <div className="sticky top-0 z-30 bg-surface-base/85 backdrop-blur-xl supports-[backdrop-filter]:bg-surface-base/75">
             <MainHeader
               user={session.user}
               activeTenantId={activeTenantId}
@@ -42,7 +42,7 @@ export function MainLayout({
             />
           </div>
 
-          <main className="min-h-[calc(100vh-3.25rem)] flex-1 px-4 py-5 sm:px-6 lg:px-8 lg:py-8">
+          <main className="min-h-[calc(100vh_-_var(--header-height))] flex-1 px-4 py-5 sm:px-6 lg:px-8 lg:py-8">
             {children}
           </main>
         </div>
