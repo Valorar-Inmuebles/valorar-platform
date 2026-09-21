@@ -320,4 +320,112 @@ describe('RentalReminderRepository tenant isolation', () => {
       data: { status: 'RESOLVED', resolvedAt: detectedAt },
     });
   });
+
+  it('does not degrade READ with a late DELIVERED webhook', async () => {
+    const tx = {
+      rentalReminderDelivery: {
+        findFirst: jest.fn().mockResolvedValue({
+          id: 'delivery-1',
+          tenantId: 'tenant-1',
+          dispatchId: 'dispatch-1',
+          status: 'READ',
+          attempts: [{ id: 'attempt-1' }],
+        }),
+        update: jest.fn(),
+      },
+      rentalReminderWebhookReceipt: {
+        createMany: jest.fn().mockResolvedValue({ count: 1 }),
+      },
+    };
+    const repository = new RentalReminderRepository({
+      $transaction: (callback: (client: typeof tx) => unknown) => callback(tx),
+    } as never);
+    await expect(
+      repository.applyProviderWebhook({
+        providerKey: 'meta-whatsapp',
+        providerAccountKey: 'platform-default',
+        providerEventKey: 'event-1',
+        providerMessageId: 'wamid.1',
+        eventType: 'delivered',
+        providerOccurredAt: new Date('2026-10-10T13:00:00.000Z'),
+        payloadDigest: 'a'.repeat(64),
+        targetStatus: 'DELIVERED',
+        processedAt: new Date('2026-10-10T13:01:00.000Z'),
+      }),
+    ).resolves.toEqual({ status: 'IGNORED' });
+    expect(tx.rentalReminderDelivery.update).not.toHaveBeenCalled();
+  });
+
+  it('ignores a late FAILED webhook after DELIVERED', async () => {
+    const tx = {
+      rentalReminderDelivery: {
+        findFirst: jest.fn().mockResolvedValue({
+          id: 'delivery-1',
+          tenantId: 'tenant-1',
+          dispatchId: 'dispatch-1',
+          status: 'DELIVERED',
+          attempts: [{ id: 'attempt-1' }],
+        }),
+        update: jest.fn(),
+      },
+      rentalReminderWebhookReceipt: {
+        createMany: jest.fn().mockResolvedValue({ count: 1 }),
+      },
+    };
+    const repository = new RentalReminderRepository({
+      $transaction: (callback: (client: typeof tx) => unknown) => callback(tx),
+    } as never);
+    await expect(
+      repository.applyProviderWebhook({
+        providerKey: 'meta-whatsapp',
+        providerAccountKey: 'platform-default',
+        providerEventKey: 'event-2',
+        providerMessageId: 'wamid.1',
+        eventType: 'failed',
+        providerOccurredAt: new Date('2026-10-10T13:00:00.000Z'),
+        payloadDigest: 'b'.repeat(64),
+        targetStatus: 'FAILED',
+        errorCategory: 'RECIPIENT_REJECTED',
+        errorCode: 'META_131026',
+        errorMessage: 'Terminal failure.',
+        processedAt: new Date('2026-10-10T13:01:00.000Z'),
+      }),
+    ).resolves.toEqual({ status: 'IGNORED' });
+    expect(tx.rentalReminderDelivery.update).not.toHaveBeenCalled();
+  });
+
+  it('deduplicates provider events before changing delivery state', async () => {
+    const tx = {
+      rentalReminderDelivery: {
+        findFirst: jest.fn().mockResolvedValue({
+          id: 'delivery-1',
+          tenantId: 'tenant-1',
+          dispatchId: 'dispatch-1',
+          status: 'SENT',
+          attempts: [{ id: 'attempt-1' }],
+        }),
+        update: jest.fn(),
+      },
+      rentalReminderWebhookReceipt: {
+        createMany: jest.fn().mockResolvedValue({ count: 0 }),
+      },
+    };
+    const repository = new RentalReminderRepository({
+      $transaction: (callback: (client: typeof tx) => unknown) => callback(tx),
+    } as never);
+    await expect(
+      repository.applyProviderWebhook({
+        providerKey: 'meta-whatsapp',
+        providerAccountKey: 'platform-default',
+        providerEventKey: 'event-3',
+        providerMessageId: 'wamid.1',
+        eventType: 'delivered',
+        providerOccurredAt: null,
+        payloadDigest: 'c'.repeat(64),
+        targetStatus: 'DELIVERED',
+        processedAt: new Date('2026-10-10T13:01:00.000Z'),
+      }),
+    ).resolves.toEqual({ status: 'DUPLICATE' });
+    expect(tx.rentalReminderDelivery.update).not.toHaveBeenCalled();
+  });
 });

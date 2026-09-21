@@ -11,8 +11,15 @@ import { ReminderEmailProcessorService } from '../src/modules/rental-reminder/se
 import { RentalReminderEmailRenderer } from '../src/modules/rental-reminder/templates/rental-reminder-email.renderer';
 import { MailerSendAdapter } from '../src/modules/rental-reminder/providers/mailersend.adapter';
 import { mailerSendConfigurationPresence } from '../src/modules/rental-reminder/config/mailersend.config';
+import {
+  metaWhatsAppConfigurationPresence,
+  normalizeMetaWhatsAppAddress,
+} from '../src/modules/rental-reminder/config/meta-whatsapp.config';
+import { MetaWhatsAppAdapter } from '../src/modules/rental-reminder/providers/meta-whatsapp.adapter';
+import { ReminderWhatsAppProcessorService } from '../src/modules/rental-reminder/services/reminder-whatsapp-processor.service';
+import { RentalReminderWhatsAppRenderer } from '../src/modules/rental-reminder/templates/rental-reminder-whatsapp.renderer';
 
-type Command = 'planner' | 'claim' | 'email';
+type Command = 'planner' | 'claim' | 'email' | 'whatsapp';
 
 @Module({
   imports: [PrismaModule],
@@ -42,8 +49,8 @@ function parseNow() {
 
 async function main() {
   const command = process.argv[2] as Command | undefined;
-  if (!command || !['planner', 'claim', 'email'].includes(command))
-    fail('Expected planner, claim or email.');
+  if (!command || !['planner', 'claim', 'email', 'whatsapp'].includes(command))
+    fail('Expected planner, claim, email or whatsapp.');
 
   const apply = process.argv.includes('--apply');
   if (command === 'claim' && !apply)
@@ -109,6 +116,88 @@ async function main() {
       if (!allowed || allowed.toLowerCase() !== destination.toLowerCase())
         fail('Destination is not MAILERSEND_DEVELOPMENT_ALLOWED_RECIPIENT.');
       const result = await processor.processOne(tenantId, deliveryId, now);
+      process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
+      return;
+    }
+    if (command === 'whatsapp') {
+      const tenantId = option('tenant-id');
+      const deliveryId = option('delivery-id');
+      const templateName = option('template-name');
+      const templateLanguage = option('template-language');
+      const parameterMode = option('template-parameters')?.toLowerCase();
+      if (!tenantId || !deliveryId)
+        fail('WhatsApp requires --tenant-id and --delivery-id.');
+      if (!templateName || !/^[a-z][a-z0-9_]*$/.test(templateName))
+        fail('WhatsApp requires a valid --template-name.');
+      if (
+        !templateLanguage ||
+        !/^[a-z]{2,3}(?:_[A-Z]{2})?$/.test(templateLanguage)
+      )
+        fail('WhatsApp requires a valid --template-language.');
+      if (!parameterMode || !['none', 'rental-v1'].includes(parameterMode))
+        fail('WhatsApp requires --template-parameters=none or rental-v1.');
+      const template = {
+        name: templateName,
+        languageCode: templateLanguage,
+        parameterMode:
+          parameterMode === 'rental-v1'
+            ? ('RENTAL_V1' as const)
+            : ('NONE' as const),
+      };
+      const processor = new ReminderWhatsAppProcessorService(
+        repository,
+        orchestrator,
+        new RentalReminderWhatsAppRenderer(),
+        new MetaWhatsAppAdapter(),
+      );
+      const preview = await processor.preview(tenantId, deliveryId, template);
+      if (!preview)
+        fail('No pending WHATSAPP delivery matched the requested IDs.');
+      const destination = normalizeMetaWhatsAppAddress(
+        preview.delivery.destinationSnapshot,
+      ).e164;
+      const masked = `${destination.slice(0, 3)}${'*'.repeat(
+        Math.max(4, destination.length - 7),
+      )}${destination.slice(-4)}`;
+      process.stdout.write(
+        `${JSON.stringify(
+          {
+            mode: apply ? 'send-ready' : 'dry-run',
+            tenantId,
+            deliveryId,
+            dispatchId: preview.delivery.dispatchId,
+            contractId: preview.delivery.dispatch.contractId,
+            contractNumber: preview.delivery.dispatch.contract.internalNumber,
+            channel: preview.delivery.channel,
+            destination: masked,
+            template: template.name,
+            language: template.languageCode,
+            parameters: preview.rendered.parameters,
+            state: 'PENDING',
+          },
+          null,
+          2,
+        )}\n`,
+      );
+      if (!process.argv.includes('--send')) return;
+      if (!apply) fail('Real WhatsApp requires both --apply and --send.');
+      const presence = metaWhatsAppConfigurationPresence();
+      if (Object.values(presence).some((value) => !value))
+        fail('Meta WhatsApp provider configuration is incomplete.');
+      const allowed = process.env.META_WHATSAPP_DEVELOPMENT_ALLOWED_RECIPIENT;
+      if (
+        !allowed ||
+        normalizeMetaWhatsAppAddress(allowed).e164 !== destination
+      )
+        fail(
+          'Destination is not the development WhatsApp allowlisted recipient.',
+        );
+      const result = await processor.processOne(
+        tenantId,
+        deliveryId,
+        now,
+        template,
+      );
       process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
       return;
     }

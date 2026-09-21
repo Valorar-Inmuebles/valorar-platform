@@ -59,6 +59,7 @@ model Tenant {
   rentalReminderDeliveries              RentalReminderDelivery[]
   rentalReminderDeliveryAttempts        RentalReminderDeliveryAttempt[]
   rentalReminderWebhookReceipts         RentalReminderWebhookReceipt[]
+  communicationInboundMessages          CommunicationInboundMessage[]
 }
 
 enum UserRole {
@@ -932,7 +933,9 @@ model Contact {
 
   contactPoints         ContactPoint[]
   rentalContractParties RentalContractParty[]
+  inboundMessages       CommunicationInboundMessage[]
 
+  @@unique([tenantId, id])
   @@index([tenantId, name])
   @@index([tenantId, isActive])
   @@index([tenantId, documentNumber])
@@ -961,7 +964,9 @@ model ContactPoint {
   updatedAt DateTime @updatedAt
 
   rentalContractNotificationRoutes RentalContractNotificationRoute[]
+  inboundMessages                  CommunicationInboundMessage[]
 
+  @@unique([tenantId, id])
   @@index([tenantId, contactId])
   @@index([tenantId, type, normalizedValue])
   @@index([contactId, type, isDefault])
@@ -1044,6 +1049,7 @@ model RentalContract {
   parties            RentalContractParty[]
   events             RentalContractEvent[]
   reminderDispatches RentalReminderDispatch[]
+  inboundMessages    CommunicationInboundMessage[]
 
   @@unique([tenantId, id])
   @@unique([tenantId, internalNumber])
@@ -1375,6 +1381,7 @@ model RentalReminderDelivery {
 
   attempts        RentalReminderDeliveryAttempt[]
   webhookReceipts RentalReminderWebhookReceipt[]
+  inboundMessages CommunicationInboundMessage[]
 
   @@unique([tenantId, id])
   @@unique([tenantId, deliveryKey])
@@ -1446,6 +1453,42 @@ model RentalReminderWebhookReceipt {
   @@index([tenantId, deliveryId, receivedAt(sort: Desc)])
   @@index([tenantId, attemptId])
   @@index([providerKey, providerAccountKey, providerMessageId])
+}
+
+model CommunicationInboundMessage {
+  id String @id @default(cuid())
+
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  providerKey        String
+  providerAccountKey String
+  channel            NotificationChannel @default(WHATSAPP)
+  providerMessageId  String
+  senderAddress      String
+  messageType        String
+  body               String?             @db.Text
+  metadata           Json?
+  receivedAt         DateTime
+  createdAt          DateTime            @default(now())
+
+  contactPointId String?
+  contactPoint   ContactPoint? @relation(fields: [tenantId, contactPointId], references: [tenantId, id], onDelete: Restrict)
+
+  contactId String?
+  contact   Contact? @relation(fields: [tenantId, contactId], references: [tenantId, id], onDelete: Restrict)
+
+  contractId String?
+  contract   RentalContract? @relation(fields: [tenantId, contractId], references: [tenantId, id], onDelete: Restrict)
+
+  deliveryId String?
+  delivery   RentalReminderDelivery? @relation(fields: [tenantId, deliveryId], references: [tenantId, id], onDelete: Restrict)
+
+  @@unique([providerKey, providerAccountKey, providerMessageId])
+  @@index([tenantId, receivedAt(sort: Desc)])
+  @@index([tenantId, contactId, receivedAt(sort: Desc)])
+  @@index([tenantId, contractId, receivedAt(sort: Desc)])
+  @@index([tenantId, deliveryId])
 }
 
 model RentalFulfillment {

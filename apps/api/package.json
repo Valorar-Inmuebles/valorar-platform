@@ -28,6 +28,7 @@
     "db:dev:migrate:status": "tsx scripts/db-development.ts migrate-status",
     "db:dev:seed": "tsx scripts/db-development.ts seed",
     "db:dev:reminder-email": "tsx scripts/db-development.ts reminder-email",
+    "db:dev:reminder-whatsapp": "tsx scripts/db-development.ts reminder-whatsapp",
     "start:dev:database": "tsx scripts/db-development.ts api",
     "migration:houzez": "tsx scripts/houzez-migrate.ts",
     "migration:houzez:cleanup-demo": "tsx scripts/houzez-cleanup-demo-properties.ts",

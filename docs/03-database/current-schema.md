@@ -2,7 +2,7 @@
 
 ## Estado
 
-Versión: Foundation v1 + Auth Foundation Fase 1 + Property Domain v1 + Rental Management A+B+B.1+V1.1 Fases 1–3 + Communications C1/C2/C3A
+Versión: Foundation v1 + Auth Foundation Fase 1 + Property Domain v1 + Rental Management A+B+B.1+V1.1 Fases 1–3 + Communications C1/C2/C3A/C3B
 
 Base de datos:
 
@@ -13,7 +13,7 @@ Auth Foundation Fase 1: migrado (`20260616125024_auth_foundation`).
 
 Dominio Property: migrado (`202606150001_property_foundation`, `202606150002_property_location_v1_1`).
 
-Rental Management: A, B, B.1, V1.1 Fases 1–3 y Communications C1/C2/C3A implementadas en development. C3B–C4 continúan pendientes; C2/C3A no requirieron cambios de schema ni una migración nueva.
+Rental Management: A, B, B.1, V1.1 Fases 1–3 y Communications C1–C3B implementadas en development. C4 continúa pendiente. C3B agregó la migración `202609210002_rental_communications_c3b`.
 
 ---
 
@@ -229,7 +229,7 @@ RentalFulfillmentOrigin: ADMIN
 - Los eventos contractuales no tienen endpoints funcionales de edición o eliminación y se escriben dentro de la transacción del cambio auditado.
 - El próximo vencimiento prioriza occurrences `PENDING` de obligaciones activas con fecha conocida; las fechas pendientes ordenan detrás y nunca derivan `OVERDUE`.
 
-Migraciones: `202609090001_rental_foundation_a`, `202609090002_rental_obligation_engine_b`, `202609100001_rental_uat_refinement_b1`, `202609190001_rental_contract_identity_renewal_v1_1`, `202609190002_rental_rent_revision_obligation_rules_v1_1`, `202609190003_rental_history_operational_read_models_v1_1`, `202609210001_rental_communications_c1`.
+Migraciones: `202609090001_rental_foundation_a`, `202609090002_rental_obligation_engine_b`, `202609100001_rental_uat_refinement_b1`, `202609190001_rental_contract_identity_renewal_v1_1`, `202609190002_rental_rent_revision_obligation_rules_v1_1`, `202609190003_rental_history_operational_read_models_v1_1`, `202609210001_rental_communications_c1`, `202609210002_rental_communications_c3b`.
 
 ## Rental Communications C1
 
@@ -277,6 +277,27 @@ en environment/secret store.
 
 No se agregó scheduler productivo, procesamiento masivo, endpoint “enviar
 ahora”, Meta/WhatsApp, SMS, Admin ni migración.
+
+## Rental Communications C3B
+
+C3B incorpora Meta WhatsApp Cloud API y persistencia inbound mínima:
+
+- `CommunicationInboundMessage` pertenece obligatoriamente a un tenant y
+  deduplica por `(providerKey, providerAccountKey, providerMessageId)`;
+- conserva `channel = WHATSAPP`, remitente E.164, tipo, texto nullable, metadata
+  mínima, `receivedAt` y `createdAt`;
+- `contactPointId`, `contactId`, `contractId` y `deliveryId` son opcionales y sus
+  FKs compuestas impiden asociaciones cross-tenant;
+- Contact y ContactPoint agregan unique compuesto `(tenantId, id)` únicamente
+  para respaldar esas relaciones;
+- no existe backfill: la tabla se creó vacía y el historial comienza con eventos
+  reales posteriores a C3B;
+- no hay columnas para secretos, payload crudo, conversación, respuesta ni
+  interpretación semántica.
+
+El adapter outbound conserva template/configuración y render en el Delivery; los
+webhooks de status continúan usando `RentalReminderWebhookReceipt`. Un mensaje
+inbound nunca se almacena dentro de ese receipt.
 
 ---
 

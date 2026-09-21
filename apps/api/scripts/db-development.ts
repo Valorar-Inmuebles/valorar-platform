@@ -17,7 +17,8 @@ type SupportedCommand =
   | 'api'
   | 'reminder-planner'
   | 'reminder-claim'
-  | 'reminder-email';
+  | 'reminder-email'
+  | 'reminder-whatsapp';
 
 function readEnvironmentFile(path: string): Record<string, string> {
   return existsSync(path) ? parse(readFileSync(path)) : {};
@@ -41,6 +42,7 @@ function resolveCommand(command: string | undefined): SupportedCommand {
     'reminder-planner',
     'reminder-claim',
     'reminder-email',
+    'reminder-whatsapp',
   ];
   if (!command || !supported.includes(command as SupportedCommand)) {
     fail([
@@ -139,7 +141,8 @@ if (command === 'api') {
 if (
   command === 'reminder-planner' ||
   command === 'reminder-claim' ||
-  command === 'reminder-email'
+  command === 'reminder-email' ||
+  command === 'reminder-whatsapp'
 ) {
   runNodeCli(
     'tsx/cli',
@@ -149,7 +152,9 @@ if (
         ? 'planner'
         : command === 'reminder-claim'
           ? 'claim'
-          : 'email',
+          : command === 'reminder-email'
+            ? 'email'
+            : 'whatsapp',
       ...process.argv.slice(3),
     ],
     childEnvironment,

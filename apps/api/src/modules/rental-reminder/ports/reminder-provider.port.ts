@@ -1,6 +1,13 @@
 import type { NotificationChannel } from '../../../../generated/prisma/client';
 
 export const REMINDER_EMAIL_PROVIDER = Symbol('REMINDER_EMAIL_PROVIDER');
+export const REMINDER_WHATSAPP_PROVIDER = Symbol('REMINDER_WHATSAPP_PROVIDER');
+
+export type ReminderProviderTemplate = {
+  reference: string;
+  languageCode: string;
+  parameters: string[];
+};
 
 export type ReminderDeliverySnapshot = {
   deliveryId: string;
@@ -12,6 +19,7 @@ export type ReminderDeliverySnapshot = {
   templateKey: string;
   templateVersion: string;
   providerTemplateRef: string | null;
+  providerTemplate?: ReminderProviderTemplate | null;
 };
 
 export type ReminderProviderResult =

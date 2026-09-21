@@ -21,7 +21,7 @@ Plataforma SaaS inmobiliaria multi-tenant orientada a:
 
 **Rental Management V1.1 — Fases 1–3 + UI Foundation Fase 4 + Fases 5A–5E** ✅ (wizard completo hasta configuración previa de avisos)
 
-**Rental Communications V1 — C1–C2 + C3A** ✅ Persistence Foundation, planner/orquestación y provider Email/MailerSend implementados; C3B–C4 pendientes.
+**Rental Communications V1 — C1–C3B** ✅ Persistence Foundation, planner/orquestación, Email/MailerSend y Meta WhatsApp con inbound mínimo implementados; C4 pendiente.
 
 Documentación: `docs/04-modules/rental-management-v1.md`, `docs/04-modules/rental-communications-v1.md`, `docs/03-database/rental-domain.md`
 
@@ -442,8 +442,29 @@ Documentación: `docs/04-modules/rental-communications-v1.md`, `docs/04-modules/
   envío sólo con `--apply --send` más
   `MAILERSEND_DEVELOPMENT_ALLOWED_RECIPIENT` exacto. No existe scheduler
   productivo ni procesamiento masivo automático.
-* Sin cambios de schema/migración. C3B (Meta WhatsApp) y C4 permanecen
-  pendientes.
+* Sin cambios de schema/migración. C4 permanece pendiente.
+
+Documentación: `docs/04-modules/rental-communications-v1.md`, `docs/03-database/rental-domain.md`, `docs/03-database/current-schema.md`.
+
+### Rental Communications V1 — C3B ✅
+
+* Adapter HTTP Meta WhatsApp Cloud API detrás del puerto provider-agnostic,
+  template configurable por nombre/idioma/parámetros y aceptación normalizada a
+  `SENT` con `providerMessageId`.
+* Pipeline compartido `claim → revalidate → render → snapshot → Attempt → Meta`,
+  retries C2, clasificación sanitizada y runner development con allowlist,
+  dry-run por defecto y doble gate `--apply --send`.
+* Webhook dedicado GET/POST: challenge con verify token, HMAC SHA-256 sobre raw
+  body, scope WABA/Phone Number ID, deduplicación y estados monotónicos
+  `SENT/DELIVERED/READ/FAILED`.
+* Migración `202609210002_rental_communications_c3b` aplicada únicamente en
+  `rental-management-dev`: `CommunicationInboundMessage` tenant-scoped,
+  deduplicada y correlacionable opcionalmente con ContactPoint, Contact,
+  RentalContract y Delivery.
+* Inbound conserva texto y metadata mínima sin payload crudo ni descarga de
+  media; no responde, no interpreta, no crea fulfillments ni modifica contratos.
+* UI/Admin, scheduler productivo, activación externa del webhook y prueba real
+  WhatsApp quedan fuera del cierre técnico/operacional actual. C4 no fue iniciado.
 
 Documentación: `docs/04-modules/rental-communications-v1.md`, `docs/03-database/rental-domain.md`, `docs/03-database/current-schema.md`.
 

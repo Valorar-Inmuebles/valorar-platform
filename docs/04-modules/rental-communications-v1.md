@@ -1,6 +1,6 @@
 # Rental Communications V1
 
-Estado: **C3A — MailerSend Email implementado; C3B–C4 pendientes**.
+Estado: **C3A–C3B implementados; C4 pendiente**.
 
 Esta especificación define Communications V1 y registra su avance por fases. C1 ya implementa tablas y endpoints de lectura/policy; no implica que existan planner, procesos de ejecución, proveedores ni envíos. El schema vigente continúa documentado exclusivamente en `docs/03-database/current-schema.md`.
 
@@ -640,11 +640,51 @@ C3A no agrega schema/migración, scheduler productivo, consumo masivo, endpoint
 tenant “enviar ahora”, Admin ni Meta. La activación externa del webhook requiere
 configurar su signing secret en el runtime development.
 
-### C3B — Meta WhatsApp (pendiente)
+### C3B — Meta WhatsApp + Inbound V1 ✅
 
 - Meta adapter y template aprobado;
 - procesamiento y webhook verificado de WhatsApp;
 - pruebas contractuales con sandbox/mocks, sin production.
+
+Implementado además:
+
+- migración `202609210002_rental_communications_c3b`, sin backfill;
+- adapter HTTP oficial y renderer WhatsApp versionado;
+- selección explícita de template, idioma y parámetros; `hello_world/en_US`
+  queda disponible únicamente como template de prueba sin parámetros y no como
+  regla Rental;
+- runner `npm run db:dev:reminder-whatsapp -- --tenant-id=<tenant>
+  --delivery-id=<delivery> --template-name=<name>
+  --template-language=<language> --template-parameters=none|rental-v1`, con
+  preview enmascarada por defecto y envío sólo bajo `--apply --send` más
+  allowlist E.164 exacta;
+- `GET /webhooks/communications/meta-whatsapp` para challenge y
+  `POST /webhooks/communications/meta-whatsapp` con `X-Hub-Signature-256` sobre
+  raw body, validación de WABA/Phone Number ID y fail-closed;
+- estados `sent`, `delivered`, `read`, `failed` normalizados sobre receipts
+  deduplicados, timestamps independientes y precedencia monotónica;
+- read model interno paginado de inbound para C4, sin endpoint ni UI Admin.
+
+Diseño inbound aprobado para C3B:
+
+- `CommunicationInboundMessage` es una comunicación de plataforma tenant-scoped,
+  no una entidad Rental ni un `WebhookReceipt`;
+- deduplica por provider, cuenta y `providerMessageId`, guarda el remitente
+  normalizado, tipo, texto nullable, metadata mínima, `receivedAt` y asociaciones
+  opcionales a `ContactPoint`, `Contact`, `RentalContract` y
+  `RentalReminderDelivery`;
+- no persiste el payload Meta, no descarga media y no crea conversaciones,
+  respuestas, fulfillments ni cambios contractuales;
+- la correlación prioriza el `context.id` de una respuesta y luego un único
+  delivery WhatsApp reciente al mismo destino. Sin esa evidencia, busca puntos
+  PHONE activos/capaces por el número normalizado;
+- sólo se asigna tenant cuando todas las evidencias inequívocas convergen en uno.
+  Dentro de ese tenant, Contact, Contract y Delivery se completan únicamente si
+  cada asociación es única; la ambigüedad deja la FK correspondiente en `null`;
+- si el tenant no puede determinarse de forma inequívoca, el evento se acepta e
+  informa como no mapeado, sin fabricar una fila cross-tenant;
+- el modelo conserva mensajes individuales y puede evolucionar posteriormente
+  hacia `Conversation → Messages` sin reescribir el historial.
 
 ### C4 — Admin y operación
 
@@ -681,7 +721,9 @@ Cada fase mantiene Email y WhatsApp independientes, SMS oculto y providers fuera
 ### OPEN
 
 - scheduler/mecanismo de ejecución desplegado: worker background Railway o job autenticado equivalente; el runner core y el comando development quedaron cerrados en C2;
-- nombres, idioma y aprobación final del template Meta;
+- nombre, idioma y aprobación del template Meta productivo (el test WABA sólo
+  ofrece templates de prueba; la selección permanece configurable);
+- activación externa y prueba real controlada del webhook Meta;
 - activación externa y prueba controlada de MailerSend en runtimes distintos
   del development local ya validado, condicionadas a su configuración segura;
 

@@ -949,6 +949,33 @@ export class RentalReminderRepository {
     });
   }
 
+  findReadyWhatsAppDelivery(tenantId: string, deliveryId: string) {
+    return this.prisma.rentalReminderDelivery.findFirst({
+      where: {
+        id: deliveryId,
+        tenantId,
+        channel: NotificationChannel.WHATSAPP,
+        status: RentalReminderDeliveryStatus.PENDING,
+      },
+      select: {
+        id: true,
+        tenantId: true,
+        dispatchId: true,
+        channel: true,
+        destinationSnapshot: true,
+        nextAttemptAt: true,
+        contentSnapshot: true,
+        dispatch: {
+          select: {
+            contractId: true,
+            recipientSnapshot: true,
+            contract: { select: { internalNumber: true } },
+          },
+        },
+      },
+    });
+  }
+
   createDeliveryAttempt(input: {
     tenantId: string;
     deliveryId: string;
@@ -959,6 +986,7 @@ export class RentalReminderRepository {
     contentSnapshot: Prisma.InputJsonValue;
     templateKey: string;
     templateVersion: string;
+    providerTemplateRef?: string | null;
   }) {
     return this.prisma.$transaction(async (tx) => {
       const delivery = await tx.rentalReminderDelivery.findFirst({
@@ -1000,6 +1028,7 @@ export class RentalReminderRepository {
                 contentSnapshot: input.contentSnapshot,
                 templateKey: input.templateKey,
                 templateVersion: input.templateVersion,
+                providerTemplateRef: input.providerTemplateRef,
               }
             : {}),
           attemptCount: attemptNumber,
@@ -1199,6 +1228,9 @@ export class RentalReminderRepository {
     providerOccurredAt: Date | null;
     payloadDigest: string;
     targetStatus: RentalReminderDeliveryStatus | null;
+    errorCategory?: string | null;
+    errorCode?: string | null;
+    errorMessage?: string | null;
     processedAt: Date;
   }) {
     return this.prisma.$transaction(async (tx) => {
@@ -1254,6 +1286,9 @@ export class RentalReminderRepository {
               ? RentalReminderWebhookReceiptStatus.APPLIED
               : RentalReminderWebhookReceiptStatus.IGNORED,
             payloadDigest: input.payloadDigest,
+            errorCategory: input.errorCategory,
+            errorCode: input.errorCode,
+            errorMessage: input.errorMessage,
           },
         ],
         skipDuplicates: true,
@@ -1280,7 +1315,12 @@ export class RentalReminderRepository {
               ? { readAt: input.providerOccurredAt ?? input.processedAt }
               : {}),
             ...(input.targetStatus === RentalReminderDeliveryStatus.FAILED
-              ? { failedAt: input.providerOccurredAt ?? input.processedAt }
+              ? {
+                  failedAt: input.providerOccurredAt ?? input.processedAt,
+                  errorCategory: input.errorCategory,
+                  errorCode: input.errorCode,
+                  errorMessage: input.errorMessage,
+                }
               : {}),
           },
         });

@@ -15,6 +15,14 @@ import { RentalReminderEmailRenderer } from './templates/rental-reminder-email.r
 import { MailerSendWebhookController } from './controllers/mailersend-webhook.controller';
 import { MailerSendWebhookService } from './services/mailersend-webhook.service';
 import { REMINDER_EMAIL_PROVIDER } from './ports/reminder-provider.port';
+import { REMINDER_WHATSAPP_PROVIDER } from './ports/reminder-provider.port';
+import { MetaWhatsAppAdapter } from './providers/meta-whatsapp.adapter';
+import { ReminderWhatsAppProcessorService } from './services/reminder-whatsapp-processor.service';
+import { RentalReminderWhatsAppRenderer } from './templates/rental-reminder-whatsapp.renderer';
+import { MetaWhatsAppWebhookController } from './controllers/meta-whatsapp-webhook.controller';
+import { MetaWhatsAppWebhookService } from './services/meta-whatsapp-webhook.service';
+import { CommunicationInboundRepository } from './repositories/communication-inbound.repository';
+import { CommunicationInboundService } from './services/communication-inbound.service';
 
 @Module({
   imports: [AuthModule],
@@ -22,6 +30,7 @@ import { REMINDER_EMAIL_PROVIDER } from './ports/reminder-provider.port';
     RentalReminderPolicyController,
     RentalReminderCommunicationController,
     MailerSendWebhookController,
+    MetaWhatsAppWebhookController,
   ],
   providers: [
     RentalReminderService,
@@ -34,12 +43,21 @@ import { REMINDER_EMAIL_PROVIDER } from './ports/reminder-provider.port';
     MailerSendAdapter,
     { provide: REMINDER_EMAIL_PROVIDER, useExisting: MailerSendAdapter },
     MailerSendWebhookService,
+    MetaWhatsAppAdapter,
+    { provide: REMINDER_WHATSAPP_PROVIDER, useExisting: MetaWhatsAppAdapter },
+    ReminderWhatsAppProcessorService,
+    RentalReminderWhatsAppRenderer,
+    MetaWhatsAppWebhookService,
+    CommunicationInboundRepository,
+    CommunicationInboundService,
   ],
   exports: [
     ReminderPlannerService,
     ReminderDeliveryRevalidationService,
     ReminderDeliveryOrchestratorService,
     ReminderEmailProcessorService,
+    ReminderWhatsAppProcessorService,
+    CommunicationInboundService,
   ],
 })
 export class RentalReminderModule {}

@@ -8,6 +8,13 @@ const migration = readFileSync(
   ),
   'utf8',
 );
+const c3bMigration = readFileSync(
+  resolve(
+    __dirname,
+    '../../../prisma/migrations/202609210002_rental_communications_c3b/migration.sql',
+  ),
+  'utf8',
+);
 
 describe('Rental Communications C1 migration contract', () => {
   it('creates the policy default without synthesizing communication history', () => {
@@ -52,6 +59,39 @@ describe('Rental Communications C1 migration contract', () => {
     expect(migration).toContain('"attemptNumber" BETWEEN 1 AND 4');
     expect(migration).toContain(
       'RentalReminderDelivery_status_timestamp_check',
+    );
+  });
+});
+
+describe('Rental Communications C3B migration contract', () => {
+  it('creates a tenant-scoped inbound message without a synthetic backfill', () => {
+    expect(c3bMigration).toContain(
+      'CREATE TABLE "CommunicationInboundMessage"',
+    );
+    expect(c3bMigration).toContain(
+      'CommunicationInboundMessage_tenantId_contractId_fkey',
+    );
+    expect(c3bMigration).toContain(
+      'CommunicationInboundMessage_tenantId_deliveryId_fkey',
+    );
+    expect(c3bMigration).not.toMatch(
+      /INSERT INTO "CommunicationInboundMessage"/,
+    );
+  });
+
+  it('deduplicates provider messages and enforces WhatsApp E.164 input', () => {
+    expect(c3bMigration).toContain(
+      'CommunicationInboundMessage_provider_message_key',
+    );
+    expect(c3bMigration).toContain(
+      'CommunicationInboundMessage_senderAddress_check',
+    );
+    expect(c3bMigration).toContain('"channel" = \'WHATSAPP\'');
+  });
+
+  it('never adds raw provider payload or secret columns', () => {
+    expect(c3bMigration).not.toMatch(
+      /apiKey|accessToken|secret|rawPayload|providerPayload/i,
     );
   });
 });
