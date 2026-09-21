@@ -11,6 +11,7 @@ import {
   type ReactNode,
 } from "react";
 import { createPortal } from "react-dom";
+import { useBodyScrollLock } from "./body-scroll-lock";
 import { cn } from "./lib/cn";
 
 export type SidePanelWidth = "sm" | "md" | "lg" | "xl";
@@ -60,6 +61,7 @@ export function SidePanel({
   const uid = useId();
   const titleId = `${uid}-title`;
   const descriptionId = `${uid}-desc`;
+  useBodyScrollLock(mounted);
 
   useEffect(() => {
     if (open) {
@@ -78,15 +80,6 @@ export function SidePanel({
     if (!mounted) return;
     const id = requestAnimationFrame(() => setVisible(true));
     return () => cancelAnimationFrame(id);
-  }, [mounted]);
-
-  useEffect(() => {
-    if (!mounted) return;
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = prev;
-    };
   }, [mounted]);
 
   useEffect(() => {

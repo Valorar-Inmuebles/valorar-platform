@@ -9,6 +9,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { useBodyScrollLock } from "@repo/ui/body-scroll-lock";
 
 type SidebarContextValue = {
   collapsed: boolean;
@@ -26,6 +27,7 @@ export function SidebarProvider({ children }: { children: ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  useBodyScrollLock(mobileOpen);
 
   useEffect(() => {
     const mq = window.matchMedia(MOBILE_QUERY);
@@ -38,15 +40,6 @@ export function SidebarProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!isMobile) setMobileOpen(false);
   }, [isMobile]);
-
-  useEffect(() => {
-    if (!mobileOpen) return;
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = prev;
-    };
-  }, [mobileOpen]);
 
   const toggleSidebar = useCallback(() => {
     if (window.matchMedia(MOBILE_QUERY).matches) {

@@ -11,6 +11,7 @@ import {
   type ReactNode,
 } from "react";
 import { createPortal } from "react-dom";
+import { useBodyScrollLock } from "./body-scroll-lock";
 import { Button } from "./button";
 import { cn } from "./lib/cn";
 
@@ -54,6 +55,7 @@ export function Modal({
   const [mounted, setMounted] = useState(false);
   const [visible, setVisible] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useBodyScrollLock(mounted);
 
   useEffect(() => {
     if (open) {
@@ -72,15 +74,6 @@ export function Modal({
     if (!mounted) return;
     const id = requestAnimationFrame(() => setVisible(true));
     return () => cancelAnimationFrame(id);
-  }, [mounted]);
-
-  useEffect(() => {
-    if (!mounted) return;
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = prev;
-    };
   }, [mounted]);
 
   useEffect(() => {
