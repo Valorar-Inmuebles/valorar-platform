@@ -12,7 +12,7 @@
 
   --border-warm: #ece8df;
 
-  --background: var(--surface-base);
+  --background: var(--surface-card);
   --foreground: #1f2937;
   --surface: var(--surface-card);
   --muted: #6b7280;

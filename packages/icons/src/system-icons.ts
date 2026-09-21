@@ -1,6 +1,9 @@
 import {
   AlertTriangle,
   Archive,
+  ArrowDown,
+  ArrowUp,
+  ArrowUpDown,
   Building2,
   CalendarDays,
   CheckCircle2,
@@ -37,6 +40,9 @@ export const SYSTEM_ICONS = {
   search: Search,
   commercial: Store,
   edit: Pencil,
+  sort: ArrowUpDown,
+  sortAsc: ArrowUp,
+  sortDesc: ArrowDown,
 } as const;
 
 export type SystemIconName = keyof typeof SYSTEM_ICONS;

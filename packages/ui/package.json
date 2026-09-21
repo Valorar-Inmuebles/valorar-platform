@@ -22,6 +22,7 @@
     "vitest": "^3.2.4"
   },
   "dependencies": {
+    "@repo/icons": "*",
     "@repo/shared-types": "*",
     "react": "^19.2.0",
     "react-dom": "^19.2.0"

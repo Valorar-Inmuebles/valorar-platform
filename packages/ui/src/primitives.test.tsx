@@ -78,8 +78,12 @@ describe("shared primitives semantics", () => {
         <AdminTable>
           <AdminTableHead>
             <tr>
+              <AdminTableHeader onSort={vi.fn()}>Nombre</AdminTableHeader>
               <AdminTableHeader direction="asc" onSort={vi.fn()}>
-                Nombre
+                Fecha
+              </AdminTableHeader>
+              <AdminTableHeader direction="desc" onSort={vi.fn()}>
+                Estado
               </AdminTableHeader>
             </tr>
           </AdminTableHead>
@@ -87,7 +91,10 @@ describe("shared primitives semantics", () => {
       </>,
     );
     expect(html).toContain("Mostrando 11–20 de 35");
+    expect(html).toContain('aria-sort="none"');
     expect(html).toContain('aria-sort="ascending"');
+    expect(html).toContain('aria-sort="descending"');
+    expect(html.match(/<svg/g)).toHaveLength(3);
   });
 
   it("renders Stepper and DropdownMenu without domain knowledge", () => {

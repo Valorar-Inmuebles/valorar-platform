@@ -1,3 +1,4 @@
+import { SystemIcon } from "@repo/icons";
 import type {
   HTMLAttributes,
   ReactNode,
@@ -35,7 +36,7 @@ export function AdminTableHead({
 }: HTMLAttributes<HTMLTableSectionElement>) {
   return (
     <thead
-      className={cn("border-b border-border bg-surface-alt", className)}
+      className={cn("border-b border-border bg-gray-50", className)}
       {...props}
     />
   );
@@ -100,9 +101,20 @@ export function AdminTableHeader({
           className="inline-flex items-center gap-1.5 rounded-sm text-left outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-primary/30 disabled:cursor-not-allowed disabled:opacity-50"
         >
           <span>{children}</span>
-          <span aria-hidden="true" className="text-xs">
-            {direction === "asc" ? "↑" : direction === "desc" ? "↓" : "↕"}
-          </span>
+          <SystemIcon
+            name={
+              direction === "asc"
+                ? "sortAsc"
+                : direction === "desc"
+                  ? "sortDesc"
+                  : "sort"
+            }
+            aria-hidden="true"
+            className={cn(
+              "size-3.5 shrink-0",
+              direction ? "text-foreground" : "text-muted/70",
+            )}
+          />
         </button>
       ) : (
         children
