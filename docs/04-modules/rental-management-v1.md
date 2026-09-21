@@ -2,7 +2,7 @@
 
 Versión: V1.1
 
-Estado: **implementación parcial**. A, B, B.1, Rental V1.1 Fases 1–3 y Fases 5A–5E (Resumen, Listado y wizard completo hasta configuración previa de avisos) están implementados. Communications V1 C0 está documentado; Migración C no fue iniciada.
+Estado: **implementación parcial**. A, B, B.1, Rental V1.1 Fases 1–3, Fases 5A–5E y Communications V1 C1 están implementados. C2–C4 permanecen pendientes.
 
 Diseño de datos canónico: `docs/03-database/rental-domain.md`.
 
@@ -339,7 +339,7 @@ Antes de Migración C sólo se consolidarán partes, rutas, canales, punto selec
 Communications V1 C0 ya define canónicamente anticipación, horario, planner,
 agrupación, dispatch, delivery, retries, adapters y callbacks en
 `rental-communications-v1.md`. Esa definición es sólo documental: schema,
-ejecución y proveedores continúan pendientes de C1–C4.
+ejecución y proveedores continúan pendientes de C2–C4.
 
 La persistencia de rutas de B.1 y los flags por obligación de Fase 2 están **IMPLEMENTADOS**. No existe todavía envío de mensajes.
 
@@ -484,15 +484,15 @@ Los mockups visuales existen externamente y se proporcionarán durante los gates
 ### 17.2 Aprobado pero pendiente después de Fase 5E
 
 - notificaciones internas globales;
-- permisos pendientes.
-- Communications V1 C0 documentado, sin implementación.
+- Communications V1 C2–C4.
 
 ### 17.3 Migración C
 
-**NO INICIADA**. Su arquitectura canónica, modelos propuestos, idempotencia,
-planner, providers, webhooks y fases C1–C4 están definidos en
-`docs/04-modules/rental-communications-v1.md`. C0 no modificó schema,
-migraciones, API, Admin, RBAC ni datos.
+**C1 IMPLEMENTADA** mediante `202609210001_rental_communications_c1`.
+Persistencia, policy tenant-wide, constraints de idempotencia, RBAC y lecturas
+operativas mínimas están disponibles. C1 no contiene planner, scheduler,
+workers, providers, retry manual, webhooks HTTP, envíos ni Admin visual. C2–C4
+continúan definidos en `docs/04-modules/rental-communications-v1.md`.
 
 ## 18. Criterios de aceptación documental V1.1
 
@@ -507,7 +507,7 @@ La especificación queda consistente cuando:
 7. configuración previa a C se separa del envío de comunicaciones;
 8. renovación crea un contrato nuevo y evita sucesores duplicados;
 9. `Notification`, historial y toast permanecen conceptualmente separados;
-10. Communications C0 está documentado y Migración C continúa explícitamente no iniciada.
+10. Communications C1 figura implementada sin presentar C2–C4 como disponibles.
 
 ## 19. Decisiones diferidas
 
@@ -515,9 +515,9 @@ La especificación queda consistente cuando:
 - actualización automática por IPC o ICL;
 - cambio ordinario de moneda;
 - asignación de contratos por agente;
-- ejecución de C1–C4;
+- ejecución de C2–C4;
 - SMS y override de policy por contrato;
-- mecanismo desplegado del runner y alcance platform-wide/tenant-specific de credenciales;
+- mecanismo desplegado del runner; las credenciales V1 son platform-wide y pertenecen al runtime/secret store;
 - preferencias personales de notificación;
 - portal de inquilinos o propietarios;
 - firma digital y almacenamiento de documentos legales.

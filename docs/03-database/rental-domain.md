@@ -2,7 +2,7 @@
 
 Versión: V1.1
 
-Estado: **implementación parcial**. A, B, B.1 y Rental V1.1 Fases 1–3 están implementados. Communications V1 C0 está documentado; Migración C no fue iniciada.
+Estado: **implementación parcial**. A, B, B.1, Rental V1.1 Fases 1–3 y Communications V1 C1 están implementados. C2–C4 permanecen pendientes.
 
 Reglas funcionales canónicas: `docs/04-modules/rental-management-v1.md`.
 
@@ -84,7 +84,7 @@ Tenant
 └── Notification[] ── User recipient
 ```
 
-`RentalContractSequence`, `previousContractId` e `isPrimary` están **IMPLEMENTADOS en Fase 1**. `RentalRentValueRevision`, reglas de obligations y vencimientos manuales están **IMPLEMENTADOS en Fase 2**. `RentalContractEvent` y los read models operativos están **IMPLEMENTADOS en Fase 3**. `Notification` y Migración C siguen **APROBADOS / PENDIENTES**.
+`RentalContractSequence`, `previousContractId` e `isPrimary` están **IMPLEMENTADOS en Fase 1**. `RentalRentValueRevision`, reglas de obligations y vencimientos manuales están **IMPLEMENTADOS en Fase 2**. `RentalContractEvent` y los read models operativos están **IMPLEMENTADOS en Fase 3**. Communications C1 está implementada; `Notification` y C2–C4 siguen **APROBADOS / PENDIENTES**.
 
 ## 4. Contact
 
@@ -470,7 +470,7 @@ Constraints mínimos:
 
 ## 17. Communications V1 / Migración C
 
-**C0 DOCUMENTADO / MIGRACIÓN C NO INICIADA**.
+**C1 — PERSISTENCE FOUNDATION IMPLEMENTADA**.
 
 La especificación canónica implementable vive en
 `docs/04-modules/rental-communications-v1.md`. Define:
@@ -483,7 +483,11 @@ La especificación canónica implementable vive en
 - snapshots, retries, adapters MailerSend/Meta y webhooks;
 - seguridad, RBAC, secretos, observabilidad y fases C1–C4.
 
-No se agregaron tablas ni enums al schema vigente. Email y WhatsApp son los canales operativos planificados; SMS y el override por contrato quedan diferidos. Las partes, rutas, ContactPoint y flags ya implementados continúan siendo la fuente de verdad.
+C1 agregó policy, planning issues, dispatches, relación N:M con occurrences, deliveries, attempts y webhook receipts. Email y WhatsApp son los únicos canales operativos persistibles; SMS y el override por contrato quedan diferidos. Las partes, rutas, ContactPoint y flags existentes continúan siendo la fuente de verdad para C2.
+
+La API C1 expone `GET/PUT /rental-reminder-policy` y lecturas paginadas de planning issues, dispatches, deliveries y attempts bajo `rental.reminder.manage`. No existen endpoints de envío, retry, planner ni callbacks HTTP.
+
+Las credenciales de MailerSend y Meta son platform-wide y se resolverán exclusivamente desde environment/secret store. PostgreSQL conserva sólo referencias no secretas y snapshots funcionales mínimos; nunca API keys, access tokens o payloads crudos. No hay purga automática y el cifrado application-level de snapshots permanece diferido.
 
 ## 18. Enums
 
@@ -545,20 +549,23 @@ RentalContractEventType
   RENEWED
 ```
 
-### Diseñados / pendientes de Migración C
+### Implementados en Communications C1
 
 ```txt
 RentalReminderEventType
 RentalReminderDispatchStatus
 RentalReminderDeliveryStatus
 RentalReminderAttemptStatus
+RentalReminderStatusSource
 RentalReminderPlanningIssueType
+RentalReminderPlanningIssueStatus
+RentalReminderDispatchOccurrenceStatus
 RentalReminderWebhookReceiptStatus
 ```
 
 Los valores y transiciones canónicos están en
 `docs/04-modules/rental-communications-v1.md`. `Notification` conserva su diseño
-global aprobado/pendiente. Ninguno de estos enums forma parte del schema actual.
+global aprobado/pendiente. C1 no implementa procesos que ejecuten esas transiciones.
 
 ## 19. Invariantes multi-tenant
 
@@ -604,9 +611,9 @@ Además de los índices implementados, el diseño objetivo requiere:
 
 La regla “exactamente un renter principal” para contratos activos necesita además validación transaccional, porque un índice parcial sólo garantiza el máximo.
 
-Los constraints futuros de Communications —group key, delivery por canal,
-attempt ordinal, provider message y webhook event— se especifican sin
-implementarse en `docs/04-modules/rental-communications-v1.md`.
+Los constraints de Communications —group key, relación dispatch/occurrence,
+delivery por canal, delivery/attempt keys, attempt ordinal, provider message y
+webhook event— están implementados por la migración C1.
 
 ## 22. Backfills
 
@@ -627,6 +634,12 @@ implementarse en `docs/04-modules/rental-communications-v1.md`.
 - demás obligaciones con ambos flags en `false`;
 - `adjustmentIntervalMonths = null` preservado como configuración legacy pendiente.
 
+**IMPLEMENTADO en Communications C1**:
+
+- una `RentalReminderPolicy` por tenant existente con defaults ON/3/ON/ON/3/600;
+- IDs determinísticos y `ON CONFLICT (tenantId) DO NOTHING`;
+- ningún dispatch, delivery, attempt, issue o webhook receipt histórico fabricado.
+
 Cada backfill deberá ser determinístico, reejecutable cuando corresponda y validado con consultas pre/post migración.
 
 ## 23. Estado de implementación V1.1
@@ -638,7 +651,8 @@ El orden exacto se resolverá en planes de implementación separados, respetando
 3. **Fase 3 implementada**: historial contractual y APIs/read models operativos;
 4. notificaciones internas globales;
 5. **C0 documentado**: arquitectura canónica de Communications V1;
-6. **C1–C4 pendientes**: persistencia, planner, providers/webhooks y Admin.
+6. **C1 implementada**: persistencia, policy, RBAC y lectura operativa mínima;
+7. **C2–C4 pendientes**: planner, providers/webhooks y Admin.
 
 Los puntos 4 y 6 no están implementados por la sola existencia de esta documentación.
 
@@ -651,5 +665,5 @@ Los puntos 4 y 6 no están implementados por la sola existencia de esta document
 - preferencias personales de notificación;
 - portal externo de partes;
 - firma y storage de documentos;
-- ejecución de Communications V1 hasta iniciar C1;
+- ejecución del planner y de comunicaciones hasta C2/C3;
 - SMS y override de policy por contrato;

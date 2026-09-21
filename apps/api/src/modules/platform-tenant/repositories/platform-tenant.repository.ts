@@ -74,6 +74,7 @@ export class PlatformTenantRepository {
         rentalConcepts: {
           create: DEFAULT_RENTAL_CONCEPTS.map((concept) => ({ ...concept })),
         },
+        rentalReminderPolicy: { create: {} },
       },
       include: {
         settings: true,

@@ -2,7 +2,7 @@
 
 ## Estado
 
-Versión: Foundation v1 + Auth Foundation Fase 1 + Property Domain v1 + Rental Management A+B+B.1+V1.1 Fases 1–3
+Versión: Foundation v1 + Auth Foundation Fase 1 + Property Domain v1 + Rental Management A+B+B.1+V1.1 Fases 1–3 + Communications C1
 
 Base de datos:
 
@@ -13,7 +13,7 @@ Auth Foundation Fase 1: migrado (`20260616125024_auth_foundation`).
 
 Dominio Property: migrado (`202606150001_property_foundation`, `202606150002_property_location_v1_1`).
 
-Rental Management: A, B, B.1 y V1.1 Fases 1–3 implementadas en development. Migración C continúa pendiente; ninguna migración de estas fases se aplica a producción durante este desarrollo.
+Rental Management: A, B, B.1, V1.1 Fases 1–3 y Communications C1 implementadas en development. C2–C4 continúan pendientes; ninguna migración de estas fases se aplica a producción durante este desarrollo.
 
 ---
 
@@ -69,6 +69,11 @@ Tenant
 ├── RentalObligations
 ├── RentalObligationOccurrences
 ├── RentalFulfillments
+├── RentalReminderPolicy
+├── RentalReminderPlanningIssues
+├── RentalReminderDispatches / DispatchOccurrences
+├── RentalReminderDeliveries / DeliveryAttempts
+├── RentalReminderWebhookReceipts
 └── Leads (planificado)
 ```
 
@@ -152,7 +157,7 @@ Relación 1:1 con `Tenant`.
 
 # Rental Management — A+B+B.1+V1.1 Fases 1–3
 
-Estado: fundación, motor de vencimientos, B.1, identidad/renovación, revisiones de alquiler y read models operativos con historial contractual implementados. Migración C no iniciada.
+Estado: fundación, motor de vencimientos, B.1, identidad/renovación, revisiones de alquiler y read models operativos con historial contractual implementados. Communications C1 agrega persistencia y lectura operativa; no ejecuta envíos.
 
 Documentación canónica: `docs/03-database/rental-domain.md` y `docs/04-modules/rental-management-v1.md`.
 
@@ -224,7 +229,23 @@ RentalFulfillmentOrigin: ADMIN
 - Los eventos contractuales no tienen endpoints funcionales de edición o eliminación y se escriben dentro de la transacción del cambio auditado.
 - El próximo vencimiento prioriza occurrences `PENDING` de obligaciones activas con fecha conocida; las fechas pendientes ordenan detrás y nunca derivan `OVERDUE`.
 
-Migraciones: `202609090001_rental_foundation_a`, `202609090002_rental_obligation_engine_b`, `202609100001_rental_uat_refinement_b1`, `202609190001_rental_contract_identity_renewal_v1_1`, `202609190002_rental_rent_revision_obligation_rules_v1_1`, `202609190003_rental_history_operational_read_models_v1_1`.
+Migraciones: `202609090001_rental_foundation_a`, `202609090002_rental_obligation_engine_b`, `202609100001_rental_uat_refinement_b1`, `202609190001_rental_contract_identity_renewal_v1_1`, `202609190002_rental_rent_revision_obligation_rules_v1_1`, `202609190003_rental_history_operational_read_models_v1_1`, `202609210001_rental_communications_c1`.
+
+## Rental Communications C1
+
+Persistencia foundation tenant-scoped, sin planner, workers, providers, webhooks HTTP ni capacidad de enviar mensajes:
+
+- `RentalReminderPolicy`: una policy por tenant, defaults `ON / 3 días / día de vencimiento ON / ON / 3 días / 10:00`; rangos protegidos por DTO y checks SQL.
+- `RentalReminderPlanningIssue`: bloqueo normalizado y deduplicado previo a cualquier provider.
+- `RentalReminderDispatch`: recordatorio lógico con `groupKey`, `occurrenceSetHash`, snapshots funcionales y ciclo de estado.
+- `RentalReminderDispatchOccurrence`: N:M auditable; las exclusiones previas al envío se conservan.
+- `RentalReminderDelivery`: ejecución independiente por `EMAIL` o `WHATSAPP`, snapshot de destino/render y campos de lease. `SMS` permanece no operativo.
+- `RentalReminderDeliveryAttempt`: ordinal `1..4`, idempotencia y error sanitizado, sin request/response crudos.
+- `RentalReminderWebhookReceipt`: deduplicación futura por evento y digest del payload; el payload no se persiste.
+
+Las relaciones principales usan claves compuestas `(tenantId, id)`. Los uniques protegen grupo, conjunto dispatch/occurrence, delivery por canal, delivery/attempt keys, ordinal de attempt, mensaje externo y evento webhook. Las referencias operativas opcionales a Contact, ContactPoint y ruta conservan IDs y snapshots sin impedir la preservación histórica; los futuros writers deben revalidarlas tenant-scoped.
+
+El backfill creó una policy default determinística para cada tenant existente y no creó historia de comunicaciones. Credenciales de MailerSend/Meta son platform-wide y sólo podrán existir en environment/secret store; no hay columnas de secretos. Retención avanzada, purga automática y cifrado application-level de snapshots permanecen diferidos.
 
 ---
 

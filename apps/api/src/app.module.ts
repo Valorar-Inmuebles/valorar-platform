@@ -27,6 +27,7 @@ import { ContactModule } from './modules/contact/contact.module';
 import { RentalConceptModule } from './modules/rental-concept/rental-concept.module';
 import { RentalContractModule } from './modules/rental-contract/rental-contract.module';
 import { RentalObligationModule } from './modules/rental-obligation/rental-obligation.module';
+import { RentalReminderModule } from './modules/rental-reminder/rental-reminder.module';
 
 @Module({
   imports: [
@@ -56,6 +57,7 @@ import { RentalObligationModule } from './modules/rental-obligation/rental-oblig
     RentalConceptModule,
     RentalContractModule,
     RentalObligationModule,
+    RentalReminderModule,
   ],
   controllers: [AppController],
   providers: [AppService],

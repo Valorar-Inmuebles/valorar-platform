@@ -52,6 +52,13 @@ model Tenant {
   rentalObligationOccurrences           RentalObligationOccurrence[]
   rentalFulfillments                    RentalFulfillment[]
   rentalContractEvents                  RentalContractEvent[]
+  rentalReminderPolicy                  RentalReminderPolicy?
+  rentalReminderPlanningIssues          RentalReminderPlanningIssue[]
+  rentalReminderDispatches              RentalReminderDispatch[]
+  rentalReminderDispatchOccurrences     RentalReminderDispatchOccurrence[]
+  rentalReminderDeliveries              RentalReminderDelivery[]
+  rentalReminderDeliveryAttempts        RentalReminderDeliveryAttempt[]
+  rentalReminderWebhookReceipts         RentalReminderWebhookReceipt[]
 }
 
 enum UserRole {
@@ -843,6 +850,71 @@ enum NotificationChannel {
   SMS
 }
 
+enum RentalReminderEventType {
+  PRE_DUE
+  DUE
+  POST_DUE
+}
+
+enum RentalReminderDispatchStatus {
+  PLANNED
+  READY
+  PROCESSING
+  COMPLETED
+  PARTIALLY_COMPLETED
+  FAILED
+  SKIPPED
+}
+
+enum RentalReminderDeliveryStatus {
+  PENDING
+  PROCESSING
+  SENT
+  DELIVERED
+  READ
+  FAILED
+  SKIPPED
+}
+
+enum RentalReminderAttemptStatus {
+  PROCESSING
+  ACCEPTED
+  FAILED
+}
+
+enum RentalReminderStatusSource {
+  INTERNAL
+  PROVIDER_RESPONSE
+  PROVIDER_WEBHOOK
+}
+
+enum RentalReminderPlanningIssueType {
+  DUE_DATE_MISSING
+  DISPLAY_AMOUNT_MISSING
+  NO_ENABLED_ROUTE
+  CONTACT_POINT_INELIGIBLE
+  TENANT_TIME_ZONE_MISSING_OR_INVALID
+  PROVIDER_CONFIGURATION_INVALID
+  PROVIDER_TEMPLATE_INVALID
+  PLANNING_WINDOW_EXPIRED
+}
+
+enum RentalReminderPlanningIssueStatus {
+  OPEN
+  RESOLVED
+}
+
+enum RentalReminderDispatchOccurrenceStatus {
+  INCLUDED
+  EXCLUDED_BEFORE_SEND
+}
+
+enum RentalReminderWebhookReceiptStatus {
+  RECEIVED
+  APPLIED
+  IGNORED
+}
+
 model Contact {
   id String @id @default(cuid())
 
@@ -968,9 +1040,10 @@ model RentalContract {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  obligations RentalObligation[]
-  parties     RentalContractParty[]
-  events      RentalContractEvent[]
+  obligations        RentalObligation[]
+  parties            RentalContractParty[]
+  events             RentalContractEvent[]
+  reminderDispatches RentalReminderDispatch[]
 
   @@unique([tenantId, id])
   @@unique([tenantId, internalNumber])
@@ -1150,11 +1223,229 @@ model RentalObligationOccurrence {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  fulfillments RentalFulfillment[]
+  fulfillments       RentalFulfillment[]
+  reminderDispatches RentalReminderDispatchOccurrence[]
 
+  @@unique([tenantId, id])
   @@unique([obligationId, periodKey])
   @@index([tenantId, status, dueDate])
   @@index([tenantId, obligationId, dueDate])
+}
+
+model RentalReminderPolicy {
+  id String @id @default(cuid())
+
+  tenantId String @unique
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  preDueEnabled   Boolean @default(true)
+  preDueDays      Int     @default(3)
+  dueEnabled      Boolean @default(true)
+  postDueEnabled  Boolean @default(true)
+  postDueDays     Int     @default(3)
+  sendTimeMinutes Int     @default(600)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model RentalReminderPlanningIssue {
+  id String @id @default(cuid())
+
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  contractId         String?
+  occurrenceId       String?
+  recipientContactId String?
+  channel            NotificationChannel?
+  type               RentalReminderPlanningIssueType
+  deduplicationKey   String
+  status             RentalReminderPlanningIssueStatus @default(OPEN)
+  firstDetectedAt    DateTime                          @default(now())
+  lastDetectedAt     DateTime                          @default(now())
+  resolvedAt         DateTime?
+  metadata           Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([tenantId, deduplicationKey])
+  @@index([tenantId, status, lastDetectedAt(sort: Desc)])
+  @@index([tenantId, contractId])
+  @@index([tenantId, occurrenceId])
+}
+
+model RentalReminderDispatch {
+  id String @id @default(cuid())
+
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  contractId String
+  contract   RentalContract @relation(fields: [tenantId, contractId], references: [tenantId, id], onDelete: Cascade)
+
+  recipientContactId   String?
+  recipientIdentityKey String
+  eventType            RentalReminderEventType
+  dueDate              DateTime                     @db.Date
+  scheduledFor         DateTime
+  groupKey             String
+  occurrenceSetHash    String
+  status               RentalReminderDispatchStatus @default(PLANNED)
+  skipReason           String?
+  policySnapshot       Json
+  recipientSnapshot    Json
+  contentSnapshot      Json
+  frozenAt             DateTime?
+  firstAttemptAt       DateTime?
+  completedAt          DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  occurrences RentalReminderDispatchOccurrence[]
+  deliveries  RentalReminderDelivery[]
+
+  @@unique([tenantId, id])
+  @@unique([tenantId, groupKey])
+  @@index([tenantId, status, scheduledFor])
+  @@index([tenantId, contractId, createdAt(sort: Desc)])
+  @@index([tenantId, recipientContactId])
+}
+
+model RentalReminderDispatchOccurrence {
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  dispatchId String
+  dispatch   RentalReminderDispatch @relation(fields: [tenantId, dispatchId], references: [tenantId, id], onDelete: Cascade)
+
+  occurrenceId String
+  occurrence   RentalObligationOccurrence @relation(fields: [tenantId, occurrenceId], references: [tenantId, id], onDelete: Restrict)
+
+  status          RentalReminderDispatchOccurrenceStatus @default(INCLUDED)
+  exclusionReason String?
+  evaluatedAt     DateTime                               @default(now())
+
+  @@id([dispatchId, occurrenceId])
+  @@index([tenantId, occurrenceId])
+}
+
+model RentalReminderDelivery {
+  id String @id @default(cuid())
+
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  dispatchId String
+  dispatch   RentalReminderDispatch @relation(fields: [tenantId, dispatchId], references: [tenantId, id], onDelete: Cascade)
+
+  channel             NotificationChannel
+  contactPointId      String?
+  routeId             String?
+  deliveryKey         String
+  status              RentalReminderDeliveryStatus @default(PENDING)
+  statusSource        RentalReminderStatusSource   @default(INTERNAL)
+  destinationSnapshot String
+  contentSnapshot     Json
+  subjectSnapshot     String?                      @db.Text
+  bodySnapshot        String                       @db.Text
+  templateKey         String
+  templateVersion     String
+  providerKey         String
+  providerAccountKey  String
+  providerTemplateRef String?
+  attemptCount        Int                          @default(0)
+  nextAttemptAt       DateTime?
+  processingToken     String?
+  lockedUntil         DateTime?
+  providerMessageId   String?
+  sentAt              DateTime?
+  deliveredAt         DateTime?
+  readAt              DateTime?
+  failedAt            DateTime?
+  skippedAt           DateTime?
+  errorCategory       String?
+  errorCode           String?
+  errorMessage        String?                      @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  attempts        RentalReminderDeliveryAttempt[]
+  webhookReceipts RentalReminderWebhookReceipt[]
+
+  @@unique([tenantId, id])
+  @@unique([tenantId, deliveryKey])
+  @@unique([dispatchId, channel])
+  @@index([tenantId, status, nextAttemptAt])
+  @@index([tenantId, dispatchId])
+}
+
+model RentalReminderDeliveryAttempt {
+  id String @id @default(cuid())
+
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  deliveryId String
+  delivery   RentalReminderDelivery @relation(fields: [tenantId, deliveryId], references: [tenantId, id], onDelete: Cascade)
+
+  attemptNumber     Int
+  attemptKey        String
+  status            RentalReminderAttemptStatus @default(PROCESSING)
+  startedAt         DateTime                    @default(now())
+  finishedAt        DateTime?
+  latencyMs         Int?
+  providerMessageId String?
+  errorCategory     String?
+  errorCode         String?
+  errorMessage      String?                     @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  webhookReceipts RentalReminderWebhookReceipt[]
+
+  @@unique([tenantId, id])
+  @@unique([deliveryId, attemptNumber])
+  @@unique([tenantId, attemptKey])
+  @@index([tenantId, deliveryId, startedAt(sort: Desc)])
+}
+
+model RentalReminderWebhookReceipt {
+  id String @id @default(cuid())
+
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  deliveryId String
+  delivery   RentalReminderDelivery @relation(fields: [tenantId, deliveryId], references: [tenantId, id], onDelete: Cascade)
+
+  attemptId          String?
+  attempt            RentalReminderDeliveryAttempt?     @relation(fields: [tenantId, attemptId], references: [tenantId, id], onDelete: Restrict)
+  providerKey        String
+  providerAccountKey String
+  providerEventKey   String
+  providerMessageId  String?
+  eventType          String
+  providerOccurredAt DateTime?
+  receivedAt         DateTime                           @default(now())
+  processedAt        DateTime?
+  status             RentalReminderWebhookReceiptStatus @default(RECEIVED)
+  payloadDigest      String
+  errorCategory      String?
+  errorCode          String?
+  errorMessage       String?                            @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([providerKey, providerAccountKey, providerEventKey])
+  @@index([tenantId, deliveryId, receivedAt(sort: Desc)])
+  @@index([tenantId, attemptId])
+  @@index([providerKey, providerAccountKey, providerMessageId])
 }
 
 model RentalFulfillment {

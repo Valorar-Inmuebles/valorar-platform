@@ -13,6 +13,7 @@ describe('Rental Management V1 RBAC', () => {
           'rental.contact.manage',
           'rental.obligation.manage',
           'rental.fulfillment.manage',
+          'rental.reminder.manage',
         ]),
       );
     }
@@ -32,12 +33,16 @@ describe('Rental Management V1 RBAC', () => {
     );
     expect(permissions).not.toContain('rental.contract.end');
     expect(permissions).not.toContain('rental.contract.renew');
+    expect(permissions).not.toContain('rental.reminder.manage');
   });
 
   it('does not expose rentals to collaborators', () => {
     expect(getPermissionsForRole('COLLABORATOR')).not.toContain('rental.read');
     expect(getPermissionsForRole('COLLABORATOR')).not.toContain(
       'rental.contract.renew',
+    );
+    expect(getPermissionsForRole('COLLABORATOR')).not.toContain(
+      'rental.reminder.manage',
     );
   });
 });

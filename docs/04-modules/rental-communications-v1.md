@@ -1,8 +1,8 @@
 # Rental Communications V1
 
-Estado: **C0 — diseño canónico aprobado; sin implementación**.
+Estado: **C1 — Persistence Foundation implementada en development; C2–C4 pendientes**.
 
-Esta especificación convierte la futura Migración C en un plan implementable. No implica que existan tablas, procesos, endpoints, proveedores ni envíos. El schema vigente continúa documentado exclusivamente en `docs/03-database/current-schema.md`.
+Esta especificación define Communications V1 y registra su avance por fases. C1 ya implementa tablas y endpoints de lectura/policy; no implica que existan planner, procesos de ejecución, proveedores ni envíos. El schema vigente continúa documentado exclusivamente en `docs/03-database/current-schema.md`.
 
 ## 1. Alcance y decisiones reemplazadas
 
@@ -405,7 +405,7 @@ El contrato no almacena template. No se crea CMS. Dispatch/Delivery guardan la v
 
 ## 13. Webhooks
 
-Endpoints conceptuales, sin implementación C0:
+Endpoints conceptuales, sin implementación HTTP en C1:
 
 - verificación y recepción Meta en `/webhooks/communications/meta-whatsapp`;
 - recepción MailerSend en `/webhooks/communications/mailersend`.
@@ -438,16 +438,19 @@ Política RBAC propuesta:
 | retry manual de un delivery `FAILED` retryable | `rental.reminder.manage`                                 |
 | configurar providers platform-wide             | futuro `platform.communication.manage`, sólo Super Admin |
 
-`rental.reminder.manage` continúa aprobado/pendiente; su asignación inicial recomendada es `SUPER_ADMIN`, `TENANT_ADMIN` y `MANAGER`. Un retry manual crea un nuevo Attempt sobre el mismo Delivery y respeta el máximo/política auditada; no crea otro Dispatch.
+`rental.reminder.manage` está implementado para `SUPER_ADMIN`, `TENANT_ADMIN` y `MANAGER`. El retry manual continúa pendiente; cuando se implemente deberá crear un nuevo Attempt sobre el mismo Delivery y respetar el máximo/política auditada.
 
-API conceptual futura:
+API C1 implementada:
 
-- `GET/PATCH /rental-reminder-policy` para leer/editar la policy del tenant;
-- `GET /rental-contracts/:id/communications` para el resumen contextual;
-- `GET /rental-reminder-deliveries` para operación paginada y filtrada;
-- `POST /rental-reminder-deliveries/:id/retry` para retry manual autorizado;
-- `GET/POST /webhooks/communications/meta-whatsapp` y
-  `POST /webhooks/communications/mailersend` para callbacks verificados.
+- `GET/PUT /rental-reminder-policy` para leer/actualizar transaccionalmente la policy del tenant;
+- `GET /rental-reminder-communications/planning-issues`;
+- `GET /rental-reminder-communications/dispatches`;
+- `GET /rental-reminder-communications/deliveries`;
+- `GET /rental-reminder-communications/deliveries/:id/attempts`.
+
+Todas las lecturas operativas son tenant-scoped, paginadas y requieren
+`rental.reminder.manage`. El resumen contextual, retry manual y endpoints de
+webhook permanecen pendientes.
 
 Planner y worker son application commands internos. Si la infraestructura exige
 un trigger HTTP, será un endpoint interno con autenticación de servicio, nunca
@@ -455,7 +458,7 @@ una ruta Admin ni una operación basada sólo en `tenantId` del request.
 
 ## 15. Credenciales y configuración segura
 
-La documentación actual no define credenciales por tenant. Esta decisión queda **OPEN**. Recomendación V1: credenciales **platform-wide** administradas por infraestructura, sin UI para tenants, porque minimiza exposición y coincide con el runtime único actual. Una identidad de envío white-label por tenant requiere un diseño posterior con referencias a un secret manager, no tokens en tablas comunes.
+Decisión C1 **CLOSED**: las credenciales V1 son **platform-wide** y administradas por infraestructura/runtime. API keys, access tokens, app secrets y verify tokens viven exclusivamente en environment/secret store; nunca en PostgreSQL ni en respuestas al Admin tenant. La arquitectura conserva `providerKey`/`providerAccountKey` como referencias no secretas para permitir una evolución tenant-specific posterior sin implementarla ahora.
 
 Configuración esperada del runtime, sin valores en documentación:
 
@@ -493,11 +496,11 @@ Señales futuras hacia `Notification`:
 | delivery definitivamente fallido | `sha256(rental-delivery-failed:v1, tenantId, deliveryId, attemptCount)` |
 | provider/config inválida         | planning issue de configuración/template y su `deduplicationKey`        |
 
-Communications emite el evento interno; el futuro sistema global decide usuarios destinatarios, persistencia y presentación. C0 no implementa `Notification`.
+Communications emitirá el evento interno; el futuro sistema global decidirá usuarios destinatarios, persistencia y presentación. C1 no implementa `Notification`.
 
 ## 17. Admin futuro
 
-Sin implementación en C0:
+Sin implementación Admin en C1:
 
 ### Configuración → Gestión de alquileres → Avisos
 
@@ -519,11 +522,10 @@ Se conserva la UI existente para renters, Email/WhatsApp, ContactPoint, obligaci
 - no se crea un módulo paralelo complejo ni se mezclan deliveries con `RentalContractEvent`;
 - `Notification` global podrá enlazar a contrato/delivery para importe/fecha faltante, fallo definitivo o provider/config inválida.
 
-## 18. Migración propuesta — no creada
+## 18. Migración C1 implementada
 
-Una futura migración nueva, sugerida como
-`rental_communications_v1` y posterior a todas las aplicadas, incorporará de
-forma atómica:
+La migración `202609210001_rental_communications_c1`, posterior a todas las
+anteriores, incorporó de forma atómica:
 
 1. enums de eventos, estados, issues y causas; `providerKey` permanece extensible;
 2. `RentalReminderPolicy`;
@@ -531,7 +533,7 @@ forma atómica:
 4. `RentalReminderDispatch` y `RentalReminderDispatchOccurrence`;
 5. `RentalReminderDelivery` y `RentalReminderDeliveryAttempt`;
 6. `RentalReminderWebhookReceipt`;
-7. relaciones inversas tenant/contract/occurrence/contact/contact point/route;
+7. relaciones tenant-scoped compuestas para contrato, occurrence, dispatch, delivery y attempt; referencias operativas opcionales a Contact/ContactPoint/ruta se preservan como IDs y snapshots;
 8. uniques, checks e índices de este documento;
 9. backfill determinístico de una policy por tenant con defaults 3/ON/3/10:00;
 10. ningún backfill de dispatches, deliveries, attempts ni historia inventada.
@@ -552,18 +554,21 @@ Checks SQL mínimos:
 - attempt `(tenantId, deliveryId, startedAt DESC)`;
 - webhook `(providerKey, providerAccountKey, providerMessageId)` además de su unique event key.
 
-El índice actual `RentalObligationOccurrence(tenantId, status, dueDate)` se reutiliza; no se agrega otro especulativo. Antes de crear/aplicar la migración se requiere preflight de datos, Prisma format/validate/generate, SQL review, branch development segura y status/checksum según `valorar-engineering`.
+El índice actual `RentalObligationOccurrence(tenantId, status, dueDate)` se reutiliza; no se agregó otro especulativo. La migración fue precedida por preflight, Prisma format/validate/generate y review SQL, y se aplicó únicamente sobre `rental-management-dev` mediante el workflow seguro.
 
 ## 19. Fases de implementación y gates
 
-### C1 — Persistencia y policy
+### C1 — Persistencia y policy ✅
 
 - schema/migración completa de persistencia;
 - backfill de policies;
-- puertos provider-agnostic y catálogo de templates sin providers reales;
+- puertos provider-agnostic y contrato de catálogo de templates, sin providers ni templates reales;
 - API/RBAC de policy y lectura operativa mínima;
 - tests de constraints, tenant-negative y defaults;
 - gate Prisma + migración development segura + API.
+
+C1 no puede enviar mensajes: no existe planner ejecutable, scheduler, worker,
+adapter concreto, provider SDK, callback HTTP ni endpoint “enviar ahora”.
 
 ### C2 — Planner e idempotencia
 
@@ -608,15 +613,16 @@ Cada fase mantiene Email y WhatsApp independientes, SMS oculto y providers fuera
 - templates versionados en código, sin CMS ni template en contrato.
 - payloads crudos de provider no se persisten.
 - ventana planner solapada de siete días y lookahead de cinco minutos.
+- credenciales MailerSend/Meta platform-wide en environment/secret store, nunca en PostgreSQL ni Admin tenant;
+- snapshots limitados a destino/canal, subject nullable, render efectivo, occurrences/conceptos/importes/fechas y referencias no secretas;
+- no se persisten payloads crudos de provider;
+- C1 conserva historial sin purga automática.
 
 ### OPEN
 
 - mecanismo de ejecución desplegado: worker background Railway o job autenticado equivalente;
-- credenciales platform-wide versus tenant-specific; se recomienda platform-wide para V1;
 - nombres, idioma y aprobación final del template Meta;
 - sender/domain final de MailerSend;
-- retención temporal de snapshots, attempts y webhook receipts;
-- política exacta de cifrado en reposo del destino snapshot si la infraestructura futura lo ofrece.
 
 ### DEFER
 
@@ -627,3 +633,5 @@ Cada fase mantiene Email y WhatsApp independientes, SMS oculto y providers fuera
 - preferencias personales de notificación;
 - campañas/manual free-form;
 - implementación del sistema global `Notification`.
+- política avanzada de retención/purga;
+- cifrado application-level de snapshots; no se diseñará criptografía propia.

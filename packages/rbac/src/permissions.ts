@@ -24,6 +24,7 @@ export const PERMISSIONS = [
   'rental.contact.manage',
   'rental.obligation.manage',
   'rental.fulfillment.manage',
+  'rental.reminder.manage',
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];

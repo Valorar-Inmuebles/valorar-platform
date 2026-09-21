@@ -21,7 +21,7 @@ Plataforma SaaS inmobiliaria multi-tenant orientada a:
 
 **Rental Management V1.1 — Fases 1–3 + UI Foundation Fase 4 + Fases 5A–5E** ✅ (wizard completo hasta configuración previa de avisos)
 
-**Rental Communications V1 — C0** ✅ diseño canónico documentado; Migración C/C1 no iniciada.
+**Rental Communications V1 — C1** ✅ Persistence Foundation implementada en development; C2–C4 pendientes.
 
 Documentación: `docs/04-modules/rental-management-v1.md`, `docs/04-modules/rental-communications-v1.md`, `docs/03-database/rental-domain.md`
 
@@ -380,10 +380,21 @@ Documentación: `docs/04-modules/rental-management-v1.md`, `PROJECT_STATE.md`.
 * Email/MailerSend y WhatsApp/Meta Cloud API son los canales/providers iniciales planificados; SMS y overrides por contrato quedan diferidos.
 * Elegibilidad, bloqueos previos al provider, agrupación, idempotencia DB, leases, revalidación, snapshots y retries quedaron definidos.
 * Planner y delivery processing permanecen separados; el repositorio no tiene scheduler/queue/worker versionado y el mecanismo de ejecución desplegado continúa abierto.
-* Seguridad multi-tenant, RBAC futuro, secretos, webhooks, observabilidad, Admin y fases C1–C4 quedaron especificados.
-* No hubo cambios de schema, migraciones, API, Admin, RBAC, dependencias ni datos. Migración C/C1 no fue iniciada.
+* Seguridad multi-tenant, RBAC, secretos, webhooks, observabilidad, Admin y fases C1–C4 quedaron especificados.
+* C0 fue exclusivamente documental; su foundation se implementó posteriormente en C1.
 
 Documentación: `docs/04-modules/rental-communications-v1.md`, `docs/04-modules/rental-management-v1.md`, `docs/03-database/rental-domain.md`.
+
+### Rental Communications V1 — C1 ✅
+
+* Migración `202609210001_rental_communications_c1`: policy tenant-wide, planning issues, dispatch N:M occurrences, deliveries, attempts y webhook receipts.
+* Backfill determinístico de una policy por tenant con defaults ON/3/ON/ON/3/10:00; no se creó historia de comunicaciones ficticia.
+* Idempotencia, rangos, canales operativos, ciclos de estado y relaciones tenant-scoped protegidos por constraints/índices de PostgreSQL además del dominio.
+* `rental.reminder.manage` se asigna a Super Admin, Tenant Admin y Manager; API tenant-safe para GET/PUT policy y lectura paginada de issues/dispatches/deliveries/attempts.
+* Credenciales MailerSend/Meta son platform-wide y quedan exclusivamente en runtime/secret store. No se persisten secretos ni payloads crudos.
+* C1 no incorpora planner, scheduler, workers, providers, templates reales, webhooks HTTP, retry manual, Admin visual ni capacidad de envío. C2–C4 permanecen pendientes.
+
+Documentación: `docs/04-modules/rental-communications-v1.md`, `docs/04-modules/rental-management-v1.md`, `docs/03-database/rental-domain.md`, `docs/03-database/current-schema.md`.
 
 ### Lead Domain v1 (documentado)
 
