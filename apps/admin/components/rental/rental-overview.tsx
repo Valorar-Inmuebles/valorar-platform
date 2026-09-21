@@ -342,7 +342,7 @@ export function RentalOverview({
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="overflow-hidden">
           <CardHeader>
             <div>
               <CardTitle>Actividad reciente</CardTitle>
@@ -351,7 +351,7 @@ export function RentalOverview({
               </p>
             </div>
           </CardHeader>
-          <CardContent className="divide-y divide-border p-0">
+          <CardContent flush className="divide-y divide-border">
             {dashboard.activity.length === 0 ? (
               <p className="px-5 py-10 text-center text-sm text-muted">
                 Todavía no hay actividad contractual registrada.
