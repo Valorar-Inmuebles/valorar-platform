@@ -159,7 +159,7 @@ export function RentalOverview({
               Ver todos →
             </Link>
           </CardHeader>
-          <CardContent className="p-0">
+          <CardContent flush>
             <AdminTable variant="integrated" className="min-w-[720px]">
               <AdminTableHead>
                 <tr>

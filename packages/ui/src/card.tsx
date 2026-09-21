@@ -55,10 +55,17 @@ export function CardTitle({
 export function CardContent({
   className,
   children,
+  flush = false,
   ...props
-}: HTMLAttributes<HTMLDivElement> & { children: ReactNode }) {
+}: HTMLAttributes<HTMLDivElement> & {
+  children: ReactNode;
+  flush?: boolean;
+}) {
   return (
-    <div className={cn("px-5 py-4", className)} {...props}>
+    <div
+      className={cn(flush ? "p-0" : "px-5 py-4", className)}
+      {...props}
+    >
       {children}
     </div>
   );

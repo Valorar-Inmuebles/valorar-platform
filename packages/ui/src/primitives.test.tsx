@@ -2,6 +2,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import { AdminTable, AdminTableHead, AdminTableHeader } from "./admin-table";
 import { Button } from "./button";
+import { CardContent } from "./card";
 import { DatePicker } from "./date-picker";
 import { DropdownMenu } from "./dropdown-menu";
 import { Pagination } from "./pagination";
@@ -109,6 +110,20 @@ describe("shared primitives semantics", () => {
     );
     expect(integratedHtml).not.toContain("rounded-xl");
     expect(integratedHtml).not.toContain("border-border");
+  });
+
+  it("renders card content flush without residual padding utilities", () => {
+    const defaultHtml = renderToStaticMarkup(
+      <CardContent>Default</CardContent>,
+    );
+    const flushHtml = renderToStaticMarkup(
+      <CardContent flush>Integrated table</CardContent>,
+    );
+
+    expect(defaultHtml).toContain('class="px-5 py-4"');
+    expect(flushHtml).toContain('class="p-0"');
+    expect(flushHtml).not.toContain("px-5");
+    expect(flushHtml).not.toContain("py-4");
   });
 
   it("renders Stepper and DropdownMenu without domain knowledge", () => {
