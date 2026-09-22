@@ -21,7 +21,7 @@ Plataforma SaaS inmobiliaria multi-tenant orientada a:
 
 **Rental Management V1.1 — Fases 1–3 + UI Foundation Fase 4 + Fases 5A–5E** ✅ (wizard completo hasta configuración previa de avisos)
 
-**Rental Communications V1 — C1–C3B** ✅ Persistence Foundation, planner/orquestación, Email/MailerSend y Meta WhatsApp con inbound mínimo implementados; C4 pendiente.
+**Rental Communications V1 — C1–C3B** ✅ Persistence Foundation, planner/orquestación, Email/MailerSend y Meta WhatsApp con inbound mínimo implementados y **C3B validado en UAT real**; C4 pendiente.
 
 Documentación: `docs/04-modules/rental-management-v1.md`, `docs/04-modules/rental-communications-v1.md`, `docs/03-database/rental-domain.md`
 
@@ -468,8 +468,10 @@ Documentación: `docs/04-modules/rental-communications-v1.md`, `docs/03-database
   `PROCESSING` con lease vencido sin attempt activo) con CAS tenant-scoped,
   reabre el Dispatch terminal a `READY`, conserva Attempts/histórico y crea un
   attempt nuevo en el siguiente envío.
-* UI/Admin, scheduler productivo, activación externa del webhook y prueba real
-  WhatsApp quedan fuera del cierre técnico/operacional actual. C4 no fue iniciado.
+* UI/Admin y scheduler productivo quedan fuera de C3B (C4 no fue iniciado). La
+  activación externa del webhook y la prueba real WhatsApp **sí se validaron en
+  UAT** dentro del cierre de C3B (ver evidencia y requisito `subscribed_apps`
+  en la documentación del módulo).
 * Transform del destinatario en la frontera Meta/WhatsApp: E.164 sigue siendo
   la representación canónica del dominio (allowlist/snapshots intactos); el
   adapter deriva la forma Meta para AR vía `libphonenumber-js`
@@ -478,6 +480,18 @@ Documentación: `docs/04-modules/rental-communications-v1.md`, `docs/03-database
   canónico (la forma `54111531716941` correlaciona con `+5491131716941`).
   `META_131030` se mantiene como error genérico `VALIDATION`/`PROVIDER_UNAVAILABLE`
   sin semántica no confirmada.
+* Evidencia UAT real del cierre (development): outbound AR validado en vivo
+  (Attempt #3 `ACCEPTED` con wamid y recepción física del destinatario
+  autorizado, token System User sin caducidad); webhook App configurado con
+  `messages`; requisito operativo descubierto y cumplido: la App debe figurar en
+  `/{WABA_ID}/subscribed_apps` para recibir eventos; inbound real validado
+  end-to-end con HMAC real, transformación Meta → E.164 y correlación a
+  ContactPoint/Contact/Contract (ALQ-000001); Delivery/Dispatch `null` ante
+  ambigüedad (dos deliveries al mismo destino, por diseño); inbound no genera
+  Fulfillment ni respuesta automática (0 nuevos). `DELIVERED`/`READ` reales del
+  mensaje UAT no observados porque el outbound precedió a la corrección de
+  `subscribed_apps` — no es fallo del sistema. `messages:v26.0` suscripto vs API
+  outbound `v25.0` queda como observación técnica a alinear, no blocker.
 
 Documentación: `docs/04-modules/rental-communications-v1.md`, `docs/03-database/rental-domain.md`, `docs/03-database/current-schema.md`.
 

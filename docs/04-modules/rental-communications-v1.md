@@ -1,6 +1,6 @@
 # Rental Communications V1
 
-Estado: **C3A–C3B implementados; C4 pendiente**.
+Estado: **C3A–C3B implementados y validados en UAT real; C4 pendiente**.
 
 Esta especificación define Communications V1 y registra su avance por fases. C1 ya implementa tablas y endpoints de lectura/policy; no implica que existan planner, procesos de ejecución, proveedores ni envíos. El schema vigente continúa documentado exclusivamente en `docs/03-database/current-schema.md`.
 
@@ -648,7 +648,7 @@ configurar su signing secret en el runtime development.
 
 - Meta adapter y template aprobado;
 - procesamiento y webhook verificado de WhatsApp;
-- pruebas contractuales con sandbox/mocks, sin production.
+- pruebas contractuales con sandbox/mocks primero y **validación UAT real posterior** (ver "Evidencia UAT real del cierre" abajo).
 
 Implementado además:
 
@@ -732,6 +732,49 @@ Meta. Se normaliza como rechazo genérico del request: en el adapter a
 `VALIDATION` y en webhook a `PROVIDER_UNAVAILABLE`, siempre con mensaje
 sanitizado, sin atribuirle significado adicional (p. ej. "ventana de sesión").
 
+#### Evidencia UAT real del cierre (C3B)
+
+Gate cerrado operativamente con validación end-to-end real contra Meta Cloud API
+(environment `development`, phone/WABA de prueba, token System User sin
+caducidad `expires_at=0`, allowlist exacta del destinatario):
+
+- **Outbound real validado**: el envío con la normalización AR provider-specific
+  fue aceptado por Meta (Attempt #3 `ACCEPTED` con `providerMessageId` wamid y
+  `latencyMs` medido), y el mensaje fue recibido físicamente por el destinatario
+  autorizado. Evidencia previa inmediata de fallo por la forma E.164 sin
+  transformar (Attempt #1 `META_190`, Attempt #2 `META_131030`) quedó corregida
+  por el fix de frontera.
+- **Requisito operativo descubierto**: además de la suscripción de la App
+  (`callback_url` + campo `messages` activo, verificable vía
+  `GET /{app-id}/subscriptions`), la App debe figurar en
+  `/{WABA_ID}/subscribed_apps` de la WABA para que Meta entregue eventos. Este
+  requisito quedó operado en development (alta idempotente de la App en la WABA,
+  conservando la app DevX existente) y la App quedó suscripta con `messages`
+  activo; no es una condición de código.
+- **Inbound real validado end-to-end**: un mensaje manual real ("Prueba inbound
+  Valorar 001") enviado desde el destinatario autorizado llegó por webhook y fue
+  persistido. El `POST /webhooks/communications/meta-whatsapp` se recibió con
+  firma **HMAC real válida** (app secret), WABA y Phone Number ID correctos, y
+  el `from` normalizado de forma Meta → E.164 canónico. El mensaje se
+  correlacionó con **ContactPoint**, **Contact** y **Contract** (ALQ-000001).
+- **Delivery/Dispatch permanecen `null` ante ambigüedad, por diseño**: el
+  inbound correlaciona Delivery sólo si existe exactamente un delivery reciente
+  al mismo destino; con dos candidatos (delivery UAT `SENT` y delivery natural
+  `PENDING`, mismo `destinationSnapshot`) la FK queda `null`, conservador e
+  intencional.
+- **El inbound no genera Fulfillment ni respuesta automática**: se confirmó con
+  conteo real (0 fulfillments nuevos); el pipeline inbound sólo persiste y
+  correlaciona.
+- **`DELIVERED`/`READ` reales del Attempt #3 no fueron observados** porque el
+  outbound ocurrió antes de corregir la suscripción WABA (`subscribed_apps`);
+  los statuses del mensaje original no quedaron observados en la ventana de
+  validación. **No es un fallo conocido del sistema**: el pipeline de receipts
+  se validó por contrato y quedó listo para recibirlos una vez suscripta la App.
+- **Observación técnica a alinear posteriormente, no blocker**: el campo
+  `messages` quedó suscripto en la App en versión `v26.0` mientras la API
+  outbound opera con `v25.0`. No impide la recepción de webhooks; se alineará en
+  un sprint posterior.
+
 ### C4 — Admin y operación
 
 - policy tenant-wide;
@@ -765,13 +808,19 @@ Cada fase mantiene Email y WhatsApp independientes, SMS oculto y providers fuera
 - snapshots limitados a destino/canal, subject nullable, render efectivo, occurrences/conceptos/importes/fechas y referencias no secretas;
 - no se persisten payloads crudos de provider;
 - C1 conserva historial sin purga automática.
+- webhook Meta validado en UAT real: firma HMAC real, WABA/Phone correctos,
+  inbound `text` persistido y correlacionado con ContactPoint/Contact/Contract.
+- requisito operativo de `/{WABA_ID}/subscribed_apps` documentado y operado en
+  development (la App debe figurar suscripta para recibir eventos);
+- `DELIVERED`/`READ` reales del mensaje UAT no observados por precedencia de la
+  suscripción WABA (no es fallo del sistema); campo `messages` suscripto en la
+  App en `v26.0` vs API outbound `v25.0` queda como alineación técnica futura.
 
 ### OPEN
 
 - scheduler/mecanismo de ejecución desplegado: worker background Railway o job autenticado equivalente; el runner core y el comando development quedaron cerrados en C2;
 - nombre, idioma y aprobación del template Meta productivo (el test WABA sólo
   ofrece templates de prueba; la selección permanece configurable);
-- activación externa y prueba real controlada del webhook Meta;
 - activación externa y prueba controlada de MailerSend en runtimes distintos
   del development local ya validado, condicionadas a su configuración segura;
 
