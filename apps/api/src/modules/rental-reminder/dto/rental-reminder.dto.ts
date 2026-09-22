@@ -2,6 +2,7 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import {
   IsBoolean,
+  IsDateString,
   IsEnum,
   IsInt,
   IsOptional,
@@ -104,6 +105,22 @@ export class RentalReminderDispatchQueryDto extends RentalReminderPageQueryDto {
   @IsOptional()
   @IsString()
   contractId?: string;
+
+  @ApiPropertyOptional({
+    description:
+      'Early bound of the scheduling window (inclusive). ISO-8601 UTC.',
+  })
+  @IsOptional()
+  @IsDateString()
+  scheduledFrom?: string;
+
+  @ApiPropertyOptional({
+    description:
+      'Late bound of the scheduling window (exclusive). ISO-8601 UTC.',
+  })
+  @IsOptional()
+  @IsDateString()
+  scheduledTo?: string;
 }
 
 export class RentalReminderDeliveryQueryDto extends RentalReminderPageQueryDto {
@@ -123,4 +140,53 @@ export class RentalReminderDeliveryQueryDto extends RentalReminderPageQueryDto {
   @IsOptional()
   @IsString()
   dispatchId?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  contractId?: string;
+
+  @ApiPropertyOptional({
+    description: 'Early bound of the sent window (inclusive). ISO-8601 UTC.',
+  })
+  @IsOptional()
+  @IsDateString()
+  sentFrom?: string;
+
+  @ApiPropertyOptional({
+    description: 'Late bound of the sent window (exclusive). ISO-8601 UTC.',
+  })
+  @IsOptional()
+  @IsDateString()
+  sentTo?: string;
+
+  @ApiPropertyOptional({
+    description:
+      'Early bound of the delivered window (inclusive). ISO-8601 UTC.',
+  })
+  @IsOptional()
+  @IsDateString()
+  deliveredFrom?: string;
+
+  @ApiPropertyOptional({
+    description:
+      'Late bound of the delivered window (exclusive). ISO-8601 UTC.',
+  })
+  @IsOptional()
+  @IsDateString()
+  deliveredTo?: string;
+
+  @ApiPropertyOptional({
+    description: 'Early bound of the failed window (inclusive). ISO-8601 UTC.',
+  })
+  @IsOptional()
+  @IsDateString()
+  failedFrom?: string;
+
+  @ApiPropertyOptional({
+    description: 'Late bound of the failed window (exclusive). ISO-8601 UTC.',
+  })
+  @IsOptional()
+  @IsDateString()
+  failedTo?: string;
 }

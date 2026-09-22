@@ -29,7 +29,11 @@ jest.mock('../../../../generated/prisma/client', () => ({
 
 import { plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';
-import { UpdateRentalReminderPolicyDto } from './rental-reminder.dto';
+import {
+  RentalReminderDeliveryQueryDto,
+  RentalReminderDispatchQueryDto,
+  UpdateRentalReminderPolicyDto,
+} from './rental-reminder.dto';
 
 describe('UpdateRentalReminderPolicyDto', () => {
   const valid = {
@@ -59,5 +63,70 @@ describe('UpdateRentalReminderPolicyDto', () => {
       plainToInstance(UpdateRentalReminderPolicyDto, { ...valid, ...change }),
     );
     expect(errors.length).toBeGreaterThan(0);
+  });
+});
+
+describe('RentalReminderDispatchQueryDto scheduling range', () => {
+  it('accepts an inclusive/exclusive ISO-8601 scheduling window', async () => {
+    const errors = await validate(
+      plainToInstance(RentalReminderDispatchQueryDto, {
+        page: 2,
+        pageSize: 10,
+        scheduledFrom: '2026-09-01T00:00:00.000Z',
+        scheduledTo: '2026-10-01T00:00:00.000Z',
+      }),
+    );
+    expect(errors).toHaveLength(0);
+  });
+
+  it.each([{ scheduledFrom: 'not-a-date' }, { scheduledTo: 'not-a-date' }])(
+    'rejects a malformed window bound: %o',
+    async (change) => {
+      const errors = await validate(
+        plainToInstance(RentalReminderDispatchQueryDto, change),
+      );
+      expect(
+        errors.some(
+          (error) =>
+            error.property === 'scheduledFrom' ||
+            error.property === 'scheduledTo',
+        ),
+      ).toBe(true);
+    },
+  );
+
+  it('accepts a single-sided window bound', async () => {
+    const errors = await validate(
+      plainToInstance(RentalReminderDispatchQueryDto, {
+        scheduledFrom: '2026-09-01T00:00:00.000Z',
+      }),
+    );
+    expect(errors).toHaveLength(0);
+  });
+});
+
+describe('RentalReminderDeliveryQueryDto contract and delivery windows', () => {
+  it('accepts contractId plus all three delivery window pairs', async () => {
+    const errors = await validate(
+      plainToInstance(RentalReminderDeliveryQueryDto, {
+        contractId: 'contract-1',
+        sentFrom: '2026-09-01T00:00:00.000Z',
+        sentTo: '2026-10-01T00:00:00.000Z',
+        deliveredFrom: '2026-09-01T00:00:00.000Z',
+        deliveredTo: '2026-10-01T00:00:00.000Z',
+        failedFrom: '2026-09-01T00:00:00.000Z',
+        failedTo: '2026-10-01T00:00:00.000Z',
+      }),
+    );
+    expect(errors).toHaveLength(0);
+  });
+
+  it('rejects a malformed delivery window bound', async () => {
+    const errors = await validate(
+      plainToInstance(RentalReminderDeliveryQueryDto, {
+        sentFrom: 'not-a-date',
+      }),
+    );
+    expect(errors.some((error) => error.property === 'sentFrom')).toBe(true);
   });
 });

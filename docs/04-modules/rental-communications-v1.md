@@ -1,6 +1,6 @@
 # Rental Communications V1
 
-Estado: **C3A–C3B implementados y validados en UAT real; C4 pendiente**.
+Estado: **C1–C3B implementados y validados en UAT real; C4A.1 (read models/API de comunicaciones) implementado; C4 restante (UI Admin, métricas/alertas, señales Notification) pendiente**.
 
 Esta especificación define Communications V1 y registra su avance por fases. C1 ya implementa tablas y endpoints de lectura/policy; no implica que existan planner, procesos de ejecución, proveedores ni envíos. El schema vigente continúa documentado exclusivamente en `docs/03-database/current-schema.md`.
 
@@ -452,20 +452,71 @@ Política RBAC propuesta:
 | retry manual de un delivery `FAILED`           | `rental.reminder.manage`                                 |
 | configurar providers platform-wide             | futuro `platform.communication.manage`, sólo Super Admin |
 
-`rental.reminder.manage` está implementado para `SUPER_ADMIN`, `TENANT_ADMIN` y `MANAGER`. El retry manual ya existe como operación de dominio en el runner development (`reminder-reset`): crea un nuevo Attempt sobre el mismo Delivery, conserva el histórico (incluido un fallo anterior) y respeta el máximo/política auditada. El endpoint Admin de retry con RBAC queda pendiente de C4.
+`rental.reminder.manage` está implementado para `SUPER_ADMIN`, `TENANT_ADMIN` y `MANAGER`. El retry manual existe como operación de dominio en el runner development (`reminder-reset`) y como endpoint Admin desde C4A.1 con la misma semántica: crea un nuevo Attempt sobre el mismo Delivery, conserva el histórico (incluido un fallo anterior) y respeta el máximo/política auditada. Los read models de comunicaciones usan `rental.read`.
 
-API C1 implementada:
+API implementada:
 
-- `GET/PUT /rental-reminder-policy` para leer/actualizar transaccionalmente la policy del tenant;
-- `GET /rental-reminder-communications/planning-issues`;
-- `GET /rental-reminder-communications/dispatches`;
-- `GET /rental-reminder-communications/deliveries`;
-- `GET /rental-reminder-communications/deliveries/:id/attempts`.
+- C1: `GET/PUT /rental-reminder-policy` para leer/actualizar transaccionalmente la policy del tenant;
+- C1: `GET /rental-reminder-communications/planning-issues`;
+- C1: `GET /rental-reminder-communications/dispatches`;
+- C1: `GET /rental-reminder-communications/deliveries`;
+- C1: `GET /rental-reminder-communications/deliveries/:id/attempts`;
+- C4A.1 (read models, requieren `rental.read`):
+  - `GET /rental-reminder-communications/contracts/:contractId/history`;
+  - `GET /rental-reminder-communications/inbound`;
+  - `GET /rental-reminder-communications/summary`;
+- C4A.1 (operación, `rental.reminder.manage`):
+  - `POST /rental-reminder-communications/deliveries/:id/retry` → `200 OK` con
+    `{ok, attemptCount, nextAttemptNumber, dispatchReopened}`; `404` cuando el
+    delivery no existe o no pertenece al tenant; `409` con la razón canónica
+    (`NOT_FAILED`/`IN_FLIGHT`/`MAX_ATTEMPTS`/`CONCURRENT`).
 
-Todas las lecturas operativas son tenant-scoped, paginadas y requieren
-`rental.reminder.manage`. El resumen contextual y endpoints de
-webhook permanecen pendientes; el retry manual ya está cubierto por la
-operación de dominio `reminder-reset` (ver C3B).
+Todas las lecturas operativas son tenant-scoped y paginadas. Las ventanas
+temporales son `[from, to)` y se validan en Service (`from < to`). Los
+endpoints de webhook permanecen sin exposición Admin.
+
+#### C4A.1 — Read models de comunicaciones
+
+Alcance (sin schema, migración ni índices nuevos):
+
+- **Historial por contrato**: dispatches del contrato con sus occurrences
+  (concepto y `dueDate`) y deliveries con attempts embebidos; el snapshot del
+  destinatario se proyecta sólo a `contactId`/`name`. Filtros `eventType`,
+  `dispatchStatus` y `channel`. El canal tiene semántica doble: sólo dispatches
+  con al menos un delivery del canal (`deliveries: { some: { channel } }`) y,
+  dentro de cada item, sólo los deliveries de ese canal. Orden
+  `scheduledFor desc, id desc`; attempts por `attemptNumber asc`.
+- **Inbound**: mensajes entrantes WhatsApp tenant-scoped con filtros
+  `contractId`, `contactId` y ventana `receivedAt [from, to)`. Cada item expone
+  `sender.address` enmascarado, `deliveryCorrelated`, contacto/contrato
+  resueltos y `externalReplyLink`.
+- **Summary**: conteos del día local del tenant — dispatches programados,
+  deliveries `sent`/`delivered`/`failed` y planning issues `OPEN` — sobre la
+  ventana `[inicio del día local en `TenantSetting.timeZone`, +24h)` con
+  default `America/Argentina/Buenos_Aires`.
+
+Enmascaramiento y privacidad (mismo patrón del runner):
+
+- teléfono: `slice(0,3) + '*' * max(4, len-7) + slice(-4)` (p. ej.
+  `+54*******6941`);
+- email: primer carácter + `***` + dominio (`r***@example.com`);
+- errores: sólo categoría/código/mensaje sanitizado;
+- nunca se expone el payload del provider, metadata inbound,
+  `providerMessageId`, tokens/secretos ni snapshots internos.
+
+Excepción de PII funcional: `externalReplyLink` devuelve
+`https://wa.me/<dígitos>` con el número completo del remitente como PII
+**funcional** para soportar "Responder por WhatsApp". No se expone ningún otro
+número (ni contact points, ni snapshots, ni metadata del provider);
+`sender.address` permanece enmascarado; y este valor no se loguea.
+
+Detalles de operación:
+
+- El retry es `POST` con respuesta `200 OK` (no `201`) y reutiliza la operación
+  de dominio `manualResetFailedDelivery`; no envía sincrónicamente.
+- No hay cambios de schema, migraciones, índices ni permisos nuevos (se
+  reutilizan las superficies existentes `rental.read`/`rental.reminder.manage`).
+- Fuera de alcance: UI Admin, C4B, métricas/alertas y scheduler/productivo.
 
 Planner y worker son application commands internos. Si la infraestructura exige
 un trigger HTTP, será un endpoint interno con autenticación de servicio, nunca
@@ -775,11 +826,33 @@ caducidad `expires_at=0`, allowlist exacta del destinatario):
   outbound opera con `v25.0`. No impide la recepción de webhooks; se alineará en
   un sprint posterior.
 
+### C4A.1 — Read Models/API de comunicaciones ✅
+
+- read models Admin: historial por contrato (occurrences + deliveries +
+  attempts, filtros `eventType`/`dispatchStatus`/`channel`), inbound
+  (filtros `contractId`/`contactId` + ventana `[from, to)`) y summary del día
+  local del tenant;
+- API: `GET /rental-reminder-communications/contracts/:contractId/history`,
+  `GET /rental-reminder-communications/inbound` y
+  `GET /rental-reminder-communications/summary` bajo `rental.read`;
+  `POST /rental-reminder-communications/deliveries/:id/retry` bajo
+  `rental.reminder.manage` (200/404/409 con razón canónica);
+- enmascaramiento de destinos y errores sanitizados; proyección de snapshots;
+  excepción de PII funcional documentada para `externalReplyLink` (− no se
+  loguea, `sender.address` sigue enmascarado);
+- ventanas `[from, to)` validadas en Service y ventana diaria por
+  `TenantSetting.timeZone` (default `America/Argentina/Buenos_Aires`);
+- retry reutiliza la operación de dominio `manualResetFailedDelivery`; sin
+  envíos sincrónicos;
+- sin schema/migración/índices, sin permisos nuevos, sin UI Admin, sin C4B;
+  gates verdes (tests focalizados, typecheck API, lint/prettier, `git diff
+  --check`).
+
 ### C4 — Admin y operación
 
 - policy tenant-wide;
-- historial contractual de comunicaciones y operación de fallos;
-- retry manual con RBAC (Admin; la operación de dominio ya existe en el runner development);
+- historial contractual de comunicaciones: **read models/API implementados en C4A.1**; falta la UI/Admin;
+- retry manual con RBAC: **endpoint implementado en C4A.1** (opera sobre la misma operación de dominio);
 - métricas/alertas;
 - señales hacia `Notification` sólo si ese sistema ya existe o en su fase propia.
 
@@ -815,6 +888,12 @@ Cada fase mantiene Email y WhatsApp independientes, SMS oculto y providers fuera
 - `DELIVERED`/`READ` reales del mensaje UAT no observados por precedencia de la
   suscripción WABA (no es fallo del sistema); campo `messages` suscripto en la
   App en `v26.0` vs API outbound `v25.0` queda como alineación técnica futura.
+- C4A.1 (read models/API de comunicaciones): historial por contrato con
+  channel filter (dispatches y sus deliveries restringidos al canal), inbound
+  enmascarado con `externalReplyLink` como PII funcional documentada (no se
+  loguea; nada más del remitente se expone), summary del día local del tenant
+  y retry `POST` 200/404/409 reutilizando la operación de dominio. Sin schema,
+  migración, índices, permisos nuevos ni UI Admin en este alcance.
 
 ### OPEN
 

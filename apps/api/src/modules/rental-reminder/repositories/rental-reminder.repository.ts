@@ -21,6 +21,7 @@ import type {
   RentalReminderPlanningIssueQueryDto,
   UpdateRentalReminderPolicyDto,
 } from '../dto/rental-reminder.dto';
+import type { RentalReminderContractHistoryQueryDto } from '../dto/rental-reminder-read-model.dto';
 import { computeAttemptKey } from '../domain/rental-reminder-domain';
 
 const pageOptions = (page = 1, pageSize = 20) => ({
@@ -83,11 +84,25 @@ export class RentalReminderRepository {
 
   findDispatches(tenantId: string, query: RentalReminderDispatchQueryDto) {
     const paging = pageOptions(query.page, query.pageSize);
+    const scheduledFrom = query.scheduledFrom
+      ? new Date(query.scheduledFrom)
+      : undefined;
+    const scheduledTo = query.scheduledTo
+      ? new Date(query.scheduledTo)
+      : undefined;
     const where: Prisma.RentalReminderDispatchWhereInput = {
       tenantId,
       ...(query.status ? { status: query.status } : {}),
       ...(query.eventType ? { eventType: query.eventType } : {}),
       ...(query.contractId ? { contractId: query.contractId } : {}),
+      ...(scheduledFrom || scheduledTo
+        ? {
+            scheduledFor: {
+              ...(scheduledFrom ? { gte: scheduledFrom } : {}),
+              ...(scheduledTo ? { lt: scheduledTo } : {}),
+            },
+          }
+        : {}),
     };
     return this.prisma.$transaction([
       this.prisma.rentalReminderDispatch.findMany({
@@ -109,11 +124,50 @@ export class RentalReminderRepository {
 
   findDeliveries(tenantId: string, query: RentalReminderDeliveryQueryDto) {
     const paging = pageOptions(query.page, query.pageSize);
+    const sentFrom = query.sentFrom ? new Date(query.sentFrom) : undefined;
+    const sentTo = query.sentTo ? new Date(query.sentTo) : undefined;
+    const deliveredFrom = query.deliveredFrom
+      ? new Date(query.deliveredFrom)
+      : undefined;
+    const deliveredTo = query.deliveredTo
+      ? new Date(query.deliveredTo)
+      : undefined;
+    const failedFrom = query.failedFrom
+      ? new Date(query.failedFrom)
+      : undefined;
+    const failedTo = query.failedTo ? new Date(query.failedTo) : undefined;
     const where: Prisma.RentalReminderDeliveryWhereInput = {
       tenantId,
       ...(query.status ? { status: query.status } : {}),
       ...(query.channel ? { channel: query.channel } : {}),
       ...(query.dispatchId ? { dispatchId: query.dispatchId } : {}),
+      ...(query.contractId
+        ? { dispatch: { tenantId, contractId: query.contractId } }
+        : {}),
+      ...(sentFrom || sentTo
+        ? {
+            sentAt: {
+              ...(sentFrom ? { gte: sentFrom } : {}),
+              ...(sentTo ? { lt: sentTo } : {}),
+            },
+          }
+        : {}),
+      ...(deliveredFrom || deliveredTo
+        ? {
+            deliveredAt: {
+              ...(deliveredFrom ? { gte: deliveredFrom } : {}),
+              ...(deliveredTo ? { lt: deliveredTo } : {}),
+            },
+          }
+        : {}),
+      ...(failedFrom || failedTo
+        ? {
+            failedAt: {
+              ...(failedFrom ? { gte: failedFrom } : {}),
+              ...(failedTo ? { lt: failedTo } : {}),
+            },
+          }
+        : {}),
     };
     return this.prisma.$transaction([
       this.prisma.rentalReminderDelivery.findMany({
@@ -149,6 +203,108 @@ export class RentalReminderRepository {
         where: { tenantId, deliveryId },
       }),
     ]);
+  }
+
+  findContractSummary(tenantId: string, contractId: string) {
+    return this.prisma.rentalContract.findFirst({
+      where: { tenantId, id: contractId },
+      select: { id: true, internalNumber: true },
+    });
+  }
+
+  findContractCommunicationsHistory(
+    tenantId: string,
+    contractId: string,
+    query: RentalReminderContractHistoryQueryDto,
+  ) {
+    const paging = pageOptions(query.page, query.pageSize);
+    const where: Prisma.RentalReminderDispatchWhereInput = {
+      tenantId,
+      contractId,
+      ...(query.eventType ? { eventType: query.eventType } : {}),
+      ...(query.dispatchStatus ? { status: query.dispatchStatus } : {}),
+      ...(query.channel
+        ? { deliveries: { some: { channel: query.channel } } }
+        : {}),
+    };
+    return this.prisma.$transaction([
+      this.prisma.rentalReminderDispatch.findMany({
+        where,
+        include: {
+          deliveries: {
+            where: { ...(query.channel ? { channel: query.channel } : {}) },
+            include: {
+              attempts: { orderBy: { attemptNumber: 'asc' as const } },
+            },
+          },
+          occurrences: {
+            select: {
+              occurrenceId: true,
+              status: true,
+              exclusionReason: true,
+              occurrence: {
+                select: {
+                  dueDate: true,
+                  obligation: {
+                    select: { concept: { select: { name: true } } },
+                  },
+                },
+              },
+            },
+            orderBy: { occurrenceId: 'asc' as const },
+          },
+        },
+        orderBy: [{ scheduledFor: 'desc' as const }, { id: 'desc' as const }],
+        skip: paging.skip,
+        take: paging.pageSize,
+      }),
+      this.prisma.rentalReminderDispatch.count({ where }),
+    ]);
+  }
+
+  countCommunicationsSummary(tenantId: string, from: Date, to: Date) {
+    return this.prisma
+      .$transaction([
+        this.prisma.rentalReminderDispatch.count({
+          where: { tenantId, scheduledFor: { gte: from, lt: to } },
+        }),
+        this.prisma.rentalReminderDelivery.count({
+          where: { tenantId, sentAt: { gte: from, lt: to } },
+        }),
+        this.prisma.rentalReminderDelivery.count({
+          where: { tenantId, deliveredAt: { gte: from, lt: to } },
+        }),
+        this.prisma.rentalReminderDelivery.count({
+          where: { tenantId, failedAt: { gte: from, lt: to } },
+        }),
+        this.prisma.rentalReminderPlanningIssue.count({
+          where: { tenantId, status: RentalReminderPlanningIssueStatus.OPEN },
+        }),
+      ])
+      .then(
+        ([
+          dispatchesScheduledToday,
+          deliveriesSentToday,
+          deliveriesDeliveredToday,
+          deliveriesFailedToday,
+          planningIssuesOpen,
+        ]) => ({
+          dispatchesScheduledToday,
+          deliveriesSentToday,
+          deliveriesDeliveredToday,
+          deliveriesFailedToday,
+          planningIssuesOpen,
+        }),
+      );
+  }
+
+  findTenantTimezone(tenantId: string) {
+    return this.prisma.rentalReminderPolicy.findUnique({
+      where: { tenantId },
+      select: {
+        tenant: { select: { settings: { select: { timeZone: true } } } },
+      },
+    });
   }
 
   findPlannerPolicies() {
@@ -1256,7 +1412,8 @@ export class RentalReminderRepository {
           lockedUntil: null,
         },
       });
-      if (updated.count !== 1) return { ok: false, reason: 'CONCURRENT' as const };
+      if (updated.count !== 1)
+        return { ok: false, reason: 'CONCURRENT' as const };
       const dispatch = await tx.rentalReminderDispatch.findFirst({
         where: { tenantId: input.tenantId, id: delivery.dispatchId },
         select: { id: true, completedAt: true },

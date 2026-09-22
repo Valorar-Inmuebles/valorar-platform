@@ -437,8 +437,7 @@ describe('RentalReminderRepository manual reset for retry', () => {
 
   function repositoryWith(tx: unknown) {
     return new RentalReminderRepository({
-      $transaction: (callback: (client: unknown) => unknown) =>
-        callback(tx),
+      $transaction: (callback: (client: unknown) => unknown) => callback(tx),
     } as never);
   }
 
@@ -490,8 +489,11 @@ describe('RentalReminderRepository manual reset for retry', () => {
         lockedUntil: true,
       }) as unknown,
     });
-    const data = updateMany.mock.calls[0][0].data;
-    expect(updateMany.mock.calls[0][0].where).toMatchObject({
+    const resetCalls = updateMany.mock.calls as unknown as Array<
+      [{ where: Record<string, unknown>; data: Record<string, unknown> }]
+    >;
+    const data = resetCalls[0][0].data;
+    expect(resetCalls[0][0].where).toMatchObject({
       id: 'delivery-1',
       tenantId: 'tenant-1',
       OR: [
@@ -643,13 +645,22 @@ describe('RentalReminderRepository manual reset for retry', () => {
       },
       select: { id: true },
     });
-    expect(updateMany.mock.calls[0][0].where).toMatchObject({
+    const resetCalls = updateMany.mock.calls as unknown as Array<
+      [
+        {
+          where: { OR: Array<Record<string, unknown>> };
+          data: Record<string, unknown>;
+        },
+      ]
+    >;
+    const resetCall = resetCalls[0][0];
+    expect(resetCall.where).toMatchObject({
       OR: [
         { status: 'FAILED' },
         { status: 'PROCESSING', lockedUntil: { lt: now } },
       ],
     });
-    expect(updateMany.mock.calls[0][0].data).toMatchObject({
+    expect(resetCall.data).toMatchObject({
       status: 'PENDING',
       processingToken: null,
       lockedUntil: null,
@@ -704,7 +715,16 @@ describe('RentalReminderRepository manual reset for retry', () => {
     ).resolves.toEqual({ ok: false, reason: 'NOT_FOUND' });
     expect(tx.rentalReminderDelivery.findFirst).toHaveBeenCalledWith({
       where: { id: 'delivery-1', tenantId: 'tenant-2' },
-      select: expect.anything(),
+      select: {
+        id: true,
+        dispatchId: true,
+        status: true,
+        attemptCount: true,
+        lockedUntil: true,
+        errorCategory: true,
+        errorCode: true,
+        errorMessage: true,
+      },
     });
     expect(updateMany).not.toHaveBeenCalled();
   });
@@ -759,5 +779,265 @@ describe('RentalReminderRepository manual reset for retry', () => {
       }),
     ).resolves.toEqual({ ok: false, reason: 'CONCURRENT' });
     expect(tx.rentalReminderDispatch.findFirst).not.toHaveBeenCalled();
+  });
+});
+
+describe('RentalReminderRepository dispatch/delivery window filters', () => {
+  it('scopes dispatch windows [from, to) to the tenant', async () => {
+    const findMany = jest.fn().mockResolvedValue([]);
+    const count = jest.fn().mockResolvedValue(0);
+    const prisma = {
+      $transaction: jest.fn().mockResolvedValue([[], 0]),
+      rentalReminderDispatch: { findMany, count },
+    };
+    const repository = new RentalReminderRepository(prisma as never);
+
+    await repository.findDispatches('tenant-1', {
+      page: 1,
+      pageSize: 20,
+      scheduledFrom: '2026-09-01T00:00:00.000Z',
+      scheduledTo: '2026-10-01T00:00:00.000Z',
+    });
+
+    type DispatchInput = {
+      where: {
+        tenantId: string;
+        scheduledFor: { gte?: Date; lt?: Date };
+      };
+    };
+    const dispatchCalls = findMany.mock.calls as unknown as Array<
+      [DispatchInput]
+    >;
+    const input = dispatchCalls[0][0];
+    expect(input.where.tenantId).toBe('tenant-1');
+    expect(input.where.scheduledFor).toEqual({
+      gte: new Date('2026-09-01T00:00:00.000Z'),
+      lt: new Date('2026-10-01T00:00:00.000Z'),
+    });
+    expect(count).toHaveBeenCalledWith({ where: input.where });
+  });
+
+  it('accepts a single-sided scheduling bound', async () => {
+    const findMany = jest.fn().mockResolvedValue([]);
+    const prisma = {
+      $transaction: jest.fn().mockResolvedValue([[], 0]),
+      rentalReminderDispatch: { findMany, count: jest.fn() },
+    };
+    const repository = new RentalReminderRepository(prisma as never);
+
+    await repository.findDispatches('tenant-1', {
+      scheduledFrom: '2026-09-01T00:00:00.000Z',
+    });
+
+    type DispatchInput = { where: { scheduledFor?: unknown } };
+    const dispatchCalls = findMany.mock.calls as unknown as Array<
+      [DispatchInput]
+    >;
+    const input = dispatchCalls[0][0];
+    expect(input.where.scheduledFor).toEqual({
+      gte: new Date('2026-09-01T00:00:00.000Z'),
+    });
+  });
+
+  it('scopes delivery filters to the tenant contract and timestamp windows', async () => {
+    const findMany = jest.fn().mockResolvedValue([]);
+    const prisma = {
+      $transaction: jest.fn().mockResolvedValue([[], 0]),
+      rentalReminderDelivery: { findMany, count: jest.fn() },
+    };
+    const repository = new RentalReminderRepository(prisma as never);
+
+    await repository.findDeliveries('tenant-1', {
+      page: 1,
+      pageSize: 20,
+      contractId: 'contract-1',
+      sentFrom: '2026-09-01T00:00:00.000Z',
+      sentTo: '2026-10-01T00:00:00.000Z',
+      deliveredFrom: '2026-09-01T00:00:00.000Z',
+      deliveredTo: '2026-09-02T00:00:00.000Z',
+      failedFrom: '2026-09-03T00:00:00.000Z',
+    });
+
+    type DeliveryInput = {
+      where: {
+        tenantId: string;
+        dispatch?: { tenantId: string; contractId: string };
+        sentAt?: { gte: Date; lt: Date };
+        deliveredAt?: { gte: Date; lt: Date };
+        failedAt?: { gte: Date };
+      };
+    };
+    const deliveryCalls = findMany.mock.calls as unknown as Array<
+      [DeliveryInput]
+    >;
+    const input = deliveryCalls[0][0];
+    expect(input.where.tenantId).toBe('tenant-1');
+    expect(input.where.dispatch).toEqual({
+      tenantId: 'tenant-1',
+      contractId: 'contract-1',
+    });
+    expect(input.where.sentAt).toEqual({
+      gte: new Date('2026-09-01T00:00:00.000Z'),
+      lt: new Date('2026-10-01T00:00:00.000Z'),
+    });
+    expect(input.where.deliveredAt).toEqual({
+      gte: new Date('2026-09-01T00:00:00.000Z'),
+      lt: new Date('2026-09-02T00:00:00.000Z'),
+    });
+    expect(input.where.failedAt).toEqual({
+      gte: new Date('2026-09-03T00:00:00.000Z'),
+    });
+  });
+});
+
+describe('RentalReminderRepository contract communications history', () => {
+  function repositoryWith(dispatch: { findMany: jest.Mock; count: jest.Mock }) {
+    return new RentalReminderRepository({
+      $transaction: jest.fn().mockResolvedValue([[], 0]),
+      rentalReminderDispatch: dispatch,
+      rentalContract: { findFirst: jest.fn() },
+    } as never);
+  }
+
+  it('tenant-scopes history and returns only dispatches with the requested channel delivery', async () => {
+    const findMany = jest.fn().mockResolvedValue([]);
+    const count = jest.fn().mockResolvedValue(0);
+    const repository = repositoryWith({ findMany, count });
+
+    await repository.findContractCommunicationsHistory(
+      'tenant-1',
+      'contract-1',
+      {
+        page: 1,
+        pageSize: 20,
+        channel: 'WHATSAPP',
+      },
+    );
+
+    type HistoryInput = {
+      where: {
+        tenantId: string;
+        contractId: string;
+        deliveries?: { some: { channel: string } };
+      };
+      include: {
+        deliveries: { where?: { channel?: string } };
+        occurrences: unknown;
+      };
+      orderBy: Array<{ scheduledFor: string } | { id: string }>;
+    };
+    const historyCalls = findMany.mock.calls as unknown as Array<
+      [HistoryInput]
+    >;
+    const input = historyCalls[0][0];
+    expect(input.where.tenantId).toBe('tenant-1');
+    expect(input.where.contractId).toBe('contract-1');
+    // Dispatches must have at least one delivery of the requested channel.
+    expect(input.where.deliveries).toEqual({ some: { channel: 'WHATSAPP' } });
+    // Within each included dispatch only the requested channel deliveries appear.
+    expect(input.include.deliveries.where).toEqual({ channel: 'WHATSAPP' });
+    expect(input.orderBy).toEqual([{ scheduledFor: 'desc' }, { id: 'desc' }]);
+    expect(count).toHaveBeenCalledWith({ where: input.where });
+  });
+
+  it('omits the channel filter when absent', async () => {
+    const findMany = jest.fn().mockResolvedValue([]);
+    const count = jest.fn().mockResolvedValue(0);
+    const repository = repositoryWith({ findMany, count });
+
+    await repository.findContractCommunicationsHistory(
+      'tenant-1',
+      'contract-1',
+      {
+        page: 1,
+        pageSize: 20,
+        eventType: 'DUE',
+        dispatchStatus: 'COMPLETED',
+      },
+    );
+
+    type HistoryInput = {
+      where: { deliveries?: unknown };
+      include: { deliveries: { where?: unknown } };
+    };
+    const historyCalls = findMany.mock.calls as unknown as Array<
+      [HistoryInput]
+    >;
+    const input = historyCalls[0][0];
+    expect(input.where).not.toHaveProperty('deliveries');
+    expect(input.include.deliveries.where).toEqual({});
+    expect(input.where).toMatchObject({
+      tenantId: 'tenant-1',
+      contractId: 'contract-1',
+      eventType: 'DUE',
+      status: 'COMPLETED',
+    });
+  });
+
+  it('resolves the contract summary only within the tenant', async () => {
+    const findFirst = jest.fn().mockResolvedValue({
+      id: 'contract-1',
+      internalNumber: 'ALQ-000001',
+    });
+    const repository = new RentalReminderRepository({
+      rentalContract: { findFirst },
+    } as never);
+
+    await expect(
+      repository.findContractSummary('tenant-1', 'contract-1'),
+    ).resolves.toEqual({ id: 'contract-1', internalNumber: 'ALQ-000001' });
+    expect(findFirst).toHaveBeenCalledWith({
+      where: { tenantId: 'tenant-1', id: 'contract-1' },
+      select: { id: true, internalNumber: true },
+    });
+  });
+});
+
+describe('RentalReminderRepository communications summary counts', () => {
+  it('maps the five independent counters for the tenant day window', async () => {
+    const prisma = {
+      $transaction: jest.fn().mockResolvedValue([3, 5, 4, 2, 1]),
+      rentalReminderDispatch: { count: jest.fn() },
+      rentalReminderDelivery: { count: jest.fn() },
+      rentalReminderPlanningIssue: { count: jest.fn() },
+    };
+    const repository = new RentalReminderRepository(prisma as never);
+    const from = new Date('2026-09-22T03:00:00.000Z');
+    const to = new Date('2026-09-23T03:00:00.000Z');
+
+    await expect(
+      repository.countCommunicationsSummary('tenant-1', from, to),
+    ).resolves.toEqual({
+      dispatchesScheduledToday: 3,
+      deliveriesSentToday: 5,
+      deliveriesDeliveredToday: 4,
+      deliveriesFailedToday: 2,
+      planningIssuesOpen: 1,
+    });
+    expect(prisma.rentalReminderDelivery.count).toHaveBeenNthCalledWith(1, {
+      where: { tenantId: 'tenant-1', sentAt: { gte: from, lt: to } },
+    });
+    expect(prisma.rentalReminderPlanningIssue.count).toHaveBeenCalledWith({
+      where: { tenantId: 'tenant-1', status: 'OPEN' },
+    });
+  });
+
+  it('resolves the tenant timezone for window computation', async () => {
+    const findUnique = jest.fn().mockResolvedValue({
+      tenant: { settings: { timeZone: 'America/Argentina/Buenos_Aires' } },
+    });
+    const repository = new RentalReminderRepository({
+      rentalReminderPolicy: { findUnique },
+    } as never);
+
+    await expect(repository.findTenantTimezone('tenant-1')).resolves.toEqual({
+      tenant: { settings: { timeZone: 'America/Argentina/Buenos_Aires' } },
+    });
+    expect(findUnique).toHaveBeenCalledWith({
+      where: { tenantId: 'tenant-1' },
+      select: {
+        tenant: { select: { settings: { select: { timeZone: true } } } },
+      },
+    });
   });
 });

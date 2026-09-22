@@ -6,6 +6,7 @@ import {
   RentalContractStatus,
 } from '../../../../generated/prisma/client';
 import { PrismaService } from '../../../prisma/prisma.service';
+import type { RentalReminderInboundQueryDto } from '../dto/rental-reminder-read-model.dto';
 import {
   META_WHATSAPP_PROVIDER_ACCOUNT_KEY,
   META_WHATSAPP_PROVIDER_KEY,
@@ -149,8 +150,28 @@ export class CommunicationInboundRepository {
     return { created: created.count === 1, message };
   }
 
-  async listReadModel(tenantId: string, page = 1, pageSize = 20) {
-    const where = { tenantId };
+  async listReadModel(tenantId: string, query: RentalReminderInboundQueryDto) {
+    const page = query.page ?? 1;
+    const pageSize = query.pageSize ?? 20;
+    const receivedFrom = query.receivedFrom
+      ? new Date(query.receivedFrom)
+      : undefined;
+    const receivedTo = query.receivedTo
+      ? new Date(query.receivedTo)
+      : undefined;
+    const where: Prisma.CommunicationInboundMessageWhereInput = {
+      tenantId,
+      ...(query.contractId ? { contractId: query.contractId } : {}),
+      ...(query.contactId ? { contactId: query.contactId } : {}),
+      ...(receivedFrom || receivedTo
+        ? {
+            receivedAt: {
+              ...(receivedFrom ? { gte: receivedFrom } : {}),
+              ...(receivedTo ? { lt: receivedTo } : {}),
+            },
+          }
+        : {}),
+    };
     const [items, total] = await this.prisma.$transaction([
       this.prisma.communicationInboundMessage.findMany({
         where,

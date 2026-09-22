@@ -3,6 +3,7 @@ import { AuthModule } from '../auth/auth.module';
 import {
   RentalReminderCommunicationController,
   RentalReminderPolicyController,
+  RentalReminderReadController,
 } from './controllers/rental-reminder.controller';
 import { RentalReminderRepository } from './repositories/rental-reminder.repository';
 import { RentalReminderService } from './services/rental-reminder.service';
@@ -29,6 +30,7 @@ import { CommunicationInboundService } from './services/communication-inbound.se
   controllers: [
     RentalReminderPolicyController,
     RentalReminderCommunicationController,
+    RentalReminderReadController,
     MailerSendWebhookController,
     MetaWhatsAppWebhookController,
   ],

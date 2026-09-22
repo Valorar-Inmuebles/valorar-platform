@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '../../../../generated/prisma/client';
+import type { RentalReminderInboundQueryDto } from '../dto/rental-reminder-read-model.dto';
 import { normalizeMetaWhatsAppInboundSender } from '../providers/meta-whatsapp-recipient';
 import { CommunicationInboundRepository } from '../repositories/communication-inbound.repository';
 
@@ -111,8 +112,8 @@ export class CommunicationInboundService {
     };
   }
 
-  listReadModel(tenantId: string, page = 1, pageSize = 20) {
-    return this.repository.listReadModel(tenantId, page, pageSize);
+  listReadModel(tenantId: string, query: RentalReminderInboundQueryDto) {
+    return this.repository.listReadModel(tenantId, query);
   }
 
   private sameAddress(value: string, expectedE164: string) {

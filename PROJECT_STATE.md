@@ -21,7 +21,7 @@ Plataforma SaaS inmobiliaria multi-tenant orientada a:
 
 **Rental Management V1.1 — Fases 1–3 + UI Foundation Fase 4 + Fases 5A–5E** ✅ (wizard completo hasta configuración previa de avisos)
 
-**Rental Communications V1 — C1–C3B** ✅ Persistence Foundation, planner/orquestación, Email/MailerSend y Meta WhatsApp con inbound mínimo implementados y **C3B validado en UAT real**; C4 pendiente.
+**Rental Communications V1 — C1–C4A.1** ✅ Persistence Foundation, planner/orquestación, Email/MailerSend y Meta WhatsApp con inbound mínimo implementados y **C3B validado en UAT real**; **C4A.1 (read models/API de comunicaciones) implementado**; C4 restante (UI Admin, métricas/alertas, señales `Notification`) pendiente.
 
 Documentación: `docs/04-modules/rental-management-v1.md`, `docs/04-modules/rental-communications-v1.md`, `docs/03-database/rental-domain.md`
 
@@ -494,6 +494,34 @@ Documentación: `docs/04-modules/rental-communications-v1.md`, `docs/03-database
   outbound `v25.0` queda como observación técnica a alinear, no blocker.
 
 Documentación: `docs/04-modules/rental-communications-v1.md`, `docs/03-database/rental-domain.md`, `docs/03-database/current-schema.md`.
+
+### Rental Communications V1 — C4A.1 ✅
+
+* Read models/API de comunicaciones (Admin) sobre el schema existente, **sin
+  migraciones**: `GET /rental-reminder-communications/contracts/:contractId/history`,
+  `GET /rental-reminder-communications/inbound` y
+  `GET /rental-reminder-communications/summary` bajo `rental.read`;
+  `POST /rental-reminder-communications/deliveries/:id/retry` bajo
+  `rental.reminder.manage` (respuesta `200`; `404`/`409` con razón canónica).
+* Historial por contrato: dispatches con occurrences (concepto/`dueDate`) y
+  deliveries con attempts; filtros `eventType`/`dispatchStatus`/`channel`
+  (el canal restringe tanto los dispatches como sus deliveries al canal);
+  orden `scheduledFor desc, id desc` y attempts por `attemptNumber asc`.
+* Inbound: filtros `contractId`/`contactId` y ventana `receivedAt [from, to)`;
+  `sender.address` enmascarado, correlación de delivery y `externalReplyLink`
+  como PII funcional (`https://wa.me/<dígitos>`, sin logs).
+* Summary: conteos del día local del tenant (`TenantSetting.timeZone`, default
+  `America/Argentina/Buenos_Aires`) con ventana `[inicio de día local, +24h)`.
+* Enmascaramiento de teléfonos/emails (patrón del runner) y errores
+  sanitizados; nunca payloads crudos, tokens, `providerMessageId`, metadata
+  inbound ni snapshots internos.
+* Retry reutiliza la operación de dominio `manualResetFailedDelivery`; sin
+  envíos sincrónicos, sin scheduler y sin cambios de schema/índices/permisos.
+* Gates verdes: tests focalizados (DTOs, repos, service, controller/RBAC,
+  canal en history), typecheck API, lint/prettier y `git diff --check`.
+* Sin UI Admin, sin C4B, sin métricas/alertas ni señales `Notification`.
+
+Documentación: `docs/04-modules/rental-communications-v1.md`.
 
 ### Lead Domain v1 (documentado)
 
