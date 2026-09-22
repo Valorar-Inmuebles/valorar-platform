@@ -1176,6 +1176,115 @@ export class RentalReminderRepository {
     });
   }
 
+  manualResetFailedDelivery(input: {
+    tenantId: string;
+    deliveryId: string;
+    now: Date;
+  }): Promise<
+    | {
+        ok: true;
+        attemptCount: number;
+        nextAttemptNumber: number;
+        dispatchReopened: boolean;
+      }
+    | {
+        ok: false;
+        reason:
+          | 'NOT_FOUND'
+          | 'NOT_FAILED'
+          | 'IN_FLIGHT'
+          | 'MAX_ATTEMPTS'
+          | 'CONCURRENT';
+      }
+  > {
+    return this.prisma.$transaction(async (tx) => {
+      const delivery = await tx.rentalReminderDelivery.findFirst({
+        where: { id: input.deliveryId, tenantId: input.tenantId },
+        select: {
+          id: true,
+          dispatchId: true,
+          status: true,
+          attemptCount: true,
+          lockedUntil: true,
+          errorCategory: true,
+          errorCode: true,
+          errorMessage: true,
+        },
+      });
+      if (!delivery) return { ok: false, reason: 'NOT_FOUND' as const };
+      const failed = delivery.status === RentalReminderDeliveryStatus.FAILED;
+      const danglingProcessing =
+        delivery.status === RentalReminderDeliveryStatus.PROCESSING &&
+        delivery.lockedUntil !== null &&
+        delivery.lockedUntil < input.now;
+      if (!failed && !danglingProcessing)
+        return { ok: false, reason: 'NOT_FAILED' as const };
+      if (delivery.attemptCount >= 4)
+        return { ok: false, reason: 'MAX_ATTEMPTS' as const };
+      if (danglingProcessing) {
+        // A lease-expired PROCESSING delivery is only recoverable when no live
+        // PROCESSING attempt exists; a live attempt belongs to a worker and is
+        // the responsibility of the canonical lease recovery path.
+        const liveAttempt = await tx.rentalReminderDeliveryAttempt.findFirst({
+          where: {
+            tenantId: input.tenantId,
+            deliveryId: delivery.id,
+            status: RentalReminderAttemptStatus.PROCESSING,
+          },
+          select: { id: true },
+        });
+        if (liveAttempt) return { ok: false, reason: 'IN_FLIGHT' as const };
+      }
+      const updated = await tx.rentalReminderDelivery.updateMany({
+        where: {
+          id: delivery.id,
+          tenantId: input.tenantId,
+          OR: [
+            { status: RentalReminderDeliveryStatus.FAILED },
+            {
+              status: RentalReminderDeliveryStatus.PROCESSING,
+              lockedUntil: { lt: input.now },
+            },
+          ],
+        },
+        data: {
+          status: RentalReminderDeliveryStatus.PENDING,
+          statusSource: RentalReminderStatusSource.INTERNAL,
+          nextAttemptAt: input.now,
+          failedAt: null,
+          processingToken: null,
+          lockedUntil: null,
+        },
+      });
+      if (updated.count !== 1) return { ok: false, reason: 'CONCURRENT' as const };
+      const dispatch = await tx.rentalReminderDispatch.findFirst({
+        where: { tenantId: input.tenantId, id: delivery.dispatchId },
+        select: { id: true, completedAt: true },
+      });
+      const dispatchReopened =
+        dispatch !== null && dispatch.completedAt !== null;
+      if (dispatchReopened) {
+        await tx.rentalReminderDispatch.updateMany({
+          where: {
+            tenantId: input.tenantId,
+            id: delivery.dispatchId,
+            completedAt: { not: null },
+          },
+          data: {
+            status: RentalReminderDispatchStatus.READY,
+            completedAt: null,
+          },
+        });
+      }
+      return {
+        ok: true,
+        attemptCount: delivery.attemptCount,
+        nextAttemptNumber: delivery.attemptCount + 1,
+        dispatchReopened,
+      };
+    });
+  }
+
   private async refreshDispatchStatus(
     tx: Prisma.TransactionClient,
     tenantId: string,

@@ -463,6 +463,11 @@ Documentación: `docs/04-modules/rental-communications-v1.md`, `docs/03-database
   RentalContract y Delivery.
 * Inbound conserva texto y metadata mínima sin payload crudo ni descarga de
   media; no responde, no interpreta, no crea fulfillments ni modifica contratos.
+* Post-cierre: operación de dominio `reset` (runner dev `db:dev:reminder-reset`,
+  `--apply`) que reabre a `PENDING` un delivery en dead-end (`FAILED` o
+  `PROCESSING` con lease vencido sin attempt activo) con CAS tenant-scoped,
+  reabre el Dispatch terminal a `READY`, conserva Attempts/histórico y crea un
+  attempt nuevo en el siguiente envío.
 * UI/Admin, scheduler productivo, activación externa del webhook y prueba real
   WhatsApp quedan fuera del cierre técnico/operacional actual. C4 no fue iniciado.
 

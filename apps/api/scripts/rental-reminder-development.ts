@@ -19,7 +19,7 @@ import { MetaWhatsAppAdapter } from '../src/modules/rental-reminder/providers/me
 import { ReminderWhatsAppProcessorService } from '../src/modules/rental-reminder/services/reminder-whatsapp-processor.service';
 import { RentalReminderWhatsAppRenderer } from '../src/modules/rental-reminder/templates/rental-reminder-whatsapp.renderer';
 
-type Command = 'planner' | 'claim' | 'email' | 'whatsapp';
+type Command = 'planner' | 'claim' | 'email' | 'whatsapp' | 'reset';
 
 @Module({
   imports: [PrismaModule],
@@ -49,12 +49,14 @@ function parseNow() {
 
 async function main() {
   const command = process.argv[2] as Command | undefined;
-  if (!command || !['planner', 'claim', 'email', 'whatsapp'].includes(command))
-    fail('Expected planner, claim, email or whatsapp.');
+  if (!command || !['planner', 'claim', 'email', 'whatsapp', 'reset'].includes(command))
+    fail('Expected planner, claim, email, whatsapp or reset.');
 
   const apply = process.argv.includes('--apply');
   if (command === 'claim' && !apply)
     fail('Claim is mutating and requires explicit --apply.');
+  if (command === 'reset' && !apply)
+    fail('Reset is mutating and requires explicit --apply.');
   const now = parseNow();
   const context = await NestFactory.createApplicationContext(
     RentalReminderRunnerModule,
@@ -199,6 +201,30 @@ async function main() {
         template,
       );
       process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
+      return;
+    }
+    if (command === 'reset') {
+      const tenantId = option('tenant-id');
+      const deliveryId = option('delivery-id');
+      if (!tenantId || !deliveryId)
+        fail('Reset requires --tenant-id and --delivery-id.');
+      const result = await orchestrator.resetFailedDelivery({
+        tenantId,
+        deliveryId,
+        now,
+      });
+      process.stdout.write(
+        `${JSON.stringify(
+          {
+            tenantId,
+            deliveryId,
+            mode: 'reset-failed-delivery',
+            ...result,
+          },
+          null,
+          2,
+        )}\n`,
+      );
       return;
     }
     const result = await orchestrator.claimNext(now, {

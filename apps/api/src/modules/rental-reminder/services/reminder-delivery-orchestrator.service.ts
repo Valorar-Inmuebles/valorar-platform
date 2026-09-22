@@ -64,6 +64,18 @@ export class ReminderDeliveryOrchestratorService {
     return result.count === 1;
   }
 
+  async resetFailedDelivery(input: {
+    tenantId: string;
+    deliveryId: string;
+    now: Date;
+  }) {
+    return this.repository.manualResetFailedDelivery({
+      tenantId: input.tenantId,
+      deliveryId: input.deliveryId,
+      now: input.now,
+    });
+  }
+
   async scheduleRetry(input: {
     tenantId: string;
     deliveryId: string;

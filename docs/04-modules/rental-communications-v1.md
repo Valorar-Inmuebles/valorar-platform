@@ -264,9 +264,12 @@ PENDING → PROCESSING → SENT → DELIVERED → READ
               ├──→ PENDING (retry programado)
               ├──→ FAILED
               └──→ SKIPPED
+FAILED ──→ PENDING (reset manual)
 ```
 
 `PENDING`, `PROCESSING` y `SKIPPED` son internos. `SENT` puede originarse en la aceptación síncrona o en webhook; `DELIVERED` y `READ` provienen del provider cuando existen. `FAILED` puede ser respuesta permanente, agotamiento de retries o webhook terminal. `statusSource` distingue `INTERNAL`, `PROVIDER_RESPONSE` y `PROVIDER_WEBHOOK`.
+
+Un delivery en callejón sin salida puede reabrirse manualmente a `PENDING` cuando la causa externa fue corregida (p. ej. credenciales). Estados elegibles: `FAILED`, o `PROCESSING` con lease vencido y sin attempt en vuelo (claim colgado sin fila de Attempt). La operación es tenant-scoped y transaccional, con compare-and-set (rechaza resets concurrentes y no roba un attempt activo: `IN_FLIGHT`), y reabre el agregado completo: si el Dispatch quedó terminal (`completedAt` seteado), vuelve a `READY` con `completedAt=null` para que el próximo claim lo lleve a `PROCESSING` (requisito del check constraint). No borra ni reutiliza Attempts (el histórico de error queda intacto en su fila y el próximo envío crea un attempt nuevo sobre el mismo Delivery) y respeta el tope canónico de 4 attempts. `SENT/DELIVERED/READ` nunca son reseteables.
 
 Para Email, `SENT` significa que el provider aceptó el mensaje y `DELIVERED`
 que confirmó su entrega. `READ`, cuando existe, deriva de tracking best-effort
@@ -446,10 +449,10 @@ Política RBAC propuesta:
 | ver resumen contractual de comunicaciones      | `rental.read`                                            |
 | ver destino completo, errores y operación      | `rental.reminder.manage`                                 |
 | editar política tenant-wide                    | `rental.reminder.manage`                                 |
-| retry manual de un delivery `FAILED` retryable | `rental.reminder.manage`                                 |
+| retry manual de un delivery `FAILED`           | `rental.reminder.manage`                                 |
 | configurar providers platform-wide             | futuro `platform.communication.manage`, sólo Super Admin |
 
-`rental.reminder.manage` está implementado para `SUPER_ADMIN`, `TENANT_ADMIN` y `MANAGER`. El retry manual continúa pendiente; cuando se implemente deberá crear un nuevo Attempt sobre el mismo Delivery y respetar el máximo/política auditada.
+`rental.reminder.manage` está implementado para `SUPER_ADMIN`, `TENANT_ADMIN` y `MANAGER`. El retry manual ya existe como operación de dominio en el runner development (`reminder-reset`): crea un nuevo Attempt sobre el mismo Delivery, conserva el histórico (incluido un fallo anterior) y respeta el máximo/política auditada. El endpoint Admin de retry con RBAC queda pendiente de C4.
 
 API C1 implementada:
 
@@ -460,8 +463,9 @@ API C1 implementada:
 - `GET /rental-reminder-communications/deliveries/:id/attempts`.
 
 Todas las lecturas operativas son tenant-scoped, paginadas y requieren
-`rental.reminder.manage`. El resumen contextual, retry manual y endpoints de
-webhook permanecen pendientes.
+`rental.reminder.manage`. El resumen contextual y endpoints de
+webhook permanecen pendientes; el retry manual ya está cubierto por la
+operación de dominio `reminder-reset` (ver C3B).
 
 Planner y worker son application commands internos. Si la infraestructura exige
 un trigger HTTP, será un endpoint interno con autenticación de servicio, nunca
@@ -658,6 +662,18 @@ Implementado además:
   --template-language=<language> --template-parameters=none|rental-v1`, con
   preview enmascarada por defecto y envío sólo bajo `--apply --send` más
   allowlist E.164 exacta;
+- reset manual de un delivery en dead-end (tras corregir la causa externa) vía
+  `npm run db:dev:reminder-reset -- --tenant-id=<tenant>
+  --delivery-id=<delivery> --apply`: elegibles `FAILED` o `PROCESSING` con
+  lease vencido y sin attempt activo; transición atómica tenant-scoped a
+  `PENDING` (`nextAttemptAt=now`, `statusSource=INTERNAL`), compare-and-set
+  (impide resets concurrentes y no roba attempts en vuelo — `IN_FLIGHT`),
+  rechazo de `SENT/DELIVERED/READ/PENDING/...` y tope canónico de 4 attempts;
+  reabre además el agregado: un Dispatch terminal vuelve a `READY` con
+  `completedAt=null`; no toca rows de Attempt, de modo que el histórico de
+  error (p. ej. `META_190`) queda intacto y el próximo envío crea un attempt
+  nuevo (`attemptNumber = attemptCount + 1`) sobre el mismo Delivery sin
+  reutilizar el anterior; sin `--apply` sólo valida y aborta;
 - `GET /webhooks/communications/meta-whatsapp` para challenge y
   `POST /webhooks/communications/meta-whatsapp` con `X-Hub-Signature-256` sobre
   raw body, validación de WABA/Phone Number ID y fail-closed;
@@ -690,7 +706,7 @@ Diseño inbound aprobado para C3B:
 
 - policy tenant-wide;
 - historial contractual de comunicaciones y operación de fallos;
-- retry manual con RBAC;
+- retry manual con RBAC (Admin; la operación de dominio ya existe en el runner development);
 - métricas/alertas;
 - señales hacia `Notification` sólo si ese sistema ya existe o en su fase propia.
 
@@ -710,6 +726,8 @@ Cada fase mantiene Email y WhatsApp independientes, SMS oculto y providers fuera
 - idempotencia protegida por claves/constraints DB y leases.
 - revalidación previa, snapshots inmutables y bloqueos separados de fallos provider.
 - retries inicial, +5m, +30m y +2h.
+- el reset manual de un delivery `FAILED` reabre el mismo Delivery a `PENDING`
+  creando un attempt nuevo y conservando el histórico de Attempts;
 - templates versionados en código, sin CMS ni template en contrato.
 - payloads crudos de provider no se persisten.
 - ventana planner solapada de siete días y lookahead de cinco minutos.

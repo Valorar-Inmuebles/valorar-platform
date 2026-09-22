@@ -429,3 +429,335 @@ describe('RentalReminderRepository tenant isolation', () => {
     expect(tx.rentalReminderDelivery.update).not.toHaveBeenCalled();
   });
 });
+
+describe('RentalReminderRepository manual reset for retry', () => {
+  const now = new Date('2026-09-22T05:35:00.000Z');
+  const past = new Date('2026-09-22T05:00:00.000Z');
+  const future = new Date('2026-09-22T06:00:00.000Z');
+
+  function repositoryWith(tx: unknown) {
+    return new RentalReminderRepository({
+      $transaction: (callback: (client: unknown) => unknown) =>
+        callback(tx),
+    } as never);
+  }
+
+  it('resets a FAILED tenant delivery to PENDING and reopens a terminal dispatch', async () => {
+    const updateMany = jest.fn().mockResolvedValue({ count: 1 });
+    const dispatchUpdateMany = jest.fn().mockResolvedValue({ count: 1 });
+    const tx = {
+      rentalReminderDelivery: {
+        findFirst: jest.fn().mockResolvedValue({
+          id: 'delivery-1',
+          tenantId: 'tenant-1',
+          dispatchId: 'dispatch-1',
+          status: 'FAILED',
+          attemptCount: 1,
+          lockedUntil: null,
+          errorCategory: 'AUTHENTICATION',
+          errorCode: 'META_190',
+          errorMessage: 'Meta WhatsApp authentication or authorization failed.',
+        }),
+        updateMany,
+      },
+      rentalReminderDispatch: {
+        findFirst: jest
+          .fn()
+          .mockResolvedValue({ id: 'dispatch-1', completedAt: past }),
+        updateMany: dispatchUpdateMany,
+      },
+    };
+    const repository = repositoryWith(tx);
+
+    await expect(
+      repository.manualResetFailedDelivery({
+        tenantId: 'tenant-1',
+        deliveryId: 'delivery-1',
+        now,
+      }),
+    ).resolves.toEqual({
+      ok: true,
+      attemptCount: 1,
+      nextAttemptNumber: 2,
+      dispatchReopened: true,
+    });
+
+    expect(tx.rentalReminderDelivery.findFirst).toHaveBeenCalledWith({
+      where: { id: 'delivery-1', tenantId: 'tenant-1' },
+      select: expect.objectContaining({
+        status: true,
+        attemptCount: true,
+        lockedUntil: true,
+      }) as unknown,
+    });
+    const data = updateMany.mock.calls[0][0].data;
+    expect(updateMany.mock.calls[0][0].where).toMatchObject({
+      id: 'delivery-1',
+      tenantId: 'tenant-1',
+      OR: [
+        { status: 'FAILED' },
+        { status: 'PROCESSING', lockedUntil: { lt: now } },
+      ],
+    });
+    expect(data).toEqual({
+      status: 'PENDING',
+      statusSource: 'INTERNAL',
+      nextAttemptAt: now,
+      failedAt: null,
+      processingToken: null,
+      lockedUntil: null,
+    });
+    // Error history is preserved on the delivery until the next attempt writes it.
+    expect(data).not.toHaveProperty('errorCategory');
+    expect(data).not.toHaveProperty('errorCode');
+    expect(data).not.toHaveProperty('errorMessage');
+    expect(dispatchUpdateMany).toHaveBeenCalledWith({
+      where: {
+        tenantId: 'tenant-1',
+        id: 'dispatch-1',
+        completedAt: { not: null },
+      },
+      data: { status: 'READY', completedAt: null },
+    });
+  });
+
+  it('leaf dispatch untouched when the group is already non-terminal', async () => {
+    const updateMany = jest.fn().mockResolvedValue({ count: 1 });
+    const dispatchUpdateMany = jest.fn();
+    const tx = {
+      rentalReminderDelivery: {
+        findFirst: jest.fn().mockResolvedValue({
+          id: 'delivery-1',
+          tenantId: 'tenant-1',
+          dispatchId: 'dispatch-1',
+          status: 'FAILED',
+          attemptCount: 1,
+          lockedUntil: null,
+        }),
+        updateMany,
+      },
+      rentalReminderDispatch: {
+        findFirst: jest
+          .fn()
+          .mockResolvedValue({ id: 'dispatch-1', completedAt: null }),
+        updateMany: dispatchUpdateMany,
+      },
+    };
+    const repository = repositoryWith(tx);
+
+    await expect(
+      repository.manualResetFailedDelivery({
+        tenantId: 'tenant-1',
+        deliveryId: 'delivery-1',
+        now,
+      }),
+    ).resolves.toEqual({
+      ok: true,
+      attemptCount: 1,
+      nextAttemptNumber: 2,
+      dispatchReopened: false,
+    });
+    expect(dispatchUpdateMany).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['SENT', null],
+    ['DELIVERED', null],
+    ['READ', null],
+    ['PENDING', null],
+    ['SKIPPED', null],
+    ['PROCESSING', future],
+  ])(
+    'refuses to reset a delivery with status %s (never SENT/DELIVERED/READ retried)',
+    async (status, lockedUntil) => {
+      const updateMany = jest.fn();
+      const tx = {
+        rentalReminderDelivery: {
+          findFirst: jest.fn().mockResolvedValue({
+            id: 'delivery-1',
+            tenantId: 'tenant-1',
+            dispatchId: 'dispatch-1',
+            status,
+            attemptCount: 1,
+            lockedUntil,
+          }),
+          updateMany,
+        },
+      };
+      const repository = repositoryWith(tx);
+      await expect(
+        repository.manualResetFailedDelivery({
+          tenantId: 'tenant-1',
+          deliveryId: 'delivery-1',
+          now,
+        }),
+      ).resolves.toEqual({ ok: false, reason: 'NOT_FAILED' });
+      expect(updateMany).not.toHaveBeenCalled();
+    },
+  );
+
+  it('recovers a dangling PROCESSING delivery (expired lease, no live attempt) and reopens the dispatch', async () => {
+    const updateMany = jest.fn().mockResolvedValue({ count: 1 });
+    const dispatchUpdateMany = jest.fn().mockResolvedValue({ count: 1 });
+    const tx = {
+      rentalReminderDelivery: {
+        findFirst: jest.fn().mockResolvedValue({
+          id: 'delivery-1',
+          tenantId: 'tenant-1',
+          dispatchId: 'dispatch-1',
+          status: 'PROCESSING',
+          attemptCount: 1,
+          lockedUntil: past,
+        }),
+        updateMany,
+      },
+      rentalReminderDeliveryAttempt: {
+        findFirst: jest.fn().mockResolvedValue(null),
+      },
+      rentalReminderDispatch: {
+        findFirst: jest
+          .fn()
+          .mockResolvedValue({ id: 'dispatch-1', completedAt: past }),
+        updateMany: dispatchUpdateMany,
+      },
+    };
+    const repository = repositoryWith(tx);
+
+    await expect(
+      repository.manualResetFailedDelivery({
+        tenantId: 'tenant-1',
+        deliveryId: 'delivery-1',
+        now,
+      }),
+    ).resolves.toEqual({
+      ok: true,
+      attemptCount: 1,
+      nextAttemptNumber: 2,
+      dispatchReopened: true,
+    });
+    expect(tx.rentalReminderDeliveryAttempt.findFirst).toHaveBeenCalledWith({
+      where: {
+        tenantId: 'tenant-1',
+        deliveryId: 'delivery-1',
+        status: 'PROCESSING',
+      },
+      select: { id: true },
+    });
+    expect(updateMany.mock.calls[0][0].where).toMatchObject({
+      OR: [
+        { status: 'FAILED' },
+        { status: 'PROCESSING', lockedUntil: { lt: now } },
+      ],
+    });
+    expect(updateMany.mock.calls[0][0].data).toMatchObject({
+      status: 'PENDING',
+      processingToken: null,
+      lockedUntil: null,
+    });
+    expect(dispatchUpdateMany).toHaveBeenCalled();
+  });
+
+  it('refuses IN_FLIGHT recovery when a live PROCESSING attempt exists', async () => {
+    const updateMany = jest.fn();
+    const tx = {
+      rentalReminderDelivery: {
+        findFirst: jest.fn().mockResolvedValue({
+          id: 'delivery-1',
+          tenantId: 'tenant-1',
+          dispatchId: 'dispatch-1',
+          status: 'PROCESSING',
+          attemptCount: 1,
+          lockedUntil: past,
+        }),
+        updateMany,
+      },
+      rentalReminderDeliveryAttempt: {
+        findFirst: jest.fn().mockResolvedValue({ id: 'attempt-live' }),
+      },
+    };
+    const repository = repositoryWith(tx);
+    await expect(
+      repository.manualResetFailedDelivery({
+        tenantId: 'tenant-1',
+        deliveryId: 'delivery-1',
+        now,
+      }),
+    ).resolves.toEqual({ ok: false, reason: 'IN_FLIGHT' });
+    expect(updateMany).not.toHaveBeenCalled();
+  });
+
+  it('does not leak a delivery across tenants (NOT_FOUND)', async () => {
+    const updateMany = jest.fn();
+    const tx = {
+      rentalReminderDelivery: {
+        findFirst: jest.fn().mockResolvedValue(null),
+        updateMany,
+      },
+    };
+    const repository = repositoryWith(tx);
+    await expect(
+      repository.manualResetFailedDelivery({
+        tenantId: 'tenant-2',
+        deliveryId: 'delivery-1',
+        now,
+      }),
+    ).resolves.toEqual({ ok: false, reason: 'NOT_FOUND' });
+    expect(tx.rentalReminderDelivery.findFirst).toHaveBeenCalledWith({
+      where: { id: 'delivery-1', tenantId: 'tenant-2' },
+      select: expect.anything(),
+    });
+    expect(updateMany).not.toHaveBeenCalled();
+  });
+
+  it('respects the canonical four-attempt ceiling', async () => {
+    const updateMany = jest.fn();
+    const tx = {
+      rentalReminderDelivery: {
+        findFirst: jest.fn().mockResolvedValue({
+          id: 'delivery-1',
+          tenantId: 'tenant-1',
+          dispatchId: 'dispatch-1',
+          status: 'FAILED',
+          attemptCount: 4,
+          lockedUntil: null,
+        }),
+        updateMany,
+      },
+    };
+    const repository = repositoryWith(tx);
+    await expect(
+      repository.manualResetFailedDelivery({
+        tenantId: 'tenant-1',
+        deliveryId: 'delivery-1',
+        now,
+      }),
+    ).resolves.toEqual({ ok: false, reason: 'MAX_ATTEMPTS' });
+    expect(updateMany).not.toHaveBeenCalled();
+  });
+
+  it('fails closed when a concurrent reset wins (compare-and-set)', async () => {
+    const tx = {
+      rentalReminderDelivery: {
+        findFirst: jest.fn().mockResolvedValue({
+          id: 'delivery-1',
+          tenantId: 'tenant-1',
+          dispatchId: 'dispatch-1',
+          status: 'FAILED',
+          attemptCount: 1,
+          lockedUntil: null,
+        }),
+        updateMany: jest.fn().mockResolvedValue({ count: 0 }),
+      },
+      rentalReminderDispatch: { findFirst: jest.fn() },
+    };
+    const repository = repositoryWith(tx);
+    await expect(
+      repository.manualResetFailedDelivery({
+        tenantId: 'tenant-1',
+        deliveryId: 'delivery-1',
+        now,
+      }),
+    ).resolves.toEqual({ ok: false, reason: 'CONCURRENT' });
+    expect(tx.rentalReminderDispatch.findFirst).not.toHaveBeenCalled();
+  });
+});

@@ -91,4 +91,29 @@ describe('ReminderDeliveryOrchestratorService', () => {
       }),
     );
   });
+
+  it('delegates the manual retry reset to the repository', async () => {
+    const repository = {
+      manualResetFailedDelivery: jest.fn().mockResolvedValue({
+        ok: true,
+        attemptCount: 1,
+        nextAttemptNumber: 2,
+      }),
+    };
+    const service = new ReminderDeliveryOrchestratorService(
+      repository as never,
+      {} as never,
+    );
+    const result = await service.resetFailedDelivery({
+      tenantId: 'tenant-1',
+      deliveryId: 'delivery-1',
+      now,
+    });
+    expect(result).toEqual({ ok: true, attemptCount: 1, nextAttemptNumber: 2 });
+    expect(repository.manualResetFailedDelivery).toHaveBeenCalledWith({
+      tenantId: 'tenant-1',
+      deliveryId: 'delivery-1',
+      now,
+    });
+  });
 });
