@@ -92,6 +92,45 @@ describe('MetaWhatsAppWebhookService', () => {
     );
   });
 
+  it.each([
+    [131026, 'RECIPIENT_REJECTED'],
+    [131047, 'RECIPIENT_REJECTED'],
+    // 131030 no tiene semántica oficial confirmada: se mantiene categoría
+    // genérica/sanitizada sin atribuirle significado adicional.
+    [131030, 'PROVIDER_UNAVAILABLE'],
+  ])(
+    'maps failed code %s to a sanitized category without unconfirmed semantics',
+    async (code, category) => {
+      const repository = {
+        applyProviderWebhook: jest
+          .fn()
+          .mockResolvedValue({ status: 'APPLIED' }),
+      };
+      const service = new MetaWhatsAppWebhookService(
+        repository as never,
+        { persist: jest.fn() } as never,
+      );
+      const raw = webhook({
+        statuses: [
+          {
+            id: 'wamid.outbound',
+            status: 'failed',
+            timestamp: '1791637200',
+            errors: [{ code }],
+          },
+        ],
+      });
+      await service.handle(raw);
+      expect(repository.applyProviderWebhook).toHaveBeenCalledWith(
+        expect.objectContaining({
+          errorCategory: category,
+          errorCode: `META_${code}`,
+          errorMessage: 'Meta WhatsApp reported a terminal delivery failure.',
+        }),
+      );
+    },
+  );
+
   it('persists text and media metadata without raw payload or media ID', async () => {
     const persist = jest
       .fn()

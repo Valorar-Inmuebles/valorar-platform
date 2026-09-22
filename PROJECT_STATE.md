@@ -470,6 +470,14 @@ Documentación: `docs/04-modules/rental-communications-v1.md`, `docs/03-database
   attempt nuevo en el siguiente envío.
 * UI/Admin, scheduler productivo, activación externa del webhook y prueba real
   WhatsApp quedan fuera del cierre técnico/operacional actual. C4 no fue iniciado.
+* Transform del destinatario en la frontera Meta/WhatsApp: E.164 sigue siendo
+  la representación canónica del dominio (allowlist/snapshots intactos); el
+  adapter deriva la forma Meta para AR vía `libphonenumber-js`
+  (`+54 9 11 3171-6941` → `54111531716941`) con fail-closed para AR inválido y
+  sin reglas nuevas para otros países; inbound normaliza `from`/`wa_id` a E.164
+  canónico (la forma `54111531716941` correlaciona con `+5491131716941`).
+  `META_131030` se mantiene como error genérico `VALIDATION`/`PROVIDER_UNAVAILABLE`
+  sin semántica no confirmada.
 
 Documentación: `docs/04-modules/rental-communications-v1.md`, `docs/03-database/rental-domain.md`, `docs/03-database/current-schema.md`.
 

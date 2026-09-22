@@ -116,4 +116,36 @@ describe('CommunicationInboundService', () => {
     );
     expect(Object.keys(repository)).not.toContain('rentalFulfillment');
   });
+
+  it('correlates a Meta Argentine sender form with the canonical snapshot', async () => {
+    const repository = {
+      findContactPoints: jest.fn().mockResolvedValue([]),
+      findOutboundByProviderMessageId: jest.fn().mockResolvedValue({
+        id: 'delivery-1',
+        tenantId: 'tenant-1',
+        contactPointId: 'point-1',
+        destinationSnapshot: '+5491131716941',
+        dispatch: { contractId: 'contract-1', recipientContactId: 'contact-1' },
+      }),
+      findRecentDeliveries: jest.fn().mockResolvedValue([]),
+      persist: jest
+        .fn()
+        .mockResolvedValue({ created: true, message: { id: 'm1' } }),
+    };
+    const service = new CommunicationInboundService(repository as never);
+    await expect(
+      service.persist({
+        ...message,
+        sender: '54111531716941',
+        contextMessageId: 'wamid.outbound',
+      }),
+    ).resolves.toMatchObject({ status: 'PERSISTED' });
+    expect(repository.persist).toHaveBeenCalledWith(
+      expect.objectContaining({
+        tenantId: 'tenant-1',
+        senderAddress: '+5491131716941',
+        deliveryId: 'delivery-1',
+      }),
+    );
+  });
 });

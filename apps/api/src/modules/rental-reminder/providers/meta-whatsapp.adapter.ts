@@ -3,9 +3,12 @@ import { NotificationChannel } from '../../../../generated/prisma/client';
 import {
   META_WHATSAPP_PROVIDER_KEY,
   getMetaWhatsAppConfig,
-  normalizeMetaWhatsAppAddress,
   type MetaWhatsAppConfig,
 } from '../config/meta-whatsapp.config';
+import {
+  MetaWhatsAppRecipientError,
+  toMetaWhatsAppRecipient,
+} from './meta-whatsapp-recipient';
 import type {
   ReminderDeliverySnapshot,
   ReminderProviderAdapter,
@@ -26,11 +29,27 @@ export class MetaWhatsAppAdapter implements ReminderProviderAdapter {
   ): Promise<ReminderProviderResult> {
     void idempotencyKey;
     let config: MetaWhatsAppConfig;
-    let recipient: ReturnType<typeof normalizeMetaWhatsAppAddress>;
+    let recipient: string;
     try {
       config = getMetaWhatsAppConfig();
-      recipient = normalizeMetaWhatsAppAddress(snapshot.destination);
     } catch {
+      return this.failure(
+        false,
+        'CONFIGURATION',
+        'META_WHATSAPP_CONFIGURATION_INVALID',
+        'Meta WhatsApp is not configured correctly.',
+      );
+    }
+    try {
+      recipient = toMetaWhatsAppRecipient(snapshot.destination);
+    } catch (error) {
+      if (error instanceof MetaWhatsAppRecipientError)
+        return this.failure(
+          false,
+          'VALIDATION',
+          'META_WHATSAPP_RECIPIENT_INVALID',
+          'Meta WhatsApp recipient failed validation.',
+        );
       return this.failure(
         false,
         'CONFIGURATION',
@@ -75,7 +94,7 @@ export class MetaWhatsAppAdapter implements ReminderProviderAdapter {
           body: JSON.stringify({
             messaging_product: 'whatsapp',
             recipient_type: 'individual',
-            to: recipient.graphRecipient,
+            to: recipient,
             type: 'template',
             template: {
               name: template.reference,
@@ -160,13 +179,19 @@ export class MetaWhatsAppAdapter implements ReminderProviderAdapter {
         normalizedCode,
         'Meta WhatsApp rejected the template or sender configuration.',
       );
-    if (status === 400 || status === 422)
+    if (status === 400 || status === 422) {
+      // Códigos 4xx/422 se normalizan a VALIDATION con mensaje genérico
+      // sanitizado. Códigos como META_131030 no tienen semántica oficial
+      // confirmada en la tabla de errores de Meta; no se les atribuye
+      // significado adicional (p. ej. "ventana de sesión") y se tratan igual
+      // que cualquier otro rechazo de request.
       return this.failure(
         false,
         'VALIDATION',
         normalizedCode,
         'Meta WhatsApp rejected the message request.',
       );
+    }
     return this.failure(
       false,
       'UNKNOWN',

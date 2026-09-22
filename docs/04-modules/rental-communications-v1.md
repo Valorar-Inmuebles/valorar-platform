@@ -702,6 +702,36 @@ Diseño inbound aprobado para C3B:
 - el modelo conserva mensajes individuales y puede evolucionar posteriormente
   hacia `Conversation → Messages` sin reescribir el historial.
 
+#### Transformación del destinatario en la frontera Meta/WhatsApp
+
+E.164 sigue siendo la representación canónica del dominio (ContactPoint, planner,
+snapshots históricos y allowlist development se comparan siempre en E.164
+canónico; no se adapta ningún dato persistido a Meta). La única excepción vive
+en la frontera del provider (`MetaWhatsAppAdapter` → helper
+`meta-whatsapp-recipient`), que deriva la forma que Meta espera usando
+`libphonenumber-js` (sólo en `apps/api`) sin reglas posicionales propias.
+
+- **Outbound AR**: `+54 9 11 3171-6941` → `54111531716941`. Se toma el formato
+  nacional de libphonenumber (`011 15-3171-6941`), se quitan no-dígitos y el
+  prefijo de troncal `0`, y se antepone el código de país `54`. Funciona con
+  códigos de área AR variables (Buenos Aires 2 dígitos, Mendoza/Córdoba/La
+  Plata 3 dígitos, Patagonia 4 dígitos) y fijos (Buenos Aires fijo
+  `011 3171-6941` → `541131716941`). Si un número AR no puede
+  parsearse/validarse con certeza, el envío **falla cerrado**
+  (`VALIDATION`/`META_WHATSAPP_RECIPIENT_INVALID`, no retryable); nunca cae al
+  fallback previo.
+- **Outbound no-AR**: se conserva el comportamiento anterior (E.164 sin `+`);
+  no se introducen reglas nuevas para BR/MX ni otros países.
+- **Inbound**: el `from`/`wa_id` de Meta se normaliza de vuelta a E.164 canónico
+  antes de `sameAddress`, la búsqueda de ContactPoint y la correlación con
+  `destinationSnapshot`. La forma Meta argentina `54111531716941` correlaciona
+  con el snapshot canónico `+5491131716941` sin modificar el historial.
+
+`META_131030` no tiene semántica oficial confirmada en la tabla de errores de
+Meta. Se normaliza como rechazo genérico del request: en el adapter a
+`VALIDATION` y en webhook a `PROVIDER_UNAVAILABLE`, siempre con mensaje
+sanitizado, sin atribuirle significado adicional (p. ej. "ventana de sesión").
+
 ### C4 — Admin y operación
 
 - policy tenant-wide;

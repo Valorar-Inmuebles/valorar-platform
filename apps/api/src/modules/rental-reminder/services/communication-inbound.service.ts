@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '../../../../generated/prisma/client';
-import { normalizeMetaWhatsAppAddress } from '../config/meta-whatsapp.config';
+import { normalizeMetaWhatsAppInboundSender } from '../providers/meta-whatsapp-recipient';
 import { CommunicationInboundRepository } from '../repositories/communication-inbound.repository';
 
 const RECENT_DELIVERY_LOOKBACK_MS = 30 * 24 * 60 * 60 * 1000;
@@ -20,7 +20,7 @@ export class CommunicationInboundService {
   constructor(private readonly repository: CommunicationInboundRepository) {}
 
   async persist(message: NormalizedMetaInboundMessage) {
-    const sender = normalizeMetaWhatsAppAddress(message.sender);
+    const sender = normalizeMetaWhatsAppInboundSender(message.sender);
     const addresses = [sender.e164, sender.graphRecipient];
     const points = await this.repository.findContactPoints(addresses);
     const exact = message.contextMessageId
@@ -117,7 +117,7 @@ export class CommunicationInboundService {
 
   private sameAddress(value: string, expectedE164: string) {
     try {
-      return normalizeMetaWhatsAppAddress(value).e164 === expectedE164;
+      return normalizeMetaWhatsAppInboundSender(value).e164 === expectedE164;
     } catch {
       return false;
     }
