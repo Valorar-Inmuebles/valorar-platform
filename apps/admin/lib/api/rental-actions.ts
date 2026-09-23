@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { mapUnknownError } from "@/lib/api/error-map";
+import { mapRentalError } from "@/lib/api/error-map";
 import {
   addRentalContactPoint,
   createRentalConcept,
@@ -56,7 +56,7 @@ async function run<T>(
   try {
     return { ok: true, value: await operation() };
   } catch (error) {
-    return { ok: false, error: mapUnknownError(error) };
+    return { ok: false, error: mapRentalError(error) };
   }
 }
 

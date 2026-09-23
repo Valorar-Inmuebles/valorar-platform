@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { ApiError, apiFetch } from "@/lib/api/client";
-import { mapUnknownError } from "@/lib/api/error-map";
+import { mapRentalError } from "@/lib/api/error-map";
 import type {
   RentalInboundAttentionResult,
   RentalRetryConflictReason,
@@ -30,7 +30,7 @@ export async function markInboundReadAction(
     revalidateCommunications();
     return { ok: true, value };
   } catch (error) {
-    return { ok: false, error: mapUnknownError(error) };
+    return { ok: false, error: mapRentalError(error) };
   }
 }
 
@@ -47,7 +47,7 @@ export async function acknowledgeInboundAction(
     revalidateCommunications();
     return { ok: true, value };
   } catch (error) {
-    return { ok: false, error: mapUnknownError(error) };
+    return { ok: false, error: mapRentalError(error) };
   }
 }
 
@@ -88,6 +88,6 @@ export async function retryDeliveryAction(
         }
       }
     }
-    return { ok: false, reason: null, error: mapUnknownError(error) };
+    return { ok: false, reason: null, error: mapRentalError(error) };
   }
 }

@@ -101,6 +101,147 @@ const MESSAGE_RULES: Array<{ match: string | RegExp; message: string }> = [
     message: "El monto debe ser mayor a 0.",
   },
   {
+    match: "endsOn is required to activate a rental contract",
+    message:
+      "La fecha de finalización es obligatoria para activar el contrato.",
+  },
+  {
+    match: "endsOn must be after startsOn",
+    message:
+      "La fecha de finalización debe ser posterior a la fecha de inicio.",
+  },
+  {
+    match: "A rental contract must last at least one calendar month",
+    message: "El contrato debe tener una duración mínima de un mes.",
+  },
+  {
+    match: "Terminal rental contracts cannot be edited",
+    message: "El contrato ya no puede modificarse en su estado actual.",
+  },
+  {
+    match: /Rental contract with id .* not found/,
+    message: "No se encontró el contrato solicitado.",
+  },
+  {
+    match: "Rental contract not found",
+    message: "No se encontró el contrato solicitado.",
+  },
+  {
+    match:
+      "An active RENT obligation is required to activate a rental contract",
+    message:
+      "El contrato debe tener una obligación activa de alquiler para poder activarse.",
+  },
+  {
+    match:
+      "At least one active renter is required to activate a rental contract",
+    message:
+      "El contrato debe tener al menos un locatario activo para poder activarse.",
+  },
+  {
+    match:
+      "Exactly one primary renter is required to activate a rental contract",
+    message:
+      "El contrato debe tener exactamente un locatario principal para poder activarse.",
+  },
+  {
+    match: "Every contract party must be an active contact in the same tenant",
+    message:
+      "Todas las partes deben ser contactos activos de esta inmobiliaria.",
+  },
+  {
+    match: "A contact cannot repeat in the same contract role",
+    message: "Una persona no puede repetirse en el mismo rol del contrato.",
+  },
+  {
+    match: "Only one primary renter is allowed per rental contract",
+    message: "El contrato puede tener un solo locatario principal.",
+  },
+  {
+    match: "propertyStreetSnapshot is required",
+    message: "La calle de la propiedad es obligatoria.",
+  },
+  {
+    match: "Only a pending occurrence can be edited",
+    message: "Sólo se puede editar un vencimiento pendiente.",
+  },
+  {
+    match: "Only a pending occurrence can set dueDate",
+    message: "Sólo se puede asignar el vencimiento a una ocurrencia pendiente.",
+  },
+  {
+    match: "Rental occurrence not found",
+    message: "No se encontró el vencimiento solicitado.",
+  },
+  {
+    match: "Rental obligation not found",
+    message: "No se encontró la obligación solicitada.",
+  },
+  {
+    match: "Rental reminder policy not found",
+    message: "No se encontró la configuración de avisos.",
+  },
+  {
+    match: "Rental reminder delivery not found",
+    message: "No se encontró el envío solicitado.",
+  },
+  {
+    match: "amount is required",
+    message: "El importe es obligatorio.",
+  },
+  {
+    match: "reason is required",
+    message: "El motivo es obligatorio.",
+  },
+  {
+    match: "A fixed obligation occurrence must keep an amount",
+    message: "Un vencimiento de importe fijo debe conservar un importe.",
+  },
+  {
+    match:
+      /^(?:startsOn|endsOn|dueDate|fulfilledOn|effectiveFrom|oneTimeDueDate) must be a valid date$/,
+    message: "La fecha ingresada no es válida.",
+  },
+  {
+    match:
+      /^(?:startsOn|endsOn|dueDate|fulfilledOn|effectiveFrom|oneTimeDueDate)\s+(?:must|should)\b/,
+    message: "La fecha ingresada no es válida.",
+  },
+  {
+    match: "Rental fulfillment not found",
+    message: "No se encontró el cumplimiento solicitado.",
+  },
+  {
+    match: "Only a pending occurrence can be cancelled",
+    message: "Sólo se puede cancelar un vencimiento pendiente.",
+  },
+  {
+    match: "Occurrence already fulfilled or no longer pending",
+    message: "El vencimiento ya fue cumplido o dejó de estar pendiente.",
+  },
+  {
+    match: "Inactive obligations cannot materialize occurrences",
+    message: "Sólo se pueden generar vencimientos para obligaciones activas.",
+  },
+  {
+    match: "Terminal rental contracts cannot change obligations",
+    message: "El contrato ya no permite modificar sus obligaciones.",
+  },
+  {
+    match: "An active contract must keep an active RENT obligation",
+    message:
+      "Un contrato activo debe conservar una obligación activa de alquiler.",
+  },
+  {
+    match: "A rent value revision already exists for effectiveFrom",
+    message: "Ya existe una actualización del alquiler para esa fecha.",
+  },
+  {
+    match: "Rent adjustments are only available for the RENT obligation",
+    message:
+      "Las actualizaciones de importe sólo están disponibles para la obligación de alquiler.",
+  },
+  {
     match: "Rental contract already renewed as",
     message: "Ya existe una renovación para este contrato.",
   },
@@ -240,4 +381,41 @@ export function mapUnknownError(error: unknown): string {
   }
 
   return "Ocurrió un error inesperado.";
+}
+
+const RENTAL_SAFE_FALLBACK =
+  "Ocurrió un error al procesar la solicitud. Intentá nuevamente.";
+
+function rawErrorMessage(error: ApiError): string {
+  if (error.body && typeof error.body === "object" && "message" in error.body) {
+    const message = (error.body as { message?: unknown }).message;
+    if (Array.isArray(message))
+      return message.filter((item) => typeof item === "string").join(". ");
+    if (typeof message === "string") return message;
+  }
+  return error.message;
+}
+
+/** Maps errors from the Rental Admin boundary without exposing technical details. */
+export function mapRentalError(error: unknown): string {
+  if (error instanceof ApiError) {
+    const raw = rawErrorMessage(error).trim();
+    const mapped = mapRawMessage(raw);
+    if (mapped !== raw) return mapped;
+    if (error.status === 401)
+      return "Tu sesión expiró. Volvé a iniciar sesión.";
+    if (error.status === 403)
+      return "No tenés permiso para realizar esta acción.";
+    if (error.status === 404) return "No se encontró el recurso solicitado.";
+    if (error.status >= 500) {
+      return "El servidor no está disponible en este momento. Intentá de nuevo en unos minutos.";
+    }
+    return RENTAL_SAFE_FALLBACK;
+  }
+
+  if (error instanceof Error && isNetworkErrorMessage(error.message)) {
+    return "No se pudo conectar con el servidor. Verificá tu conexión e intentá de nuevo.";
+  }
+
+  return RENTAL_SAFE_FALLBACK;
 }
