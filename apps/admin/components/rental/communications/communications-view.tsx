@@ -6,15 +6,19 @@ import { SystemIcon, type SystemIconName } from "@repo/icons";
 import { TabPanel, Tabs } from "@repo/ui/tabs";
 import { DashboardMetricCard } from "@/components/dashboard/dashboard-metric-card";
 import { CommunicationsAttention } from "@/components/rental/communications/communications-attention";
+import { CommunicationsHistory } from "@/components/rental/communications/communications-history";
 import { CommunicationsInbound } from "@/components/rental/communications/communications-inbound";
 import { CommunicationsInboundPanel } from "@/components/rental/communications/communications-inbound-panel";
 import {
+  buildHistoryQuickFilter,
   COMMUNICATIONS_SUMMARY_METRICS,
   type CommunicationsAttentionRow,
 } from "@/lib/rental/rental-communications";
+import { formatDateTime } from "@/lib/rental/rental-ui";
 import type {
   PaginatedResponse,
   RentalCommunicationsSummary,
+  RentalDispatchHistoryItem,
   RentalInboundMessage,
 } from "@repo/shared-types";
 
@@ -44,17 +48,39 @@ const METRIC_TONES: Record<CounterKey, "default" | "success" | "warning"> = {
   inboundUnacknowledged: "warning",
 };
 
+function metricHint(summary: RentalCommunicationsSummary, key: CounterKey) {
+  switch (key) {
+    case "dispatchesScheduledToday":
+    case "deliveriesSentToday":
+    case "deliveriesDeliveredToday":
+    case "deliveriesFailedToday":
+      return `Ventana: ${formatDateTime(summary.window.from)} – ${formatDateTime(
+        summary.window.to,
+      )}`;
+    case "planningIssuesOpen":
+      return "Ver cola de atención";
+    case "inboundUnacknowledged":
+      return "Ver respuestas sin atender";
+  }
+}
+
 type Props = {
   summary: RentalCommunicationsSummary;
+  history: PaginatedResponse<RentalDispatchHistoryItem> | null;
   attentionRows: CommunicationsAttentionRow[];
-  inbound: PaginatedResponse<RentalInboundMessage>;
+  inbound: PaginatedResponse<RentalInboundMessage> | null;
   canManage: boolean;
-  initialTab: "attention" | "inbound";
+  initialTab: "history" | "inbound" | "attention";
 };
 
-/** Pantalla global de comunicaciones: summary + cola de atención + inbound. */
+/**
+ * Centro operativo de comunicaciones (C4C.1): resumen 3×2 como filtros
+ * rápidos + tabs de Historial de avisos (default), Respuestas recibidas y
+ * Requieren atención. El orden de tabs es fijo; la URL es el estado.
+ */
 export function CommunicationsView({
   summary,
+  history,
   attentionRows,
   inbound,
   canManage,
@@ -86,6 +112,8 @@ export function CommunicationsView({
               key={metric.key}
               label={metric.label}
               value={summary[metric.key]}
+              hint={metricHint(summary, metric.key)}
+              href={buildHistoryQuickFilter(summary, metric.key) ?? undefined}
               icon={
                 <SystemIcon
                   name={METRIC_ICONS[metric.key]}
@@ -99,7 +127,8 @@ export function CommunicationsView({
         </div>
         <p className="text-xs text-muted">
           Resumen del día en la zona horaria de la organización (
-          {summary.timeZone}).
+          {summary.timeZone}). Los indicadores abren el historial con la ventana
+          real del día.
         </p>
       </section>
 
@@ -108,8 +137,9 @@ export function CommunicationsView({
         ariaLabel="Contenido de comunicaciones"
         value={tab}
         items={[
-          { value: "attention", label: "Requieren atención" },
+          { value: "history", label: "Historial de avisos" },
           { value: "inbound", label: "Respuestas recibidas" },
+          { value: "attention", label: "Requieren atención" },
         ]}
         onChange={changeTab}
       />
@@ -118,14 +148,12 @@ export function CommunicationsView({
         tabsId={tabsId}
         index={0}
         value={tab}
-        tabValue="attention"
+        tabValue="history"
         className="pt-4"
       >
-        <CommunicationsAttention
-          rows={attentionRows}
-          canManage={canManage}
-          onOpenInbound={setSelected}
-        />
+        {history ? (
+          <CommunicationsHistory result={history} canManage={canManage} />
+        ) : null}
       </TabPanel>
 
       <TabPanel
@@ -135,11 +163,23 @@ export function CommunicationsView({
         tabValue="inbound"
         className="pt-4"
       >
-        <CommunicationsInbound
-          result={inbound}
-          canManage={canManage}
-          onOpenInbound={setSelected}
-        />
+        {inbound ? (
+          <CommunicationsInbound
+            result={inbound}
+            canManage={canManage}
+            onOpenInbound={setSelected}
+          />
+        ) : null}
+      </TabPanel>
+
+      <TabPanel
+        tabsId={tabsId}
+        index={2}
+        value={tab}
+        tabValue="attention"
+        className="pt-4"
+      >
+        <CommunicationsAttention rows={attentionRows} canManage={canManage} />
       </TabPanel>
 
       {selected ? (

@@ -24,27 +24,21 @@ import {
   type CommunicationsAttentionRow,
 } from "@/lib/rental/rental-communications";
 import { formatDateTime } from "@/lib/rental/rental-ui";
-import type { RentalInboundMessage } from "@repo/shared-types";
 
 type Props = {
   rows: CommunicationsAttentionRow[];
   canManage: boolean;
-  onOpenInbound: (message: RentalInboundMessage) => void;
 };
 
 const RETRY_COPY =
   "Se reprogramará este envío para el próximo ciclo. No se envía en este momento: no es un envío instantáneo. El historial de intentos se conserva.";
 
 /**
- * Cola unificada "Requieren atención": envíos fallidos, inconvenientes de
- * planificación y mensajes sin atender conviven en una sola tabla sin fingir
- * que son la misma entidad (columna Tipo discrimina el origen).
+ * Cola de excepciones técnicas: envíos fallidos e inconvenientes de
+ * planificación. Los mensajes sin atender viven exclusivamente en Respuestas
+ * recibidas.
  */
-export function CommunicationsAttention({
-  rows,
-  canManage,
-  onOpenInbound,
-}: Props) {
+export function CommunicationsAttention({ rows, canManage }: Props) {
   const router = useRouter();
   const { toast } = useToast();
   const [retryRow, setRetryRow] = useState<CommunicationsAttentionRow | null>(
@@ -158,15 +152,6 @@ export function CommunicationsAttention({
                             onClick={() => setRetryRow(row)}
                           >
                             Reintentar
-                          </Button>
-                        ) : null}
-                        {row.kind === "inbound" && row.message ? (
-                          <Button
-                            size="sm"
-                            variant="outline-primary"
-                            onClick={() => onOpenInbound(row.message!)}
-                          >
-                            Abrir
                           </Button>
                         ) : null}
                       </AdminTableActions>

@@ -28,6 +28,7 @@ import {
 } from '../dto/rental-reminder.dto';
 import {
   RentalReminderContractHistoryQueryDto,
+  RentalReminderHistoryQueryDto,
   RentalReminderInboundQueryDto,
 } from '../dto/rental-reminder-read-model.dto';
 import { RentalReminderService } from '../services/rental-reminder.service';
@@ -161,6 +162,21 @@ export class RentalReminderReadController {
     @Query() query: RentalReminderContractHistoryQueryDto,
   ) {
     return this.service.getContractHistory(tenantId, contractId, query);
+  }
+
+  @Get('history')
+  @ApiOkResponse({
+    description:
+      'Global communications history: one dispatch per row with grouped ' +
+      'channels, frozen concepts/policy snapshots, masked destinations, ' +
+      'retry eligibility and inbound responses correlated by deliveryId. ' +
+      'Sortable server-side (scheduledFor, internalNumber, status, eventType).',
+  })
+  history(
+    @CurrentTenant() tenantId: string,
+    @Query() query: RentalReminderHistoryQueryDto,
+  ) {
+    return this.service.getHistory(tenantId, query);
   }
 
   @Get('inbound')

@@ -21,7 +21,7 @@ Plataforma SaaS inmobiliaria multi-tenant orientada a:
 
 **Rental Management V1.1 — Fases 1–3 + UI Foundation Fase 4 + Fases 5A–5E** ✅ (wizard completo hasta configuración previa de avisos)
 
-**Rental Communications V1 — C1–C4B** ✅ Persistence Foundation, planner/orquestación, Email/MailerSend y Meta WhatsApp con inbound mínimo implementados y **C3B validado en UAT real**; **C4A.1 (read models/API de comunicaciones) implementado**; **C4B (estado de atención inbound) implementado**; C4 restante (UI Admin, métricas/alertas, señales `Notification`) pendiente.
+**Rental Communications V1 — C1–C4B** ✅ Persistence Foundation, planner/orquestación, Email/MailerSend y Meta WhatsApp con inbound mínimo implementados y **C3B validado en UAT real**; **C4A.1 (read models/API de comunicaciones) implementado**; **C4B (estado de atención inbound) implementado**; **C4C.1 (Centro de Comunicaciones Admin) CLOSED y validado en UAT funcional/visual**. C4C.2 no iniciado; métricas/alertas y señales `Notification` permanecen pendientes.
 
 Documentación: `docs/04-modules/rental-management-v1.md`, `docs/04-modules/rental-communications-v1.md`, `docs/03-database/rental-domain.md`
 
@@ -558,6 +558,79 @@ Documentación: `docs/04-modules/rental-communications-v1.md`.
   typecheck API, lint/prettier y `git diff --check`.
 
 Documentación: `docs/04-modules/rental-communications-v1.md`, `docs/03-database/rental-domain.md`, `docs/03-database/current-schema.md`.
+
+### Rental Communications V1 — C4C (tooling UAT visual) ✅
+
+* Fixture canónico, reproducible e idempotente de Rental Communications
+  para UAT de `/alquileres/comunicaciones`, ejecutable con
+  `npm run db:dev:rental-fixtures -w api` (dry-run por defecto; `--apply` para
+  escribir; `--now <ISO>` opcional). Registrado en `db-development.ts`, **sin**
+  integración con `db:dev:seed`.
+* Reutiliza `validateDevelopmentDatabaseTarget` (runner + service): exige
+  `VALORAR_DATABASE_ENV=development`, rechaza el endpoint protegido
+  `ep-mute-sun-ac6nva0v` y baseline/production.
+* Sólo tenant demo (`demo`, resuelto por `DEMO_TENANT_SLUG`) y admin demo
+  (`admin@demo.valorar.dev`, TENANT_ADMIN): falla claro si falta el seed.
+* Dataset: policy upsert 3/ON/ON/3 (sendTime 600), `TenantSetting.timeZone`
+  = `America/Argentina/Buenos_Aires`, sequence `max(existente,1)`, contracto
+  `ALQ-000001` ACTIVE, parties renter+co-renter, rutas EMAIL/WHATSAPP (sólo
+  renter), obligaciones RENT (due hoy) + EXPENSES (due hoy+3,
+  `showAmount true`); PRE_DUE → 2 DELIVERED (dispatch COMPLETED); DUE → EMAIL
+  SENT + WHATSAPP FAILED (dispatch PARTIALLY_COMPLETED, retry-eligible);
+  1 planning issue OPEN `NO_ENABLED_ROUTE` co-renter; 3 inbound WhatsApp
+  sintéticos (msg1 sin ack, msg2 leído+ack por el admin demo, msg3 correlacionado
+  por `deliveryId` con el delivery WHATSAPP PRE_DUE — valida que el historial
+  global solo cuenta respuestas ligadas por deliveryId).
+* Idempotente: ids `fx-c4c-*` determinísticos, cleanup scoped
+  `tenantId` + ids fixture, timestamps relativos a la ejecución en tz tenant
+  (summary real 2/3/2/1/1/2 verificado tras `--apply`).
+* Cero evidencia provider: `statusSource INTERNAL`, `providerMessageId` null
+  en deliveries/attempts, `fx-wamid-*` sintético en inbound, sin
+  WebhookReceipt ni llamadas externas. Plan puro con snapshots
+  `PENDING_C3` espejo del planner.
+* Nota de fidelidad: 1 solo issue OPEN curado; un planner real detectaría 2
+  `NO_ENABLED_ROUTE` (uno por occurrence) — diferencia documentada.
+* Gates verdes: tests focalizados del plan+service (22), typecheck API,
+  lint/prettier y `git diff --check`.
+
+Documentación: `docs/04-modules/rental-communications-v1.md` (sección C4C).
+
+### Rental Communications V1 — C4C.1 ✅ (Centro de comunicaciones Admin)
+
+* `/alquileres/comunicaciones` convertido en centro operativo con 3 tabs:
+  **Historial de avisos** (default), **Respuestas recibidas**, **Requieren atención**.
+* **Historial global**: read-model puro `GET /rental-reminder-communications/history`
+  bajo `rental.read`; per-contrato `contracts/:contractId/history` intacto.
+  Fila = 1 `RentalReminderDispatch` con canales agrupados; sin payloads
+  provider/metadata/secrets/enums crudos; destinos máx 2 líneas + "+N más"
+  (completos en SidePanel); conceptos "Alquiler" / "Alquiler + varios";
+  estados multicanal vía único mapper `buildDispatchStatusSummary`;
+  respuestas (— o 💬 count, correlacionadas **sólo** por
+  `CommunicationInboundMessage.deliveryId`); retry elegible (FAILED +
+  attemptCount<4 + permiso `rental.reminder.manage`).
+* **SidePanel**: snapshots congelados (contentSnapshot/policySnapshot/
+  recipientSnapshot/template refs); read-only; nunca reconstruir desde datos
+  actuales.
+* **FilterBar**: búsqueda "Buscar por contrato o destinatario..." (internalNumber
+  - nombre vía pre-query Contact); Desde/Hasta DatePicker (Hasta inclusivo→
+    exclusivo); selects Estado/Canal/Evento; persistir en URL.
+* **Columnas ▾**: localStorage namespaced
+  `valar:rental-communications:history:columns`; Fecha/hora, Estado, Acciones
+  obligatorias; post-mount para SSR-safe; responsive `hidden sm/md/lg:table-cell`.
+* **Sorting** server-side default `scheduledFor desc` + tie-break `id desc`;
+  allowlist `scheduledFor|internalNumber|status|eventType`.
+* **Paginación** server-side default 20 (20/50/100); filtro/sort/pageSize nuevo
+  → página 1.
+* **Acciones "⋯"**: Ver detalle, Ver contrato, Reintentar si elegible; row-click
+  abre SidePanel con `stopPropagation` en links/buttons.
+* **Tabs** orden fijo + URL estable; KPI quick filters
+  (`buildHistoryQuickFilter`); fixture C4C incluido como tooling development-only.
+* **Respuestas recibidas**: lista inbound de C4B (mark read / acknowledge por
+  mensaje); **Requieren atención**: cola manage-only (retry de deliveries
+  fallidas + planning issues).
+* Estado: C4C.1 CLOSED; UAT funcional y visual aprobado. Gates: tests
+  focalizados, typecheck API/Admin/shared-types/ui/icons, lint, Prettier y
+  `git diff --check`.
 
 ### Lead Domain v1 (documentado)
 

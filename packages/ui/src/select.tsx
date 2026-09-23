@@ -26,7 +26,8 @@ const triggerBase =
 const closedStyles: Record<FieldState, string> = {
   default:
     "border-zinc-200 focus:border-indigo-300 focus:ring-2 focus:ring-indigo-500/10",
-  error: "border-red-300 focus:border-red-400 focus:ring-2 focus:ring-red-500/10",
+  error:
+    "border-red-300 focus:border-red-400 focus:ring-2 focus:ring-red-500/10",
   success:
     "border-emerald-300 focus:border-emerald-400 focus:ring-2 focus:ring-emerald-500/10",
 };
@@ -59,6 +60,20 @@ function Chevron({ open }: { open: boolean }) {
       <path d="m4 6 4 4 4-4" />
     </svg>
   );
+}
+
+/** Shared select-like trigger styling for controls backed by another menu. */
+export function getSelectTriggerClassName(open: boolean): string {
+  return cn(
+    triggerBase,
+    "h-8 w-full justify-between px-3 text-left disabled:cursor-not-allowed disabled:bg-zinc-50 disabled:text-zinc-400",
+    open ? openedStyles.default : closedStyles.default,
+  );
+}
+
+/** Shared chevron used by select-like controls. */
+export function SelectChevron({ open }: { open: boolean }) {
+  return <Chevron open={open} />;
 }
 
 function Checkmark() {
@@ -272,8 +287,7 @@ export function Select({
         onClick={() => (open ? close() : openWith(value))}
         onKeyDown={handleKeyDown}
         className={cn(
-          triggerBase,
-          "h-8 w-full justify-between px-3 text-left disabled:cursor-not-allowed disabled:bg-zinc-50 disabled:text-zinc-400",
+          getSelectTriggerClassName(open),
           open ? openedStyles[state] : closedStyles[state],
         )}
       >

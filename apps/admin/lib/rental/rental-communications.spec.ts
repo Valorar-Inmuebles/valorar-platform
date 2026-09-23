@@ -1,18 +1,28 @@
 import { describe, expect, it } from "vitest";
 import {
   buildCommunicationsAttentionRows,
+  buildDispatchStatusSummary,
+  buildHistoryQuickFilter,
   COMMUNICATION_CHANNEL_LABELS,
   COMMUNICATION_DELIVERY_STATUS_LABELS,
   COMMUNICATIONS_SUMMARY_METRICS,
   DELIVERY_STATUS_BADGE_VARIANT,
+  DISPATCH_STATUS_BADGE_VARIANT,
+  DISPATCH_STATUS_LABELS,
+  formatConceptsLabel,
+  formatRecipientsLabel,
+  HISTORY_COLUMNS,
+  historyColumnsFromStorage,
   inclusiveDayToExclusiveIso,
   maskChannelDestination,
+  REMINDER_EVENT_LABELS,
   retryDeliveryFeedback,
+  toExclusiveDayBound,
 } from "./rental-communications";
 import type {
   RentalAttentionDeliveryItem,
   RentalAttentionPlanningIssueItem,
-  RentalInboundMessage,
+  RentalCommunicationsSummary,
 } from "@repo/shared-types";
 
 const delivery: RentalAttentionDeliveryItem = {
@@ -33,21 +43,6 @@ const issue: RentalAttentionPlanningIssueItem = {
   type: "DUE_DATE_MISSING",
   status: "OPEN",
   lastDetectedAt: "2026-09-21T08:00:00.000Z",
-};
-
-const message: RentalInboundMessage = {
-  id: "msg-1",
-  receivedAt: "2026-09-22T12:30:00.000Z",
-  messageType: "TEXT",
-  body: "Hola, quisiera más información",
-  sender: { address: "+5491122334455" },
-  readAt: null,
-  acknowledgedAt: null,
-  acknowledgedBy: null,
-  contact: { id: "contact-1", name: "Juan Pérez" },
-  contract: { id: "contract-3", internalNumber: "C-003" },
-  deliveryCorrelated: false,
-  externalReplyLink: "https://wa.me/5491122334455",
 };
 
 describe("COMMUNICATION_DELIVERY_STATUS_LABELS", () => {
@@ -127,10 +122,9 @@ describe("buildCommunicationsAttentionRows", () => {
     const rows = buildCommunicationsAttentionRows({
       deliveries: [delivery],
       planningIssues: [issue],
-      inbound: [message],
     });
 
-    expect(rows).toHaveLength(3);
+    expect(rows).toHaveLength(2);
     const byKind = Object.fromEntries(rows.map((r) => [r.kind, r]));
     expect(byKind.delivery?.kindLabel).toBe("Envío fallido");
     expect(byKind.delivery?.kindBadge).toBe("danger");
@@ -146,31 +140,25 @@ describe("buildCommunicationsAttentionRows", () => {
     expect(byKind.planning?.contractHref).toBe("/alquileres/contract-9");
     expect(byKind.planning?.detail).toBe("Falta fecha de vencimiento");
 
-    expect(byKind.inbound?.kindLabel).toBe("Mensaje sin atender");
-    expect(byKind.inbound?.contractHref).toBe("/alquileres/contract-3");
-    expect(byKind.inbound?.message?.id).toBe("msg-1");
+    expect(byKind.inbound).toBeUndefined();
   });
 
   it("no inventa contrato cuando no está disponible", () => {
     const rows = buildCommunicationsAttentionRows({
       deliveries: [delivery],
       planningIssues: [{ ...issue, contractId: null }],
-      inbound: [{ ...message, contract: null }],
     });
     const byKind = Object.fromEntries(rows.map((r) => [r.kind, r]));
     expect(byKind.delivery?.contractHref).toBeNull();
     expect(byKind.planning?.contractHref).toBeNull();
-    expect(byKind.inbound?.contractHref).toBeNull();
   });
 
   it("ordena las filas por ocurrencia descendente", () => {
     const rows = buildCommunicationsAttentionRows({
       deliveries: [delivery],
       planningIssues: [issue],
-      inbound: [message],
     });
     expect(rows.map((r) => r.occurredAt)).toEqual([
-      "2026-09-22T12:30:00.000Z",
       "2026-09-22T10:00:00.000Z",
       "2026-09-21T08:00:00.000Z",
     ]);
@@ -181,7 +169,6 @@ describe("buildCommunicationsAttentionRows", () => {
       buildCommunicationsAttentionRows({
         deliveries: [],
         planningIssues: [],
-        inbound: [],
       }),
     ).toEqual([]);
   });
@@ -216,5 +203,194 @@ describe("retryDeliveryFeedback", () => {
     ] as const) {
       expect(retryDeliveryFeedback(reason).message.length).toBeGreaterThan(0);
     }
+  });
+});
+
+describe("REMINDER_EVENT_LABELS", () => {
+  it("cubre los 3 eventos de recordatorio con labels de producto", () => {
+    expect(REMINDER_EVENT_LABELS).toEqual({
+      PRE_DUE: "Recordatorio previo",
+      DUE: "Vencimiento",
+      POST_DUE: "Recordatorio vencido",
+    });
+  });
+});
+
+describe("DISPATCH_STATUS_LABELS", () => {
+  it("cubre los 7 estados de dispatch con labels humanos", () => {
+    expect(Object.keys(DISPATCH_STATUS_LABELS)).toEqual([
+      "PLANNED",
+      "READY",
+      "PROCESSING",
+      "COMPLETED",
+      "PARTIALLY_COMPLETED",
+      "FAILED",
+      "SKIPPED",
+    ]);
+    expect(DISPATCH_STATUS_LABELS.FAILED).toBe("Fallido");
+    expect(DISPATCH_STATUS_LABELS.PARTIALLY_COMPLETED).toBe(
+      "Parcialmente completado",
+    );
+  });
+
+  it("asigna variante de badge semántico por estado", () => {
+    expect(DISPATCH_STATUS_BADGE_VARIANT.COMPLETED).toBe("success");
+    expect(DISPATCH_STATUS_BADGE_VARIANT.PARTIALLY_COMPLETED).toBe("warning");
+    expect(DISPATCH_STATUS_BADGE_VARIANT.FAILED).toBe("danger");
+    expect(DISPATCH_STATUS_BADGE_VARIANT.SKIPPED).toBe("neutral");
+  });
+});
+
+describe("buildDispatchStatusSummary", () => {
+  it("agrega en multicanal: 1 entregado · 1 fallido", () => {
+    const summary = buildDispatchStatusSummary([
+      { status: "DELIVERED" },
+      { status: "FAILED" },
+    ]);
+    expect(summary).toEqual({
+      label: "1 entregado · 1 fallido",
+      variant: "danger",
+      mixed: true,
+    });
+  });
+
+  it("pluraliza conteos > 1 y prioriza danger ante fallidos", () => {
+    const summary = buildDispatchStatusSummary([
+      { status: "DELIVERED" },
+      { status: "DELIVERED" },
+      { status: "FAILED" },
+    ]);
+    expect(summary.label).toBe("2 entregados · 1 fallido");
+    expect(summary.variant).toBe("danger");
+  });
+
+  it("delega al label/badge único cuando todos comparten estado", () => {
+    const summary = buildDispatchStatusSummary([
+      { status: "READ" },
+      { status: "READ" },
+    ]);
+    expect(summary).toEqual({
+      label: "Leído",
+      variant: "success",
+      mixed: false,
+    });
+  });
+
+  it("responde Sin envíos cuando no hay deliveries", () => {
+    expect(buildDispatchStatusSummary([])).toEqual({
+      label: "Sin envíos",
+      variant: "neutral",
+      mixed: false,
+    });
+  });
+});
+
+describe("formatConceptsLabel / formatRecipientsLabel", () => {
+  it("comprime conceptos: nombre único o primer nombre + varios", () => {
+    expect(formatConceptsLabel([])).toBe("—");
+    expect(formatConceptsLabel(["Alquiler"])).toBe("Alquiler");
+    expect(formatConceptsLabel(["Alquiler", "Expensas"])).toBe(
+      "Alquiler + varios",
+    );
+  });
+
+  it("comprime destinatarios con +N más", () => {
+    expect(formatRecipientsLabel([])).toBe("—");
+    expect(formatRecipientsLabel([{ name: "Juan" }])).toBe("Juan");
+    expect(
+      formatRecipientsLabel([
+        { name: "Juan" },
+        { name: "Ana" },
+        { name: null },
+      ]),
+    ).toBe("Juan +1 más");
+  });
+});
+
+describe("toExclusiveDayBound", () => {
+  it("convierte un día inclusive al ISO del día siguiente (Hasta)", () => {
+    expect(toExclusiveDayBound("2026-09-22")).toBe("2026-09-23T00:00:00.000Z");
+  });
+
+  it("reenvía un ISO ya exclusivo sin conversión", () => {
+    expect(toExclusiveDayBound("2026-09-23T03:00:00.000Z")).toBe(
+      "2026-09-23T03:00:00.000Z",
+    );
+  });
+
+  it("devuelve vacío para valores inválidos", () => {
+    expect(toExclusiveDayBound("22/09/2026")).toBe("");
+    expect(toExclusiveDayBound("")).toBe("");
+  });
+});
+
+describe("buildHistoryQuickFilter", () => {
+  const summary: RentalCommunicationsSummary = {
+    asOf: "2026-09-22T12:00:00.000Z",
+    timeZone: "America/Argentina/Buenos_Aires",
+    window: {
+      from: "2026-09-22T03:00:00.000Z",
+      to: "2026-09-23T03:00:00.000Z",
+    },
+    dispatchesScheduledToday: 2,
+    deliveriesSentToday: 3,
+    deliveriesDeliveredToday: 2,
+    deliveriesFailedToday: 1,
+    planningIssuesOpen: 1,
+    inboundUnacknowledged: 2,
+  };
+
+  it("las 4 métricas de ventana apuntan al Historial con la ventana real", () => {
+    expect(buildHistoryQuickFilter(summary, "dispatchesScheduledToday")).toBe(
+      "/alquileres/comunicaciones?tab=history&scheduledFrom=2026-09-22T03%3A00%3A00.000Z&scheduledTo=2026-09-23T03%3A00%3A00.000Z",
+    );
+    expect(buildHistoryQuickFilter(summary, "deliveriesSentToday")).toContain(
+      "sentFrom=2026-09-22T03%3A00%3A00.000Z",
+    );
+    expect(
+      buildHistoryQuickFilter(summary, "deliveriesDeliveredToday"),
+    ).toContain("deliveredFrom=2026-09-22T03%3A00%3A00.000Z");
+    expect(buildHistoryQuickFilter(summary, "deliveriesFailedToday")).toContain(
+      "failedFrom=2026-09-22T03%3A00%3A00.000Z",
+    );
+  });
+
+  it("los inconvenientes van a la cola de atención y lo sin atender a Respuestas", () => {
+    expect(buildHistoryQuickFilter(summary, "planningIssuesOpen")).toBe(
+      "/alquileres/comunicaciones?tab=attention",
+    );
+    expect(buildHistoryQuickFilter(summary, "inboundUnacknowledged")).toBe(
+      "/alquileres/comunicaciones?tab=inbound&unacknowledged=true",
+    );
+  });
+});
+
+describe("HISTORY_COLUMNS", () => {
+  it("mantiene Fecha/hora, Estado y Acciones como columnas obligatorias", () => {
+    expect(
+      HISTORY_COLUMNS.filter((column) => column.locked).map((c) => c.key),
+    ).toEqual(["scheduledFor", "status", "actions"]);
+  });
+
+  it("expone la allowlist sortable con su sortBy (4 columnas)", () => {
+    expect(
+      HISTORY_COLUMNS.filter((column) => column.sortable).map(
+        (c) => c.sortable,
+      ),
+    ).toEqual(["scheduledFor", "eventType", "internalNumber", "status"]);
+  });
+});
+
+describe("historyColumnsFromStorage", () => {
+  it("rechaza valores desconocidos y restaura el default sin data", () => {
+    expect(
+      historyColumnsFromStorage('["scheduledFor","not-a-column"]'),
+    ).toEqual(["scheduledFor"]);
+    expect(historyColumnsFromStorage(null)).toEqual(
+      HISTORY_COLUMNS.map((column) => column.key),
+    );
+    expect(historyColumnsFromStorage("no-json")).toEqual(
+      HISTORY_COLUMNS.map((column) => column.key),
+    );
   });
 });

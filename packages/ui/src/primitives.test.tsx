@@ -154,6 +154,13 @@ describe("shared primitives semantics", () => {
           items={[
             { id: "edit", label: "Editar", onSelect: vi.fn() },
             {
+              id: "column",
+              label: "Columnas",
+              checked: true,
+              keepOpen: true,
+              onSelect: vi.fn(),
+            },
+            {
               id: "delete",
               label: "Eliminar",
               destructive: true,

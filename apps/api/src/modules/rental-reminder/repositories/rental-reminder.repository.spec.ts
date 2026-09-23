@@ -1046,3 +1046,176 @@ describe('RentalReminderRepository communications summary counts', () => {
     });
   });
 });
+
+describe('RentalReminderRepository global communications history', () => {
+  function historyRepo(options: { contacts?: Array<{ id: string }> } = {}) {
+    const findMany = jest.fn().mockResolvedValue([]);
+    const count = jest.fn().mockResolvedValue(0);
+    const contactFindMany = jest.fn().mockResolvedValue(options.contacts ?? []);
+    const repository = new RentalReminderRepository({
+      contact: { findMany: contactFindMany },
+      rentalReminderDispatch: { findMany, count },
+      $transaction: jest.fn().mockResolvedValue([[], 0]),
+    } as never);
+    return { findMany, count, contactFindMany, repository };
+  }
+
+  function firstHistoryCall(findMany: jest.Mock) {
+    return (findMany.mock.calls as Array<[Record<string, unknown>]>)[0][0];
+  }
+
+  it('tenant-scopes rows, paginates and defaults to scheduledFor desc with id desc', async () => {
+    const { findMany, count, contactFindMany, repository } = historyRepo();
+
+    await repository.findCommunicationsHistory('tenant-1', {
+      page: 2,
+      pageSize: 50,
+    });
+
+    type HistoryInput = {
+      where: { tenantId: string };
+      include: {
+        contract: unknown;
+        deliveries: {
+          where: unknown;
+          include: {
+            attempts: unknown;
+            inboundMessages: { orderBy: unknown };
+          };
+        };
+      };
+      orderBy: Array<Record<string, unknown>>;
+      skip: number;
+      take: number;
+    };
+    const input = firstHistoryCall(findMany) as unknown as HistoryInput;
+    expect(input.where).toEqual({ tenantId: 'tenant-1' });
+    expect(input.orderBy).toEqual([{ scheduledFor: 'desc' }, { id: 'desc' }]);
+    expect(input.skip).toBe(50);
+    expect(input.take).toBe(50);
+    expect(input.include.contract).toEqual({
+      select: { id: true, internalNumber: true },
+    });
+    expect(input.include.deliveries.include.attempts).toEqual({
+      orderBy: { attemptNumber: 'asc' },
+    });
+    expect(input.include.deliveries.include.inboundMessages.orderBy).toEqual({
+      receivedAt: 'desc',
+    });
+    expect(contactFindMany).not.toHaveBeenCalled();
+    expect(count).toHaveBeenCalledWith({ where: input.where });
+  });
+
+  it('searches by internalNumber and by recipient contact name without touching phone/email', async () => {
+    const { findMany, contactFindMany, repository } = historyRepo({
+      contacts: [{ id: 'contact-1' }],
+    });
+
+    await repository.findCommunicationsHistory('tenant-1', {
+      search: 'PEREZ',
+    });
+
+    expect(contactFindMany).toHaveBeenCalledWith({
+      where: {
+        tenantId: 'tenant-1',
+        name: { contains: 'PEREZ', mode: 'insensitive' },
+      },
+      select: { id: true },
+      take: 100,
+    });
+    const input = firstHistoryCall(findMany) as unknown as {
+      where: { OR: Array<Record<string, unknown>> };
+    };
+    expect(input.where.OR).toEqual([
+      {
+        contract: {
+          internalNumber: { contains: 'PEREZ', mode: 'insensitive' },
+        },
+      },
+      { recipientContactId: { in: ['contact-1'] } },
+    ]);
+    const serialized = JSON.stringify(input.where.OR);
+    expect(serialized).not.toContain('destinationSnapshot');
+    expect(serialized).not.toContain('senderAddress');
+  });
+
+  it('bundles channel and delivery windows into one deliveries.some and narrows the include', async () => {
+    const { findMany, repository } = historyRepo();
+
+    await repository.findCommunicationsHistory('tenant-1', {
+      channel: 'WHATSAPP',
+      sentFrom: '2026-09-22T03:00:00.000Z',
+      sentTo: '2026-09-23T03:00:00.000Z',
+      deliveredFrom: '2026-09-22T03:00:00.000Z',
+      failedTo: '2026-09-23T03:00:00.000Z',
+    });
+
+    const input = firstHistoryCall(findMany) as unknown as {
+      where: { deliveries: Record<string, unknown> };
+      include: { deliveries: { where: Record<string, unknown> } };
+    };
+    expect(input.where.deliveries).toEqual({
+      some: {
+        channel: 'WHATSAPP',
+        sentAt: {
+          gte: new Date('2026-09-22T03:00:00.000Z'),
+          lt: new Date('2026-09-23T03:00:00.000Z'),
+        },
+        deliveredAt: { gte: new Date('2026-09-22T03:00:00.000Z') },
+        failedAt: { lt: new Date('2026-09-23T03:00:00.000Z') },
+      },
+    });
+    expect(input.include.deliveries.where).toEqual({ channel: 'WHATSAPP' });
+  });
+
+  it('bounds scheduledFor with gte/lt and forwards eventType and dispatch status', async () => {
+    const { findMany, repository } = historyRepo();
+
+    await repository.findCommunicationsHistory('tenant-1', {
+      scheduledFrom: '2026-09-22T03:00:00.000Z',
+      scheduledTo: '2026-09-23T03:00:00.000Z',
+      eventType: 'DUE',
+      status: 'COMPLETED',
+    });
+
+    const input = firstHistoryCall(findMany) as unknown as {
+      where: {
+        scheduledFor: Record<string, Date>;
+        eventType: string;
+        status: string;
+      };
+    };
+    expect(input.where.scheduledFor).toEqual({
+      gte: new Date('2026-09-22T03:00:00.000Z'),
+      lt: new Date('2026-09-23T03:00:00.000Z'),
+    });
+    expect(input.where.eventType).toBe('DUE');
+    expect(input.where.status).toBe('COMPLETED');
+  });
+
+  it('maps the sort allowlist with scheduledFor desc id desc as tie-breakers', async () => {
+    type HistoryCall = { orderBy: unknown[] };
+    const { findMany, repository } = historyRepo();
+
+    await repository.findCommunicationsHistory('tenant-1', {
+      sortBy: 'internalNumber',
+      sortOrder: 'asc',
+    });
+    await repository.findCommunicationsHistory('tenant-1', {
+      sortBy: 'eventType',
+      sortOrder: 'desc',
+    });
+
+    const calls = findMany.mock.calls as unknown as Array<[HistoryCall]>;
+    expect(calls[0][0].orderBy).toEqual([
+      { contract: { internalNumber: 'asc' } },
+      { scheduledFor: 'desc' },
+      { id: 'desc' },
+    ]);
+    expect(calls[1][0].orderBy).toEqual([
+      { eventType: 'desc' },
+      { scheduledFor: 'desc' },
+      { id: 'desc' },
+    ]);
+  });
+});

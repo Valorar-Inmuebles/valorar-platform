@@ -4,6 +4,8 @@ import type {
   RentalAttentionDeliveryItem,
   RentalAttentionPlanningIssueItem,
   RentalCommunicationsSummary,
+  RentalDispatchHistoryItem,
+  RentalDispatchHistoryQuery,
   RentalInboundMessage,
   RentalInboundQuery,
 } from "@repo/shared-types";
@@ -21,6 +23,20 @@ function queryString(
 export function getRentalCommunicationsSummary() {
   return apiFetch<RentalCommunicationsSummary>(
     "/rental-reminder-communications/summary",
+    { cache: "no-store" },
+  );
+}
+
+/**
+ * Historial global (C4C.1): fila = dispatch con canales agrupados.
+ * Filtros/sort/paginación server-side; `scheduledTo` y ventanas `*To` son
+ * bounds exclusivos ya resueltos por la página antes de llamar.
+ */
+export function listRentalHistory(
+  query: RentalDispatchHistoryQuery = {},
+): Promise<PaginatedResponse<RentalDispatchHistoryItem>> {
+  return apiFetch(
+    `/rental-reminder-communications/history${queryString(query)}`,
     { cache: "no-store" },
   );
 }

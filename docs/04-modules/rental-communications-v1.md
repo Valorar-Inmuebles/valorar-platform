@@ -444,14 +444,14 @@ Toda tabla funcional propuesta lleva `tenantId`. Relaciones a contrato, occurren
 
 Política RBAC propuesta:
 
-| Operación                                      | Permiso                                                  |
-| ---------------------------------------------- | -------------------------------------------------------- |
-| ver resumen contractual de comunicaciones      | `rental.read`                                            |
-| ver destino completo, errores y operación      | `rental.reminder.manage`                                 |
-| editar política tenant-wide                    | `rental.reminder.manage`                                 |
-| retry manual de un delivery `FAILED`           | `rental.reminder.manage`                                 |
-| marcar/atender inbound (read/acknowledge)      | `rental.reminder.manage`                                 |
-| configurar providers platform-wide             | futuro `platform.communication.manage`, sólo Super Admin |
+| Operación                                 | Permiso                                                  |
+| ----------------------------------------- | -------------------------------------------------------- |
+| ver resumen contractual de comunicaciones | `rental.read`                                            |
+| ver destino completo, errores y operación | `rental.reminder.manage`                                 |
+| editar política tenant-wide               | `rental.reminder.manage`                                 |
+| retry manual de un delivery `FAILED`      | `rental.reminder.manage`                                 |
+| marcar/atender inbound (read/acknowledge) | `rental.reminder.manage`                                 |
+| configurar providers platform-wide        | futuro `platform.communication.manage`, sólo Super Admin |
 
 `rental.reminder.manage` está implementado para `SUPER_ADMIN`, `TENANT_ADMIN` y `MANAGER`. El retry manual existe como operación de dominio en el runner development (`reminder-reset`) y como endpoint Admin desde C4A.1 con la misma semántica: crea un nuevo Attempt sobre el mismo Delivery, conserva el histórico (incluido un fallo anterior) y respeta el máximo/política auditada. Los read models de comunicaciones usan `rental.read`.
 
@@ -536,7 +536,7 @@ Detalles de operación:
 Alcance (migración `202609220001_rental_communications_c4b_inbound_attention`):
 
 - **Semántica de estados**: `RECEIVED → READ → ACKNOWLEDGED` son estados de
-  *atención en Admin* derivados de timestamps sobre `CommunicationInboundMessage`;
+  _atención en Admin_ derivados de timestamps sobre `CommunicationInboundMessage`;
   no son estados del provider y no modifican el `RentalReminderDelivery`.
   Leer no implica atender; atender sí implica leer
   (`acknowledgedAt != null → readAt != null`). No existe deshacer un
@@ -756,13 +756,13 @@ Implementado además:
   queda disponible únicamente como template de prueba sin parámetros y no como
   regla Rental;
 - runner `npm run db:dev:reminder-whatsapp -- --tenant-id=<tenant>
-  --delivery-id=<delivery> --template-name=<name>
-  --template-language=<language> --template-parameters=none|rental-v1`, con
+--delivery-id=<delivery> --template-name=<name>
+--template-language=<language> --template-parameters=none|rental-v1`, con
   preview enmascarada por defecto y envío sólo bajo `--apply --send` más
   allowlist E.164 exacta;
 - reset manual de un delivery en dead-end (tras corregir la causa externa) vía
   `npm run db:dev:reminder-reset -- --tenant-id=<tenant>
-  --delivery-id=<delivery> --apply`: elegibles `FAILED` o `PROCESSING` con
+--delivery-id=<delivery> --apply`: elegibles `FAILED` o `PROCESSING` con
   lease vencido y sin attempt activo; transición atómica tenant-scoped a
   `PENDING` (`nextAttemptAt=now`, `statusSource=INTERNAL`), compare-and-set
   (impide resets concurrentes y no roba attempts en vuelo — `IN_FLIGHT`),
@@ -893,7 +893,152 @@ caducidad `expires_at=0`, allowlist exacta del destinatario):
   envíos sincrónicos;
 - sin schema/migración/índices, sin permisos nuevos, sin UI Admin, sin C4B;
   gates verdes (tests focalizados, typecheck API, lint/prettier, `git diff
-  --check`).
+--check`).
+
+### C4C — Fixture canónico de comunicaciones (tooling UAT visual) ✅
+
+**Qué es**: fixture reproducible, idempotente y aislado para validar visualmente
+los read models/API de C4A.1 y los flujos inbound de C4B desde
+`/alquileres/comunicaciones` (UAT C4C.1). No es evidencia provider:
+es un dataset sintético de UAT visual sobre la base de desarrollo aislada.
+
+**Cómo se ejecuta** (siempre contra la DB dev, nunca la baseline):
+
+```bash
+npm run db:dev:rental-fixtures -w api          # dry-run: reporte JSON sin escribir
+npm run db:dev:rental-fixtures -w api -- --apply  # aplica el dataset (idempotente)
+npm run db:dev:rental-fixtures -w api -- --now 2026-09-23T14:30:00.000Z  # fecha explícita (opcional)
+```
+
+- Registrado en `db-development.ts` (comando `rental-fixtures`, mismo preflight
+  `validateDevelopmentDatabaseTarget`); **no** integrado con `db:dev:seed`.
+- El runner y el service revalidan el guard (exige `VALORAR_DATABASE_ENV=development`,
+  rechaza el endpoint protegido `ep-mute-sun-ac6nva0v` y baseline/production).
+- Dry-run por defecto (reporte JSON con counts + ids determinísticos); aplicar
+  requiere `--apply` explícito.
+
+**Alcance del dataset** (`--apply`):
+
+- Sólo tenant demo (`cmudkzfa30000ewusey4pg6ov` / slug `demo`, resuelto por
+  `DEMO_TENANT_SLUG`) y admin demo (`admin@demo.valorar.dev`, TENANT_ADMIN,
+  resuelto por email + tenantId). Si falta el seed, falla con mensaje claro.
+- Upserts (nunca se borran): `RentalReminderPolicy` por `tenantId`
+  (3/ON/ON/3, `sendTimeMinutes` 600), `TenantSetting.timeZone` =
+  `America/Argentina/Buenos_Aires`, `RentalContractSequence` =
+  `max(existente, 1)`.
+- Contrato `ALQ-000001` ACTIVE con término válido y referencias al catálogo Geo
+  canónico (`Capital Federal` → `Palermo`), parties (renter primary + co-renter), rutas
+  EMAIL+WHATSAPP (sólo renter), obligaciones RENT (due hoy) y EXPENSES (due
+  hoy+3, `showAmount true`), occurrences, dispatches, deliveries y attempts con
+  ids `fx-c4c-*`, más 1 planning issue OPEN (`NO_ENABLED_ROUTE` co-renter, sin
+  rutas) y 3 inbound WhatsApp sintéticos (`fx-wamid-0001/0002/0003`).
+- Comunicaciones: PRE_DUE → EMAIL DELIVERED + WHATSAPP DELIVERED (dispatch
+  COMPLETED); DUE → EMAIL SENT + WHATSAPP FAILED (dispatch
+  PARTIALLY_COMPLETED). La delivery FAILED es retry-eligible (1 attempt < 4,
+  attempt FAILED sanitizado `FIXTURE_SIMULATED`, sin attempts PROCESSING).
+- Inbound: msg1 sin leer/sin ack; msg2 leído + ack por el admin demo
+  (`acknowledgedById`); msg3 sin leer/sin ack **correlacionado por
+  `deliveryId`** con la delivery WHATSAPP PRE_DUE (valida que el historial sólo
+  cuenta respuestas ligadas por deliveryId, nunca correlación inventada).
+  `deliveryId` null por diseño C3B en msg1/msg2; `statusSource` `INTERNAL` en
+  todas las deliveries (sin evidencia provider, sin WebhookReceipt,
+  `providerMessageId` null en deliveries/attempts).
+- Timestamps relativos a la ejecución dentro del día local del tenant
+  (10:00 `scheduledFor`, envíos/entregas/fail entre 10:00:45 y 10:03:30,
+  inbound a las 08:45/09:10/10:45), coherentes con el summary 2/3/2/1/1/2 de
+  `countCommunicationsSummary` (2 unacknowledged).
+- Plan puro `buildRentalCommunicationsFixturePlan` con snapshots espejo del
+  planner (`contentSnapshot` v1 `renderState:'PENDING_C3'`, `policySnapshot`,
+  `recipientSnapshot`, keys de dominio via helpers compartidos).
+- Idempotente: re-ejecución sobrescribe el mismo escenario; el cleanup borra
+  sólo filas `fx-c4c-*` scoped `tenantId` (nunca datos ajenos).
+
+**Abstención**: no ejecutar contra la baseline (`ep-mute-sun-ac6nva0v` — el
+guard lo bloquea), no usar en producción, no imitar los ids/evidencia de los
+fixtures provider efímeros C1–C3B (tenant de fixtures reales). El fixture no
+genera Fulfillments ni respuestas automáticas inbound.
+
+**Nota de fidelidad del planning**: el fixture persiste 1 solo planning issue
+OPEN (curado por `occurrenceId` = occ-rent para la co-renter). Un planner real
+detectaría 2 issues `NO_ENABLED_ROUTE` (uno por occurrence con obligación
+RENT y otro por EXPENSES); se documenta la diferencia para no confundir UAT
+visual con la salida del planner real.
+
+**Cero evidencia provider**: `statusSource` `INTERNAL`, `providerMessageId`
+null en deliveries/attempts, sintético `fx-wamid-*` en inbound; nada de llamadas
+a Email/WhatsApp/webhooks externos.
+
+### C4C.1 — Centro de comunicaciones Admin (historial + respuestas + atención) ✅ CLOSED
+
+**Qué es**: conversión de `/alquileres/comunicaciones` (Admin) en centro
+operativo con 3 tabs: **Historial de avisos** (default), **Respuestas recibidas**
+y **Requieren atención**. El Historial es global por dispatch con filtros, sort
+y paginación **server-side en la URL**; la fila abre un SidePanel con snapshots
+congelados read-only.
+
+**Read model nuevo (API)**:
+
+- `GET /rental-reminder-communications/history` (global, bajo `rental.read`):
+  read-model puro; **no** reemplaza el per-contrato
+  `contracts/:contractId/history` (intacto). Fila = 1 `RentalReminderDispatch`
+  con canales agrupados (`deliveries`/`channels`/`responsesCount`).
+- Sin payloads provider/metadata/secrets/enums crudos: destinos enmascarados,
+  errores sanitizados, snapshots proyectados (`contentSnapshot`,
+  `policySnapshot`, `recipientSnapshot`, refs de plantilla).
+- `status` global del dispatch + detalles por delivery; estados multicanal vía
+  el ÚNICO mapper `buildDispatchStatusSummary` (labels + badge mixto
+  "1 entregado · 1 fallido") compartido entre tabla y panel.
+- Respuestas: se correlacionan **sólo** por
+  `CommunicationInboundMessage.deliveryId`; label "—" o 💬 conteo + pendientes.
+- Retry elegible = delivery `FAILED` con `attemptCount < 4` **y** permiso
+  `rental.reminder.manage` (botón "Reintentar" sólo para fallidos elegibles; la
+  endpoint reprograma para el próximo ciclo, no envía).
+- Query validada en Service: `search` (OR `internalNumber` + nombre del
+  destinatario vía pre-query de Contact), ventanas `scheduledFrom/To` +
+  `sentFrom/To` + `deliveredFrom/To` + `failedFrom/To` (bounds `*To`
+  exclusivos), `eventType`/`status`/`channel`/`sortBy`/`sortOrder` en allowlist,
+  `page`/`pageSize` (20/50/100, default 20). Sort default
+  `scheduledFor desc` + tie-break `id desc`.
+
+**Admin (`apps/admin`)**:
+
+- `page.tsx`: la URL es la fuente de estado; tab default `history`; fetch por
+  tab activo (summary siempre; history → `listRentalHistory`, inbound →
+  `listRentalInbound`, attention → cola `retry-eligible` + issues **sólo** si
+  `canManage`). `buildHistoryQuery(value)` traduce params crudos
+  (`scheduledTo` día → ISO exclusivo vía `toExclusiveDayBound`; ISO ya
+  exclusivo del KPI se reenvía).
+- `communications-view.tsx`: tabs fijos `history(0)/inbound(1)/attention(2)` con
+  URL estable; KPIs 3×2 con `href=buildHistoryQuickFilter(...)` (las 4 métricas
+  de ventana → Historial con la ventana **real** del día local; planning →
+  atención; sin atender → Respuestas con `unacknowledged=true`) + hint con la
+  fecha/hora de la ventana. Panel inbound elevado al view; panel history
+  autónomo.
+- `communications-history.tsx`: FilterBar (búsqueda "Buscar por contrato o
+  destinatario..." con debounce 350ms, DatePicker Desde/Hasta, selects
+  Estado/Canal/Evento, pageSize), columnas ▾ persistidas en localStorage
+  (`valar:rental-communications:history:columns`, aplicadas post-mount para
+  SSR-safe; **Fecha/hora, Estado y Acciones inmutables**; responsive
+  `hidden sm/md/lg:table-cell`), sort server-side con allowlist
+  `scheduledFor|internalNumber|status|eventType`, paginación 20/50/100,
+  chips de filtros activos (label del día inclusive para bounds `*To`), ⋯
+  (Ver detalle / Ver contrato / Reintentar si elegible) y **row-click abre el
+  SidePanel** con `stopPropagation` en links/buttons (a11y: `tr onClick`).
+- `communications-history-panel.tsx`: SidePanel read-only con snapshots
+  congelados (destinatarios completos, conceptos con fecha/importe, política
+  formateada, entregas por canal con timestamps/intentos/error, contenido y
+  plantilla de la momnto de planeo, respuestas del delivery). Reintento
+  delegado con ConfirmModal + toasts.
+- Reintento espeja C4B (attention): `retryDeliveryAction` +
+  `retryDeliveryFeedback` + `router.refresh()`.
+- Tab **Respuestas recibidas**: lista inbound de C4B (mark read / acknowledge
+  por mensaje); tab **Requieren atención**: cola manage-only (retry de
+  deliveries fallidas + planning issues).
+
+**Gates**: tests focalizados (API 66 → 703 totales repo API con fixture,
+Admin 30 lib + 9 UI), typecheck API/Admin/shared-types/ui/icons, lint y
+prettier, build Admin, `git diff --check`. **UAT funcional y visual aprobado**:
+escenarios de Historial, Respuestas recibidas y Requieren atención.
 
 ### C4 — Admin y operación
 

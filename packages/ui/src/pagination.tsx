@@ -11,6 +11,7 @@ export type PaginationProps = {
   onPageChange: (page: number) => void;
   disabled?: boolean;
   siblingCount?: number;
+  showSummary?: boolean;
   className?: string;
 };
 
@@ -22,6 +23,7 @@ export function Pagination({
   onPageChange,
   disabled = false,
   siblingCount = 1,
+  showSummary = true,
   className,
 }: PaginationProps) {
   if (totalPages <= 0) return null;
@@ -44,11 +46,13 @@ export function Pagination({
         className,
       )}
     >
-      <p className="text-sm text-muted" aria-live="polite">
-        {from !== null && to !== null && total !== undefined
-          ? `Mostrando ${from}–${to} de ${total}`
-          : `Página ${current} de ${totalPages}`}
-      </p>
+      {showSummary ? (
+        <p className="text-sm text-muted" aria-live="polite">
+          {from !== null && to !== null && total !== undefined
+            ? `Mostrando ${from}–${to} de ${total}`
+            : `Página ${current} de ${totalPages}`}
+        </p>
+      ) : null}
       <div className="flex items-center gap-1">
         <PageButton
           label="Anterior"

@@ -481,6 +481,7 @@ Los mockups visuales existen externamente y se proporcionarán durante los gates
 - Rental V1.1 Fase 5C: completa los pasos Alquiler, Obligaciones y Avisos del wizard compartido; `RENT` usa importe vigente e historial de revisiones, las obligaciones adicionales conservan identidad y la configuración previa de avisos persiste rutas/flags sin ejecutar comunicaciones.
 - Rental V1.1 Fase 5D: detalle General e Historial sobre read models de Fase 3, vencimientos mensuales server-side y operaciones de cumplimiento en `SidePanel`; no se representan envíos.
 - Rental V1.1 Fase 5E: pantalla comparativa `/alquileres/:id/renovar`, creación mediante el endpoint existente, continuación en el wizard compartido, manejo de sucesor `DRAFT`/conflicto concurrente y relaciones de renovación navegables en Detalle General.
+- Gap UX pendiente (no bloqueante para C4C.1): el Stepper del wizard de contratos representa `completed` por navegación (`number < step`) y no por validación real de completitud de cada paso.
 
 ### 17.2 Aprobado pero pendiente después de Fase 5E
 

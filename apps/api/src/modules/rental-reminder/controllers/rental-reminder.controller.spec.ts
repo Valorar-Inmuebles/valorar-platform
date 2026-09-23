@@ -72,6 +72,7 @@ describe('RentalReminder controllers RBAC surface', () => {
 describe('RentalReminderReadController delegation', () => {
   const service = {
     getContractHistory: jest.fn().mockResolvedValue({ items: [] }),
+    getHistory: jest.fn().mockResolvedValue({ items: [] }),
     getInbound: jest.fn().mockResolvedValue({ items: [] }),
     getSummary: jest.fn().mockResolvedValue({}),
   };
@@ -91,6 +92,18 @@ describe('RentalReminderReadController delegation', () => {
     const query = { page: 1, pageSize: 20 };
     await controller.inbound('tenant-1', query);
     expect(service.getInbound).toHaveBeenCalledWith('tenant-1', query);
+  });
+
+  it('delegates global history with tenant and the raw query', async () => {
+    const query = {
+      page: 1,
+      pageSize: 20,
+      sortBy: 'internalNumber' as const,
+      sortOrder: 'asc' as const,
+      search: 'ALQ',
+    };
+    await controller.history('tenant-1', query);
+    expect(service.getHistory).toHaveBeenCalledWith('tenant-1', query);
   });
 
   it('delegates summary with tenant', async () => {

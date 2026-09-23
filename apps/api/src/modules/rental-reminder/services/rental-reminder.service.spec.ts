@@ -528,3 +528,224 @@ describe('RentalReminderService inbound attention actions', () => {
     });
   });
 });
+
+describe('RentalReminderService global history read model', () => {
+  const repository = {
+    findCommunicationsHistory: jest.fn(),
+  };
+  const service = new RentalReminderService(repository as never, {} as never);
+
+  const dispatch = {
+    id: 'dispatch-1',
+    eventType: 'PRE_DUE',
+    dueDate: new Date('2026-09-22T00:00:00.000Z'),
+    scheduledFor: new Date('2026-09-22T13:00:00.000Z'),
+    status: 'PARTIALLY_COMPLETED',
+    firstAttemptAt: new Date('2026-09-22T13:00:00.000Z'),
+    completedAt: new Date('2026-09-22T13:00:10.000Z'),
+    recipientSnapshot: { contactId: 'contact-1', name: 'Juan Pérez' },
+    contentSnapshot: {
+      version: 1,
+      renderState: 'PENDING_C3',
+      eventType: 'PRE_DUE',
+      dueDate: '2026-09-25',
+      occurrences: [
+        {
+          occurrenceId: 'o1',
+          conceptId: 'concept-expenses',
+          conceptName: 'Expensas',
+          dueDate: '2026-09-25',
+          showAmount: true,
+          amount: '15000',
+          currency: 'ARS',
+        },
+        {
+          occurrenceId: 'o2',
+          conceptId: 'concept-rent',
+          conceptName: 'Alquiler',
+          dueDate: '2026-09-25',
+          showAmount: true,
+          amount: '500000',
+          currency: 'ARS',
+        },
+      ],
+    },
+    policySnapshot: {
+      version: 1,
+      timeZone: 'America/Argentina/Buenos_Aires',
+      preDueEnabled: true,
+      preDueDays: 3,
+      dueEnabled: true,
+      postDueEnabled: true,
+      postDueDays: 3,
+      sendTimeMinutes: 600,
+    },
+    contract: { id: 'contract-1', internalNumber: 'ALQ-000001' },
+    deliveries: [
+      {
+        id: 'delivery-wa',
+        channel: 'WHATSAPP',
+        status: 'DELIVERED',
+        destinationSnapshot: '+5491131716941',
+        sentAt: new Date('2026-09-22T13:00:01.000Z'),
+        deliveredAt: new Date('2026-09-22T13:00:02.000Z'),
+        readAt: null,
+        failedAt: null,
+        skippedAt: null,
+        attemptCount: 1,
+        errorCategory: null,
+        errorCode: null,
+        errorMessage: null,
+        subjectSnapshot: null,
+        bodySnapshot: 'Fixture: vence Expensas el 25/09.',
+        templateKey: 'rental-reminder',
+        templateVersion: '1',
+        providerTemplateRef: 'reminder_tpl',
+        attempts: [],
+        inboundMessages: [
+          {
+            id: 'inbound-3',
+            receivedAt: new Date('2026-09-22T13:10:00.000Z'),
+            body: 'Gracias por el aviso',
+            senderAddress: '+5491122336941',
+            contact: { id: 'contact-1', name: 'Juan Pérez' },
+            readAt: new Date('2026-09-22T13:11:00.000Z'),
+            acknowledgedAt: null,
+            acknowledgedBy: null,
+          },
+        ],
+      },
+      {
+        id: 'delivery-email',
+        channel: 'EMAIL',
+        status: 'FAILED',
+        destinationSnapshot: 'renter.fixture@demo.valorar.dev',
+        sentAt: new Date('2026-09-22T13:00:05.000Z'),
+        deliveredAt: null,
+        readAt: null,
+        failedAt: new Date('2026-09-22T13:00:06.000Z'),
+        skippedAt: null,
+        attemptCount: 3,
+        errorCategory: 'PROVIDER',
+        errorCode: 'TEMPORARY_FAILURE',
+        errorMessage: 'provider nack',
+        subjectSnapshot: 'Recordatorio de vencimiento',
+        bodySnapshot: null,
+        templateKey: 'rental-reminder',
+        templateVersion: '1',
+        providerTemplateRef: null,
+        attempts: [
+          {
+            attemptNumber: 1,
+            status: 'FAILED',
+            startedAt: new Date('2026-09-22T13:00:05.000Z'),
+            finishedAt: new Date('2026-09-22T13:00:06.000Z'),
+            latencyMs: 1000,
+            errorCategory: 'PROVIDER',
+            errorCode: 'TEMPORARY_FAILURE',
+            errorMessage: 'provider nack',
+          },
+        ],
+        inboundMessages: [],
+      },
+    ],
+  };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('maps one dispatch row from frozen snapshots with correlated responses and retry eligibility', async () => {
+    repository.findCommunicationsHistory.mockResolvedValue([[dispatch], 1]);
+
+    const result = await service.getHistory('tenant-1', {
+      page: 1,
+      pageSize: 20,
+    });
+    const item = result.items[0];
+
+    expect(item).toMatchObject({
+      dispatchId: 'dispatch-1',
+      eventType: 'PRE_DUE',
+      status: 'PARTIALLY_COMPLETED',
+      scheduledFor: '2026-09-22T13:00:00.000Z',
+      dueDate: '2026-09-22',
+      contract: { id: 'contract-1', internalNumber: 'ALQ-000001' },
+      recipients: [{ contactId: 'contact-1', name: 'Juan Pérez' }],
+      // Conceptos y política SIEMPRE desde snapshots congelados.
+      concepts: ['Expensas', 'Alquiler'],
+      channels: ['EMAIL', 'WHATSAPP'],
+      responsesCount: 1,
+      responsesPending: true,
+      policy: {
+        timeZone: 'America/Argentina/Buenos_Aires',
+        preDueEnabled: true,
+        preDueDays: 3,
+        dueEnabled: true,
+        postDueEnabled: true,
+        postDueDays: 3,
+        sendTimeMinutes: 600,
+      },
+    });
+    expect(item.conceptDetails).toHaveLength(2);
+
+    const whatsapp = item.deliveries.find(
+      (delivery: { channel: string }) => delivery.channel === 'WHATSAPP',
+    )!;
+    expect(whatsapp).toMatchObject({
+      status: 'DELIVERED',
+      destination: '+54*******6941',
+      retryEligible: false,
+      content: { body: 'Fixture: vence Expensas el 25/09.' },
+    });
+    expect(whatsapp.responses).toMatchObject([
+      {
+        id: 'inbound-3',
+        receivedAt: '2026-09-22T13:10:00.000Z',
+        body: 'Gracias por el aviso',
+        readAt: '2026-09-22T13:11:00.000Z',
+        acknowledgedAt: null,
+        acknowledgedBy: null,
+        contact: { id: 'contact-1', name: 'Juan Pérez' },
+        externalReplyLink: 'https://wa.me/5491122336941',
+      },
+    ]);
+
+    const email = item.deliveries.find(
+      (delivery: { channel: string }) => delivery.channel === 'EMAIL',
+    )!;
+    expect(email).toMatchObject({
+      status: 'FAILED',
+      destination: 'r***@demo.valorar.dev',
+      // FAILED con intentos bajo el máximo (4) => reintento elegible.
+      retryEligible: true,
+      error: { category: 'PROVIDER', code: 'TEMPORARY_FAILURE' },
+    });
+    expect(email.attempts).toHaveLength(1);
+    expect(email.responses).toEqual([]);
+
+    expect(repository.findCommunicationsHistory).toHaveBeenCalledWith(
+      'tenant-1',
+      { page: 1, pageSize: 20 },
+    );
+  });
+
+  it('rejects a reversed scheduledFor window before querying the repository', async () => {
+    await expect(
+      service.getHistory('tenant-1', {
+        scheduledFrom: '2026-09-23T00:00:00.000Z',
+        scheduledTo: '2026-09-22T00:00:00.000Z',
+      }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(repository.findCommunicationsHistory).not.toHaveBeenCalled();
+  });
+
+  it('rejects a reversed deliveredAt window as well', async () => {
+    await expect(
+      service.getHistory('tenant-1', {
+        deliveredFrom: '2026-09-23T00:00:00.000Z',
+        deliveredTo: '2026-09-22T00:00:00.000Z',
+      }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+  });
+});

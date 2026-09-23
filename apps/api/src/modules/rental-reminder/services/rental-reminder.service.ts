@@ -17,6 +17,7 @@ import type {
 } from '../dto/rental-reminder.dto';
 import type {
   RentalReminderContractHistoryQueryDto,
+  RentalReminderHistoryQueryDto,
   RentalReminderInboundQueryDto,
 } from '../dto/rental-reminder-read-model.dto';
 import { RentalReminderRepository } from '../repositories/rental-reminder.repository';
@@ -84,6 +85,73 @@ type InboundReadModel = {
   contact: { id: string; name: string } | null;
   contract: { id: string; internalNumber: string } | null;
 };
+
+/**
+ * Fila cruda del historial global (C4C.1): 1 dispatch con su contrato y los
+ * deliveries agrupados. La correlación de respuestas usa SOLO
+ * `inboundMessages` (el inner join vía `CommunicationInboundMessage.deliveryId`);
+ * nunca se infiere una respuesta que no exista en la base.
+ */
+type HistoryDispatchRow = {
+  id: string;
+  eventType: string;
+  dueDate: Date | null;
+  scheduledFor: Date;
+  status: string;
+  firstAttemptAt: Date | null;
+  completedAt: Date | null;
+  recipientSnapshot: Prisma.JsonValue;
+  contentSnapshot: Prisma.JsonValue;
+  policySnapshot: Prisma.JsonValue;
+  contract: { id: string; internalNumber: string };
+  deliveries: Array<{
+    id: string;
+    channel: NotificationChannel;
+    status: string;
+    destinationSnapshot: string;
+    sentAt: Date | null;
+    deliveredAt: Date | null;
+    readAt: Date | null;
+    failedAt: Date | null;
+    skippedAt: Date | null;
+    attemptCount: number;
+    errorCategory: string | null;
+    errorCode: string | null;
+    errorMessage: string | null;
+    subjectSnapshot: string | null;
+    bodySnapshot: string | null;
+    templateKey: string | null;
+    templateVersion: string | null;
+    providerTemplateRef: string | null;
+    attempts: Array<{
+      attemptNumber: number;
+      status: string;
+      startedAt: Date;
+      finishedAt: Date | null;
+      latencyMs: number | null;
+      errorCategory: string | null;
+      errorCode: string | null;
+      errorMessage: string | null;
+    }>;
+    inboundMessages: Array<{
+      id: string;
+      receivedAt: Date;
+      body: string | null;
+      senderAddress: string;
+      contact: { id: string; name: string } | null;
+      readAt: Date | null;
+      acknowledgedAt: Date | null;
+      acknowledgedBy: { id: string; name: string } | null;
+    }>;
+  }>;
+};
+
+/** Orden canónico de canales para la celda de canales de la fila. */
+const HISTORY_CHANNEL_ORDER: NotificationChannel[] = [
+  NotificationChannel.EMAIL,
+  NotificationChannel.WHATSAPP,
+  NotificationChannel.SMS,
+];
 
 /**
  * Returns the UTC instant of local midnight (start of day) for `timeZone`.
@@ -235,6 +303,37 @@ export class RentalReminderService {
         query,
       ),
     };
+  }
+
+  async getHistory(tenantId: string, query: RentalReminderHistoryQueryDto) {
+    this.assertRangeOrder(
+      'scheduledFrom',
+      'scheduledTo',
+      query.scheduledFrom,
+      query.scheduledTo,
+    );
+    this.assertRangeOrder('sentFrom', 'sentTo', query.sentFrom, query.sentTo);
+    this.assertRangeOrder(
+      'deliveredFrom',
+      'deliveredTo',
+      query.deliveredFrom,
+      query.deliveredTo,
+    );
+    this.assertRangeOrder(
+      'failedFrom',
+      'failedTo',
+      query.failedFrom,
+      query.failedTo,
+    );
+    const [dispatches, total] = await this.repository.findCommunicationsHistory(
+      tenantId,
+      query,
+    );
+    return this.paged(
+      dispatches.map((dispatch) => this.toHistoryItem(dispatch)),
+      total,
+      query,
+    );
   }
 
   async getInbound(tenantId: string, query: RentalReminderInboundQueryDto) {
@@ -458,6 +557,171 @@ export class RentalReminderService {
           ),
         })),
       })),
+    };
+  }
+
+  /**
+   * Proyecta una fila del historial global (C4C.1): conceptos y política desde
+   * los snapshots congelados (nunca se reconstruye con datos actuales),
+   * destinatarios enmascarados, retry eligibility por estado + intentos y
+   * respuestas correlacionadas por `deliveryId`.
+   */
+  private toHistoryItem(dispatch: HistoryDispatchRow) {
+    const recipient = this.recipientFromSnapshot(dispatch.recipientSnapshot);
+    const conceptDetails = this.conceptDetailsFromSnapshot(
+      dispatch.contentSnapshot,
+    );
+    const concepts: string[] = [];
+    for (const detail of conceptDetails) {
+      if (detail.conceptName && !concepts.includes(detail.conceptName)) {
+        concepts.push(detail.conceptName);
+      }
+    }
+    const deliveries = dispatch.deliveries.map((delivery) => ({
+      id: delivery.id,
+      channel: delivery.channel,
+      status: delivery.status,
+      destination: this.maskDestination(
+        delivery.destinationSnapshot,
+        delivery.channel,
+      ),
+      sentAt: this.toIso(delivery.sentAt),
+      deliveredAt: this.toIso(delivery.deliveredAt),
+      readAt: this.toIso(delivery.readAt),
+      failedAt: this.toIso(delivery.failedAt),
+      skippedAt: this.toIso(delivery.skippedAt),
+      attemptCount: delivery.attemptCount,
+      // Elegible a reintento: FAILED con intentos restantes bajo el máximo (4).
+      retryEligible: delivery.status === 'FAILED' && delivery.attemptCount < 4,
+      error: this.toSanitizedError(
+        delivery.errorCategory,
+        delivery.errorCode,
+        delivery.errorMessage,
+      ),
+      attempts: delivery.attempts.map((attempt) => ({
+        attemptNumber: attempt.attemptNumber,
+        status: attempt.status,
+        startedAt: attempt.startedAt.toISOString(),
+        finishedAt: this.toIso(attempt.finishedAt),
+        latencyMs: attempt.latencyMs,
+        error: this.toSanitizedError(
+          attempt.errorCategory,
+          attempt.errorCode,
+          attempt.errorMessage,
+        ),
+      })),
+      responses: delivery.inboundMessages.map((message) => ({
+        id: message.id,
+        receivedAt: message.receivedAt.toISOString(),
+        body: message.body,
+        contact: message.contact,
+        externalReplyLink: this.externalReplyLink(message.senderAddress),
+        readAt: this.toIso(message.readAt),
+        acknowledgedAt: this.toIso(message.acknowledgedAt),
+        acknowledgedBy: message.acknowledgedBy
+          ? { id: message.acknowledgedBy.id, name: message.acknowledgedBy.name }
+          : null,
+      })),
+      content: {
+        subject: delivery.subjectSnapshot,
+        body: delivery.bodySnapshot,
+        templateKey: delivery.templateKey,
+        templateVersion: delivery.templateVersion,
+        templateRef: delivery.providerTemplateRef,
+      },
+    }));
+    const responses = deliveries.flatMap((delivery) => delivery.responses);
+    const channels = HISTORY_CHANNEL_ORDER.filter((channel) =>
+      deliveries.some((delivery) => delivery.channel === channel),
+    );
+    return {
+      dispatchId: dispatch.id,
+      scheduledFor: dispatch.scheduledFor.toISOString(),
+      eventType: dispatch.eventType,
+      status: dispatch.status,
+      dueDate: this.toIsoDate(dispatch.dueDate),
+      firstAttemptAt: this.toIso(dispatch.firstAttemptAt),
+      completedAt: this.toIso(dispatch.completedAt),
+      contract: dispatch.contract,
+      recipients: [recipient],
+      concepts,
+      conceptDetails,
+      channels,
+      deliveries,
+      responsesCount: responses.length,
+      responsesPending: responses.some(
+        (response) => response.acknowledgedAt === null,
+      ),
+      policy: this.policyFromSnapshot(dispatch.policySnapshot),
+    };
+  }
+
+  /** Conceptos congelados en contentSnapshot.occurrences (lectura defensiva). */
+  private conceptDetailsFromSnapshot(snapshot: Prisma.JsonValue) {
+    if (!snapshot || typeof snapshot !== 'object' || Array.isArray(snapshot)) {
+      return [];
+    }
+    const record = snapshot as Record<string, unknown>;
+    const occurrences = Array.isArray(record.occurrences)
+      ? record.occurrences
+      : [];
+    const details: Array<{
+      conceptId: string | null;
+      conceptName: string | null;
+      dueDate: string | null;
+      amount: string | null;
+      currency: string | null;
+      showAmount: boolean;
+    }> = [];
+    for (const occurrence of occurrences) {
+      if (
+        !occurrence ||
+        typeof occurrence !== 'object' ||
+        Array.isArray(occurrence)
+      ) {
+        continue;
+      }
+      const item = occurrence as Record<string, unknown>;
+      details.push({
+        conceptId: typeof item.conceptId === 'string' ? item.conceptId : null,
+        conceptName:
+          typeof item.conceptName === 'string' ? item.conceptName : null,
+        dueDate: typeof item.dueDate === 'string' ? item.dueDate : null,
+        amount: typeof item.amount === 'string' ? item.amount : null,
+        currency: typeof item.currency === 'string' ? item.currency : null,
+        showAmount:
+          typeof item.showAmount === 'boolean' ? item.showAmount : false,
+      });
+    }
+    return details;
+  }
+
+  /**
+   * Parámetros congelados de política. Proyección explícita (sólo lo mostrado
+   * en el admin): nunca se expone el JSON completo ni campos provider.
+   */
+  private policyFromSnapshot(snapshot: Prisma.JsonValue) {
+    if (!snapshot || typeof snapshot !== 'object' || Array.isArray(snapshot)) {
+      return null;
+    }
+    const record = snapshot as Record<string, unknown>;
+    return {
+      timeZone: typeof record.timeZone === 'string' ? record.timeZone : null,
+      preDueEnabled:
+        typeof record.preDueEnabled === 'boolean'
+          ? record.preDueEnabled
+          : false,
+      preDueDays: typeof record.preDueDays === 'number' ? record.preDueDays : 0,
+      dueEnabled:
+        typeof record.dueEnabled === 'boolean' ? record.dueEnabled : false,
+      postDueEnabled:
+        typeof record.postDueEnabled === 'boolean'
+          ? record.postDueEnabled
+          : false,
+      postDueDays:
+        typeof record.postDueDays === 'number' ? record.postDueDays : 0,
+      sendTimeMinutes:
+        typeof record.sendTimeMinutes === 'number' ? record.sendTimeMinutes : 0,
     };
   }
 

@@ -22,6 +22,7 @@ import type {
   UpdateRentalReminderPolicyDto,
 } from '../dto/rental-reminder.dto';
 import type { RentalReminderContractHistoryQueryDto } from '../dto/rental-reminder-read-model.dto';
+import type { RentalReminderHistoryQueryDto } from '../dto/rental-reminder-read-model.dto';
 import { computeAttemptKey } from '../domain/rental-reminder-domain';
 
 const pageOptions = (page = 1, pageSize = 20) => ({
@@ -260,6 +261,143 @@ export class RentalReminderRepository {
       }),
       this.prisma.rentalReminderDispatch.count({ where }),
     ]);
+  }
+
+  /**
+   * Historial global (C4C.1): fila = dispatch con canales agrupados. A
+   * diferencia del per-contrato (que une `occurrences` vivas), este read model
+   * expone los conceptos congelados de `contentSnapshot` y correlaciona
+   * respuestas entrantes vía `deliveries.inboundMessages` (nunca se infiere una
+   * correlación inexistente). Per-contrato se mantiene intacto.
+   */
+  async findCommunicationsHistory(
+    tenantId: string,
+    query: RentalReminderHistoryQueryDto,
+  ) {
+    const paging = pageOptions(query.page, query.pageSize);
+    const contactIds = query.search
+      ? (
+          await this.prisma.contact.findMany({
+            where: {
+              tenantId,
+              name: { contains: query.search, mode: 'insensitive' },
+            },
+            select: { id: true },
+            take: 100,
+          })
+        ).map((contact) => contact.id)
+      : [];
+
+    const scheduledWindow =
+      query.scheduledFrom || query.scheduledTo
+        ? {
+            ...(query.scheduledFrom
+              ? { gte: new Date(query.scheduledFrom) }
+              : {}),
+            ...(query.scheduledTo ? { lt: new Date(query.scheduledTo) } : {}),
+          }
+        : undefined;
+
+    const deliveryWindow: Prisma.RentalReminderDeliveryWhereInput = {};
+    if (query.channel) deliveryWindow.channel = query.channel;
+    if (query.sentFrom || query.sentTo) {
+      deliveryWindow.sentAt = {
+        ...(query.sentFrom ? { gte: new Date(query.sentFrom) } : {}),
+        ...(query.sentTo ? { lt: new Date(query.sentTo) } : {}),
+      };
+    }
+    if (query.deliveredFrom || query.deliveredTo) {
+      deliveryWindow.deliveredAt = {
+        ...(query.deliveredFrom ? { gte: new Date(query.deliveredFrom) } : {}),
+        ...(query.deliveredTo ? { lt: new Date(query.deliveredTo) } : {}),
+      };
+    }
+    if (query.failedFrom || query.failedTo) {
+      deliveryWindow.failedAt = {
+        ...(query.failedFrom ? { gte: new Date(query.failedFrom) } : {}),
+        ...(query.failedTo ? { lt: new Date(query.failedTo) } : {}),
+      };
+    }
+
+    const where: Prisma.RentalReminderDispatchWhereInput = {
+      tenantId,
+      ...(query.eventType ? { eventType: query.eventType } : {}),
+      ...(query.status ? { status: query.status } : {}),
+      ...(scheduledWindow ? { scheduledFor: scheduledWindow } : {}),
+      ...(Object.keys(deliveryWindow).length
+        ? { deliveries: { some: deliveryWindow } }
+        : {}),
+    };
+
+    const searchClauses: Prisma.RentalReminderDispatchWhereInput[] = [];
+    if (query.search) {
+      searchClauses.push({
+        contract: {
+          internalNumber: { contains: query.search, mode: 'insensitive' },
+        },
+      });
+    }
+    if (contactIds.length > 0) {
+      searchClauses.push({ recipientContactId: { in: contactIds } });
+    }
+    if (searchClauses.length > 0) where.OR = searchClauses;
+
+    return this.prisma.$transaction([
+      this.prisma.rentalReminderDispatch.findMany({
+        where,
+        include: {
+          contract: { select: { id: true, internalNumber: true } },
+          deliveries: {
+            where: query.channel ? { channel: query.channel } : {},
+            include: {
+              attempts: { orderBy: { attemptNumber: 'asc' as const } },
+              inboundMessages: {
+                select: {
+                  id: true,
+                  receivedAt: true,
+                  body: true,
+                  senderAddress: true,
+                  contact: { select: { id: true, name: true } },
+                  readAt: true,
+                  acknowledgedAt: true,
+                  acknowledgedBy: { select: { id: true, name: true } },
+                },
+                orderBy: { receivedAt: 'desc' as const },
+              },
+            },
+          },
+        },
+        orderBy: this.historyOrderBy(query),
+        skip: paging.skip,
+        take: paging.pageSize,
+      }),
+      this.prisma.rentalReminderDispatch.count({ where }),
+    ]);
+  }
+
+  private historyOrderBy(
+    query: RentalReminderHistoryQueryDto,
+  ): Prisma.RentalReminderDispatchOrderByWithRelationInput[] {
+    const dir = query.sortOrder === 'asc' ? 'asc' : 'desc';
+    const scheduledDesc: Prisma.RentalReminderDispatchOrderByWithRelationInput =
+      {
+        scheduledFor: 'desc',
+      };
+    const idDesc: Prisma.RentalReminderDispatchOrderByWithRelationInput = {
+      id: 'desc',
+    };
+    switch (query.sortBy) {
+      case 'internalNumber':
+        return [{ contract: { internalNumber: dir } }, scheduledDesc, idDesc];
+      case 'status':
+        return [{ status: dir }, scheduledDesc, idDesc];
+      case 'eventType':
+        return [{ eventType: dir }, scheduledDesc, idDesc];
+      default:
+        // Default: scheduledFor DESC con tie-break id DESC (mismo criterio
+        // del historial por contrato). El orden `asc` sólo se elige explícito.
+        return [{ scheduledFor: dir }, idDesc];
+    }
   }
 
   countCommunicationsSummary(tenantId: string, from: Date, to: Date) {

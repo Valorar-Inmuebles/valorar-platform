@@ -15,6 +15,7 @@ import {
 import { createPortal } from "react-dom";
 import { useFloatingPanel } from "./hooks/use-floating-panel";
 import { cn } from "./lib/cn";
+import { getSelectTriggerClassName, SelectChevron } from "./select";
 import {
   firstEnabledIndex,
   lastEnabledIndex,
@@ -27,6 +28,18 @@ export type DropdownMenuItem = {
   icon?: ReactNode;
   disabled?: boolean;
   destructive?: boolean;
+  /**
+   * Presenta el item como checkbox (role menuitemcheckbox + check inline).
+   * Útil para selectores de visibilidad (p. ej. columnas de tabla) donde el
+   * clic alterna el estado sin cerrar el menú (usa `keepOpen`).
+   */
+  checked?: boolean;
+  /**
+   * Mantiene el menú abierto tras onSelect. El close sigue disponible por
+   * Escape, clic externo y tecla Tab. Backward compatible: por defecto el
+   * menú se cierra al seleccionar, igual que antes de esta extensión.
+   */
+  keepOpen?: boolean;
   onSelect: () => void;
 };
 
@@ -35,6 +48,8 @@ export type DropdownMenuProps = {
   asChild?: boolean;
   items: DropdownMenuItem[];
   ariaLabel: string;
+  header?: ReactNode;
+  selectLike?: boolean;
   disabled?: boolean;
   align?: "start" | "end";
   className?: string;
@@ -45,6 +60,8 @@ export function DropdownMenu({
   asChild = false,
   items,
   ariaLabel,
+  header,
+  selectLike = false,
   disabled = false,
   align = "end",
   className,
@@ -184,9 +201,14 @@ export function DropdownMenu({
       <button
         ref={triggerRef}
         {...triggerProps}
-        className="inline-flex items-center justify-center rounded-md outline-none focus-visible:ring-2 focus-visible:ring-primary/30 disabled:cursor-not-allowed disabled:opacity-50"
+        className={cn(
+          selectLike
+            ? getSelectTriggerClassName(open)
+            : "inline-flex items-center justify-center rounded-md outline-none focus-visible:ring-2 focus-visible:ring-primary/30 disabled:cursor-not-allowed disabled:opacity-50",
+        )}
       >
         {trigger}
+        {selectLike ? <SelectChevron open={open} /> : null}
       </button>
     );
   }
@@ -204,6 +226,11 @@ export function DropdownMenu({
               style={adjustedStyle}
               className="rounded-xl border border-border bg-surface py-1.5 shadow-xl"
             >
+              {header ? (
+                <div className="border-b border-border px-3 pb-2 pt-1 text-xs font-semibold text-muted">
+                  {header}
+                </div>
+              ) : null}
               {items.map((item, index) => (
                 <button
                   key={item.id}
@@ -211,13 +238,20 @@ export function DropdownMenu({
                     itemRefs.current[index] = node;
                   }}
                   type="button"
-                  role="menuitem"
+                  role={
+                    typeof item.checked === "boolean"
+                      ? "menuitemcheckbox"
+                      : "menuitem"
+                  }
+                  aria-checked={
+                    typeof item.checked === "boolean" ? item.checked : undefined
+                  }
                   disabled={item.disabled}
                   tabIndex={index === activeIndex ? 0 : -1}
                   onMouseEnter={() => setActiveIndex(index)}
                   onClick={() => {
                     item.onSelect();
-                    close();
+                    if (!item.keepOpen) close();
                   }}
                   onKeyDown={(event) => handleItemKeyDown(event, index)}
                   className={cn(
@@ -229,6 +263,29 @@ export function DropdownMenu({
                     <span className="inline-flex shrink-0">{item.icon}</span>
                   ) : null}
                   <span className="min-w-0 flex-1 truncate">{item.label}</span>
+                  {typeof item.checked === "boolean" ? (
+                    <span
+                      aria-hidden="true"
+                      className={cn(
+                        "inline-flex shrink-0",
+                        item.checked ? "text-foreground" : "text-transparent",
+                      )}
+                    >
+                      <svg
+                        viewBox="0 0 16 16"
+                        className="size-3.5"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                      >
+                        <path
+                          d="M3 8.5 6.5 12 13 4.5"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
+                    </span>
+                  ) : null}
                 </button>
               ))}
             </div>,

@@ -13,12 +13,14 @@ import {
   Globe,
   Image,
   List,
+  Mail,
   Pencil,
   Search,
   Store,
   type LucideIcon,
 } from "lucide-react";
 import { PROPERTY_TYPE_ICONS } from "./property-type-icons";
+import { WhatsAppGlyph } from "./whatsapp-icon";
 
 /**
  * Shared Valorar system icons (same Lucide family as property types).
@@ -35,10 +37,12 @@ export const SYSTEM_ICONS = {
   clock: Clock3,
   image: Image,
   list: List,
+  mail: Mail,
   publication: Globe,
   price: CircleDollarSign,
   search: Search,
   commercial: Store,
+  whatsapp: WhatsAppGlyph,
   edit: Pencil,
   sort: ArrowUpDown,
   sortAsc: ArrowUp,
