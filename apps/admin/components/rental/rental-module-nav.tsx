@@ -7,6 +7,7 @@ const ITEMS = [
   { value: "/alquileres", label: "Resumen" },
   { value: "/alquileres/contratos", label: "Contratos" },
   { value: "/alquileres/vencimientos", label: "Vencimientos" },
+  { value: "/alquileres/comunicaciones", label: "Comunicaciones" },
 ];
 
 export function RentalModuleNav() {
@@ -14,12 +15,14 @@ export function RentalModuleNav() {
   const router = useRouter();
   const value = pathname?.startsWith("/alquileres/vencimientos")
     ? "/alquileres/vencimientos"
-    : pathname?.startsWith("/alquileres/contratos") ||
-        (pathname !== "/alquileres" &&
-          pathname !== "/alquileres/crear" &&
-          pathname?.startsWith("/alquileres/"))
-      ? "/alquileres/contratos"
-      : "/alquileres";
+    : pathname?.startsWith("/alquileres/comunicaciones")
+      ? "/alquileres/comunicaciones"
+      : pathname?.startsWith("/alquileres/contratos") ||
+          (pathname !== "/alquileres" &&
+            pathname !== "/alquileres/crear" &&
+            pathname?.startsWith("/alquileres/"))
+        ? "/alquileres/contratos"
+        : "/alquileres";
 
   return (
     <Tabs

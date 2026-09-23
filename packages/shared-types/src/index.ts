@@ -5,7 +5,16 @@ export type {
   GeoProvince,
   PropertyGeoFields,
 } from "./geo";
-export { formatMoney, formatPrice, formatPropertyPriceLabel, CONSULT_PRICE_LABEL, formatMoneyInput, moneyToInputValue, parseMoneyInput, sanitizeMoneyInput } from "./format-money";
+export {
+  formatMoney,
+  formatPrice,
+  formatPropertyPriceLabel,
+  CONSULT_PRICE_LABEL,
+  formatMoneyInput,
+  moneyToInputValue,
+  parseMoneyInput,
+  sanitizeMoneyInput,
+} from "./format-money";
 export {
   DEVELOPMENT_STATUS_OPTIONS,
   GARAGE_TYPE_ATTRIBUTE,
@@ -28,6 +37,27 @@ export type {
   PublicDevelopmentTypology,
   PublicDevelopmentTypologyFeature,
 } from "./public-development";
+export type {
+  PaginatedResponse,
+  RentalAttentionDeliveryItem,
+  RentalAttentionPlanningIssueItem,
+  RentalCommunicationsSummary,
+  RentalCommunicationsWindow,
+  RentalDeliveryChannel,
+  RentalDeliveryStatus,
+  RentalInboundActorRef,
+  RentalInboundAttentionResult,
+  RentalInboundContactRef,
+  RentalInboundContractRef,
+  RentalInboundMessage,
+  RentalInboundQuery,
+  RentalPlanningIssueStatus,
+  RentalPlanningIssueType,
+  RentalRetryConflictReason,
+  RentalRetryDeliveryFailure,
+  RentalRetryDeliveryResult,
+  RentalRetryDeliverySuccess,
+} from "./rental-communications";
 export type {
   Currency,
   GeocodeAccuracy,

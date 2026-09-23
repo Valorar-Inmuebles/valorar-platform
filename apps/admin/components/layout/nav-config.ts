@@ -130,6 +130,12 @@ export const navigation: NavSection[] = [
             href: "/alquileres/vencimientos",
             permissions: ["rental.read"],
           },
+          {
+            id: "rental-comunicaciones",
+            label: "Comunicaciones",
+            href: "/alquileres/comunicaciones",
+            permissions: ["rental.read"],
+          },
         ],
       },
     ],
