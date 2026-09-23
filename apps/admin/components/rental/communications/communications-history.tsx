@@ -63,6 +63,8 @@ import type {
 type Props = {
   result: PaginatedResponse<RentalDispatchHistoryItem>;
   canManage: boolean;
+  scope?: "global" | "contract";
+  contractId?: string;
 };
 
 type HistorySortBy = "scheduledFor" | "internalNumber" | "status" | "eventType";
@@ -138,7 +140,23 @@ function inclusiveBoundDay(value: string): string {
  * persona usuaria, no estado de la lista. Click en fila abre el SidePanel
  * con contenido congelado; los controles de la fila detienen la propagación.
  */
-export function CommunicationsHistory({ result, canManage }: Props) {
+export function CommunicationsHistory({
+  result,
+  canManage,
+  scope = "global",
+  contractId,
+}: Props) {
+  const isContractScope = scope === "contract";
+  const columns = useMemo(
+    () =>
+      isContractScope
+        ? HISTORY_COLUMNS.filter((column) => column.key !== "contract")
+        : HISTORY_COLUMNS,
+    [isContractScope],
+  );
+  const columnsStorageKey = isContractScope
+    ? `${HISTORY_COLUMNS_STORAGE_KEY}:contract`
+    : HISTORY_COLUMNS_STORAGE_KEY;
   const router = useRouter();
   const searchParams = useSearchParams();
   const { toast } = useToast();
@@ -163,12 +181,16 @@ export function CommunicationsHistory({ result, canManage }: Props) {
   useEffect(() => {
     let stored: string | null = null;
     try {
-      stored = window.localStorage.getItem(HISTORY_COLUMNS_STORAGE_KEY);
+      stored = window.localStorage.getItem(columnsStorageKey);
     } catch {
       stored = null;
     }
-    setVisibleColumns(historyColumnsFromStorage(stored));
-  }, []);
+    setVisibleColumns(
+      historyColumnsFromStorage(stored).filter((key) =>
+        columns.some((column) => column.key === key),
+      ),
+    );
+  }, [columns, columnsStorageKey]);
 
   const navigate = useCallback(
     (
@@ -176,17 +198,21 @@ export function CommunicationsHistory({ result, canManage }: Props) {
       { resetPage = true }: { resetPage?: boolean } = {},
     ) => {
       const params = new URLSearchParams(searchParams.toString());
-      params.set("tab", "history");
+      params.set("tab", isContractScope ? "communications" : "history");
       if (resetPage) params.delete("page");
       Object.entries(overrides).forEach(([key, value]) => {
         if (value === undefined || value === "") params.delete(key);
         else params.set(key, String(value));
       });
       startTransition(() => {
-        router.push(`/alquileres/comunicaciones?${params.toString()}`);
+        router.push(
+          isContractScope && contractId
+            ? `/alquileres/${contractId}?${params.toString()}`
+            : `/alquileres/comunicaciones?${params.toString()}`,
+        );
       });
     },
-    [router, searchParams],
+    [contractId, isContractScope, router, searchParams],
   );
 
   const urlSearch = firstParam(searchParams, "search") ?? "";
@@ -200,8 +226,11 @@ export function CommunicationsHistory({ result, canManage }: Props) {
     ? rawPageSize
     : DEFAULT_PAGE_SIZE;
   const page = Math.max(1, Number(firstParam(searchParams, "page")) || 1);
+  const allowedSorts = isContractScope
+    ? new Set<HistorySortBy>(["scheduledFor", "status", "eventType"])
+    : SORTABLE;
   const sortBy: HistorySortBy =
-    rawSortBy && SORTABLE.has(rawSortBy as HistorySortBy)
+    rawSortBy && allowedSorts.has(rawSortBy as HistorySortBy)
       ? (rawSortBy as HistorySortBy)
       : "scheduledFor";
   const sortOrder: SortDirection = rawSortOrder === "asc" ? "asc" : "desc";
@@ -220,17 +249,17 @@ export function CommunicationsHistory({ result, canManage }: Props) {
 
   const visibleSet = useMemo(() => {
     const set = new Set(visibleColumns);
-    HISTORY_COLUMNS.forEach((column) => {
+    columns.forEach((column) => {
       if (column.locked) set.add(column.key);
     });
     return set;
-  }, [visibleColumns]);
-  const renderedColumns = HISTORY_COLUMNS.filter((column) =>
+  }, [columns, visibleColumns]);
+  const renderedColumns = columns.filter((column) =>
     visibleSet.has(column.key),
   );
 
   const activeFilters: ActiveFilter[] = [];
-  if (urlSearch) {
+  if (urlSearch && !isContractScope) {
     activeFilters.push({
       id: "search",
       label: `Búsqueda: ${urlSearch}`,
@@ -258,7 +287,13 @@ export function CommunicationsHistory({ result, canManage }: Props) {
       onRemove: () => navigate({ channel: undefined }),
     });
   }
-  Object.entries(WINDOW_FILTER_LABELS).forEach(([param, label]) => {
+  const windowFilterLabels = isContractScope
+    ? {
+        scheduledFrom: WINDOW_FILTER_LABELS.scheduledFrom,
+        scheduledTo: WINDOW_FILTER_LABELS.scheduledTo,
+      }
+    : WINDOW_FILTER_LABELS;
+  Object.entries(windowFilterLabels).forEach(([param, label]) => {
     const value = firstParam(searchParams, param);
     if (!value) return;
     const shown = param.endsWith("To") ? inclusiveBoundDay(value) : value;
@@ -277,12 +312,16 @@ export function CommunicationsHistory({ result, canManage }: Props) {
       channel: undefined,
       scheduledFrom: undefined,
       scheduledTo: undefined,
-      sentFrom: undefined,
-      sentTo: undefined,
-      deliveredFrom: undefined,
-      deliveredTo: undefined,
-      failedFrom: undefined,
-      failedTo: undefined,
+      ...(isContractScope
+        ? {}
+        : {
+            sentFrom: undefined,
+            sentTo: undefined,
+            deliveredFrom: undefined,
+            deliveredTo: undefined,
+            failedFrom: undefined,
+            failedTo: undefined,
+          }),
     });
   }
 
@@ -308,11 +347,11 @@ export function CommunicationsHistory({ result, canManage }: Props) {
     setVisibleColumns(next);
     try {
       window.localStorage.setItem(
-        HISTORY_COLUMNS_STORAGE_KEY,
+        columnsStorageKey,
         JSON.stringify(
-          HISTORY_COLUMNS.filter((column) => next.includes(column.key)).map(
-            (column) => column.key,
-          ),
+          columns
+            .filter((column) => next.includes(column.key))
+            .map((column) => column.key),
         ),
       );
     } catch {
@@ -345,11 +384,15 @@ export function CommunicationsHistory({ result, canManage }: Props) {
         label: "Ver detalle",
         onSelect: () => setSelected(item),
       },
-      {
-        id: "contract",
-        label: "Ver contrato",
-        onSelect: () => router.push(`/alquileres/${item.contract.id}`),
-      },
+      ...(isContractScope
+        ? []
+        : [
+            {
+              id: "contract",
+              label: "Ver contrato",
+              onSelect: () => router.push(`/alquileres/${item.contract.id}`),
+            },
+          ]),
       ...(eligible && canManage
         ? [
             {
@@ -478,13 +521,15 @@ export function CommunicationsHistory({ result, canManage }: Props) {
     <div className="space-y-4" aria-busy={isPending || undefined}>
       <FilterBar
         search={
-          <Input
-            aria-label="Buscar por contrato o destinatario"
-            placeholder="Buscar por contrato o destinatario..."
-            value={searchDraft}
-            leftIcon={<SystemIcon name="search" className="size-4" />}
-            onChange={(event) => setSearchDraft(event.target.value)}
-          />
+          !isContractScope ? (
+            <Input
+              aria-label="Buscar por contrato o destinatario"
+              placeholder="Buscar por contrato o destinatario..."
+              value={searchDraft}
+              leftIcon={<SystemIcon name="search" className="size-4" />}
+              onChange={(event) => setSearchDraft(event.target.value)}
+            />
+          ) : undefined
         }
         filters={
           <>
@@ -551,15 +596,15 @@ export function CommunicationsHistory({ result, canManage }: Props) {
                 header="Columnas visibles"
                 selectLike
                 trigger={<span>Columnas</span>}
-                items={HISTORY_COLUMNS.filter((column) => !column.locked).map(
-                  (column) => ({
+                items={columns
+                  .filter((column) => !column.locked)
+                  .map((column) => ({
                     id: column.key,
                     label: column.label,
                     checked: visibleSet.has(column.key),
                     keepOpen: true,
                     onSelect: () => toggleColumn(column.key),
-                  }),
-                )}
+                  }))}
               />
             </div>
           </>
@@ -595,7 +640,11 @@ export function CommunicationsHistory({ result, canManage }: Props) {
               colSpan={colSpan}
               state="empty"
               title="Sin avisos registrados"
-              description="Cuando se planifiquen avisos de alquiler aparecerán aquí con su estado por canal."
+              description={
+                isContractScope
+                  ? "Todavía no hay comunicaciones registradas para este contrato."
+                  : "Cuando se planifiquen avisos de alquiler aparecerán aquí con su estado por canal."
+              }
             />
           ) : (
             result.items.map((item) => (
@@ -649,6 +698,7 @@ export function CommunicationsHistory({ result, canManage }: Props) {
         <CommunicationsHistoryPanel
           item={selected}
           canManage={canManage}
+          scope={scope}
           onClose={() => setSelected(null)}
           onRequestRetry={(delivery) => setRetryDelivery(delivery)}
         />

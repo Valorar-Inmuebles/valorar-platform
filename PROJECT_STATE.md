@@ -21,7 +21,7 @@ Plataforma SaaS inmobiliaria multi-tenant orientada a:
 
 **Rental Management V1.1 — Fases 1–3 + UI Foundation Fase 4 + Fases 5A–5E** ✅ (wizard completo hasta configuración previa de avisos)
 
-**Rental Communications V1 — C1–C4B** ✅ Persistence Foundation, planner/orquestación, Email/MailerSend y Meta WhatsApp con inbound mínimo implementados y **C3B validado en UAT real**; **C4A.1 (read models/API de comunicaciones) implementado**; **C4B (estado de atención inbound) implementado**; **C4C.1 (Centro de Comunicaciones Admin) CLOSED y validado en UAT funcional/visual**. C4C.2 no iniciado; métricas/alertas y señales `Notification` permanecen pendientes.
+**Rental Communications V1 — C1–C4B** ✅ Persistence Foundation, planner/orquestación, Email/MailerSend y Meta WhatsApp con inbound mínimo implementados y **C3B validado en UAT real**; **C4A.1 (read models/API de comunicaciones) implementado**; **C4B (estado de atención inbound) implementado**; **C4C.1 (Centro de Comunicaciones Admin) CLOSED y validado en UAT funcional/visual**; **C4C.2 (Comunicaciones dentro del contrato) CLOSED y validado en UAT funcional/visual**. Métricas/alertas y señales `Notification` permanecen pendientes.
 
 Documentación: `docs/04-modules/rental-management-v1.md`, `docs/04-modules/rental-communications-v1.md`, `docs/03-database/rental-domain.md`
 

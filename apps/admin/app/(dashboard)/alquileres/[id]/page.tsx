@@ -5,6 +5,7 @@ import {
   RentalContractStatusBadge,
   RentalContractTabs,
 } from "@/components/rental/rental-contract-detail";
+import { CommunicationsHistory } from "@/components/rental/communications/communications-history";
 import {
   RentalContractHistoryView,
   type RentalHistoryFilters,
@@ -19,10 +20,18 @@ import {
   getRentalContractHistory,
   listRentalObligations,
 } from "@/lib/api/rental";
+import { listRentalHistory } from "@/lib/api/rental-communications";
+import { toExclusiveDayBound } from "@/lib/rental/rental-communications";
 import { getActiveTenantId } from "@/lib/auth/active-tenant";
 import { resolveActiveTenantGate } from "@/lib/auth/require-active-tenant";
 import { getSession } from "@/lib/auth/session";
 import { sessionHasPermission } from "@/lib/auth/types";
+import type {
+  RentalDeliveryChannel,
+  RentalDispatchEventType,
+  RentalDispatchHistoryQuery,
+  RentalDispatchStatus,
+} from "@repo/shared-types";
 
 const TYPES = [
   "ACTIVATED",
@@ -32,6 +41,18 @@ const TYPES = [
   "RENT_VALUE_REVISED",
   "RENEWED",
 ];
+const COMMUNICATION_EVENTS = new Set(["PRE_DUE", "DUE", "POST_DUE"]);
+const COMMUNICATION_STATUSES = new Set([
+  "PLANNED",
+  "READY",
+  "PROCESSING",
+  "COMPLETED",
+  "PARTIALLY_COMPLETED",
+  "FAILED",
+  "SKIPPED",
+]);
+const COMMUNICATION_CHANNELS = new Set(["EMAIL", "WHATSAPP"]);
+const COMMUNICATION_SORTS = new Set(["scheduledFor", "status", "eventType"]);
 
 export default async function AlquilerDetallePage({
   params,
@@ -57,7 +78,12 @@ export default async function AlquilerDetallePage({
     );
   const value = (key: string) =>
     typeof query[key] === "string" ? query[key] : undefined;
-  const tab = value("tab") === "history" ? "history" : "general";
+  const tab =
+    value("tab") === "history"
+      ? "history"
+      : value("tab") === "communications"
+        ? "communications"
+        : "general";
   const category = value("category")?.toUpperCase();
   const type = value("type")?.toUpperCase();
   const filters: RentalHistoryFilters = {
@@ -75,12 +101,39 @@ export default async function AlquilerDetallePage({
       ? Number(value("pageSize"))
       : 10,
   };
+  const communicationQuery: RentalDispatchHistoryQuery = {
+    contractId: route.id,
+    eventType: COMMUNICATION_EVENTS.has(value("eventType") ?? "")
+      ? (value("eventType") as RentalDispatchEventType)
+      : undefined,
+    status: COMMUNICATION_STATUSES.has(value("status") ?? "")
+      ? (value("status") as RentalDispatchStatus)
+      : undefined,
+    channel: COMMUNICATION_CHANNELS.has(value("channel") ?? "")
+      ? (value("channel") as RentalDeliveryChannel)
+      : undefined,
+    scheduledFrom: value("scheduledFrom") || undefined,
+    scheduledTo: value("scheduledTo")
+      ? toExclusiveDayBound(value("scheduledTo")!) || undefined
+      : undefined,
+    sortBy: COMMUNICATION_SORTS.has(value("sortBy") ?? "")
+      ? (value("sortBy") as RentalDispatchHistoryQuery["sortBy"])
+      : undefined,
+    sortOrder: value("sortOrder") === "asc" ? "asc" : "desc",
+    page: Math.max(1, Number(value("page")) || 1),
+    pageSize: [20, 50, 100].includes(Number(value("pageSize")))
+      ? Number(value("pageSize"))
+      : 20,
+  };
   try {
-    const [contract, obligations, history] = await Promise.all([
+    const [contract, obligations, history, communications] = await Promise.all([
       getRentalContractGeneral(route.id),
       listRentalObligations(route.id),
       tab === "history"
         ? getRentalContractHistory(route.id, filters)
+        : Promise.resolve(null),
+      tab === "communications"
+        ? listRentalHistory(communicationQuery)
         : Promise.resolve(null),
     ]);
     const canUpdate =
@@ -113,6 +166,16 @@ export default async function AlquilerDetallePage({
           <RentalContractTabs contractId={contract.id} tab={tab} />
           {tab === "history" && history ? (
             <RentalContractHistoryView result={history} filters={filters} />
+          ) : tab === "communications" && communications ? (
+            <CommunicationsHistory
+              result={communications}
+              canManage={sessionHasPermission(
+                session.user,
+                "rental.reminder.manage",
+              )}
+              scope="contract"
+              contractId={contract.id}
+            />
           ) : (
             <RentalContractGeneralView
               contract={contract}

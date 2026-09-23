@@ -978,10 +978,11 @@ congelados read-only.
 
 **Read model nuevo (API)**:
 
-- `GET /rental-reminder-communications/history` (global, bajo `rental.read`):
-  read-model puro; **no** reemplaza el per-contrato
-  `contracts/:contractId/history` (intacto). Fila = 1 `RentalReminderDispatch`
-  con canales agrupados (`deliveries`/`channels`/`responsesCount`).
+- `GET /rental-reminder-communications/history` (global o filtrado por
+  `contractId`, bajo `rental.read`): read-model puro; **no** reemplaza el
+  endpoint per-contrato legacy `contracts/:contractId/history` (intacto). Fila =
+  1 `RentalReminderDispatch` con canales agrupados
+  (`deliveries`/`channels`/`responsesCount`).
 - Sin payloads provider/metadata/secrets/enums crudos: destinos enmascarados,
   errores sanitizados, snapshots proyectados (`contentSnapshot`,
   `policySnapshot`, `recipientSnapshot`, refs de plantilla).
@@ -1039,6 +1040,33 @@ congelados read-only.
 Admin 30 lib + 9 UI), typecheck API/Admin/shared-types/ui/icons, lint y
 prettier, build Admin, `git diff --check`. **UAT funcional y visual aprobado**:
 escenarios de Historial, Respuestas recibidas y Requieren atención.
+
+### C4C.2 — Comunicaciones dentro del contrato ✅ CLOSED
+
+- El detalle de `/alquileres/:id` incorpora el tab **Comunicaciones** mediante
+  `?tab=communications`. `?tab=history` conserva exclusivamente el historial de
+  eventos y cambios del contrato.
+- La UI contractual consume el read model global:
+  `GET /rental-reminder-communications/history?contractId=:contractId`.
+  `contractId` se combina siempre con `tenantId` en el repositorio; el endpoint
+  contractual legacy `contracts/:contractId/history` permanece intacto.
+- Se reutilizan `RentalDispatchHistoryItem`, `CommunicationsHistory`,
+  `CommunicationsHistoryPanel`, snapshots, respuestas correlacionadas, retry y
+  las acciones RBAC existentes. En scope contractual se ocultan contrato,
+  búsqueda global, ventanas de delivery y acciones de atención global.
+- Filtros contractuales: estado, canal, evento y ventana `scheduledFrom` /
+  `scheduledTo`; sorting y paginación continúan siendo server-side y gobernados
+  por URL, con default `scheduledFor DESC` y páginas 20/50/100.
+- El selector de columnas usa una preferencia localStorage separada para evitar
+  que la configuración global exponga la columna Contrato en esta vista. El
+  SidePanel omite el link contractual redundante, pero conserva el
+  `internalNumber` en su encabezado.
+- Empty state contractual: “Todavía no hay comunicaciones registradas para este
+  contrato.” No se agregaron schema, migraciones, fixtures, providers, scheduler,
+  policy UI ni permisos nuevos.
+- UAT funcional y visual aprobado: navegación entre tabs, filtros y URL state,
+  sorting, paginación, columnas, empty/error states, SidePanel, snapshots,
+  respuestas, retry y permisos `rental.read` / `rental.reminder.manage`.
 
 ### C4 — Admin y operación
 

@@ -659,6 +659,7 @@ describe('RentalReminderService global history read model', () => {
     repository.findCommunicationsHistory.mockResolvedValue([[dispatch], 1]);
 
     const result = await service.getHistory('tenant-1', {
+      contractId: 'contract-1',
       page: 1,
       pageSize: 20,
     });
@@ -726,7 +727,7 @@ describe('RentalReminderService global history read model', () => {
 
     expect(repository.findCommunicationsHistory).toHaveBeenCalledWith(
       'tenant-1',
-      { page: 1, pageSize: 20 },
+      { contractId: 'contract-1', page: 1, pageSize: 20 },
     );
   });
 

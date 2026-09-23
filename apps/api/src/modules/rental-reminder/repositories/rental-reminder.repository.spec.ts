@@ -1106,6 +1106,22 @@ describe('RentalReminderRepository global communications history', () => {
     expect(count).toHaveBeenCalledWith({ where: input.where });
   });
 
+  it('combines contractId with tenantId for contractual history', async () => {
+    const { findMany, repository } = historyRepo();
+
+    await repository.findCommunicationsHistory('tenant-1', {
+      contractId: 'contract-1',
+    });
+
+    const input = firstHistoryCall(findMany) as unknown as {
+      where: { tenantId: string; contractId: string };
+    };
+    expect(input.where).toEqual({
+      tenantId: 'tenant-1',
+      contractId: 'contract-1',
+    });
+  });
+
   it('searches by internalNumber and by recipient contact name without touching phone/email', async () => {
     const { findMany, contactFindMany, repository } = historyRepo({
       contacts: [{ id: 'contact-1' }],

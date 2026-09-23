@@ -40,6 +40,7 @@ import type {
 type Props = {
   item: RentalDispatchHistoryItem;
   canManage: boolean;
+  scope?: "global" | "contract";
   onClose: () => void;
   onRequestRetry: (delivery: {
     id: string;
@@ -281,6 +282,7 @@ function ResponseCard({
 export function CommunicationsHistoryPanel({
   item,
   canManage,
+  scope = "global",
   onClose,
   onRequestRetry,
 }: Props) {
@@ -358,14 +360,16 @@ export function CommunicationsHistoryPanel({
           </div>
 
           <dl className="space-y-4">
-            <DetailRow label="Contrato">
-              <Link
-                href={`/alquileres/${item.contract.id}`}
-                className="font-medium text-primary hover:underline"
-              >
-                {item.contract.internalNumber}
-              </Link>
-            </DetailRow>
+            {scope === "global" ? (
+              <DetailRow label="Contrato">
+                <Link
+                  href={`/alquileres/${item.contract.id}`}
+                  className="font-medium text-primary hover:underline"
+                >
+                  {item.contract.internalNumber}
+                </Link>
+              </DetailRow>
+            ) : null}
             <DetailRow label="Destinatarios">
               {item.recipients
                 .map((recipient) => recipient.name ?? "Contacto sin nombre")

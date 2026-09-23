@@ -11,6 +11,7 @@ import type {
 
 function revalidateCommunications() {
   revalidatePath("/alquileres/comunicaciones");
+  revalidatePath("/alquileres", "layout");
 }
 
 export type InboundActionStatus =

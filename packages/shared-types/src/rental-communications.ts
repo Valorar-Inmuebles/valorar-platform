@@ -228,6 +228,8 @@ export type RentalDispatchHistorySortBy =
   | "eventType";
 
 export type RentalDispatchHistoryQuery = {
+  /** Contrato específico; siempre queda acotado por la organización activa. */
+  contractId?: string;
   /** Contrato (internalNumber) o destinatario/contacto. Nunca teléfono/email. */
   search?: string;
   eventType?: RentalDispatchEventType;

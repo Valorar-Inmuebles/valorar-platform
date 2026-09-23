@@ -53,6 +53,11 @@ export class RentalReminderContractHistoryQueryDto extends RentalReminderPageQue
  * `scheduledTo` y las ventanas `*To` son bounds exclusivos.
  */
 export class RentalReminderHistoryQueryDto extends RentalReminderPageQueryDto {
+  @ApiPropertyOptional({ description: 'Filter by rental contract id.' })
+  @IsOptional()
+  @IsString()
+  contractId?: string;
+
   @ApiPropertyOptional({
     maxLength: 120,
     description:

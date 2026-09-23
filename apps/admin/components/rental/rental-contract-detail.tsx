@@ -514,7 +514,7 @@ export function RentalContractTabs({
   tab,
 }: {
   contractId: string;
-  tab: "general" | "history";
+  tab: "general" | "history" | "communications";
 }) {
   const router = useRouter();
   return (
@@ -525,12 +525,15 @@ export function RentalContractTabs({
         router.push(
           value === "history"
             ? `/alquileres/${contractId}?tab=history`
-            : `/alquileres/${contractId}`,
+            : value === "communications"
+              ? `/alquileres/${contractId}?tab=communications`
+              : `/alquileres/${contractId}`,
         )
       }
       items={[
         { value: "general", label: "General" },
         { value: "history", label: "Historial" },
+        { value: "communications", label: "Comunicaciones" },
       ]}
     />
   );

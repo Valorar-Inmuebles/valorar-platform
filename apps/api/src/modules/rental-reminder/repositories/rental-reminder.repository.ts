@@ -321,6 +321,7 @@ export class RentalReminderRepository {
 
     const where: Prisma.RentalReminderDispatchWhereInput = {
       tenantId,
+      ...(query.contractId ? { contractId: query.contractId } : {}),
       ...(query.eventType ? { eventType: query.eventType } : {}),
       ...(query.status ? { status: query.status } : {}),
       ...(scheduledWindow ? { scheduledFor: scheduledWindow } : {}),

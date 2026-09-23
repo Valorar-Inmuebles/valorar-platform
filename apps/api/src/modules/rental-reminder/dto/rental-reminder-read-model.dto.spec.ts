@@ -31,6 +31,7 @@ import { plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';
 import {
   RentalReminderContractHistoryQueryDto,
+  RentalReminderHistoryQueryDto,
   RentalReminderInboundQueryDto,
 } from './rental-reminder-read-model.dto';
 
@@ -57,6 +58,19 @@ describe('RentalReminderContractHistoryQueryDto', () => {
       plainToInstance(RentalReminderContractHistoryQueryDto, change),
     );
     expect(errors.length).toBeGreaterThan(0);
+  });
+});
+
+describe('RentalReminderHistoryQueryDto', () => {
+  it('accepts a contractId filter', async () => {
+    const errors = await validate(
+      plainToInstance(RentalReminderHistoryQueryDto, {
+        contractId: 'contract-1',
+        page: 1,
+        pageSize: 20,
+      }),
+    );
+    expect(errors).toHaveLength(0);
   });
 });
 
