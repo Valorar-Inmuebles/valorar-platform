@@ -30,6 +30,7 @@
     "db:dev:reminder-email": "tsx scripts/db-development.ts reminder-email",
     "db:dev:reminder-whatsapp": "tsx scripts/db-development.ts reminder-whatsapp",
     "db:dev:reminder-reset": "tsx scripts/db-development.ts reminder-reset",
+    "db:dev:rental-fixtures": "tsx scripts/db-development.ts rental-fixtures",
     "start:dev:database": "tsx scripts/db-development.ts api",
     "migration:houzez": "tsx scripts/houzez-migrate.ts",
     "migration:houzez:cleanup-demo": "tsx scripts/houzez-cleanup-demo-properties.ts",
