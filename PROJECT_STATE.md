@@ -21,7 +21,7 @@ Plataforma SaaS inmobiliaria multi-tenant orientada a:
 
 **Rental Management V1.1 — Fases 1–3 + UI Foundation Fase 4 + Fases 5A–5E** ✅ (wizard completo hasta configuración previa de avisos)
 
-**Rental Communications V1 — C1–C4A.1** ✅ Persistence Foundation, planner/orquestación, Email/MailerSend y Meta WhatsApp con inbound mínimo implementados y **C3B validado en UAT real**; **C4A.1 (read models/API de comunicaciones) implementado**; C4 restante (UI Admin, métricas/alertas, señales `Notification`) pendiente.
+**Rental Communications V1 — C1–C4B** ✅ Persistence Foundation, planner/orquestación, Email/MailerSend y Meta WhatsApp con inbound mínimo implementados y **C3B validado en UAT real**; **C4A.1 (read models/API de comunicaciones) implementado**; **C4B (estado de atención inbound) implementado**; C4 restante (UI Admin, métricas/alertas, señales `Notification`) pendiente.
 
 Documentación: `docs/04-modules/rental-management-v1.md`, `docs/04-modules/rental-communications-v1.md`, `docs/03-database/rental-domain.md`
 
@@ -519,9 +519,45 @@ Documentación: `docs/04-modules/rental-communications-v1.md`, `docs/03-database
   envíos sincrónicos, sin scheduler y sin cambios de schema/índices/permisos.
 * Gates verdes: tests focalizados (DTOs, repos, service, controller/RBAC,
   canal en history), typecheck API, lint/prettier y `git diff --check`.
-* Sin UI Admin, sin C4B, sin métricas/alertas ni señales `Notification`.
+* Sin UI Admin, sin C4B (implementado por separado), sin métricas/alertas ni
+  señales `Notification`.
 
 Documentación: `docs/04-modules/rental-communications-v1.md`.
+
+### Rental Communications V1 — C4B ✅
+
+* Estado de atención inbound (Admin) con migración
+  `202609220001_rental_communications_c4b_inbound_attention` aplicada a
+  `rental-management-dev`: `readAt`, `acknowledgedAt` y `acknowledgedById`
+  (FK `User` `ON DELETE SET NULL`), índice `(tenantId, acknowledgedAt)` y sin
+  backfill (el inbound histórico queda `readAt = null, acknowledgedAt = null`).
+* Semántica `RECEIVED → READ → ACKNOWLEDGED` derivada de timestamps, no del
+  provider ni del Delivery: leer es idempotente (primer `readAt` se conserva,
+  compare-and-set `readAt IS NULL`), atender implica leer
+  (`acknowledgedAt != null → readAt != null`) y no existe deshacer un
+  acknowledge en V1.
+* Acciones tenant-scoped bajo `rental.reminder.manage` sin permisos nuevos:
+  `POST /rental-reminder-communications/inbound/:id/read` y
+  `POST /rental-reminder-communications/inbound/:id/acknowledge` (`200 OK`;
+  `404` tenant-negative con `{ok:false, reason:'NOT_FOUND'}`; acknowledge
+  repetido devuelve el estado existente con `alreadyAcknowledged: true` y nunca
+  sobrescribe el actor/timestamp original — actor `user.id`, `null` para
+  `SUPER_ADMIN`).
+* `GET /inbound` expone `readAt`/`acknowledgedAt`/`acknowledgedBy {id, name}` y
+  filtros `unread`/`unacknowledged` (booleans lenient); summary agrega
+  `inboundUnacknowledged` (`acknowledgedAt IS NULL`; sin `inboundUnread`).
+* Sin UI, sin C4C, sin push/responder WhatsApp, sin Fulfillment, sin audit log
+  paralelo ni metadata provider; no muta contract/delivery/dispatch/fulfillment.
+* Nota dev: el historial `_prisma_migrations` de `rental-management-dev` fue
+  reparado (re-registro con checksums reales sha256 de cada archivo) tras
+  quedar inconsistente por un drift pre-existente de la herramienta; el schema
+  de la base permaneció intacto y `migrate status` vuelve a reportar
+  "up to date" (30/30).
+* Gates verdes: preflight dev, migración aplicada + `migrate status`/checksums
+  OK, tests C4B focalizados (192 en el módulo, incluida regresión C4A.1),
+  typecheck API, lint/prettier y `git diff --check`.
+
+Documentación: `docs/04-modules/rental-communications-v1.md`, `docs/03-database/rental-domain.md`, `docs/03-database/current-schema.md`.
 
 ### Lead Domain v1 (documentado)
 

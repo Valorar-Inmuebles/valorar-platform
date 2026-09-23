@@ -994,12 +994,13 @@ describe('RentalReminderRepository contract communications history', () => {
 });
 
 describe('RentalReminderRepository communications summary counts', () => {
-  it('maps the five independent counters for the tenant day window', async () => {
+  it('maps the six independent counters for the tenant day window', async () => {
     const prisma = {
-      $transaction: jest.fn().mockResolvedValue([3, 5, 4, 2, 1]),
+      $transaction: jest.fn().mockResolvedValue([3, 5, 4, 2, 1, 7]),
       rentalReminderDispatch: { count: jest.fn() },
       rentalReminderDelivery: { count: jest.fn() },
       rentalReminderPlanningIssue: { count: jest.fn() },
+      communicationInboundMessage: { count: jest.fn() },
     };
     const repository = new RentalReminderRepository(prisma as never);
     const from = new Date('2026-09-22T03:00:00.000Z');
@@ -1013,12 +1014,16 @@ describe('RentalReminderRepository communications summary counts', () => {
       deliveriesDeliveredToday: 4,
       deliveriesFailedToday: 2,
       planningIssuesOpen: 1,
+      inboundUnacknowledged: 7,
     });
     expect(prisma.rentalReminderDelivery.count).toHaveBeenNthCalledWith(1, {
       where: { tenantId: 'tenant-1', sentAt: { gte: from, lt: to } },
     });
     expect(prisma.rentalReminderPlanningIssue.count).toHaveBeenCalledWith({
       where: { tenantId: 'tenant-1', status: 'OPEN' },
+    });
+    expect(prisma.communicationInboundMessage.count).toHaveBeenCalledWith({
+      where: { tenantId: 'tenant-1', acknowledgedAt: null },
     });
   });
 

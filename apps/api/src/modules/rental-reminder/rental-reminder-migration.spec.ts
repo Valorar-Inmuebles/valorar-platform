@@ -95,3 +95,51 @@ describe('Rental Communications C3B migration contract', () => {
     );
   });
 });
+
+describe('Rental Communications C4B migration contract', () => {
+  const c4bMigration = readFileSync(
+    resolve(
+      __dirname,
+      '../../../prisma/migrations/202609220001_rental_communications_c4b_inbound_attention/migration.sql',
+    ),
+    'utf8',
+  );
+
+  it('adds the inbound attention state columns', () => {
+    for (const column of [
+      '"readAt"',
+      '"acknowledgedAt"',
+      '"acknowledgedById"',
+    ]) {
+      expect(c4bMigration).toContain(column);
+    }
+    expect(c4bMigration).toContain('ALTER TABLE "CommunicationInboundMessage"');
+  });
+
+  it('leaves existing inbound rows unread and unacknowledged (no backfill)', () => {
+    expect(c4bMigration).not.toMatch(
+      /INSERT INTO "CommunicationInboundMessage"/,
+    );
+    expect(c4bMigration).not.toMatch(/UPDATE "CommunicationInboundMessage"/);
+    expect(c4bMigration).not.toMatch(
+      /readAt\s*=\s*\S+\s*WHERE|acknowledgedAt\s*=\s*\S+\s*WHERE/i,
+    );
+  });
+
+  it('indexes the pending-queue query and links the acknowledging user with SET NULL', () => {
+    expect(c4bMigration).toContain(
+      'CommunicationInboundMessage_tenantId_acknowledgedAt_idx',
+    );
+    expect(c4bMigration).toContain(
+      'CommunicationInboundMessage_acknowledgedById_fkey',
+    );
+    expect(c4bMigration).toContain('REFERENCES "User"("id")');
+    expect(c4bMigration).toMatch(/ON DELETE SET NULL/);
+  });
+
+  it('touches no delivery, dispatch, fulfillment or contract entity', () => {
+    expect(c4bMigration).not.toMatch(
+      /ALTER TABLE "(RentalReminderDelivery|RentalReminderDispatch|RentalFulfillment|RentalContract)"/,
+    );
+  });
+});

@@ -189,6 +189,9 @@ describe('RentalReminderService inbound read model', () => {
         receivedAt: new Date('2026-09-22T13:00:00.000Z'),
         senderAddress: '+5491131716941',
         deliveryId: 'delivery-1',
+        readAt: new Date('2026-09-22T13:05:00.000Z'),
+        acknowledgedAt: new Date('2026-09-22T13:10:00.000Z'),
+        acknowledgedBy: { id: 'user-1', name: 'Juan Pérez' },
         contact: { id: 'contact-1', name: 'Juan' },
         contract: { id: 'contract-1', internalNumber: 'ALQ-000001' },
       },
@@ -199,6 +202,9 @@ describe('RentalReminderService inbound read model', () => {
         receivedAt: new Date('2026-09-22T14:00:00.000Z'),
         senderAddress: 'no-phone',
         deliveryId: null,
+        readAt: null,
+        acknowledgedAt: null,
+        acknowledgedBy: null,
         contact: null,
         contract: null,
       },
@@ -225,14 +231,21 @@ describe('RentalReminderService inbound read model', () => {
       messageType: 'text',
       body: 'Pago mañana',
       sender: { address: '+54*******6941' },
+      readAt: '2026-09-22T13:05:00.000Z',
+      acknowledgedAt: '2026-09-22T13:10:00.000Z',
+      acknowledgedBy: { id: 'user-1', name: 'Juan Pérez' },
       contact: { id: 'contact-1', name: 'Juan' },
       contract: { id: 'contract-1', internalNumber: 'ALQ-000001' },
       deliveryCorrelated: true,
       externalReplyLink: 'https://wa.me/5491131716941',
     });
-    // Non-phone senders get a masked address and no reply link.
+    // Non-phone senders get a masked address and no reply link; new inbound
+    // starts unread and unacknowledged.
     expect(result.items[1]).toMatchObject({
       sender: { address: 'no-****hone' },
+      readAt: null,
+      acknowledgedAt: null,
+      acknowledgedBy: null,
       contact: null,
       contract: null,
       deliveryCorrelated: false,
@@ -281,6 +294,7 @@ describe('RentalReminderService summary day window', () => {
       deliveriesDeliveredToday: 4,
       deliveriesFailedToday: 2,
       planningIssuesOpen: 1,
+      inboundUnacknowledged: 7,
     });
 
     const result = await service.getSummary('tenant-1');
@@ -296,6 +310,7 @@ describe('RentalReminderService summary day window', () => {
       deliveriesDeliveredToday: 4,
       deliveriesFailedToday: 2,
       planningIssuesOpen: 1,
+      inboundUnacknowledged: 7,
     });
     expect(repository.countCommunicationsSummary).toHaveBeenCalledWith(
       'tenant-1',
@@ -312,6 +327,7 @@ describe('RentalReminderService summary day window', () => {
       deliveriesDeliveredToday: 0,
       deliveriesFailedToday: 0,
       planningIssuesOpen: 0,
+      inboundUnacknowledged: 0,
     });
 
     const result = await service.getSummary('tenant-1');
@@ -384,4 +400,131 @@ describe('RentalReminderService retryDelivery mapping', () => {
       expect((error as { getStatus: () => number }).getStatus()).toBe(409);
     },
   );
+});
+
+describe('RentalReminderService inbound attention actions', () => {
+  const inboundRepository = {
+    markInboundRead: jest.fn(),
+    acknowledgeInbound: jest.fn(),
+  };
+  const service = new RentalReminderService(
+    {} as never,
+    inboundRepository as never,
+  );
+
+  const state = {
+    id: 'm1',
+    readAt: new Date('2026-09-22T13:05:00.000Z'),
+    acknowledgedAt: new Date('2026-09-22T13:10:00.000Z'),
+    acknowledgedById: 'user-1',
+    acknowledgedBy: { id: 'user-1', name: 'Juan Pérez' },
+  };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('maps mark-read NOT_FOUND to 404 without touching anything else', async () => {
+    inboundRepository.markInboundRead.mockResolvedValue({
+      status: 'NOT_FOUND',
+      message: null,
+    });
+
+    const error = await service.markInboundRead('tenant-1', 'unknown').then(
+      () => undefined,
+      (caught: unknown) => caught,
+    );
+
+    expect(error).toBeInstanceOf(NotFoundException);
+    expect((error as { getResponse: () => unknown }).getResponse()).toEqual({
+      ok: false,
+      reason: 'NOT_FOUND',
+    });
+    expect(inboundRepository.acknowledgeInbound).not.toHaveBeenCalled();
+  });
+
+  it('mark-read returns the existing attention state when already read', async () => {
+    inboundRepository.markInboundRead.mockResolvedValue({
+      status: 'NOOP',
+      message: { ...state, acknowledgedAt: null, acknowledgedBy: null },
+    });
+
+    const result = await service.markInboundRead('tenant-1', 'm1');
+
+    expect(result).toEqual({
+      ok: true,
+      messageId: 'm1',
+      readAt: '2026-09-22T13:05:00.000Z',
+      acknowledgedAt: null,
+      acknowledgedBy: null,
+    });
+  });
+
+  it('acknowledge maps NOT_FOUND to 404 and does not fall back to mark-read', async () => {
+    inboundRepository.acknowledgeInbound.mockResolvedValue({
+      status: 'NOT_FOUND',
+      message: null,
+    });
+
+    const error = await service
+      .acknowledgeInbound('tenant-1', 'unknown', 'user-1')
+      .then(
+        () => undefined,
+        (caught: unknown) => caught,
+      );
+
+    expect(error).toBeInstanceOf(NotFoundException);
+    expect(inboundRepository.markInboundRead).not.toHaveBeenCalled();
+  });
+
+  it('acknowledge returns the actor/read state and signals first-time acknowledgement', async () => {
+    inboundRepository.acknowledgeInbound.mockResolvedValue({
+      status: 'UPDATED',
+      message: state,
+    });
+
+    const result = await service.acknowledgeInbound('tenant-1', 'm1', 'user-1');
+
+    expect(result).toEqual({
+      ok: true,
+      alreadyAcknowledged: false,
+      messageId: 'm1',
+      readAt: '2026-09-22T13:05:00.000Z',
+      acknowledgedAt: '2026-09-22T13:10:00.000Z',
+      acknowledgedBy: { id: 'user-1', name: 'Juan Pérez' },
+    });
+    expect(inboundRepository.acknowledgeInbound).toHaveBeenCalledWith({
+      tenantId: 'tenant-1',
+      messageId: 'm1',
+      acknowledgedById: 'user-1',
+      now: expect.any(Date) as unknown,
+    });
+  });
+
+  it('acknowledge of an already-acknowledged message returns the original actor untouched', async () => {
+    const original = {
+      ...state,
+      acknowledgedById: 'user-original',
+      acknowledgedBy: { id: 'user-original', name: 'Ana Original' },
+    };
+    inboundRepository.acknowledgeInbound.mockResolvedValue({
+      status: 'ALREADY_ACKNOWLEDGED',
+      message: original,
+    });
+
+    const result = await service.acknowledgeInbound(
+      'tenant-1',
+      'm1',
+      'user-later',
+    );
+
+    expect(result).toEqual({
+      ok: true,
+      alreadyAcknowledged: true,
+      messageId: 'm1',
+      readAt: '2026-09-22T13:05:00.000Z',
+      acknowledgedAt: '2026-09-22T13:10:00.000Z',
+      acknowledgedBy: { id: 'user-original', name: 'Ana Original' },
+    });
+  });
 });

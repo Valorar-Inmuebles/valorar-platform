@@ -10,10 +10,13 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ApiOkResponse, ApiTags } from '@nestjs/swagger';
+import { UserRole } from '../../../../generated/prisma/client';
 import { CurrentTenant } from '../../../common/decorators/current-tenant.decorator';
+import { CurrentUser } from '../../../common/decorators/current-user.decorator';
 import { RequirePermissions } from '../../../common/decorators/require-permissions.decorator';
 import { RequireTenant } from '../../../common/decorators/require-tenant.decorator';
 import { PermissionsGuard } from '../../../common/guards/permissions.guard';
+import type { AuthenticatedUser } from '../../../common/types/authenticated-user.type';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { TenantGuard } from '../../auth/guards/tenant.guard';
 import {
@@ -103,6 +106,37 @@ export class RentalReminderCommunicationController {
   })
   retry(@Param('id') id: string, @CurrentTenant() tenantId: string) {
     return this.service.retryDelivery(tenantId, id);
+  }
+
+  @Post('inbound/:id/read')
+  @HttpCode(200)
+  @ApiOkResponse({
+    description:
+      'Marks an inbound message as explicitly read in Admin. Idempotent: ' +
+      'the first readAt is preserved. Does not acknowledge.',
+  })
+  markInboundRead(@Param('id') id: string, @CurrentTenant() tenantId: string) {
+    return this.service.markInboundRead(tenantId, id);
+  }
+
+  @Post('inbound/:id/acknowledge')
+  @HttpCode(200)
+  @ApiOkResponse({
+    description:
+      'Acknowledges an inbound message as attended by the current operator. ' +
+      'Implies read. When already acknowledged, the existing actor/timestamp ' +
+      'are returned untouched. Not Found/tenant negative returns 404.',
+  })
+  acknowledgeInbound(
+    @Param('id') id: string,
+    @CurrentTenant() tenantId: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.service.acknowledgeInbound(
+      tenantId,
+      id,
+      user.role === UserRole.SUPER_ADMIN ? null : user.id,
+    );
   }
 }
 

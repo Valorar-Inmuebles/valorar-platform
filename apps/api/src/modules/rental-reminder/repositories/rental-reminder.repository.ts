@@ -280,6 +280,9 @@ export class RentalReminderRepository {
         this.prisma.rentalReminderPlanningIssue.count({
           where: { tenantId, status: RentalReminderPlanningIssueStatus.OPEN },
         }),
+        this.prisma.communicationInboundMessage.count({
+          where: { tenantId, acknowledgedAt: null },
+        }),
       ])
       .then(
         ([
@@ -288,12 +291,14 @@ export class RentalReminderRepository {
           deliveriesDeliveredToday,
           deliveriesFailedToday,
           planningIssuesOpen,
+          inboundUnacknowledged,
         ]) => ({
           dispatchesScheduledToday,
           deliveriesSentToday,
           deliveriesDeliveredToday,
           deliveriesFailedToday,
           planningIssuesOpen,
+          inboundUnacknowledged,
         }),
       );
   }

@@ -1,5 +1,6 @@
 jest.mock('../../../../generated/prisma/client', () => ({
   NotificationChannel: { EMAIL: 'EMAIL', WHATSAPP: 'WHATSAPP', SMS: 'SMS' },
+  UserRole: { SUPER_ADMIN: 'SUPER_ADMIN', AGENT: 'AGENT', ADMIN: 'ADMIN' },
   RentalReminderDeliveryStatus: {
     PENDING: 'PENDING',
     PROCESSING: 'PROCESSING',
@@ -53,12 +54,18 @@ describe('RentalReminder controllers RBAC surface', () => {
     ).toEqual(['rental.reminder.manage']);
   });
 
-  it('exposes retry as a 200 POST on the manage surface', () => {
-    const retryHandler = Object.getOwnPropertyDescriptor(
+  it('exposes retry and inbound attention actions as 200 POSTs on the manage surface', () => {
+    const descriptors = Object.getOwnPropertyDescriptors(
       RentalReminderCommunicationController.prototype,
-      'retry',
-    )?.value as unknown as (...args: unknown[]) => unknown;
-    expect(Reflect.getMetadata('__httpCode__', retryHandler)).toBe(200);
+    ) as Record<string, PropertyDescriptor>;
+    const methodsToCheck = ['retry', 'markInboundRead', 'acknowledgeInbound'];
+    for (const method of methodsToCheck) {
+      const handler = descriptors[method]?.value as unknown as (
+        ...args: unknown[]
+      ) => unknown;
+      expect(handler).toBeDefined();
+      expect(Reflect.getMetadata('__httpCode__', handler)).toBe(200);
+    }
   });
 });
 
@@ -103,6 +110,51 @@ describe('RentalReminderCommunicationController retry delegation', () => {
     expect(service.retryDelivery).toHaveBeenCalledWith(
       'tenant-1',
       'delivery-1',
+    );
+  });
+});
+
+describe('RentalReminderCommunicationController inbound attention delegation', () => {
+  const service = {
+    markInboundRead: jest.fn().mockResolvedValue({ ok: true }),
+    acknowledgeInbound: jest.fn().mockResolvedValue({ ok: true }),
+  };
+  const controller = new RentalReminderCommunicationController(
+    service as never,
+  );
+
+  it('delegates mark-read scoped to the current tenant', async () => {
+    await controller.markInboundRead('m1', 'tenant-1');
+    expect(service.markInboundRead).toHaveBeenCalledWith('tenant-1', 'm1');
+  });
+
+  it('delegates acknowledge with the current actor (regular user)', async () => {
+    await controller.acknowledgeInbound('m1', 'tenant-1', {
+      id: 'user-1',
+      email: 'a@b.c',
+      name: 'Juan',
+      role: 'AGENT',
+      tenantId: 'tenant-1',
+    } as never);
+    expect(service.acknowledgeInbound).toHaveBeenCalledWith(
+      'tenant-1',
+      'm1',
+      'user-1',
+    );
+  });
+
+  it('delegates acknowledge with a null actor for SUPER_ADMIN (tenant operation)', async () => {
+    await controller.acknowledgeInbound('m1', 'tenant-1', {
+      id: 'super-1',
+      email: 'super@b.c',
+      name: 'Super',
+      role: 'SUPER_ADMIN',
+      tenantId: null,
+    } as never);
+    expect(service.acknowledgeInbound).toHaveBeenCalledWith(
+      'tenant-1',
+      'm1',
+      null,
     );
   });
 });

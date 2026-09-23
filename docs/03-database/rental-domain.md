@@ -518,6 +518,20 @@ La API C1 expone `GET/PUT /rental-reminder-policy` y lecturas paginadas de plann
 
 Las credenciales de MailerSend y Meta son platform-wide y se resolverán exclusivamente desde environment/secret store. PostgreSQL conserva sólo referencias no secretas y snapshots funcionales mínimos; nunca API keys, access tokens o payloads crudos. No hay purga automática y el cifrado application-level de snapshots permanece diferido.
 
+**C4B — INBOUND ATTENTION STATE IMPLEMENTADO**.
+
+C4B agrega el estado de atención en Admin sobre `CommunicationInboundMessage`:
+`readAt`, `acknowledgedAt` y `acknowledgedById` (FK `User` con `SET NULL`, actor
+`null` para `SUPER_ADMIN`), índice `(tenantId, acknowledgedAt)` y la transición
+`RECEIVED → READ → ACKNOWLEDGED` derivada de timestamps. Leer es idempotente y
+conserva el primer `readAt`; atender implica leer y nunca sobrescribe el
+actor/timestamp original (first-wins). Sin backfill: el inbound histórico queda
+sin atender (`readAt = null, acknowledgedAt = null`). Expone
+`POST inbound/:id/read` y `POST inbound/:id/acknowledge` bajo
+`rental.reminder.manage`; los read models exponen los campos y los filtros
+`unread`/`unacknowledged`, y el summary suma `inboundUnacknowledged`. No toca
+Delivery/Dispatch/Contract/Fulfillment ni genera respuestas automáticas.
+
 ## 18. Enums
 
 ### Implementados
@@ -684,7 +698,8 @@ El orden exacto se resolverá en planes de implementación separados, respetando
 7. **C2 implementada**: planner, elegibilidad, idempotencia, revalidación y leases sin capacidad de envío;
 8. **C3A implementada**: provider Email/MailerSend, attempts, retries y webhook;
 9. **C3B implementada**: Meta/WhatsApp, webhook e inbound mínimo;
-10. **C4 pendiente**: Admin y operación.
+10. **C4B implementada**: estado de atención inbound (read/acknowledge) y API;
+11. **C4 pendiente**: Admin y operación.
 
 Los puntos 4 y 6 no están implementados por la sola existencia de esta documentación.
 

@@ -299,6 +299,28 @@ El adapter outbound conserva template/configuración y render en el Delivery; lo
 webhooks de status continúan usando `RentalReminderWebhookReceipt`. Un mensaje
 inbound nunca se almacena dentro de ese receipt.
 
+## Rental Communications C4B
+
+C4B incorpora el estado de atención de los mensajes inbound en Admin
+(migración `202609220001_rental_communications_c4b_inbound_attention`):
+
+- `readAt DateTime?` (UTC): primera lectura explícita en Admin, conservada por
+  compare-and-set (`readAt IS NULL`) — leer no implica atender;
+- `acknowledgedAt DateTime?` (UTC) y `acknowledgedById String?`: atención por
+  un operador (actor `user.id`, `null` para `SUPER_ADMIN`); atender implica
+  leer (`acknowledgedAt != null → readAt != null`);
+- FK `acknowledgedById → User(id)` con `ON DELETE SET NULL` (relación
+  `RentalInboundAcknowledger`); el actor/timestamp original nunca se
+  sobrescribe (first-wins);
+- índice `(tenantId, acknowledgedAt)` para la cola de pendientes
+  (`unacknowledged`) y el contador `inboundUnacknowledged` del summary;
+- sin backfill: la migración sólo agrega columnas nullable e índice; el inbound
+  histórico queda `readAt = null, acknowledgedAt = null`.
+
+Estos campos son estado de atención de la plataforma, no estados del provider:
+no alteran `RentalReminderDelivery`/`RentalReminderDispatch`/Fulfillment ni
+generan respuestas automáticas.
+
 ---
 
 # UserRole

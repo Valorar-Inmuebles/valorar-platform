@@ -104,6 +104,8 @@ model User {
   recordedRentValueRevisions RentalRentValueRevision[]    @relation("RentalRentValueRevisionRecorder")
   rentalContractEvents       RentalContractEvent[]        @relation("RentalContractEventActor")
 
+  acknowledgedInboundMessages CommunicationInboundMessage[] @relation("RentalInboundAcknowledger")
+
   @@index([tenantId])
 }
 
@@ -1484,11 +1486,21 @@ model CommunicationInboundMessage {
   deliveryId String?
   delivery   RentalReminderDelivery? @relation(fields: [tenantId, deliveryId], references: [tenantId, id], onDelete: Restrict)
 
+  // Inbound attention state (C4B): readAt is the first explicit Admin read;
+  // acknowledging implies read (acknowledgedAt != null -> readAt != null).
+  // acknowledgedBy/acknowledgedAt record the operator who resolved the message.
+  readAt         DateTime?
+  acknowledgedAt DateTime?
+
+  acknowledgedById String?
+  acknowledgedBy   User?   @relation("RentalInboundAcknowledger", fields: [acknowledgedById], references: [id], onDelete: SetNull)
+
   @@unique([providerKey, providerAccountKey, providerMessageId])
   @@index([tenantId, receivedAt(sort: Desc)])
   @@index([tenantId, contactId, receivedAt(sort: Desc)])
   @@index([tenantId, contractId, receivedAt(sort: Desc)])
   @@index([tenantId, deliveryId])
+  @@index([tenantId, acknowledgedAt])
 }
 
 model RentalFulfillment {

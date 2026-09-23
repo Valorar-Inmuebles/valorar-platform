@@ -21,6 +21,7 @@ import type {
 } from '../dto/rental-reminder-read-model.dto';
 import { RentalReminderRepository } from '../repositories/rental-reminder.repository';
 import { CommunicationInboundRepository } from '../repositories/communication-inbound.repository';
+import type { InboundAttentionState } from '../repositories/communication-inbound.repository';
 
 const DEFAULT_TIME_ZONE = 'America/Argentina/Buenos_Aires';
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -77,6 +78,9 @@ type InboundReadModel = {
   receivedAt: Date;
   senderAddress: string;
   deliveryId: string | null;
+  readAt: Date | null;
+  acknowledgedAt: Date | null;
+  acknowledgedBy: { id: string; name: string } | null;
   contact: { id: string; name: string } | null;
   contract: { id: string; internalNumber: string } | null;
 };
@@ -253,6 +257,13 @@ export class RentalReminderService {
             NotificationChannel.WHATSAPP,
           ),
         },
+        readAt: message.readAt ? message.readAt.toISOString() : null,
+        acknowledgedAt: message.acknowledgedAt
+          ? message.acknowledgedAt.toISOString()
+          : null,
+        acknowledgedBy: message.acknowledgedBy
+          ? { id: message.acknowledgedBy.id, name: message.acknowledgedBy.name }
+          : null,
         contact: message.contact
           ? { id: message.contact.id, name: message.contact.name }
           : null,
@@ -310,6 +321,62 @@ export class RentalReminderService {
       throw new NotFoundException({ ok: false, reason: 'NOT_FOUND' });
     }
     throw new ConflictException({ ok: false, reason: result.reason });
+  }
+
+  /**
+   * Marks an inbound message as explicitly read in Admin. Idempotent: the
+   * first readAt is preserved and acknowledgedAt is never modified.
+   */
+  async markInboundRead(tenantId: string, messageId: string) {
+    const result = await this.inboundRepository.markInboundRead({
+      tenantId,
+      messageId,
+      now: new Date(),
+    });
+    if (result.status === 'NOT_FOUND') {
+      throw new NotFoundException({ ok: false, reason: 'NOT_FOUND' });
+    }
+    return this.attentionResponse(result.message);
+  }
+
+  /**
+   * Acknowledges an inbound message as resolved by the current operator.
+   * Acknowledging implies read. When the message was already acknowledged the
+   * existing actor/timestamp are returned untouched (no silent replacement,
+   * no 409): retries and repeated UI taps stay idempotent.
+   */
+  async acknowledgeInbound(
+    tenantId: string,
+    messageId: string,
+    acknowledgedById: string | null,
+  ) {
+    const result = await this.inboundRepository.acknowledgeInbound({
+      tenantId,
+      messageId,
+      acknowledgedById,
+      now: new Date(),
+    });
+    if (result.status === 'NOT_FOUND') {
+      throw new NotFoundException({ ok: false, reason: 'NOT_FOUND' });
+    }
+    return {
+      alreadyAcknowledged: result.status === 'ALREADY_ACKNOWLEDGED',
+      ...this.attentionResponse(result.message),
+    };
+  }
+
+  private attentionResponse(message: InboundAttentionState) {
+    return {
+      ok: true,
+      messageId: message.id,
+      readAt: message.readAt ? message.readAt.toISOString() : null,
+      acknowledgedAt: message.acknowledgedAt
+        ? message.acknowledgedAt.toISOString()
+        : null,
+      acknowledgedBy: message.acknowledgedBy
+        ? { id: message.acknowledgedBy.id, name: message.acknowledgedBy.name }
+        : null,
+    };
   }
 
   private policyResponse(policy: {

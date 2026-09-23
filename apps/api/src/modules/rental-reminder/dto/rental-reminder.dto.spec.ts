@@ -29,6 +29,7 @@ jest.mock('../../../../generated/prisma/client', () => ({
 
 import { plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';
+import { RentalReminderInboundQueryDto } from './rental-reminder-read-model.dto';
 import {
   RentalReminderDeliveryQueryDto,
   RentalReminderDispatchQueryDto,
@@ -128,5 +129,30 @@ describe('RentalReminderDeliveryQueryDto contract and delivery windows', () => {
       }),
     );
     expect(errors.some((error) => error.property === 'sentFrom')).toBe(true);
+  });
+});
+
+describe('RentalReminderInboundQueryDto attention filters', () => {
+  it('transforms query-string booleans for unread/unacknowledged', async () => {
+    const dto = plainToInstance(RentalReminderInboundQueryDto, {
+      unread: 'true',
+      unacknowledged: 'false',
+      receivedFrom: '2026-09-22T00:00:00.000Z',
+    });
+    expect(dto.unread).toBe(true);
+    expect(dto.unacknowledged).toBe(false);
+    expect(await validate(dto)).toHaveLength(0);
+  });
+
+  it('treats absent and non-boolean attention filters as absent (lenient, like other query DTOs)', async () => {
+    for (const value of ['', 'not-a-bool', undefined]) {
+      const dto = plainToInstance(RentalReminderInboundQueryDto, {
+        unread: value,
+        unacknowledged: value,
+      });
+      expect(dto.unread).toBeUndefined();
+      expect(dto.unacknowledged).toBeUndefined();
+      expect(await validate(dto)).toHaveLength(0);
+    }
   });
 });

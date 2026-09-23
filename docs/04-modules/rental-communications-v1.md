@@ -450,6 +450,7 @@ Política RBAC propuesta:
 | ver destino completo, errores y operación      | `rental.reminder.manage`                                 |
 | editar política tenant-wide                    | `rental.reminder.manage`                                 |
 | retry manual de un delivery `FAILED`           | `rental.reminder.manage`                                 |
+| marcar/atender inbound (read/acknowledge)      | `rental.reminder.manage`                                 |
 | configurar providers platform-wide             | futuro `platform.communication.manage`, sólo Super Admin |
 
 `rental.reminder.manage` está implementado para `SUPER_ADMIN`, `TENANT_ADMIN` y `MANAGER`. El retry manual existe como operación de dominio en el runner development (`reminder-reset`) y como endpoint Admin desde C4A.1 con la misma semántica: crea un nuevo Attempt sobre el mismo Delivery, conserva el histórico (incluido un fallo anterior) y respeta el máximo/política auditada. Los read models de comunicaciones usan `rental.read`.
@@ -470,6 +471,15 @@ API implementada:
     `{ok, attemptCount, nextAttemptNumber, dispatchReopened}`; `404` cuando el
     delivery no existe o no pertenece al tenant; `409` con la razón canónica
     (`NOT_FAILED`/`IN_FLIGHT`/`MAX_ATTEMPTS`/`CONCURRENT`).
+- C4B (operación, `rental.reminder.manage`):
+  - `POST /rental-reminder-communications/inbound/:id/read` → `200 OK` con
+    `{ok, messageId, readAt, acknowledgedAt, acknowledgedBy}`; `404` con
+    `{ok: false, reason: 'NOT_FOUND'}` cuando el mensaje no existe o no
+    pertenece al tenant. Idempotente: conserva el primer `readAt`.
+  - `POST /rental-reminder-communications/inbound/:id/acknowledge` → `200 OK`
+    con el mismo payload más `alreadyAcknowledged`; si ya estaba atendido,
+    devuelve el estado existente sin sobrescribir el actor/timestamp original
+    (no `409`). `404` tenant-negative.
 
 Todas las lecturas operativas son tenant-scoped y paginadas. Las ventanas
 temporales son `[from, to)` y se validan en Service (`from < to`). Los
@@ -489,7 +499,9 @@ Alcance (sin schema, migración ni índices nuevos):
 - **Inbound**: mensajes entrantes WhatsApp tenant-scoped con filtros
   `contractId`, `contactId` y ventana `receivedAt [from, to)`. Cada item expone
   `sender.address` enmascarado, `deliveryCorrelated`, contacto/contrato
-  resueltos y `externalReplyLink`.
+  resueltos y `externalReplyLink`; desde C4B también `readAt`,
+  `acknowledgedAt`, `acknowledgedBy {id, name}` y los filtros
+  `unread`/`unacknowledged`.
 - **Summary**: conteos del día local del tenant — dispatches programados,
   deliveries `sent`/`delivered`/`failed` y planning issues `OPEN` — sobre la
   ventana `[inicio del día local en `TenantSetting.timeZone`, +24h)` con
@@ -516,7 +528,42 @@ Detalles de operación:
   de dominio `manualResetFailedDelivery`; no envía sincrónicamente.
 - No hay cambios de schema, migraciones, índices ni permisos nuevos (se
   reutilizan las superficies existentes `rental.read`/`rental.reminder.manage`).
-- Fuera de alcance: UI Admin, C4B, métricas/alertas y scheduler/productivo.
+- Fuera de alcance de C4A.1: UI Admin, C4B (implementado por separado),
+  métricas/alertas y scheduler/productivo.
+
+#### C4B — Inbound Attention State
+
+Alcance (migración `202609220001_rental_communications_c4b_inbound_attention`):
+
+- **Semántica de estados**: `RECEIVED → READ → ACKNOWLEDGED` son estados de
+  *atención en Admin* derivados de timestamps sobre `CommunicationInboundMessage`;
+  no son estados del provider y no modifican el `RentalReminderDelivery`.
+  Leer no implica atender; atender sí implica leer
+  (`acknowledgedAt != null → readAt != null`). No existe deshacer un
+  acknowledge en V1. `readAt` se setea una única vez mediante compare-and-set
+  (`readAt IS NULL`), por lo que el primer timestamp se conserva incluso bajo
+  concurrencia.
+- **Persistencia**: `readAt DateTime?`, `acknowledgedAt DateTime?` y
+  `acknowledgedById String?` con FK a `User(id)` `ON DELETE SET NULL`
+  (relación `RentalInboundAcknowledger`); índice `(tenantId, acknowledgedAt)`
+  para la cola de pendientes y el summary. Sin backfill: el inbound histórico
+  queda `readAt = null, acknowledgedAt = null`.
+- **Actor**: `acknowledgedById = user.id` del operador; `null` para
+  `SUPER_ADMIN` (convención del repo). El acknowledge es first-wins: un intento
+  concurrente o repetido nunca sobrescribe el actor/timestamp original y
+  devuelve el estado existente con `alreadyAcknowledged: true` (sin `409`).
+- **Acciones** (`rental.reminder.manage`): `POST inbound/:id/read` y
+  `POST inbound/:id/acknowledge`, ambas tenant-scoped, `200 OK` y `404` con
+  `{ok: false, reason: 'NOT_FOUND'}` para mensajes inexistentes o cross-tenant.
+- **Lectura**: `GET /inbound` expone `readAt`, `acknowledgedAt` y
+  `acknowledgedBy {id, name}` y soporta `unread=true`/`unacknowledged=true`
+  (strings booleanas transformadas con la semántica lenient de otros query
+  DTOs: `'true'`→`true`, `'false'`→`false`, inválido→ausente). El summary
+  agrega `inboundUnacknowledged` (`acknowledgedAt IS NULL`); no se agrega
+  `inboundUnread` por redundante.
+- **Fuera de alcance**: UI Admin (pendiente), push/notificaciones, responder
+  WhatsApp, Fulfillment, audit log paralelo, metadata provider y mutación de
+  contract/delivery/dispatch/fulfillment. Sin permisos nuevos.
 
 Planner y worker son application commands internos. Si la infraestructura exige
 un trigger HTTP, será un endpoint interno con autenticación de servicio, nunca
