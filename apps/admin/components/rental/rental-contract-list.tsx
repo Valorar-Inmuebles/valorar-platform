@@ -33,6 +33,7 @@ import {
   getLocalitiesByProvince,
   getNeighborhoodsByLocality,
 } from "@/lib/api/geo-client";
+import { ErrorMessage } from "@repo/ui/form-field";
 import type {
   PaginatedResponse,
   RentalContractListItem,
@@ -55,6 +56,7 @@ type Props = {
   result: PaginatedResponse<RentalContractListItem>;
   filters: Filters;
   provinceOptions: Array<{ value: string; label: string }>;
+  provinceError?: string;
   canUpdate?: boolean;
 };
 
@@ -99,6 +101,7 @@ export function RentalContractList({
   result,
   filters,
   provinceOptions,
+  provinceError,
   canUpdate = false,
 }: Props) {
   const pathname = usePathname();
@@ -339,6 +342,7 @@ export function RentalContractList({
                 });
               }}
             />
+            {provinceError ? <ErrorMessage>{provinceError}</ErrorMessage> : null}
           </div>
           <GeoAutocomplete
             label="Localidad"
@@ -359,6 +363,7 @@ export function RentalContractList({
                 }),
               )
             }
+            errorMessage="No pudimos cargar las localidades. Intentá nuevamente."
             onChange={(option) =>
               navigate({
                 localityId: option?.value,
@@ -381,6 +386,7 @@ export function RentalContractList({
                 await getNeighborhoodsByLocality(filters.localityId!, query)
               ).map((item) => ({ value: item.id, label: item.name }))
             }
+            errorMessage="No pudimos cargar los barrios. Intentá nuevamente."
             onChange={(option) =>
               navigate({
                 neighborhoodId: option?.value,

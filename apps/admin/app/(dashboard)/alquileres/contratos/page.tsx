@@ -6,7 +6,7 @@ import { RentalModuleNav } from "@/components/rental/rental-module-nav";
 import { ApiErrorPanel } from "@/components/shared/api-error-panel";
 import { PageShell } from "@/components/shared/page-shell";
 import { SuperAdminTenantEmptyState } from "@/components/shared/super-admin-tenant-empty-state";
-import { getProvinces } from "@/lib/api/geo-client";
+import { getProvinces } from "@/lib/api/geo";
 import { mapUnknownError } from "@/lib/api/error-map";
 import { listRentalContracts } from "@/lib/api/rental";
 import type {
@@ -92,9 +92,11 @@ export default async function RentalContractsPage({
   };
 
   try {
-    const [result, provinces] = await Promise.all([
+    const [result, provincesResult] = await Promise.all([
       listRentalContracts(query),
-      getProvinces().catch(() => []),
+      getProvinces()
+        .then((value) => ({ value, error: false }))
+        .catch(() => ({ value: [], error: true })),
     ]);
     return (
       <PageShell
@@ -126,10 +128,15 @@ export default async function RentalContractsPage({
             session.user,
             "rental.contract.update",
           )}
-          provinceOptions={provinces.map((province) => ({
+          provinceOptions={provincesResult.value.map((province) => ({
             value: province.id,
             label: province.name,
           }))}
+          provinceError={
+            provincesResult.error
+              ? "No pudimos cargar las provincias. Intentá nuevamente."
+              : undefined
+          }
         />
       </PageShell>
     );

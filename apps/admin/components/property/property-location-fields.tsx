@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { FormField, Label } from "@repo/ui/form-field";
+import { ErrorMessage, FormField, Label } from "@repo/ui/form-field";
 import { Select } from "@repo/ui/select";
 import type { GeoProvince } from "@repo/shared-types";
 import {
@@ -42,6 +42,7 @@ export function PropertyLocationFields({
 }: PropertyLocationFieldsProps) {
   const [provinces, setProvinces] = useState<GeoProvince[]>([]);
   const [loadingProvinces, setLoadingProvinces] = useState(true);
+  const [provinceError, setProvinceError] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -50,6 +51,13 @@ export function PropertyLocationFields({
       .then((items) => {
         if (!cancelled) {
           setProvinces(items);
+          setProvinceError(false);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setProvinces([]);
+          setProvinceError(true);
         }
       })
       .finally(() => {
@@ -129,6 +137,11 @@ export function PropertyLocationFields({
           placeholder={loadingProvinces ? "Cargando provincias…" : "Seleccionar provincia"}
           disabled={disabled || loadingProvinces}
         />
+        {provinceError ? (
+          <ErrorMessage>
+            No pudimos cargar las provincias. Intentá nuevamente.
+          </ErrorMessage>
+        ) : null}
       </FormField>
 
       <GeoAutocomplete
@@ -143,6 +156,7 @@ export function PropertyLocationFields({
             ? "No se encontraron localidades"
             : "Seleccioná una provincia primero"
         }
+        errorMessage="No pudimos cargar las localidades. Intentá nuevamente."
         onQuery={searchLocalities}
         onChange={(option) => {
           if (!option) {
@@ -177,6 +191,7 @@ export function PropertyLocationFields({
             ? "No hay barrios cargados para esta localidad"
             : "Seleccioná una localidad primero"
         }
+        errorMessage="No pudimos cargar los barrios. Intentá nuevamente."
         onQuery={searchNeighborhoods}
         onChange={(option) => {
           onChange({

@@ -18,6 +18,7 @@ type GeoAutocompleteProps = {
   disabled?: boolean;
   required?: boolean;
   emptyMessage?: string;
+  errorMessage?: string;
   onQuery: (query: string) => Promise<GeoAutocompleteOption[]>;
   onChange: (option: GeoAutocompleteOption | null) => void;
 };
@@ -30,6 +31,7 @@ export function GeoAutocomplete({
   disabled = false,
   required = false,
   emptyMessage = "Sin resultados",
+  errorMessage = "No pudimos cargar los resultados. Intentá nuevamente.",
   onQuery,
   onChange,
 }: GeoAutocompleteProps) {
@@ -39,6 +41,7 @@ export function GeoAutocomplete({
   const [options, setOptions] = useState<GeoAutocompleteOption[]>([]);
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(false);
 
   useEffect(() => {
     setQuery(displayValue);
@@ -62,16 +65,23 @@ export function GeoAutocomplete({
   useEffect(() => {
     if (!open || query.trim().length < 2) {
       setOptions([]);
+      setError(false);
       return;
     }
 
     let cancelled = false;
     const timer = window.setTimeout(async () => {
       setLoading(true);
+      setError(false);
       try {
         const nextOptions = await onQuery(query.trim());
         if (!cancelled) {
           setOptions(nextOptions);
+        }
+      } catch {
+        if (!cancelled) {
+          setOptions([]);
+          setError(true);
         }
       } finally {
         if (!cancelled) {
@@ -114,6 +124,8 @@ export function GeoAutocomplete({
           >
             {loading ? (
               <li className="px-3 py-2 text-sm text-zinc-400">Buscando…</li>
+            ) : error ? (
+              <li className="px-3 py-2 text-sm text-red-600">{errorMessage}</li>
             ) : options.length === 0 ? (
               <li className="px-3 py-2 text-sm text-zinc-400">{emptyMessage}</li>
             ) : (

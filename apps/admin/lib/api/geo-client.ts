@@ -4,14 +4,8 @@ import type {
   GeoProvince,
 } from "@repo/shared-types";
 
-const DEFAULT_API_URL = "http://localhost:3002";
-
-function getApiBaseUrl(): string {
-  return process.env.NEXT_PUBLIC_API_URL ?? process.env.API_URL ?? DEFAULT_API_URL;
-}
-
 async function publicGeoFetch<T>(path: string): Promise<T> {
-  const response = await fetch(`${getApiBaseUrl()}${path}`, {
+  const response = await fetch(`/api${path}`, {
     headers: { Accept: "application/json" },
   });
 
