@@ -85,9 +85,27 @@ export class ReminderPlannerService {
     now: Date,
     options: ReminderPlannerRunOptions = {},
   ): Promise<ReminderPlannerRunResult> {
+    return this.runForPolicies(now, undefined, options);
+  }
+
+  async runForTenant(
+    tenantId: string,
+    now: Date,
+    options: ReminderPlannerRunOptions = {},
+  ): Promise<ReminderPlannerRunResult> {
+    const normalizedTenantId = tenantId.trim();
+    if (!normalizedTenantId) throw new Error('Planner tenantId is required');
+    return this.runForPolicies(now, normalizedTenantId, options);
+  }
+
+  private async runForPolicies(
+    now: Date,
+    tenantId: string | undefined,
+    options: ReminderPlannerRunOptions,
+  ): Promise<ReminderPlannerRunResult> {
     if (Number.isNaN(now.getTime())) throw new Error('Planner now is invalid');
 
-    const policies = await this.repository.findPlannerPolicies();
+    const policies = await this.repository.findPlannerPolicies(tenantId);
     const result: ReminderPlannerRunResult = {
       now: now.toISOString(),
       dryRun: options.dryRun ?? false,

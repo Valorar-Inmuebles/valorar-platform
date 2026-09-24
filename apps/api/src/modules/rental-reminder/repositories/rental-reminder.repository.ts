@@ -451,9 +451,12 @@ export class RentalReminderRepository {
     });
   }
 
-  findPlannerPolicies() {
+  findPlannerPolicies(tenantId?: string) {
     return this.prisma.rentalReminderPolicy.findMany({
-      where: { tenant: { status: TenantStatus.ACTIVE } },
+      where: {
+        tenant: { status: TenantStatus.ACTIVE },
+        ...(tenantId ? { tenantId } : {}),
+      },
       include: {
         tenant: { select: { settings: { select: { timeZone: true } } } },
       },

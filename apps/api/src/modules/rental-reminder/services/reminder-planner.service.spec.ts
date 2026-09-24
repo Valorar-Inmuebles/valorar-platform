@@ -197,6 +197,24 @@ describe('ReminderPlannerService', () => {
     ).not.toContain('SMS');
   });
 
+  it('runs for one tenant without invoking the global policy query', async () => {
+    const repository = {
+      findPlannerPolicies: jest.fn().mockResolvedValue([policy]),
+      findPlanningCandidates: jest.fn().mockResolvedValue([candidate('occ-1')]),
+      reconcilePlanningIssues: jest.fn().mockResolvedValue(undefined),
+      upsertPlannedDispatch: jest
+        .fn()
+        .mockResolvedValue({ created: true, mutable: true }),
+    };
+    const service = new ReminderPlannerService(repository as never);
+
+    await service.runForTenant('tenant-1', now, { dryRun: true });
+
+    expect(repository.findPlannerPolicies).toHaveBeenCalledWith('tenant-1');
+    expect(repository.reconcilePlanningIssues).not.toHaveBeenCalled();
+    expect(repository.upsertPlannedDispatch).not.toHaveBeenCalled();
+  });
+
   it('creates one logical dispatch per renter and keeps channels independent', async () => {
     const input = candidate('occ-1');
     const firstParty = input.obligation.contract.parties[0];
