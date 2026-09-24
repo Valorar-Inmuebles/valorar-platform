@@ -36,18 +36,19 @@ import { RentalReminderService } from '../services/rental-reminder.service';
 @ApiTags('Rental Reminder Policy')
 @UseGuards(JwtAuthGuard, TenantGuard, PermissionsGuard)
 @RequireTenant()
-@RequirePermissions('rental.reminder.manage')
 @Controller('rental-reminder-policy')
 export class RentalReminderPolicyController {
   constructor(private readonly service: RentalReminderService) {}
 
   @Get()
+  @RequirePermissions('rental.read')
   @ApiOkResponse({ description: 'Tenant-wide rental reminder policy' })
   get(@CurrentTenant() tenantId: string) {
     return this.service.getPolicy(tenantId);
   }
 
   @Put()
+  @RequirePermissions('rental.reminder.manage')
   @ApiOkResponse({ description: 'Updated tenant-wide rental reminder policy' })
   update(
     @CurrentTenant() tenantId: string,

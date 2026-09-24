@@ -466,8 +466,9 @@ export function RentalContractGeneralView({
             }
           >
             <p className="mb-3 text-xs text-muted">
-              Configuración previa únicamente. Los envíos todavía no están
-              disponibles.
+              Los destinatarios, canales y conceptos de este contrato se
+              configuran aquí. Las reglas de cuándo avisar se administran desde
+              Comunicaciones.
             </p>
             {routes.length ? (
               <div className="space-y-2">

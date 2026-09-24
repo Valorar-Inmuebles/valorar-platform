@@ -25,6 +25,29 @@ export type RentalCommunicationsSummary = {
   inboundUnacknowledged: number;
 };
 
+export type RentalReminderPolicy = {
+  id: string;
+  preDueEnabled: boolean;
+  preDueDays: number;
+  dueEnabled: boolean;
+  postDueEnabled: boolean;
+  postDueDays: number;
+  sendTimeMinutes: number;
+  timeZone: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type UpdateRentalReminderPolicy = Pick<
+  RentalReminderPolicy,
+  | "preDueEnabled"
+  | "preDueDays"
+  | "dueEnabled"
+  | "postDueEnabled"
+  | "postDueDays"
+  | "sendTimeMinutes"
+>;
+
 export type PaginatedResponse<T> = {
   items: T[];
   page: number;

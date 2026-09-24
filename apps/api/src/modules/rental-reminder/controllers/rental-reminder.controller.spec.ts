@@ -51,7 +51,18 @@ describe('RentalReminder controllers RBAC surface', () => {
     ).toEqual(['rental.reminder.manage']);
     expect(
       Reflect.getMetadata(PERMISSIONS_KEY, RentalReminderPolicyController),
-    ).toEqual(['rental.reminder.manage']);
+    ).toBeUndefined();
+    const policyDescriptors = Object.getOwnPropertyDescriptors(
+      RentalReminderPolicyController.prototype,
+    ) as Record<string, PropertyDescriptor>;
+    const getHandler = policyDescriptors.get.value as object;
+    const updateHandler = policyDescriptors.update.value as object;
+    expect(Reflect.getMetadata(PERMISSIONS_KEY, getHandler)).toEqual([
+      'rental.read',
+    ]);
+    expect(Reflect.getMetadata(PERMISSIONS_KEY, updateHandler)).toEqual([
+      'rental.reminder.manage',
+    ]);
   });
 
   it('exposes retry and inbound attention actions as 200 POSTs on the manage surface', () => {

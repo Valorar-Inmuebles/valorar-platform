@@ -1,6 +1,6 @@
 # Rental Communications V1
 
-Estado: **C1–C3B implementados y validados en UAT real; C4A.1 (read models/API de comunicaciones) implementado; C4 restante (UI Admin, métricas/alertas, señales Notification) pendiente**.
+Estado: **C1–C3B implementados y validados en UAT real; C4A.1 (read models/API de comunicaciones) implementado; C4C.1, C4C.2 y C4C.3 CLOSED y validados en UAT; métricas/alertas y señales Notification pendientes**.
 
 Esta especificación define Communications V1 y registra su avance por fases. C1 ya implementa tablas y endpoints de lectura/policy; no implica que existan planner, procesos de ejecución, proveedores ni envíos. El schema vigente continúa documentado exclusivamente en `docs/03-database/current-schema.md`.
 
@@ -1067,6 +1067,30 @@ escenarios de Historial, Respuestas recibidas y Requieren atención.
 - UAT funcional y visual aprobado: navegación entre tabs, filtros y URL state,
   sorting, paginación, columnas, empty/error states, SidePanel, snapshots,
   respuestas, retry y permisos `rental.read` / `rental.reminder.manage`.
+
+### C4C.3 — Configuración administrativa de avisos ✅ CLOSED
+
+- La policy tenant-wide se administra desde
+  `/alquileres/comunicaciones/configuracion`, accesible mediante la acción
+  **Configurar avisos** del Centro de Comunicaciones, sin agregar un quinto tab
+  al `RentalModuleNav`.
+- `GET /rental-reminder-policy` requiere `rental.read` y
+  `PUT /rental-reminder-policy` requiere `rental.reminder.manage`. El `PUT`
+  conserva reemplazo completo, `404` cuando no existe policy y aislamiento por
+  tenant; no se agregó `PATCH` ni lazy-create.
+- La UI configura exclusivamente `PRE_DUE`, `DUE` y `POST_DUE`, conserva los
+  offsets al deshabilitar eventos y convierte `HH:mm` exactamente a
+  `sendTimeMinutes`. La zona efectiva de `TenantSetting` se muestra como
+  informativa y no se modifica desde esta pantalla.
+- El guardado no envía mensajes ni cancela dispatches materializados. La UI
+  comunica que los cambios aplican a próximas ejecuciones de planificación y que
+  los avisos ya planificados pueden conservarse según su estado operativo.
+- No se agregaron schema, migraciones, actor/versionado/auditoría, Stepper,
+  providers ni scheduler. El copy contractual de “Avisos configurados” ahora
+  remite las reglas de cuándo avisar a Comunicaciones.
+- UAT funcional y visual aprobado: navegación, lectura y modo read-only,
+  switches, offsets, horarios `00:00`/`23:59`, timezone informativa,
+  persistencia, toast, errores localizados y ausencia de envíos al guardar.
 
 ### C4 — Admin y operación
 

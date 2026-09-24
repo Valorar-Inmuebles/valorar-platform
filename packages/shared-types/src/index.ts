@@ -43,6 +43,8 @@ export type {
   RentalAttentionPlanningIssueItem,
   RentalCommunicationsSummary,
   RentalCommunicationsWindow,
+  RentalReminderPolicy,
+  UpdateRentalReminderPolicy,
   RentalDeliveryChannel,
   RentalDeliveryStatus,
   RentalDispatchAttempt,

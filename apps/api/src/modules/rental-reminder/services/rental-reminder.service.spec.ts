@@ -19,6 +19,57 @@ import {
 } from '@nestjs/common';
 import { RentalReminderService } from './rental-reminder.service';
 
+describe('RentalReminderService policy', () => {
+  const repository = {
+    findPolicy: jest.fn(),
+    updatePolicy: jest.fn(),
+  };
+  const service = new RentalReminderService(repository as never, {} as never);
+  const policy = {
+    id: 'policy-1',
+    preDueEnabled: true,
+    preDueDays: 3,
+    dueEnabled: true,
+    postDueEnabled: false,
+    postDueDays: 5,
+    sendTimeMinutes: 1439,
+    createdAt: new Date('2026-09-22T00:00:00.000Z'),
+    updatedAt: new Date('2026-09-22T00:00:00.000Z'),
+    tenant: { settings: { timeZone: 'America/Argentina/Buenos_Aires' } },
+  };
+
+  beforeEach(() => jest.clearAllMocks());
+
+  it('returns the effective tenant timezone and full policy', async () => {
+    repository.findPolicy.mockResolvedValue(policy);
+
+    await expect(service.getPolicy('tenant-1')).resolves.toMatchObject({
+      id: 'policy-1',
+      postDueEnabled: false,
+      postDueDays: 5,
+      sendTimeMinutes: 1439,
+      timeZone: 'America/Argentina/Buenos_Aires',
+    });
+    expect(repository.findPolicy).toHaveBeenCalledWith('tenant-1');
+  });
+
+  it('performs a tenant-scoped full replacement and preserves toggles', async () => {
+    repository.updatePolicy.mockResolvedValue(policy);
+    const payload = {
+      preDueEnabled: false,
+      preDueDays: 1,
+      dueEnabled: false,
+      postDueEnabled: true,
+      postDueDays: 30,
+      sendTimeMinutes: 0,
+    };
+
+    await service.updatePolicy('tenant-1', payload);
+
+    expect(repository.updatePolicy).toHaveBeenCalledWith('tenant-1', payload);
+  });
+});
+
 describe('RentalReminderService contract history read model', () => {
   const repository = {
     findContractSummary: jest.fn(),

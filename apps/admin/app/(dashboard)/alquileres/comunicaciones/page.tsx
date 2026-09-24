@@ -1,4 +1,6 @@
 import { redirect } from "next/navigation";
+import Link from "next/link";
+import { Button } from "@repo/ui/button";
 import { CommunicationsView } from "@/components/rental/communications/communications-view";
 import { RentalModuleNav } from "@/components/rental/rental-module-nav";
 import { ApiErrorPanel } from "@/components/shared/api-error-panel";
@@ -246,6 +248,11 @@ export default async function RentalCommunicationsPage({
           { label: "Gestión de alquileres", href: "/alquileres" },
           { label: "Comunicaciones" },
         ]}
+        actions={
+          <Link href="/alquileres/comunicaciones/configuracion">
+            <Button variant="secondary">Configurar avisos</Button>
+          </Link>
+        }
         subNav={<RentalModuleNav />}
       >
         <CommunicationsView
