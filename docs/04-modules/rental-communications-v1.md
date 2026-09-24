@@ -1,6 +1,6 @@
 # Rental Communications V1
 
-Estado: **C1–C3B implementados y validados en UAT real; C4A.1 (read models/API de comunicaciones) implementado; C4C.1, C4C.2 y C4C.3 CLOSED y validados en UAT; métricas/alertas y señales Notification pendientes**.
+Estado: **C1–C4 CLOSED en development y aprobados en UAT integral; C1–C3B incluyen validación UAT real de providers; C4A.1, C4B, C4C.1, C4C.2 y C4C.3 CLOSED**. Métricas/alertas y señales `Notification` permanecen pendientes.
 
 Esta especificación define Communications V1 y registra su avance por fases. C1 ya implementa tablas y endpoints de lectura/policy; no implica que existan planner, procesos de ejecución, proveedores ni envíos. El schema vigente continúa documentado exclusivamente en `docs/03-database/current-schema.md`.
 
@@ -1095,12 +1095,62 @@ escenarios de Historial, Respuestas recibidas y Requieren atención.
 ### C4 — Admin y operación
 
 - policy tenant-wide;
-- historial contractual de comunicaciones: **read models/API implementados en C4A.1**; falta la UI/Admin;
-- retry manual con RBAC: **endpoint implementado en C4A.1** (opera sobre la misma operación de dominio);
-- métricas/alertas;
-- señales hacia `Notification` sólo si ese sistema ya existe o en su fase propia.
+- Centro global de Comunicaciones Admin, historial contractual, inbound y
+  atención implementados y validados en C4;
+- retry manual con RBAC implementado y validado como operación no sincrónica;
+- métricas/alertas y señales hacia `Notification` permanecen pendientes para
+  sus fases propias.
 
-Cada fase mantiene Email y WhatsApp independientes, SMS oculto y providers fuera del dominio. Ninguna fase posterior se inicia automáticamente.
+Cada fase mantiene Email y WhatsApp independientes, SMS oculto y providers fuera
+del dominio. C1–C4 quedan cerrados en development; C5 — Operación productiva
+es el siguiente foco, pero no se inicia ni se diseña en este cierre.
+
+### Cierre UAT integral C1–C4 — development ✅
+
+La validación end-to-end sobre `rental-management-dev` confirmó la coherencia
+del flujo Contrato → Partes → Obligaciones → Avisos → Policy → Planner →
+Dispatch/Delivery → Historial → Inbound → Atención/Retry:
+
+- contrato `ALQ-000001` `ACTIVE` y vigente, Geo canónico, partes,
+  ContactPoints y rutas persistidos;
+- obligaciones de Alquiler y Expensas con occurrences, vencimientos, importes,
+  estados y relación contractual coherentes;
+- policy tenant-wide PRE_DUE `ON/3`, DUE `ON`, POST_DUE `ON/3`, `10:00`,
+  `America/Argentina/Buenos_Aires`;
+- planner protegido en `dryRun=true`, sin writes ni provider calls, con
+  elegibilidad, offsets, timezone y planning issues observados;
+- dispatches, deliveries, attempts, snapshots y retry eligibility auditados;
+- historial global y contractual comparados por IDs/conteos sin divergencias;
+- inbound correlacionado conservadoramente por Contact/ContactPoint/Contract y
+  `deliveryId`, con `read`/`acknowledge` y estado de atención verificados;
+- RBAC confirmado: lecturas con `rental.read`; policy PUT, retry, mark read y
+  acknowledge con `rental.reminder.manage`; sin permisos nuevos;
+- tenant isolation confirmado para contratos, occurrences, communications,
+  inbound, policy y mutaciones mediante tests/repositorios tenant-scoped.
+
+Resultado: **0 BLOCKERS**, **0 SHOULD FIX BEFORE C5** y **C1–C4 apto para
+cierre en development**.
+
+#### Evidencia provider real previa
+
+La evidencia real de providers fue validada previamente en C3A/C3B y no forma
+parte del fixture C4C: MailerSend outbound real, Meta WhatsApp outbound real
+para AR, Meta inbound webhook real y normalización E.164 ↔ representación Meta.
+
+#### Fixture C4C
+
+El fixture C4C se identifica explícitamente como **development-only**,
+determinístico, idempotente y destinado a UAT Admin/integración. No contiene
+provider IDs reales, usa `statusSource=INTERNAL`, no crea WebhookReceipts y no
+realiza llamadas externas. Sus dispatches, deliveries, inbound y planning issue
+son evidencia sintética de integración, no evidencia provider.
+
+#### Pendiente no bloqueante
+
+Agregar un script npm explícito `db:dev:reminder-planner` que delegue al runner
+protegido existente. Se clasifica como tooling/ergonomía de development y no
+como blocker de C5. Los pendientes futuros ya documentados, incluido
+Stepper/completitud del wizard, permanecen sin elevarse a blocker.
 
 ## 20. Registro de decisiones
 

@@ -2,7 +2,7 @@
 
 Versión: V1.1
 
-Estado: **implementación parcial**. A, B, B.1, Rental V1.1 Fases 1–3, Fases 5A–5E y Communications V1 C1–C2 están implementados. C3–C4 permanecen pendientes.
+Estado: **implementación parcial**. A, B, B.1, Rental V1.1 Fases 1–3, Fases 5A–5E y Communications V1 C1–C4 están implementados; C1–C4 fueron aprobados en UAT integral sobre development. La operación productiva permanece pendiente para C5.
 
 Diseño de datos canónico: `docs/03-database/rental-domain.md`.
 
@@ -338,11 +338,13 @@ Antes de Migración C sólo se consolidarán partes, rutas, canales, punto selec
 
 Communications V1 C0 define canónicamente anticipación, horario, planner,
 agrupación, dispatch, delivery, retries, adapters y callbacks en
-`rental-communications-v1.md`. C1 implementó persistencia y C2 implementó el
-planner/orquestación no enviable. Providers, attempts reales, webhooks,
-scheduler productivo y Admin continúan pendientes de C3–C4.
+`rental-communications-v1.md`. C1–C4 implementaron persistencia,
+planner/orquestación, providers, inbound, read models y Admin; la ejecución
+productiva desplegada permanece pendiente de C5.
 
-La persistencia de rutas de B.1 y los flags por obligación de Fase 2 están **IMPLEMENTADOS**. No existe todavía envío de mensajes.
+La persistencia de rutas de B.1 y los flags por obligación de Fase 2 están
+**IMPLEMENTADOS**. El envío real fue validado en development durante C3A/C3B;
+la ejecución automática productiva permanece fuera de C1–C4 y pendiente de C5.
 
 ## 11. Operación mensual
 
@@ -442,7 +444,7 @@ Permiso **IMPLEMENTADO en Fase 1**:
 Permisos **APROBADOS / PENDIENTES**:
 
 - `rental.fulfillment.reverse`;
-- `rental.reminder.manage`;
+- `rental.reminder.manage` (IMPLEMENTADO en Communications V1 C1–C4);
 - evaluar `rental.concept.manage`.
 
 ## 16. Arquitectura de pantallas aprobada
@@ -486,7 +488,7 @@ Los mockups visuales existen externamente y se proporcionarán durante los gates
 ### 17.2 Aprobado pero pendiente después de Fase 5E
 
 - notificaciones internas globales;
-- Communications V1 C3–C4.
+- Communications V1 C1–C4 CLOSED en development; C5 — Operación productiva.
 
 ### 17.3 Migración C
 
@@ -496,10 +498,9 @@ operativas mínimas están disponibles.
 
 **C2 IMPLEMENTADA sin migración nueva**. El planner, elegibilidad, agrupación,
 issues, revalidación, leases y schedule técnico están disponibles como core
-invocable y workflow development protegido. No contiene providers, templates
-finales, attempts reales, webhooks HTTP, scheduler productivo, envíos ni Admin
-visual. C3–C4 continúan definidos en
-`docs/04-modules/rental-communications-v1.md`.
+invocable y workflow development protegido. C3–C4 agregaron providers,
+inbound, read models y Admin; el cierre integral de C1–C4 en development y su
+evidencia se registra en `docs/04-modules/rental-communications-v1.md`.
 
 ## 18. Criterios de aceptación documental V1.1
 
@@ -514,7 +515,7 @@ La especificación queda consistente cuando:
 7. configuración previa a C se separa del envío de comunicaciones;
 8. renovación crea un contrato nuevo y evita sucesores duplicados;
 9. `Notification`, historial y toast permanecen conceptualmente separados;
-10. Communications C1–C2 figuran implementadas sin presentar C3–C4 como disponibles.
+10. Communications C1–C4 figuran CLOSED en development sin presentar C5 como iniciado.
 
 ## 19. Decisiones diferidas
 
@@ -522,7 +523,7 @@ La especificación queda consistente cuando:
 - actualización automática por IPC o ICL;
 - cambio ordinario de moneda;
 - asignación de contratos por agente;
-- ejecución productiva y providers de C3–C4;
+- ejecución productiva desplegada de Rental Communications, pendiente de C5;
 - SMS y override de policy por contrato;
 - mecanismo desplegado del runner; las credenciales V1 son platform-wide y pertenecen al runtime/secret store;
 - preferencias personales de notificación;

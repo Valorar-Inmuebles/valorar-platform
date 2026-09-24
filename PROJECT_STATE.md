@@ -21,7 +21,9 @@ Plataforma SaaS inmobiliaria multi-tenant orientada a:
 
 **Rental Management V1.1 — Fases 1–3 + UI Foundation Fase 4 + Fases 5A–5E** ✅ (wizard completo hasta configuración previa de avisos)
 
-**Rental Communications V1 — C1–C4B** ✅ Persistence Foundation, planner/orquestación, Email/MailerSend y Meta WhatsApp con inbound mínimo implementados y **C3B validado en UAT real**; **C4A.1 (read models/API de comunicaciones) implementado**; **C4B (estado de atención inbound) implementado**; **C4C.1 (Centro de Comunicaciones Admin) CLOSED y validado en UAT funcional/visual**; **C4C.2 (Comunicaciones dentro del contrato) CLOSED y validado en UAT funcional/visual**; **C4C.3 (Configuración administrativa de avisos) CLOSED y validado en UAT funcional/visual**. Métricas/alertas y señales `Notification` permanecen pendientes.
+**Rental Communications V1 — C1–C4 CLOSED en development** ✅ Persistence Foundation, planner/orquestación, Email/MailerSend y Meta WhatsApp con inbound mínimo implementados; **C1–C4 aprobados en UAT integral sobre `rental-management-dev`**. C4 incluye read models/API, estado de atención inbound, Centro de Comunicaciones Admin, comunicaciones dentro del contrato y configuración tenant-wide de avisos. Métricas/alertas y señales `Notification` permanecen pendientes.
+
+**Siguiente foco:** **C5 — Operación productiva**. C5 no se inicia ni se diseña en este cierre.
 
 Documentación: `docs/04-modules/rental-management-v1.md`, `docs/04-modules/rental-communications-v1.md`, `docs/03-database/rental-domain.md`
 
@@ -631,6 +633,49 @@ Documentación: `docs/04-modules/rental-communications-v1.md` (sección C4C).
 * Estado: C4C.1 CLOSED; UAT funcional y visual aprobado. Gates: tests
   focalizados, typecheck API/Admin/shared-types/ui/icons, lint, Prettier y
   `git diff --check`.
+
+### Rental Management V1 — C1–C4 ✅ CLOSED en development
+
+* **UAT integral aprobado:** `0 BLOCKERS` y `0 SHOULD FIX BEFORE C5`. El cierre
+  valida como conjunto coherente Contrato → Partes → Obligaciones → Avisos →
+  Policy → Planner → Dispatch/Delivery → Historial → Inbound → Atención/Retry.
+* Contrato `ALQ-000001` `ACTIVE` y vigente, con Geo canónico Argentina →
+  Capital Federal → Palermo; partes, ContactPoints y rutas EMAIL/WHATSAPP
+  persistidos y coherentes con la vista General.
+* Obligaciones activas de Alquiler y Expensas, occurrences con vencimiento,
+  importe, moneda y estado coherentes con el contrato y con Vencimientos.
+* Policy tenant-wide verificada: PRE_DUE `ON/3`, DUE `ON`, POST_DUE `ON/3`,
+  horario `10:00` y timezone efectiva
+  `America/Argentina/Buenos_Aires`.
+* Planner real ejecutado mediante runner development protegido en `dryRun=true`:
+  sin escrituras ni llamadas a providers; elegibilidad, ventana, timezone,
+  offset PRE_DUE y issues de planificación observados de forma segura.
+* Fixture materializado auditado: 2 dispatches, 4 deliveries, 4 attempts, 1
+  planning issue, 3 inbound, 0 WebhookReceipts y 0 Fulfillments. El historial
+  global y el historial contractual exponen los mismos dispatches e IDs.
+* Inbound correlacionado con Contact, ContactPoint y Contract; `mark read` y
+  `acknowledge` validados por estado/actor, y el contador de no atendidos deriva
+  de `acknowledgedAt IS NULL`. La delivery FAILED conserva retry eligibility
+  (`attemptCount=1`, máximo 4) sin ejecutar el retry durante esta pasada.
+* RBAC confirmado: lecturas bajo `rental.read`; policy PUT, retry, mark read y
+  acknowledge bajo `rental.reminder.manage`, sin permisos nuevos. Scoping por
+  `tenantId` confirmado en contratos, occurrences, comunicaciones, inbound,
+  policy y mutaciones mediante tests y repositorios existentes.
+* **Evidencia provider real previa, separada del fixture C4C:** MailerSend
+  outbound real validado; Meta WhatsApp outbound real para AR validado; Meta
+  inbound webhook real validado; normalización E.164 ↔ representación Meta
+  validada. Estas evidencias pertenecen a C3A/C3B y no al dataset sintético.
+* **Fixture C4C:** development-only, determinístico e idempotente, utilizado
+  para UAT Admin/integración; sin provider IDs reales, con
+  `statusSource=INTERNAL`, sin WebhookReceipts y sin llamadas externas. No se
+  presenta como evidencia de providers.
+* Pendiente no bloqueante: agregar un script npm explícito
+  `db:dev:reminder-planner` que delegue al runner protegido existente. Es una
+  mejora de tooling/ergonomía de development y no bloquea C5.
+* Los pendientes futuros ya documentados, incluido Stepper/completitud del
+  wizard, permanecen fuera del cierre y no se elevan a blocker.
+
+Documentación: `docs/04-modules/rental-communications-v1.md`.
 
 ### Lead Domain v1 (documentado)
 
