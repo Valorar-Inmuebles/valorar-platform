@@ -3,6 +3,7 @@ import {
   Locality,
   Neighborhood,
   Property,
+  PropertyListing,
   Province,
 } from '../../../../generated/prisma/client';
 
@@ -27,6 +28,7 @@ export type PropertyWithGeoRelations = Property & {
   geoLocality?: Locality | null;
   geoNeighborhood?: Neighborhood | null;
   createdBy?: PropertyCreatorSummary | null;
+  listings?: Pick<PropertyListing, 'listingType'>[];
 };
 
 export type ResolvedPropertyLocation = {
@@ -47,8 +49,7 @@ export type ResolvedPropertyLocation = {
 export function resolvePropertyLocation(
   property: PropertyWithGeoRelations,
 ): ResolvedPropertyLocation {
-  const provinceName =
-    property.geoProvince?.name ?? property.province ?? null;
+  const provinceName = property.geoProvince?.name ?? property.province ?? null;
   const localityName = property.geoLocality?.name ?? property.city;
   const neighborhoodName =
     property.geoNeighborhood?.name ?? property.neighborhood ?? null;
@@ -76,10 +77,15 @@ export const propertyGeoInclude = {
   geoNeighborhood: true,
 } as const;
 
-/** Standard Property include: geo + creator (single query, no N+1). */
+/** Standard Property include: geo, creator and compact listing types (no N+1). */
 export const propertyInclude = {
   ...propertyGeoInclude,
   createdBy: {
     select: propertyCreatorSelect,
+  },
+  listings: {
+    select: {
+      listingType: true,
+    },
   },
 } as const;

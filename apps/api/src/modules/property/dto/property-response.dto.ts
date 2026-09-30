@@ -7,6 +7,7 @@ import {
   Orientation,
   GeocodeSource,
   GeocodeAccuracy,
+  PropertyListingType,
 } from '../../../../generated/prisma/client';
 import {
   PropertyWithGeoRelations,
@@ -63,6 +64,13 @@ export class PropertyResponseDto {
 
   @ApiProperty()
   isActive: boolean;
+
+  @ApiProperty({
+    enum: PropertyListingType,
+    isArray: true,
+    description: 'Commercial operation types configured for this property.',
+  })
+  listingTypes: PropertyListingType[];
 
   @ApiPropertyOptional()
   street: string | null;
@@ -208,6 +216,8 @@ export class PropertyResponseDto {
       propertyType: property.propertyType,
       condition: property.condition,
       isActive: property.isActive,
+      listingTypes:
+        property.listings?.map((listing) => listing.listingType) ?? [],
       street: property.street,
       streetNumber: property.streetNumber,
       floor: property.floor,

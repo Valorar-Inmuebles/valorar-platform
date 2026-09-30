@@ -254,7 +254,7 @@ Compartición entre agentes del mismo tenant.
 | AGENT: propias + compartidas | Permisos |
 | TENANT_ADMIN: todas del tenant | Permisos |
 | Web: `isActive = true` | Query pública |
-| Web: `status = ACTIVE` | Query pública |
+| Web: `status = ACTIVE` (con precio), `RESERVED` o `CLOSED` | Query pública |
 | Web: detalle por `slug` | Query pública |
 | Listados recientes / sitemap / ISR: `updatedAt` | Query pública |
 

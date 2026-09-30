@@ -13,8 +13,8 @@ import { closePropertyListingAction } from "@/lib/api/property-listing-actions";
 import type { AdminPropertyListing } from "@/lib/api/types/property-listing";
 import type { ListingPublishability } from "@/lib/property/publishability";
 import {
+  getListingStatusLabel,
   getListingTypeLabel,
-  LISTING_STATUS_LABELS,
 } from "@/lib/format/listing-labels";
 import { formatMoney, formatPrice } from "@/lib/format/price";
 import { cn } from "@/lib/cn";
@@ -109,7 +109,10 @@ export function PropertyListingTable({
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex flex-wrap items-center gap-2">
-                        <PropertyListingStatusBadge status={listing.status} />
+                        <PropertyListingStatusBadge
+                          status={listing.status}
+                          listingType={listing.listingType}
+                        />
                         {listing.status === "ACTIVE" &&
                         publishability &&
                         !publishability.isPublishable ? (
@@ -201,7 +204,7 @@ export function PropertyListingTable({
             <>
               ¿Cerrar la publicación de{" "}
               <strong>{getListingTypeLabel(closeTarget.listingType)}</strong>?
-              Pasará a estado {LISTING_STATUS_LABELS.CLOSED.toLowerCase()}.
+              Pasará a estado {getListingStatusLabel("CLOSED", closeTarget.listingType).toLowerCase()}.
             </>
           ) : null
         }

@@ -10,7 +10,7 @@ jest.mock('../../../prisma/prisma.service', () => ({
 import { PropertyRepository } from './property.repository';
 
 describe('PropertyRepository propertyInclude', () => {
-  it('loads createdBy in the same findMany query (no N+1)', async () => {
+  it('loads createdBy and compact listing types in the same findMany query (no N+1)', async () => {
     const findMany = jest.fn().mockResolvedValue([]);
     const prisma = { property: { findMany } };
     const repository = new PropertyRepository(prisma as never);
@@ -26,6 +26,11 @@ describe('PropertyRepository propertyInclude', () => {
           name: true,
           email: true,
           isActive: true,
+        },
+      },
+      listings: {
+        select: {
+          listingType: true,
         },
       },
     });

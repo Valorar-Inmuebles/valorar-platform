@@ -247,7 +247,7 @@ export function PropertyListingCommercialPanel({
     });
   };
 
-  const statusOptions = getListingStatusOptions(listing.status);
+  const statusOptions = getListingStatusOptions(listing.status, listing.listingType);
 
   return (
     <>
@@ -277,7 +277,10 @@ export function PropertyListingCommercialPanel({
             <FormField>
               <div className="mb-2 flex items-center justify-between gap-2">
                 <Label required>Estado</Label>
-                <PropertyListingStatusBadge status={listing.status} />
+                <PropertyListingStatusBadge
+                  status={listing.status}
+                  listingType={listing.listingType}
+                />
               </div>
               <Select
                 value={values.status || undefined}

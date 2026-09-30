@@ -1,5 +1,10 @@
 jest.mock('../../../../generated/prisma/client', () => ({
   PropertyType: { APARTMENT: 'APARTMENT', HOUSE: 'HOUSE' },
+  PropertyListingType: {
+    SALE: 'SALE',
+    RENT: 'RENT',
+    TEMPORARY_RENT: 'TEMPORARY_RENT',
+  },
   PropertyCondition: {},
   PropertyLayout: {},
   PropertyBrightness: {},
@@ -9,6 +14,7 @@ jest.mock('../../../../generated/prisma/client', () => ({
 }));
 
 import { PropertyResponseDto } from './property-response.dto';
+import type { PropertyListing } from '../../../../generated/prisma/client';
 import type { PropertyWithGeoRelations } from '../utils/property-location';
 
 function baseProperty(
@@ -62,7 +68,7 @@ function baseProperty(
     createdAt: new Date('2026-01-01T00:00:00.000Z'),
     updatedAt: new Date('2026-01-02T00:00:00.000Z'),
     ...overrides,
-  } as PropertyWithGeoRelations;
+  };
 }
 
 describe('PropertyResponseDto.fromEntity createdBy', () => {
@@ -144,5 +150,28 @@ describe('PropertyResponseDto.fromEntity createdBy', () => {
     expect(dto.createdBy?.id).toBe('creator-id');
     expect(dto.assignedToId).toBe('assignee-id');
     expect(dto.createdBy?.id).not.toBe(dto.assignedToId);
+  });
+});
+
+describe('PropertyResponseDto.fromEntity listingTypes', () => {
+  it.each<
+    [
+      string,
+      Pick<PropertyListing, 'listingType'>[] | undefined,
+      PropertyListing['listingType'][],
+    ]
+  >([
+    ['solo Venta', [{ listingType: 'SALE' }], ['SALE']],
+    ['solo Alquiler', [{ listingType: 'RENT' }], ['RENT']],
+    [
+      'Venta y Alquiler',
+      [{ listingType: 'SALE' }, { listingType: 'RENT' }],
+      ['SALE', 'RENT'],
+    ],
+    ['sin operaciones', undefined, []],
+  ])('maps %s', (_scenario, listings, expected) => {
+    const dto = PropertyResponseDto.fromEntity(baseProperty({ listings }));
+
+    expect(dto.listingTypes).toEqual(expected);
   });
 });

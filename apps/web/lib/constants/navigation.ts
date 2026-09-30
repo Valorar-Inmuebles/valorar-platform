@@ -39,4 +39,4 @@ export const FOOTER_CONTACT = {
 };
 
 export const FOOTER_DESCRIPTION =
-  "Desde 1999 siendo testigos del crecimiento de nuestro barrio.\nNuestro trabajo es claro y preciso, nuestro dinamismo hará su sueño realidad.";
+  "Más de 25 años acompañando a familias, propietarios e inversores en cada operación inmobiliaria.";

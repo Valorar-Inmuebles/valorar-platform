@@ -66,8 +66,7 @@ Sin JWT. Solo lectura.
 Una propiedad es publicable cuando cumple **todas** estas condiciones:
 
 * `Property.isActive = true`
-* Al menos un `PropertyListing` con `status = ACTIVE`
-* Precio principal (`PropertyPrice.isPrimary = true`) en ese listing
+* Al menos un `PropertyListing` web-visible: `ACTIVE` con precio principal (`PropertyPrice.isPrimary = true`), o `RESERVED` / `CLOSED` (precio opcional)
 * Imagen portada (`PropertyImage.isCover = true`)
 
 La web **no** debe reimplementar esta lógica; confía en los filtros del backend.
@@ -97,7 +96,7 @@ Prioridad de listing sin filtro (API): `SALE` → `RENT` → `TEMPORARY_RENT`.
 
 ### DTOs de respuesta
 
-**Card** (`PublicPropertyCardDto`): `id`, `slug`, `title`, `description`, `propertyType`, `city`, `neighborhood`, `coverImage`, `price`, `currency`, `bedrooms`, `bathrooms`, `totalArea`, `listingType`.
+**Card** (`PublicPropertyCardDto`): `id`, `slug`, `title`, `description`, `propertyType`, `city`, `neighborhood`, `coverImage`, `price`, `currency`, `bedrooms`, `bathrooms`, `totalArea`, `listingType`, `listingStatus`. El estado pertenece al listing representado: `RESERVED` muestra «Reservada» y `CLOSED` muestra «Vendida» (`SALE`) o «Alquilada» (`RENT` / `TEMPORARY_RENT`).
 
 **Detalle** (`PublicPropertyDetailDto`): campos de card ampliados + `listing` (expensas, `publishedAt`, `isFeatured`), `gallery[]`, `features[]`.
 

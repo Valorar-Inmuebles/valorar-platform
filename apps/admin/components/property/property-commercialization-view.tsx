@@ -48,9 +48,9 @@ import type { ListingPublishability } from "@/lib/property/publishability";
 
 import {
 
-  getListingTypeLabel,
+  getListingStatusLabel,
 
-  LISTING_STATUS_LABELS,
+  getListingTypeLabel,
 
 } from "@/lib/format/listing-labels";
 
@@ -446,7 +446,13 @@ export function PropertyCommercializationView({
 
                         <div className="flex flex-wrap items-center gap-2">
 
-                          <PropertyListingStatusBadge status={listing.status} />
+                          <PropertyListingStatusBadge
+
+                            status={listing.status}
+
+                            listingType={listing.listingType}
+
+                          />
 
                           {listing.status === "ACTIVE" &&
 
@@ -659,7 +665,7 @@ export function PropertyCommercializationView({
 
               <strong>{getListingTypeLabel(closeTarget.listingType)}</strong>?
 
-              Pasará a estado {LISTING_STATUS_LABELS.CLOSED.toLowerCase()}.
+              Pasará a estado {getListingStatusLabel("CLOSED", closeTarget.listingType).toLowerCase()}.
 
             </>
 

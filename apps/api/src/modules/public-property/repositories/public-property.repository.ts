@@ -36,6 +36,7 @@ export interface PublicPropertiesPagination {
 export const PUBLIC_WEB_LISTING_STATUSES: PropertyListingStatus[] = [
   PropertyListingStatus.ACTIVE,
   PropertyListingStatus.RESERVED,
+  PropertyListingStatus.CLOSED,
 ];
 
 const publishableListingInclude = {
@@ -168,7 +169,7 @@ export class PublicPropertyRepository {
   /**
    * Web-visible listing rule:
    * - ACTIVE requires primary price
-   * - RESERVED may omit price (“Consultar precio”)
+   * - RESERVED and CLOSED may omit price (“Consultar precio”)
    * - Price range / currency filters always require a matching primary price
    *   (priceless listings are excluded from range filters)
    *
@@ -235,6 +236,9 @@ export class PublicPropertyRepository {
         },
         {
           status: PropertyListingStatus.RESERVED,
+        },
+        {
+          status: PropertyListingStatus.CLOSED,
         },
       ],
     };

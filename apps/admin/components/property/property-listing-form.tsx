@@ -161,7 +161,7 @@ export function PropertyListingForm({
   };
 
   const statusOptions = listing
-    ? getListingStatusOptions(listing.status)
+    ? getListingStatusOptions(listing.status, listing.listingType)
     : [];
 
   return (
@@ -247,7 +247,10 @@ export function PropertyListingForm({
           <CardHeader>
             <div className="flex items-center justify-between gap-3">
               <CardTitle>Estado</CardTitle>
-              <PropertyListingStatusBadge status={listing.status} />
+              <PropertyListingStatusBadge
+                status={listing.status}
+                listingType={listing.listingType}
+              />
             </div>
           </CardHeader>
           <CardContent className="space-y-4">

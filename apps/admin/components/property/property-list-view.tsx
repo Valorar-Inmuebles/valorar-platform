@@ -9,10 +9,14 @@ import { PropertyEmptyState } from "@/components/property/property-empty-state";
 import { PropertyListFilters } from "@/components/property/property-list-filters";
 import { PropertyRowActions } from "@/components/property/property-row-actions";
 import { PropertyStatusBadge } from "@/components/property/property-status-badge";
-import type { DashboardAttentionFilter, DashboardFilterSets } from "@/lib/api/types/dashboard";
+import type {
+  DashboardAttentionFilter,
+  DashboardFilterSets,
+} from "@/lib/api/types/dashboard";
 import type { AdminProperty } from "@/lib/api/types/property";
 import type { PropertyPublishabilitySummaryById } from "@/lib/api/types/property-publishability-summary";
 import { getPropertyTypeLabel } from "@/lib/format/property-labels";
+import { getListingTypeLabel } from "@/lib/format/listing-labels";
 import {
   countByCommercialStatus,
   filterPropertiesForList,
@@ -37,9 +41,7 @@ function formatLocation(property: AdminProperty): string {
   return [property.neighborhood, property.city].filter(Boolean).join(", ");
 }
 
-function resolveCreatorLabel(
-  createdBy: AdminProperty["createdBy"],
-): string {
+function resolveCreatorLabel(createdBy: AdminProperty["createdBy"]): string {
   if (!createdBy) return "—";
   const name = createdBy.name?.trim();
   if (name) return name;
@@ -209,6 +211,7 @@ export function PropertyListView({
                     <th className="px-4 py-3 font-medium">Propiedad</th>
                     <th className="px-4 py-3 font-medium">Tipo</th>
                     <th className="px-4 py-3 font-medium">Ubicación</th>
+                    <th className="px-4 py-3 font-medium">Comercialización</th>
                     <th className="px-4 py-3 font-medium">Estado comercial</th>
                     <th className="px-4 py-3 font-medium">Creada por</th>
                     <th className="px-4 py-3 font-medium text-right">
@@ -224,7 +227,9 @@ export function PropertyListView({
                       summary,
                     );
                     const publicUrl = resolveRowPublicUrl(property, summary);
-                    const creatorLabel = resolveCreatorLabel(property.createdBy);
+                    const creatorLabel = resolveCreatorLabel(
+                      property.createdBy,
+                    );
                     const creatorTitle = property.createdBy
                       ? [
                           creatorLabel,
@@ -260,6 +265,23 @@ export function PropertyListView({
                         </td>
                         <td className="px-4 py-3 text-muted">
                           {formatLocation(property) || "—"}
+                        </td>
+                        <td className="px-4 py-3">
+                          {property.listingTypes.length > 0 ? (
+                            <div className="flex flex-wrap gap-1">
+                              {property.listingTypes.map((listingType) => (
+                                <Badge
+                                  key={listingType}
+                                  variant="info"
+                                  className="shrink-0 px-1.5"
+                                >
+                                  {getListingTypeLabel(listingType)}
+                                </Badge>
+                              ))}
+                            </div>
+                          ) : (
+                            <span className="text-muted">—</span>
+                          )}
                         </td>
                         <td className="px-4 py-3">
                           <PropertyStatusBadge status={statusVariant} />
@@ -308,9 +330,7 @@ export function PropertyListView({
           <p className="text-xs text-muted">
             Mostrando {filteredProperties.length} de {properties.length}{" "}
             {properties.length === 1 ? "propiedad" : "propiedades"}.
-            {commercialFilter !== "all" ||
-            searchQuery.trim() ||
-            attentionFilter
+            {commercialFilter !== "all" || searchQuery.trim() || attentionFilter
               ? " Filtros aplicados en el navegador."
               : null}
           </p>

@@ -1,4 +1,7 @@
-import type { PropertyListingType } from "@repo/shared-types";
+import {
+  getListingStatusLabel,
+  type PropertyListingType,
+} from "@repo/shared-types";
 import type { PropertyListingStatus } from "@/lib/api/types/property-listing";
 
 export const LISTING_TYPE_LABELS: Record<PropertyListingType, string> = {
@@ -32,9 +35,7 @@ export function getListingTypeLabel(listingType: PropertyListingType): string {
   return LISTING_TYPE_LABELS[listingType];
 }
 
-export function getListingStatusLabel(status: PropertyListingStatus): string {
-  return LISTING_STATUS_LABELS[status];
-}
+export { getListingStatusLabel };
 
 const STATUS_TRANSITIONS: Record<
   PropertyListingStatus,
@@ -53,9 +54,12 @@ export function getAllowedStatusTransitions(
   return STATUS_TRANSITIONS[current];
 }
 
-export function getListingStatusOptions(current: PropertyListingStatus) {
+export function getListingStatusOptions(
+  current: PropertyListingStatus,
+  listingType: PropertyListingType,
+) {
   return getAllowedStatusTransitions(current).map((status) => ({
     value: status,
-    label: getListingStatusLabel(status),
+    label: getListingStatusLabel(status, listingType),
   }));
 }

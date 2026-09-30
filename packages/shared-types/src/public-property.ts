@@ -4,6 +4,30 @@ export type Currency = "ARS" | "USD";
 
 export type PropertyListingType = "SALE" | "RENT" | "TEMPORARY_RENT";
 
+export type PropertyListingStatus =
+  | "DRAFT"
+  | "ACTIVE"
+  | "PAUSED"
+  | "RESERVED"
+  | "CLOSED";
+
+export function getListingStatusLabel(
+  status: PropertyListingStatus,
+  listingType: PropertyListingType,
+): string {
+  if (status === "CLOSED") {
+    return listingType === "SALE" ? "Vendida" : "Alquilada";
+  }
+
+  return {
+    DRAFT: "Borrador",
+    ACTIVE: "Activa",
+    PAUSED: "Pausada",
+    RESERVED: "Reservada",
+    CLOSED: "Cerrada",
+  }[status];
+}
+
 export type PropertyFeatureCategory =
   | "GENERAL"
   | "SERVICE"
@@ -43,12 +67,7 @@ export type Orientation =
   | "SOUTHEAST"
   | "SOUTHWEST";
 
-export type PropertyLayout =
-  | "FRONT"
-  | "BACK"
-  | "SIDE"
-  | "INTERNAL"
-  | "CORNER";
+export type PropertyLayout = "FRONT" | "BACK" | "SIDE" | "INTERNAL" | "CORNER";
 
 export type PropertyBrightness = "LOW" | "MEDIUM" | "HIGH";
 
@@ -74,6 +93,7 @@ export type PublicPropertyCard = PropertyGeoFields & {
   bathrooms: number | null;
   totalArea: number | null;
   listingType: PropertyListingType;
+  listingStatus: PropertyListingStatus;
 };
 
 export type PublicPropertyListMeta = {
@@ -106,6 +126,7 @@ export type PublicPropertyPrimaryPrice = {
 export type PublicPropertyListing = {
   id: string;
   listingType: PropertyListingType;
+  listingStatus: PropertyListingStatus;
   isFeatured: boolean;
   publishedAt: string | null;
   expensesAmount: number | null;
@@ -161,8 +182,4 @@ export type PublicPropertyDetail = PropertyGeoFields & {
 
 export type GeocodeSource = "MANUAL" | "GOOGLE_PLACES" | "IMPORT";
 
-export type GeocodeAccuracy =
-  | "EXACT"
-  | "APPROXIMATE"
-  | "NEIGHBORHOOD"
-  | "CITY";
+export type GeocodeAccuracy = "EXACT" | "APPROXIMATE" | "NEIGHBORHOOD" | "CITY";

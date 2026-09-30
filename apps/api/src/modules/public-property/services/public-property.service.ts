@@ -162,6 +162,7 @@ export class PublicPropertyService {
       bathrooms: property.bathrooms,
       totalArea: property.totalArea != null ? Number(property.totalArea) : null,
       listingType: listing.listingType,
+      listingStatus: listing.status,
     };
   }
 
@@ -199,6 +200,7 @@ export class PublicPropertyService {
       bathrooms: property.bathrooms,
       totalArea: property.totalArea != null ? Number(property.totalArea) : null,
       listingType: listing.listingType,
+      listingStatus: listing.status,
     };
   }
 
@@ -292,7 +294,9 @@ export class PublicPropertyService {
       const listing = property.listings.find(
         (entry) =>
           entry.listingType === listingType &&
-          (entry.status === 'RESERVED' || entry.prices.length > 0),
+          (entry.status === 'RESERVED' ||
+            entry.status === 'CLOSED' ||
+            entry.prices.length > 0),
       );
 
       if (listing) {
@@ -308,7 +312,10 @@ export class PublicPropertyService {
     preferredListingType?: PropertyListingType,
   ): PublishableListing | null {
     const publishable = listings.filter(
-      (listing) => listing.status === 'RESERVED' || listing.prices.length > 0,
+      (listing) =>
+        listing.status === 'RESERVED' ||
+        listing.status === 'CLOSED' ||
+        listing.prices.length > 0,
     );
 
     if (publishable.length === 0) {
@@ -372,6 +379,7 @@ export class PublicPropertyService {
     return {
       id: listing.id,
       listingType: listing.listingType,
+      listingStatus: listing.status,
       isFeatured: listing.isFeatured,
       publishedAt: listing.publishedAt,
       expensesAmount:

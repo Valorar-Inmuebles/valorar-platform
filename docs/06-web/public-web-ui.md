@@ -278,6 +278,7 @@ Componente central del listado y secciones home.
 | ----- | ---------- |
 | Imagen | `coverImage.url` (fallback placeholder si null) |
 | Badge operación | `listingType` → «Venta» / «Alquiler» / «Alquiler temporario» |
+| Badge estado (esquina superior derecha) | `listingStatus`: solo `RESERVED` → «Reservada» o `CLOSED` → «Vendida» / «Alquilada» según `listingType` |
 | Precio | `price` + `currency` formateado |
 | Título | `title` |
 | Ubicación | `neighborhood`, `city` |

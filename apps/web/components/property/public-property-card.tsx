@@ -4,8 +4,8 @@ import type { PublicPropertyCard } from "@repo/shared-types";
 import { formatArea } from "@/lib/format/area";
 import { formatPropertyPriceLabel } from "@/lib/format/price";
 import { getPropertyTypeLabel, getListingTypeLabel } from "@/lib/format/labels";
+import { getPublicPropertyCardStatusLabel } from "@/lib/property/public-property-card-status";
 import { buildPublicPropertyDetailHref } from "@/lib/url/public-property-detail";
-import { PropertyFavoriteButton } from "./property-favorite-button";
 import { ListingTypeBadge } from "./listing-type-badge";
 import { PropertyImagePlaceholder } from "./property-image-placeholder";
 
@@ -47,7 +47,9 @@ function PropertyCoverImage({ property }: { property: PublicPropertyCard }) {
 function PropertyMetrics({ property }: { property: PublicPropertyCard }) {
   const items = [
     property.bedrooms != null ? `${property.bedrooms} dorm.` : null,
-    property.bathrooms != null ? `${property.bathrooms} baño${property.bathrooms === 1 ? "" : "s"}` : null,
+    property.bathrooms != null
+      ? `${property.bathrooms} baño${property.bathrooms === 1 ? "" : "s"}`
+      : null,
     formatArea(property.totalArea),
   ].filter(Boolean);
 
@@ -55,18 +57,23 @@ function PropertyMetrics({ property }: { property: PublicPropertyCard }) {
     return null;
   }
 
-  return (
-    <p className="text-sm text-text-secondary">{items.join(" · ")}</p>
-  );
+  return <p className="text-sm text-text-secondary">{items.join(" · ")}</p>;
 }
 
 export function PublicPropertyCard({ property }: PublicPropertyCardProps) {
   const location = resolveLocation(property);
+  const statusLabel = getPublicPropertyCardStatusLabel(
+    property.listingStatus,
+    property.listingType,
+  );
 
   return (
     <article className="group h-full">
       <Link
-        href={buildPublicPropertyDetailHref(property.slug, property.listingType)}
+        href={buildPublicPropertyDetailHref(
+          property.slug,
+          property.listingType,
+        )}
         className="flex h-full flex-col overflow-hidden rounded-2xl bg-surface-card ring-1 ring-border-default/80 transition duration-300 hover:-translate-y-0.5 hover:shadow-lg hover:ring-brand-green/30 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-green"
       >
         <div className="relative aspect-video shrink-0 overflow-hidden bg-surface-alt">
@@ -74,9 +81,13 @@ export function PublicPropertyCard({ property }: PublicPropertyCardProps) {
           <div className="absolute left-3 top-3 flex flex-wrap gap-2">
             <ListingTypeBadge listingType={property.listingType} />
           </div>
-          <div className="absolute right-3 top-3">
-            <PropertyFavoriteButton size="sm" />
-          </div>
+          {statusLabel ? (
+            <div className="absolute right-3 top-3">
+              <span className="inline-flex rounded-full bg-black/60 px-2.5 py-1 text-xs font-semibold text-white backdrop-blur">
+                {statusLabel}
+              </span>
+            </div>
+          ) : null}
           <div className="absolute bottom-3 left-3">
             <span className="inline-flex rounded-full bg-black/50 px-2.5 py-1 text-xs font-medium text-white backdrop-blur-sm">
               {getPropertyTypeLabel(property.propertyType)}
@@ -100,7 +111,9 @@ export function PublicPropertyCard({ property }: PublicPropertyCardProps) {
 
           <div className="mt-auto space-y-1.5">
             {location ? (
-              <p className="line-clamp-1 text-sm text-text-secondary">{location}</p>
+              <p className="line-clamp-1 text-sm text-text-secondary">
+                {location}
+              </p>
             ) : null}
             <PropertyMetrics property={property} />
           </div>

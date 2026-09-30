@@ -6,6 +6,7 @@ import {
   PropertyCondition,
   PropertyFeatureCategory,
   PropertyLayout,
+  PropertyListingStatus,
   PropertyListingType,
   PropertyType,
 } from '../../../../generated/prisma/client';
@@ -89,6 +90,9 @@ export class PublicPropertyCardDto {
 
   @ApiProperty({ enum: PropertyListingType })
   listingType: PropertyListingType;
+
+  @ApiProperty({ enum: PropertyListingStatus })
+  listingStatus: PropertyListingStatus;
 }
 
 export class PublicPropertyImageDto {
@@ -128,6 +132,9 @@ export class PublicPropertyListingDto {
 
   @ApiProperty({ enum: PropertyListingType })
   listingType: PropertyListingType;
+
+  @ApiProperty({ enum: PropertyListingStatus })
+  listingStatus: PropertyListingStatus;
 
   @ApiProperty()
   isFeatured: boolean;

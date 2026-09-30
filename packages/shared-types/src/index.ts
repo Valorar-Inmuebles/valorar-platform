@@ -82,6 +82,7 @@ export type {
   PropertyFeatureCategory,
   PropertyLayout,
   PropertyListingType,
+  PropertyListingStatus,
   PropertyType,
   PublicCoverImage,
   PublicPropertyCard,
@@ -93,3 +94,4 @@ export type {
   PublicPropertyListResponse,
   PublicPropertyPrimaryPrice,
 } from "./public-property";
+export { getListingStatusLabel } from "./public-property";

@@ -996,7 +996,7 @@ Toda propiedad tiene un creador (`createdById`). Acceso extendido vía `Property
 
 ## Web pública
 
-Publica `Property` con `isActive = true` y `PropertyListing` con `status = ACTIVE` a nivel tenant.
+Publica `Property` con `isActive = true` y `PropertyListing` con `status = ACTIVE` (con precio), `RESERVED` o `CLOSED` a nivel tenant. `CLOSED` conserva su valor canónico y se etiqueta por tipo de operación en UI.
 
 URLs de detalle: `/propiedades/{slug}` (slug único por tenant).
 

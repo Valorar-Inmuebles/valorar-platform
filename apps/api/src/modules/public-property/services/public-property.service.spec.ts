@@ -9,6 +9,7 @@ jest.mock('../../../../generated/prisma/client', () => ({
   PropertyListingStatus: {
     ACTIVE: 'ACTIVE',
     RESERVED: 'RESERVED',
+    CLOSED: 'CLOSED',
   },
   PrismaClient: class PrismaClient {},
 }));
@@ -220,5 +221,59 @@ describe('PublicPropertyService priceless RESERVED', () => {
     expect(result.data).toHaveLength(1);
     expect(result.data[0].price).toBeNull();
     expect(result.data[0].currency).toBeNull();
+    expect(result.data[0].listingStatus).toBe('RESERVED');
+  });
+
+  it('maps CLOSED status from the selected listing without mixing another operation', async () => {
+    repository.findManyPublic.mockResolvedValue([
+      [
+        {
+          id: 'prop-closed-sale',
+          slug: 'venta-cerrada-alquiler-activo',
+          title: 'Venta cerrada, alquiler activo',
+          description: null,
+          propertyType: 'APARTMENT',
+          city: 'CABA',
+          neighborhood: null,
+          bedrooms: null,
+          bathrooms: null,
+          totalArea: null,
+          images: [
+            {
+              url: 'https://cdn.example/cover.webp',
+              storageKey: 'k',
+              altText: null,
+            },
+          ],
+          listings: [
+            {
+              id: 'sale-closed',
+              listingType: 'SALE',
+              status: 'CLOSED',
+              prices: [],
+            },
+            {
+              id: 'rent-active',
+              listingType: 'RENT',
+              status: 'ACTIVE',
+              prices: [{ amount: 1000, currency: 'USD' }],
+            },
+          ],
+        },
+      ],
+      1,
+    ]);
+
+    const result = await service.findAll({
+      tenantId: 'tenant-1',
+      page: 1,
+      limit: 20,
+    });
+
+    expect(result.data[0]).toMatchObject({
+      listingType: 'SALE',
+      listingStatus: 'CLOSED',
+      price: null,
+    });
   });
 });

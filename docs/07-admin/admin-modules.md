@@ -139,6 +139,8 @@ Una Property archivada (`isActive = false`) deja de ser visible en la web públi
 | `/propiedades/[id]/publicaciones` | Comercialización | Operaciones comerciales, precios y visibilidad web |
 | `/propiedades/[id]/imagenes` | Imágenes | Enlace al módulo Images (contexto property) |
 
+El listado muestra las columnas Propiedad, Tipo, Ubicación, Comercialización, Estado comercial, Creada por y Acciones. **Comercialización** representa los `PropertyListing.listingType` existentes mediante badges; es independiente del estado comercial derivado.
+
 ### Secciones del formulario `/propiedades/[id]`
 
 | Sección UI | Campos principales |
@@ -385,8 +387,10 @@ Hereda acceso a la Property padre.
 | `DRAFT` | Borrador | No | → ACTIVE, CLOSED |
 | `ACTIVE` | Activa | Sí (si cumple regla publicación completa) | → PAUSED, RESERVED, CLOSED |
 | `PAUSED` | Pausada | No | → ACTIVE, CLOSED |
-| `RESERVED` | Reservada | No | → ACTIVE, CLOSED |
-| `CLOSED` | Cerrada | No | → ACTIVE (reactivación) |
+| `RESERVED` | Reservada | Sí (precio opcional; si la Property cumple condiciones públicas) | → ACTIVE, CLOSED |
+| `CLOSED` | Vendida (`SALE`) / Alquilada (`RENT` / `TEMPORARY_RENT`) | Sí (precio opcional; si la Property cumple condiciones públicas) | → ACTIVE (reactivación) |
+
+`CLOSED` continúa siendo el estado interno canónico. La etiqueta visible se resuelve por cada `PropertyListing` según su `listingType`; una Property con múltiples operaciones puede mostrar estados diferentes en paralelo.
 
 ```txt
 DRAFT ──→ ACTIVE ──→ PAUSED ──→ ACTIVE

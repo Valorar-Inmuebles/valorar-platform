@@ -1,4 +1,5 @@
 import { Badge, type BadgeVariant } from "@repo/ui/badge";
+import type { PropertyListingType } from "@repo/shared-types";
 import type { PropertyListingStatus } from "@/lib/api/types/property-listing";
 import { getListingStatusLabel } from "@/lib/format/listing-labels";
 
@@ -12,12 +13,14 @@ const STATUS_BADGE_VARIANT: Record<PropertyListingStatus, BadgeVariant> = {
 
 type PropertyListingStatusBadgeProps = {
   status: PropertyListingStatus;
+  listingType: PropertyListingType;
   className?: string;
   tooltip?: string;
 };
 
 export function PropertyListingStatusBadge({
   status,
+  listingType,
   className,
   tooltip,
 }: PropertyListingStatusBadgeProps) {
@@ -27,7 +30,7 @@ export function PropertyListingStatusBadge({
       className={className}
       tooltip={tooltip}
     >
-      {getListingStatusLabel(status)}
+      {getListingStatusLabel(status, listingType)}
     </Badge>
   );
 }

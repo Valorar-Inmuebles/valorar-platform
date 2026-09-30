@@ -52,6 +52,7 @@ Reglas implementadas:
 * Escrituras con defensa en profundidad (`tenantId` en `updateMany`).
 * Errores Prisma traducidos: `P2002` → 409, `P2003` → 400, `P2025` → 404.
 * Respuestas tipadas con `PropertyResponseDto`.
+* El listado incluye `listingTypes: PropertyListingType[]` como proyección compacta de las operaciones configuradas por propiedad. No incluye precios ni estados de listing y evita consultas por fila.
 
 ### PropertyListing
 
@@ -157,8 +158,7 @@ Sin JWT. Solo lectura.
 Regla de publicación (todas las rutas):
 
 * `Property.isActive = true`
-* Al menos un `PropertyListing` con `status = ACTIVE`
-* Precio principal (`PropertyPrice.isPrimary = true`) en ese listing
+* Al menos un `PropertyListing` web-visible: `ACTIVE` con precio principal, o `RESERVED` / `CLOSED` (precio opcional)
 * Imagen portada (`PropertyImage.isCover = true`)
 
 Filtros en listado:
@@ -170,7 +170,7 @@ Filtros en listado:
 
 Respuesta pública (`PublicPropertyCardDto` / `PublicPropertyDetailDto`):
 
-* Expone: `id`, `slug`, `title`, `description`, `propertyType`, `city`, `neighborhood`, `coverImage`, `price`, `currency`, `bedrooms`, `bathrooms`, `totalArea`, `listingType`
+* Expone: `id`, `slug`, `title`, `description`, `propertyType`, `city`, `neighborhood`, `coverImage`, `price`, `currency`, `bedrooms`, `bathrooms`, `totalArea`, `listingType`, `listingStatus`
 * Detalle incluye además: `province`, `country`, `latitude`, `longitude`, listing activo, galería completa, features asignadas activas
 * No expone: `tenantId`, `createdById`, `internalCode`, `street`, `streetNumber`, datos de agentes, campos de enriquecimiento Google
 
@@ -355,7 +355,7 @@ Estas opciones se guardan como features globales (`cochera-*`) asignadas a la pr
 
 ## Web pública
 
-* Lista propiedades con `isActive = true` y `PropertyListing` con `status = ACTIVE` a nivel tenant.
+* Lista propiedades con `isActive = true` y `PropertyListing` con `status = ACTIVE` (con precio principal), `RESERVED` o `CLOSED` a nivel tenant. `CLOSED` conserva su valor canónico y la UI lo etiqueta por operación: Vendida (`SALE`) o Alquilada (`RENT` / `TEMPORARY_RENT`).
 * Detalle por `slug` de la propiedad.
 * Filtros por tipo, condición, operación, ubicación, precio y características.
 * Si el tipo seleccionado es `Cochera`, muestra el filtro **Tipo de cochera** y filtra por slugs de `PropertyFeatureAssignment`.

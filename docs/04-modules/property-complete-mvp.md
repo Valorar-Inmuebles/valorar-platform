@@ -69,7 +69,7 @@ Una propiedad es visible en web cuando se cumplen:
 * Imagen portada (`PropertyImage.isCover = true`)
 * Al menos un `PropertyListing` web-visible:
   * `status = ACTIVE` **con** precio principal (`PropertyPrice.isPrimary = true`), **o**
-  * `status = RESERVED` (precio principal **opcional**; si falta, UI muestra **“Consultar precio”**)
+   * `status = RESERVED` o `CLOSED` (precio principal **opcional**; si falta, UI muestra **“Consultar precio”**)
 
 Destacadas / featured siguen siendo solo `ACTIVE` con precio.
 

@@ -3,6 +3,7 @@ import type {
   PropertyBrightness,
   PropertyCondition,
   PropertyLayout,
+  PropertyListingType,
   PropertyType,
 } from "@repo/shared-types";
 
@@ -64,6 +65,7 @@ export type AdminProperty = {
   orientation: Orientation | null;
   layout: PropertyLayout | null;
   brightness: PropertyBrightness | null;
+  listingTypes: PropertyListingType[];
   createdAt: string;
   updatedAt: string;
 };
