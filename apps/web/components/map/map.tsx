@@ -21,7 +21,7 @@ const MapInner = dynamic(
 );
 
 /**
- * Reusable interactive map (Leaflet + React Leaflet + Carto Positron).
+ * Reusable interactive map (Leaflet + React Leaflet + OpenStreetMap).
  * Safe for App Router Server Components that import this client boundary.
  *
  * @example

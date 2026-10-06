@@ -20,7 +20,7 @@ type LocationMapEmbedProps = {
 
 /**
  * Shared map shell for property/development detail.
- * Uses the project Map (Leaflet + Carto Positron) — no iframes.
+ * Uses the project Map (Leaflet + OpenStreetMap) — no iframes.
  */
 export function LocationMapEmbed({
   latitude,

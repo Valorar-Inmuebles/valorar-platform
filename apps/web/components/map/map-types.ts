@@ -17,10 +17,10 @@ export type MapProps = {
   ariaLabel?: string;
 };
 
-export const CARTO_POSITRON_URL =
-  "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png";
+export const OPENSTREETMAP_STANDARD_URL =
+  "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
 
-export const CARTO_POSITRON_ATTRIBUTION =
-  '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>';
+export const OPENSTREETMAP_STANDARD_ATTRIBUTION =
+  '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
 
 export const DEFAULT_MAP_ZOOM = 15;

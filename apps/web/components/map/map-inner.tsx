@@ -7,8 +7,8 @@ import "leaflet/dist/leaflet.css";
 import { cn } from "@/lib/cn";
 import { VALORAR_MAP_MARKER } from "./map-marker-config";
 import {
-  CARTO_POSITRON_ATTRIBUTION,
-  CARTO_POSITRON_URL,
+  OPENSTREETMAP_STANDARD_ATTRIBUTION,
+  OPENSTREETMAP_STANDARD_URL,
   DEFAULT_MAP_ZOOM,
   type MapMarker,
   type MapProps,
@@ -80,9 +80,8 @@ export function MapInner({
         style={{ height: "100%", width: "100%", minHeight: "100%" }}
       >
         <TileLayer
-          url={CARTO_POSITRON_URL}
-          attribution={CARTO_POSITRON_ATTRIBUTION}
-          subdomains="abcd"
+          url={OPENSTREETMAP_STANDARD_URL}
+          attribution={OPENSTREETMAP_STANDARD_ATTRIBUTION}
           maxZoom={20}
         />
         {markers.map((item, index) => (
