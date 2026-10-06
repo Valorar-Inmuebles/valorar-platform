@@ -11,7 +11,6 @@ import { WhatsAppCTA } from "./whatsapp-cta";
 export type PropertyPriceCardContact = {
   whatsapp: string;
   email: string;
-  phone: string;
   siteUrl: string;
 };
 
@@ -20,7 +19,10 @@ type PropertyPriceCardProps = {
   contact: PropertyPriceCardContact;
 };
 
-export function PropertyPriceCard({ property, contact }: PropertyPriceCardProps) {
+export function PropertyPriceCard({
+  property,
+  contact,
+}: PropertyPriceCardProps) {
   const { price, listing } = property;
 
   const whatsappMessage = buildPropertyWhatsAppMessage({
@@ -96,7 +98,7 @@ export function PropertyPriceCard({ property, contact }: PropertyPriceCardProps)
         </div>
       </div>
 
-      <PropertyContactCard phone={contact.phone} email={contact.email} />
+      <PropertyContactCard email={contact.email} />
     </aside>
   );
 }

@@ -2,7 +2,7 @@ import { Mail, Phone } from "lucide-react";
 import { LocationIcon, WhatsappIcon } from "@/components/icons";
 import type { ContactOffice } from "@/lib/contact/contact-content";
 import { CONTACT_EMAIL } from "@/lib/contact/contact-content";
-import { getWhatsAppUrl } from "@/lib/tenant/get-whatsapp-url";
+import { getOfficeWhatsAppUrl } from "@/lib/contact/office-whatsapp";
 
 function formatPhoneHref(phone: string): string {
   return `tel:+5411${phone.replace(/\D/g, "")}`;
@@ -18,10 +18,7 @@ type FooterOfficeProps = {
 };
 
 export function FooterOffice({ office }: FooterOfficeProps) {
-  const whatsappUrl = getWhatsAppUrl({
-    phone: office.whatsappPhone,
-    message: `Hola, me gustaría realizar una consulta — ${office.title}`,
-  });
+  const whatsappUrl = getOfficeWhatsAppUrl(office);
 
   return (
     <div>
@@ -34,7 +31,12 @@ export function FooterOffice({ office }: FooterOfficeProps) {
           <span className="whitespace-pre-line">{office.address}</span>
         </li>
         <li className={ROW_CLASS}>
-          <Phone size={18} strokeWidth={1.75} className={ICON_CLASS} aria-hidden />
+          <Phone
+            size={18}
+            strokeWidth={1.75}
+            className={ICON_CLASS}
+            aria-hidden
+          />
           <span>
             {office.phones.map((phone, index) => (
               <span key={phone}>
@@ -62,7 +64,12 @@ export function FooterOffice({ office }: FooterOfficeProps) {
           )}
         </li>
         <li className={ROW_CLASS}>
-          <Mail size={18} strokeWidth={1.75} className={ICON_CLASS} aria-hidden />
+          <Mail
+            size={18}
+            strokeWidth={1.75}
+            className={ICON_CLASS}
+            aria-hidden
+          />
           <a href={`mailto:${CONTACT_EMAIL}`} className={LINK_CLASS}>
             {CONTACT_EMAIL}
           </a>

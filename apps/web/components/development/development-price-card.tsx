@@ -9,7 +9,9 @@ type DevelopmentPriceCardProps = {
   development: PublicDevelopmentDetail;
 };
 
-export function DevelopmentPriceCard({ development }: DevelopmentPriceCardProps) {
+export function DevelopmentPriceCard({
+  development,
+}: DevelopmentPriceCardProps) {
   const hasPrice =
     development.priceFrom != null && development.currency != null;
 
@@ -25,7 +27,9 @@ export function DevelopmentPriceCard({ development }: DevelopmentPriceCardProps)
     <aside className="space-y-4 rounded-2xl bg-surface-card p-5 ring-1 ring-border-default lg:sticky lg:top-[calc(var(--header-height)+1rem)]">
       {hasPrice ? (
         <div>
-          <p className="text-sm font-medium text-text-secondary">Precio desde</p>
+          <p className="text-sm font-medium text-text-secondary">
+            Precio desde
+          </p>
           <p className="mt-1 text-3xl font-semibold tracking-tight text-text-primary">
             {formatPrice(development.priceFrom!, development.currency!)}
           </p>
@@ -41,9 +45,11 @@ export function DevelopmentPriceCard({ development }: DevelopmentPriceCardProps)
         </div>
       ) : null}
 
-      {whatsappUrl ? <WhatsAppCTA href={whatsappUrl} variant="primary" /> : null}
+      {whatsappUrl ? (
+        <WhatsAppCTA href={whatsappUrl} variant="primary" />
+      ) : null}
 
-      <PropertyContactCard phone={site.phone} email={site.email} />
+      <PropertyContactCard email={site.email} />
     </aside>
   );
 }

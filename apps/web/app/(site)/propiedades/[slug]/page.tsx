@@ -37,7 +37,9 @@ function parseListingType(
   return undefined;
 }
 
-function buildPropertyTitle(property: NonNullable<Awaited<ReturnType<typeof getPropertyBySlug>>>) {
+function buildPropertyTitle(
+  property: NonNullable<Awaited<ReturnType<typeof getPropertyBySlug>>>,
+) {
   const location = property.neighborhood ?? property.city;
 
   return `${property.title} — ${getListingTypeLabel(property.listingType)} en ${location}`;
@@ -105,7 +107,6 @@ export default async function PropertyDetailPage({
   const contact = {
     whatsapp: site.whatsapp,
     email: site.email,
-    phone: site.phone,
     siteUrl: site.siteUrl,
   };
 
