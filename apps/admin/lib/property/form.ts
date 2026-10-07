@@ -1,10 +1,4 @@
-import type {
-  Orientation,
-  PropertyBrightness,
-  PropertyCondition,
-  PropertyLayout,
-  PropertyType,
-} from "@repo/shared-types";
+import type { PropertyType } from "@repo/shared-types";
 import type {
   AdminProperty,
   CreatePropertyPayload,
@@ -62,12 +56,13 @@ export function emptyPropertyFormValues(): PropertyFormValues {
     orientation: "",
     layout: "",
     brightness: "",
-    isActive: true,
     assignedToId: "",
   };
 }
 
-export function propertyToFormValues(property: AdminProperty): PropertyFormValues {
+export function propertyToFormValues(
+  property: AdminProperty,
+): PropertyFormValues {
   return {
     title: property.title,
     slug: property.slug,
@@ -106,7 +101,6 @@ export function propertyToFormValues(property: AdminProperty): PropertyFormValue
     orientation: property.orientation ?? "",
     layout: property.layout ?? "",
     brightness: property.brightness ?? "",
-    isActive: property.isActive,
     assignedToId: property.assignedToId ?? "",
   };
 }
@@ -168,7 +162,8 @@ export function validatePropertyFormValues(
   if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(values.slug)) {
     return "El slug solo puede contener minúsculas, números y guiones.";
   }
-  if (values.slug.length < 3) return "El slug debe tener al menos 3 caracteres.";
+  if (values.slug.length < 3)
+    return "El slug debe tener al menos 3 caracteres.";
   if (!values.propertyType) return "Seleccioná un tipo de propiedad.";
   if (!values.provinceId.trim()) return "Seleccioná una provincia.";
   if (!values.localityId.trim()) return "Seleccioná una localidad.";
@@ -263,7 +258,6 @@ export function formValuesToCreatePayload(
     orientation: values.orientation || undefined,
     layout: values.layout || undefined,
     brightness: values.brightness || undefined,
-    isActive: values.isActive,
     assignedToId: values.assignedToId.trim() || null,
   };
 }

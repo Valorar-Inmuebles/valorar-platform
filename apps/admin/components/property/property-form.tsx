@@ -49,10 +49,12 @@ import {
   validatePropertyFormValues,
 } from "@/lib/property/form";
 import type { PropertyFormValues } from "@/lib/api/types/property";
+import { getPropertyLifecycleFormState } from "@/lib/property/navigation";
 import {
   PropertyLocationFields,
   type PropertyLocationValue,
 } from "@/components/property/property-location-fields";
+import { PropertyStatusBadge } from "@/components/property/property-status-badge";
 
 type PropertyFormProps = {
   mode: "create" | "edit";
@@ -78,7 +80,9 @@ export function PropertyForm({
   const [values, setValues] = useState<PropertyFormValues>(() =>
     property ? propertyToFormValues(property) : emptyPropertyFormValues(),
   );
-  const [selectedGarageTypeSlugs, setSelectedGarageTypeSlugs] = useState<Set<string>>(
+  const [selectedGarageTypeSlugs, setSelectedGarageTypeSlugs] = useState<
+    Set<string>
+  >(
     () =>
       new Set(
         featureAssignments
@@ -89,6 +93,9 @@ export function PropertyForm({
   const [error, setError] = useState<string | null>(null);
   const [slugTouched, setSlugTouched] = useState(mode === "edit");
   const [isPending, startTransition] = useTransition();
+  const lifecycle = property
+    ? getPropertyLifecycleFormState(property.isActive)
+    : null;
 
   const updateField = <K extends keyof PropertyFormValues>(
     key: K,
@@ -97,7 +104,9 @@ export function PropertyForm({
     setValues((current) => ({ ...current, [key]: value }));
   };
 
-  const updatePropertyType = (propertyType: PropertyFormValues["propertyType"]) => {
+  const updatePropertyType = (
+    propertyType: PropertyFormValues["propertyType"],
+  ) => {
     setValues((current) => ({ ...current, propertyType }));
     if (propertyType !== GARAGE_TYPE_ATTRIBUTE.propertyType) {
       setSelectedGarageTypeSlugs(new Set());
@@ -117,14 +126,18 @@ export function PropertyForm({
   };
 
   const saveSpecificAttributes = async (propertyId: string) => {
-    const featureBySlug = new Map(featureCatalog.map((feature) => [feature.slug, feature]));
+    const featureBySlug = new Map(
+      featureCatalog.map((feature) => [feature.slug, feature]),
+    );
     const selectedFeatures = Array.from(selectedGarageTypeSlugs)
       .map((slug) => featureBySlug.get(slug))
       .filter((feature): feature is AdminPropertyFeature => Boolean(feature));
 
     const shouldReplace =
       values.propertyType === GARAGE_TYPE_ATTRIBUTE.propertyType ||
-      featureAssignments.some((assignment) => SPECIFIC_ATTRIBUTE_SLUGS.has(assignment.slug));
+      featureAssignments.some((assignment) =>
+        SPECIFIC_ATTRIBUTE_SLUGS.has(assignment.slug),
+      );
 
     if (!shouldReplace) {
       return { ok: true as const };
@@ -133,7 +146,9 @@ export function PropertyForm({
     return replacePropertyFeatureAssignmentsAction(propertyId, {
       features: [
         ...featureAssignments
-          .filter((assignment) => !SPECIFIC_ATTRIBUTE_SLUGS.has(assignment.slug))
+          .filter(
+            (assignment) => !SPECIFIC_ATTRIBUTE_SLUGS.has(assignment.slug),
+          )
           .map((assignment) => ({
             featureId: assignment.featureId,
             ...(assignment.value ? { value: assignment.value } : {}),
@@ -190,7 +205,8 @@ export function PropertyForm({
         }
 
         if (!result.id) {
-          const message = "La propiedad se creó pero no se recibió el identificador.";
+          const message =
+            "La propiedad se creó pero no se recibió el identificador.";
           setError(message);
           toast.error(message);
           return;
@@ -262,7 +278,9 @@ export function PropertyForm({
               placeholder="departamento-palermo"
               disabled={isPending}
             />
-            <HelperText>URL pública: /propiedades/{values.slug || "..."}</HelperText>
+            <HelperText>
+              URL pública: /propiedades/{values.slug || "..."}
+            </HelperText>
           </FormField>
 
           <FormField>
@@ -282,7 +300,9 @@ export function PropertyForm({
             <Label>Código interno</Label>
             <Input
               value={values.internalCode}
-              onChange={(event) => updateField("internalCode", event.target.value)}
+              onChange={(event) =>
+                updateField("internalCode", event.target.value)
+              }
               disabled={isPending}
             />
           </FormField>
@@ -331,7 +351,8 @@ export function PropertyForm({
                 ]}
               />
               <HelperText>
-                Si está vacío, el creador de la propiedad es el responsable operativo.
+                Si está vacío, el creador de la propiedad es el responsable
+                operativo.
               </HelperText>
             </FormField>
           ) : null}
@@ -341,7 +362,10 @@ export function PropertyForm({
             <Select
               value={values.condition || undefined}
               onChange={(value) =>
-                updateField("condition", value as PropertyFormValues["condition"])
+                updateField(
+                  "condition",
+                  value as PropertyFormValues["condition"],
+                )
               }
               placeholder="Seleccionar condición"
               disabled={isPending}
@@ -390,8 +414,8 @@ export function PropertyForm({
                 ),
             ) ? (
               <HelperText>
-                Algunas opciones no están disponibles porque faltan en el catálogo
-                global de características.
+                Algunas opciones no están disponibles porque faltan en el
+                catálogo global de características.
               </HelperText>
             ) : null}
           </CardContent>
@@ -416,7 +440,9 @@ export function PropertyForm({
             <Label>Número</Label>
             <Input
               value={values.streetNumber}
-              onChange={(event) => updateField("streetNumber", event.target.value)}
+              onChange={(event) =>
+                updateField("streetNumber", event.target.value)
+              }
               disabled={isPending}
             />
           </FormField>
@@ -456,7 +482,9 @@ export function PropertyForm({
             <Label>Código postal</Label>
             <Input
               value={values.postalCode}
-              onChange={(event) => updateField("postalCode", event.target.value)}
+              onChange={(event) =>
+                updateField("postalCode", event.target.value)
+              }
               disabled={isPending}
             />
           </FormField>
@@ -535,7 +563,9 @@ export function PropertyForm({
               type="number"
               min={0}
               value={values.halfBathrooms}
-              onChange={(event) => updateField("halfBathrooms", event.target.value)}
+              onChange={(event) =>
+                updateField("halfBathrooms", event.target.value)
+              }
               disabled={isPending}
             />
           </FormField>
@@ -546,7 +576,9 @@ export function PropertyForm({
               type="number"
               min={0}
               value={values.parkingSpaces}
-              onChange={(event) => updateField("parkingSpaces", event.target.value)}
+              onChange={(event) =>
+                updateField("parkingSpaces", event.target.value)
+              }
               disabled={isPending}
             />
           </FormField>
@@ -565,7 +597,9 @@ export function PropertyForm({
               min={0}
               step="0.01"
               value={values.coveredArea}
-              onChange={(event) => updateField("coveredArea", event.target.value)}
+              onChange={(event) =>
+                updateField("coveredArea", event.target.value)
+              }
               disabled={isPending}
             />
           </FormField>
@@ -577,7 +611,9 @@ export function PropertyForm({
               min={0}
               step="0.01"
               value={values.uncoveredArea}
-              onChange={(event) => updateField("uncoveredArea", event.target.value)}
+              onChange={(event) =>
+                updateField("uncoveredArea", event.target.value)
+              }
               disabled={isPending}
             />
           </FormField>
@@ -635,7 +671,10 @@ export function PropertyForm({
             <Select
               value={values.orientation || undefined}
               onChange={(value) =>
-                updateField("orientation", value as PropertyFormValues["orientation"])
+                updateField(
+                  "orientation",
+                  value as PropertyFormValues["orientation"],
+                )
               }
               placeholder="Seleccionar orientación"
               disabled={isPending}
@@ -661,7 +700,10 @@ export function PropertyForm({
             <Select
               value={values.brightness || undefined}
               onChange={(value) =>
-                updateField("brightness", value as PropertyFormValues["brightness"])
+                updateField(
+                  "brightness",
+                  value as PropertyFormValues["brightness"],
+                )
               }
               placeholder="Seleccionar luminosidad"
               disabled={isPending}
@@ -680,7 +722,9 @@ export function PropertyForm({
             <Label>Descripción</Label>
             <textarea
               value={values.description}
-              onChange={(event) => updateField("description", event.target.value)}
+              onChange={(event) =>
+                updateField("description", event.target.value)
+              }
               disabled={isPending}
               rows={5}
               className="min-h-32 w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 outline-none transition-all duration-150 placeholder:text-zinc-400 focus:border-indigo-300 focus:ring-2 focus:ring-indigo-500/10 disabled:cursor-not-allowed disabled:bg-zinc-50"
@@ -693,23 +737,11 @@ export function PropertyForm({
       {mode === "edit" ? (
         <Card>
           <CardHeader>
-            <CardTitle>Estado</CardTitle>
+            <CardTitle>Estado de la propiedad</CardTitle>
           </CardHeader>
-          <CardContent>
-            <label className="flex items-center gap-2 text-sm text-foreground">
-              <input
-                type="checkbox"
-                checked={values.isActive}
-                onChange={(event) => updateField("isActive", event.target.checked)}
-                disabled={isPending}
-                className="size-4 rounded border-border"
-              />
-              Propiedad activa
-            </label>
-            <HelperText>
-              Desactivá solo si querés restaurar una propiedad archivada. Para
-              archivar usá el botón del listado.
-            </HelperText>
+          <CardContent className="space-y-3">
+            <PropertyStatusBadge status={lifecycle?.status ?? "active"} />
+            <HelperText>{lifecycle?.description}</HelperText>
           </CardContent>
         </Card>
       ) : null}
@@ -721,7 +753,13 @@ export function PropertyForm({
       ) : null}
 
       <CardFooter className="flex justify-end gap-2 px-0">
-        <Link href={mode === "edit" && property ? `/propiedades/${property.id}` : "/propiedades"}>
+        <Link
+          href={
+            mode === "edit" && property
+              ? `/propiedades/${property.id}`
+              : "/propiedades"
+          }
+        >
           <Button type="button" variant="secondary" disabled={isPending}>
             Cancelar
           </Button>

@@ -78,7 +78,6 @@ export type CreatePropertyPayload = {
   description?: string;
   internalCode?: string;
   condition?: PropertyCondition;
-  isActive?: boolean;
   street?: string;
   streetNumber?: string;
   floor?: string;
@@ -112,7 +111,10 @@ export type CreatePropertyPayload = {
 
 export type UpdatePropertyPayload = Partial<
   Omit<CreatePropertyPayload, "slug"> & { slug: string }
->;
+> & {
+  /** Exclusivo de la acción explícita Restaurar; no forma parte del formulario. */
+  isActive?: boolean;
+};
 
 export type PropertyFormValues = {
   title: string;
@@ -152,6 +154,5 @@ export type PropertyFormValues = {
   orientation: Orientation | "";
   layout: PropertyLayout | "";
   brightness: PropertyBrightness | "";
-  isActive: boolean;
   assignedToId: string;
 };

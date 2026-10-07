@@ -11,6 +11,23 @@ export const PROPERTY_STATUS_LABELS: Record<PropertyStatusVariant, string> = {
   "commercial-draft": "Borrador comercial",
 };
 
+export function getPropertyLifecycleFormState(isActive: boolean): {
+  status: "active" | "archived";
+  description: string;
+} {
+  return isActive
+    ? {
+        status: "active",
+        description:
+          "Para archivar esta propiedad utilizá la acción “Archivar”.",
+      }
+    : {
+        status: "archived",
+        description:
+          "Para volver a utilizar esta propiedad utilizá la acción “Restaurar”.",
+      };
+}
+
 export type PropertySubNavTab =
   | "general"
   | "publicaciones"
