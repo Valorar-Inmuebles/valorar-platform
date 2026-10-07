@@ -10,6 +10,9 @@ import { PropertyRepository } from './repositories/property.repository';
 import { PropertyGeoService } from './services/property-geo.service';
 import { PropertyPublishabilityService } from './services/property-publishability.service';
 import { PropertyService } from './services/property.service';
+import { PropertyDetailContextController } from './controllers/property-detail-context.controller';
+import { PropertyDetailContextRepository } from './repositories/property-detail-context.repository';
+import { PropertyDetailContextService } from './services/property-detail-context.service';
 
 @Module({
   imports: [
@@ -19,14 +22,21 @@ import { PropertyService } from './services/property.service';
     forwardRef(() => PropertyImageModule),
     forwardRef(() => PropertyPriceModule),
   ],
-  controllers: [PropertyController],
+  controllers: [PropertyController, PropertyDetailContextController],
   providers: [
+    PropertyDetailContextRepository,
+    PropertyDetailContextService,
     PropertyService,
     PropertyGeoService,
     PropertyRepository,
     PropertyPublishabilityService,
     PropertyAccessService,
   ],
-  exports: [PropertyService, PropertyRepository, PropertyPublishabilityService, PropertyAccessService],
+  exports: [
+    PropertyService,
+    PropertyRepository,
+    PropertyPublishabilityService,
+    PropertyAccessService,
+  ],
 })
 export class PropertyModule {}
