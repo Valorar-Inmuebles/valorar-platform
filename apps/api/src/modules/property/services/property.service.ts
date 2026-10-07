@@ -13,7 +13,10 @@ import { UpdatePropertyDto } from '../dto/update-property.dto';
 import { RentalPropertySearchQueryDto } from '../dto/property-query.dto';
 import { PropertyGeoService } from './property-geo.service';
 import { PropertyAccessService } from './property-access.service';
-import { PropertyRepository } from '../repositories/property.repository';
+import {
+  PropertyRepository,
+  type PropertyRecord,
+} from '../repositories/property.repository';
 import {
   mapLocationEnrichmentFields,
   resolveProvince,
@@ -135,21 +138,18 @@ export class PropertyService {
       user,
     );
 
-    if (dto.slug !== undefined) {
-      if (dto.slug !== existing.slug) {
-        const hasActiveListing =
-          await this.propertyListingRepository.hasActiveListingForProperty(
-            id,
-            tenantId,
-          );
+    if (dto.slug !== undefined && dto.slug !== existing.slug) {
+      const hasActiveListing =
+        await this.propertyListingRepository.hasActiveListingForProperty(
+          id,
+          tenantId,
+        );
 
-        if (hasActiveListing) {
-          throw new BadRequestException(
-            'Cannot change slug while the property has an active listing. Pause or close listings first.',
-          );
-        }
+      if (hasActiveListing) {
+        throw new BadRequestException(
+          'Cannot change slug while the property has an active listing. Pause or close listings first.',
+        );
       }
-
       await this.assertSlugIsUnique(dto.slug, tenantId, id);
     }
 
@@ -158,18 +158,21 @@ export class PropertyService {
         ? this.normalizeInternalCode(dto.internalCode)
         : undefined;
 
-    if (internalCode) {
+    if (internalCode && internalCode !== existing.internalCode) {
       await this.assertInternalCodeIsUnique(internalCode, tenantId, id);
     }
 
-    if (dto.assignedToId !== undefined) {
+    if (
+      dto.assignedToId !== undefined &&
+      dto.assignedToId !== existing.assignedToId
+    ) {
       await this.assertAssigneeBelongsToTenant(dto.assignedToId, tenantId);
     }
 
     const property = await this.propertyRepository.update(
       id,
       tenantId,
-      await this.toUpdateData(dto, internalCode),
+      await this.toUpdateData(dto, internalCode, existing),
     );
 
     if (!property) {
@@ -369,6 +372,7 @@ export class PropertyService {
   private async toUpdateData(
     dto: UpdatePropertyDto,
     internalCode: string | null | undefined,
+    existing: PropertyRecord,
   ) {
     const hasGeoInput =
       dto.countryId !== undefined ||
@@ -380,7 +384,18 @@ export class PropertyService {
       ReturnType<PropertyGeoService['resolveForWrite']>
     > | null = null;
 
-    if (hasGeoInput) {
+    const geoChanged = (
+      ['countryId', 'provinceId', 'localityId', 'neighborhoodId'] as const
+    ).some((key) => dto[key] !== undefined && dto[key] !== existing[key]);
+    // Supplied legacy text still needs canonicalization when IDs are present.
+    const legacyChanged =
+      (['country', 'city', 'neighborhood'] as const).some(
+        (key) => dto[key] !== undefined && dto[key] !== existing[key],
+      ) ||
+      (resolveProvince(dto) !== undefined &&
+        resolveProvince(dto) !== existing.province);
+
+    if (hasGeoInput && (geoChanged || legacyChanged)) {
       locationPatch = await this.propertyGeoService.resolveForWrite(
         {
           countryId: dto.countryId,
@@ -426,9 +441,11 @@ export class PropertyService {
             provinceId: locationPatch.provinceId,
             localityId: locationPatch.localityId,
             neighborhoodId: locationPatch.neighborhoodId,
-            ...(locationPatch.postalCode !== undefined
-              ? { postalCode: locationPatch.postalCode }
-              : {}),
+            ...(dto.postalCode !== undefined
+              ? { postalCode: dto.postalCode }
+              : locationPatch.postalCode !== undefined
+                ? { postalCode: locationPatch.postalCode }
+                : {}),
           }
         : {
             ...(dto.neighborhood !== undefined
@@ -477,10 +494,10 @@ export class PropertyService {
   }
 
   private normalizeInternalCode(
-    internalCode: string | undefined,
+    internalCode: string | null | undefined,
   ): string | null | undefined {
-    if (internalCode === undefined) {
-      return undefined;
+    if (internalCode === undefined || internalCode === null) {
+      return internalCode;
     }
 
     const trimmed = internalCode.trim();

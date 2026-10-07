@@ -1,6 +1,14 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access */
 jest.mock('../../../../generated/prisma/client', () => ({
-  Prisma: {},
+  Prisma: {
+    PrismaClientKnownRequestError: class extends Error {
+      code: string;
+      constructor(code: string) {
+        super(code);
+        this.code = code;
+      }
+    },
+  },
 }));
 
 jest.mock('../../../prisma/prisma.service', () => ({
@@ -8,8 +16,46 @@ jest.mock('../../../prisma/prisma.service', () => ({
 }));
 
 import { PropertyRepository } from './property.repository';
+import { Prisma } from '../../../../generated/prisma/client';
 
 describe('PropertyRepository propertyInclude', () => {
+  it('touches updatedAt on the authorized attribute-only PATCH', async () => {
+    const update = jest.fn().mockResolvedValue({ id: 'property-1' });
+    const repository = new PropertyRepository({
+      property: { update },
+    } as never);
+    await repository.update('property-1', 'tenant-1', {});
+    expect(update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'property-1', tenantId: 'tenant-1' },
+        data: { updatedAt: expect.any(Date) },
+      }),
+    );
+  });
+  it('returns null on a scoped update miss and propagates other Prisma failures', async () => {
+    const update = jest.fn();
+    const repository = new PropertyRepository({
+      property: { update },
+    } as never);
+    update.mockRejectedValue(
+      new Prisma.PrismaClientKnownRequestError('P2025', {
+        code: 'P2025',
+        clientVersion: 'test',
+      }),
+    );
+    await expect(
+      repository.update('foreign-property', 'tenant-1', { title: 'Changed' }),
+    ).resolves.toBeNull();
+    expect(update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'foreign-property', tenantId: 'tenant-1' },
+      }),
+    );
+    update.mockRejectedValue(new Error('Connection failed'));
+    await expect(
+      repository.update('property-1', 'tenant-1', {}),
+    ).rejects.toThrow('Connection failed');
+  });
   it('loads createdBy and compact listing types in the same findMany query (no N+1)', async () => {
     const findMany = jest.fn().mockResolvedValue([]);
     const prisma = { property: { findMany } };

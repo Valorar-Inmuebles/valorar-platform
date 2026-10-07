@@ -36,7 +36,9 @@ export class PropertyGeoService {
   ): Promise<ResolvedPropertyGeoWrite> {
     if (!input.provinceId && !input.localityId && !input.neighborhoodId) {
       if (!legacy.city?.trim()) {
-        throw new BadRequestException('city is required when geo locality is not set');
+        throw new BadRequestException(
+          'city is required when geo locality is not set',
+        );
       }
 
       return {
@@ -58,15 +60,19 @@ export class PropertyGeoService {
       );
     }
 
-    const province = await this.geoRepository.findProvinceById(input.provinceId);
+    const [province, locality, neighborhood] = await Promise.all([
+      this.geoRepository.findProvinceById(input.provinceId),
+      this.geoRepository.findLocalityById(input.localityId),
+      input.neighborhoodId
+        ? this.geoRepository.findNeighborhoodById(input.neighborhoodId)
+        : Promise.resolve(null),
+    ]);
 
     if (!province) {
       throw new BadRequestException(
         `Province with id "${input.provinceId}" not found`,
       );
     }
-
-    const locality = await this.geoRepository.findLocalityById(input.localityId);
 
     if (!locality || locality.provinceId !== province.id) {
       throw new BadRequestException(
@@ -78,10 +84,6 @@ export class PropertyGeoService {
     let neighborhoodName: string | null = null;
 
     if (input.neighborhoodId) {
-      const neighborhood = await this.geoRepository.findNeighborhoodById(
-        input.neighborhoodId,
-      );
-
       if (!neighborhood || neighborhood.localityId !== locality.id) {
         throw new BadRequestException(
           'neighborhoodId must belong to the selected locality',
@@ -95,7 +97,9 @@ export class PropertyGeoService {
       neighborhoodName = null;
     }
 
-    const country = await this.geoRepository.findCountryById(province.countryId);
+    const country = await this.geoRepository.findCountryById(
+      province.countryId,
+    );
     const countryIso = country?.iso2 ?? legacy.country ?? 'AR';
 
     return {

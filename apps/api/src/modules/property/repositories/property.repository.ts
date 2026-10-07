@@ -158,16 +158,23 @@ export class PropertyRepository {
     tenantId: string,
     data: UpdatePropertyData,
   ): Promise<PropertyRecord | null> {
-    const result = await this.prisma.property.updateMany({
-      where: { id, tenantId },
-      data,
-    });
-
-    if (result.count === 0) {
-      return null;
+    try {
+      return await this.prisma.property.update({
+        where: { id, tenantId },
+        // Attribute-only form saves still run this authorized PATCH first.
+        // Preserve the save timestamp even when the scalar diff is empty.
+        data: Object.keys(data).length === 0 ? { updatedAt: new Date() } : data,
+        include: propertyInclude,
+      });
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2025'
+      ) {
+        return null;
+      }
+      throw error;
     }
-
-    return this.findById(id, tenantId);
   }
 
   async softArchive(
