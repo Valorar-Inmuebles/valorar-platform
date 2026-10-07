@@ -1,4 +1,5 @@
 import { Badge } from "@repo/ui/badge";
+import { PropertyLifecycleActions } from "@/components/property/property-row-actions";
 import type { AdminProperty } from "@/lib/api/types/property";
 import { getPropertyTypeLabel } from "@/lib/format/property-labels";
 import { formatPropertyPriceLabel } from "@/lib/format/price";
@@ -77,9 +78,7 @@ export function PropertyExecutiveHeader({
           >
             {snapshot.commercialLabel}
           </Badge>
-          {snapshot.isFeatured ? (
-            <Badge variant="info">Destacada</Badge>
-          ) : null}
+          {snapshot.isFeatured ? <Badge variant="info">Destacada</Badge> : null}
         </div>
         <time
           dateTime={snapshot.updatedAt}
@@ -100,16 +99,23 @@ export function PropertyExecutiveHeader({
           ) : null}
         </div>
 
-        <div className="shrink-0 text-right">
-          <p className="text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
-            {priceLabel}
-          </p>
-          {hasPrice ? (
-            <p className="text-xs text-muted">
-              {snapshot.primaryPrice!.listingTypeLabel} ·{" "}
-              {snapshot.primaryPrice!.currency}
+        <div className="flex shrink-0 flex-col items-end gap-2 text-right">
+          <div>
+            <p className="text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
+              {priceLabel}
             </p>
-          ) : null}
+            {hasPrice ? (
+              <p className="text-xs text-muted">
+                {snapshot.primaryPrice!.listingTypeLabel} ·{" "}
+                {snapshot.primaryPrice!.currency}
+              </p>
+            ) : null}
+          </div>
+          <PropertyLifecycleActions
+            property={property}
+            activeListingsCount={snapshot.activeOperationsCount}
+            presentation="menu"
+          />
         </div>
       </div>
     </section>

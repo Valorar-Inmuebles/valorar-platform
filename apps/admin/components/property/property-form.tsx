@@ -49,12 +49,10 @@ import {
   validatePropertyFormValues,
 } from "@/lib/property/form";
 import type { PropertyFormValues } from "@/lib/api/types/property";
-import { getPropertyLifecycleFormState } from "@/lib/property/navigation";
 import {
   PropertyLocationFields,
   type PropertyLocationValue,
 } from "@/components/property/property-location-fields";
-import { PropertyStatusBadge } from "@/components/property/property-status-badge";
 
 type PropertyFormProps = {
   mode: "create" | "edit";
@@ -93,9 +91,6 @@ export function PropertyForm({
   const [error, setError] = useState<string | null>(null);
   const [slugTouched, setSlugTouched] = useState(mode === "edit");
   const [isPending, startTransition] = useTransition();
-  const lifecycle = property
-    ? getPropertyLifecycleFormState(property.isActive)
-    : null;
 
   const updateField = <K extends keyof PropertyFormValues>(
     key: K,
@@ -733,18 +728,6 @@ export function PropertyForm({
           </FormField>
         </CardContent>
       </Card>
-
-      {mode === "edit" ? (
-        <Card>
-          <CardHeader>
-            <CardTitle>Estado de la propiedad</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <PropertyStatusBadge status={lifecycle?.status ?? "active"} />
-            <HelperText>{lifecycle?.description}</HelperText>
-          </CardContent>
-        </Card>
-      ) : null}
 
       {error ? (
         <FormField state="error">
