@@ -99,6 +99,14 @@ edición no agrega otro `router.refresh()`.
 
 Medición, concurrencia y evidencia UI: [Performance P1.2](../09-roadmap/property-write-performance-p1-2.md).
 
+### Contrato Property List (P1.3A)
+
+Fuente canónica: [Property List](./property-list-contract.md). Define la matriz de
+publicabilidad (incluido CLOSED con precio opcional), los siete filtros de atención,
+capacidades por fila y el contrato del futuro `GET /properties/list`.
+P1.3A alinea la regla compartida y adapta las claves Dashboard → Admin;
+el endpoint paginado y la nueva UI aún no están implementados.
+
 ### PropertyListing
 
 Ruta base admin: `/property-listings`

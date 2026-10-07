@@ -1,3 +1,5 @@
+import type { PropertyAttentionFilter } from "@repo/property-rules";
+
 export type DashboardKpis = {
   totalProperties: number;
   published: number;
@@ -21,14 +23,7 @@ export type DashboardAttentionAlerts = {
   recentlyArchived: number;
 };
 
-export type DashboardAttentionFilter =
-  | "without-images"
-  | "without-commercialization"
-  | "without-description"
-  | "without-features"
-  | "pending-publication"
-  | "without-price"
-  | "recently-archived";
+export type DashboardAttentionFilter = PropertyAttentionFilter;
 
 export type DashboardFilterSets = Record<DashboardAttentionFilter, string[]>;
 
@@ -57,6 +52,19 @@ export type DashboardSummary = {
   attentionAlerts: DashboardAttentionAlerts;
   filterSets: DashboardFilterSets;
   recentActivity: DashboardActivityItem[];
+};
+
+/** Wire shape of DashboardSummaryResponseDto; URL identifiers are adapted explicitly. */
+export type DashboardSummaryResponse = Omit<DashboardSummary, "filterSets"> & {
+  filterSets: {
+    withoutImages: string[];
+    withoutCommercialization: string[];
+    withoutDescription: string[];
+    withoutFeatures: string[];
+    pendingPublication: string[];
+    withoutPrice: string[];
+    recentlyArchived: string[];
+  };
 };
 
 /** @deprecated Use DashboardKpis fields directly */

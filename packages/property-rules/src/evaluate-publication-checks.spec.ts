@@ -52,6 +52,52 @@ describe('evaluatePropertyPublishability', () => {
 });
 
 describe('evaluateListingPublishability', () => {
+  it.each([
+    ['ACTIVE', true, true],
+    ['ACTIVE', false, false],
+    ['RESERVED', true, true],
+    ['RESERVED', false, true],
+    ['CLOSED', true, true],
+    ['CLOSED', false, true],
+    ['DRAFT', true, false],
+    ['DRAFT', false, false],
+    ['PAUSED', true, false],
+    ['PAUSED', false, false],
+  ] as const)(
+    '%s with primary price=%s has visibility=%s',
+    (listingStatus, hasPrimaryPrice, expected) => {
+      expect(
+        evaluateListingPublishability({
+          ...completeInput,
+          listingStatus,
+          hasPrimaryPrice,
+        }).isPublishable,
+      ).toBe(expected);
+    },
+  );
+
+  it.each(['ACTIVE', 'RESERVED', 'CLOSED'])(
+    '%s never bypasses property, image or cover requirements',
+    (listingStatus) => {
+      const input = { ...completeInput, listingStatus };
+      expect(
+        evaluateListingPublishability({ ...input, propertyIsActive: false })
+          .missing,
+      ).toEqual(['property-active']);
+      expect(
+        evaluateListingPublishability({ ...input, hasCoverImage: false })
+          .missing,
+      ).toEqual(['cover-image']);
+      expect(
+        evaluateListingPublishability({
+          ...input,
+          imageCount: 0,
+          hasCoverImage: false,
+        }).missing,
+      ).toEqual(['has-image', 'cover-image']);
+    },
+  );
+
   it('returns publishable when all visibility checks pass', () => {
     const result = evaluateListingPublishability(completeInput);
 
@@ -108,6 +154,19 @@ describe('evaluateListingPublishability', () => {
 });
 
 describe('evaluateActivationChecklist', () => {
+  it.each(['DRAFT', 'ACTIVE', 'PAUSED', 'RESERVED', 'CLOSED'])(
+    'requires a primary price when activating from %s',
+    (listingStatus) => {
+      const result = evaluateActivationChecklist({
+        ...completeInput,
+        listingStatus,
+        hasPrimaryPrice: false,
+      });
+      expect(result.isPublishable).toBe(false);
+      expect(result.missing).toEqual(['primary-price']);
+    },
+  );
+
   it('passes when activation requirements are met', () => {
     const result = evaluateActivationChecklist({
       ...completeInput,

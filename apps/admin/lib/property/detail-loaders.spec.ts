@@ -266,9 +266,8 @@ describe("Property detail read fan-out (layout + actual tab page)", () => {
       expect(header.snapshot.primaryPrice?.amount).toBe(100000);
       const operation = commercial.publishabilityByListingId["listing-1"]!;
       expect(operation.publicWebUrl).toBeNull();
-      expect(operation.missing).toEqual(
-        expect.arrayContaining(["property-active", "listing-active"]),
-      );
+      // CLOSED is web-visible; the archived Property is the blocker.
+      expect(operation.missing).toEqual(["property-active"]);
       expect(
         operation.items
           .filter((item) => !item.passed)

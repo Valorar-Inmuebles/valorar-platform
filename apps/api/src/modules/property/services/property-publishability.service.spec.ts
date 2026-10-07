@@ -2,17 +2,26 @@ import { NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { PropertyPublishabilityService } from './property-publishability.service';
 
-jest.mock('../../property-image/repositories/property-image.repository', () => ({
-  PropertyImageRepository: class PropertyImageRepository {},
-}));
+jest.mock(
+  '../../property-image/repositories/property-image.repository',
+  () => ({
+    PropertyImageRepository: class PropertyImageRepository {},
+  }),
+);
 
-jest.mock('../../property-listing/repositories/property-listing.repository', () => ({
-  PropertyListingRepository: class PropertyListingRepository {},
-}));
+jest.mock(
+  '../../property-listing/repositories/property-listing.repository',
+  () => ({
+    PropertyListingRepository: class PropertyListingRepository {},
+  }),
+);
 
-jest.mock('../../property-price/repositories/property-price.repository', () => ({
-  PropertyPriceRepository: class PropertyPriceRepository {},
-}));
+jest.mock(
+  '../../property-price/repositories/property-price.repository',
+  () => ({
+    PropertyPriceRepository: class PropertyPriceRepository {},
+  }),
+);
 
 jest.mock('../repositories/property.repository', () => ({
   PropertyRepository: class PropertyRepository {},
@@ -139,6 +148,51 @@ describe('PropertyPublishabilityService', () => {
   });
 
   describe('summarizeForTenant', () => {
+    it.each(['SALE', 'RENT', 'TEMPORARY_RENT'])(
+      'publishes a priceless CLOSED %s and selects its public URL after an ineligible operation',
+      async (listingType) => {
+        const originalBase = process.env.PUBLIC_WEB_URL;
+        process.env.PUBLIC_WEB_URL = 'https://web.example/';
+        try {
+          propertyRepository.findMany.mockResolvedValue([
+            { id: 'property-1', slug: 'depto-centro', isActive: true },
+          ]);
+          propertyListingRepository.findMany.mockResolvedValue([
+            {
+              id: 'paused',
+              propertyId: 'property-1',
+              listingType: listingType === 'SALE' ? 'RENT' : 'SALE',
+              status: 'PAUSED',
+            },
+            {
+              id: 'closed',
+              propertyId: 'property-1',
+              listingType,
+              status: 'CLOSED',
+            },
+          ]);
+          propertyImageRepository.getStatsByPropertyIds.mockResolvedValue(
+            new Map([['property-1', { imageCount: 1, hasCoverImage: true }]]),
+          );
+          propertyPriceRepository.getListingIdsWithPrimaryPrice.mockResolvedValue(
+            new Set(),
+          );
+
+          expect(await service.summarizeForTenant('tenant-1')).toEqual([
+            {
+              propertyId: 'property-1',
+              statusVariant: 'published',
+              isAnyPublishable: true,
+              publicUrl: `https://web.example/propiedades/depto-centro?listingType=${listingType}`,
+            },
+          ]);
+        } finally {
+          if (originalBase === undefined) delete process.env.PUBLIC_WEB_URL;
+          else process.env.PUBLIC_WEB_URL = originalBase;
+        }
+      },
+    );
+
     it('returns archived status for inactive properties', async () => {
       propertyRepository.findMany.mockResolvedValue([
         {

@@ -3,10 +3,7 @@ import {
   LISTING_PUBLICATION_CHECK_KEYS,
   PROPERTY_PUBLICATION_CHECK_KEYS,
 } from './constants';
-import {
-  getPublicationCheckLabel,
-  getPublicationCheckMessage,
-} from './labels';
+import { getPublicationCheckLabel, getPublicationCheckMessage } from './labels';
 import type {
   PublicationCheck,
   PublicationCheckInput,
@@ -31,16 +28,18 @@ function evaluateSingleCheck(
       passed = input.hasCoverImage;
       break;
     case 'listing-active':
-      // Web-visible commercial statuses (ACTIVE + RESERVED).
+      // Visibility is independent of whether the operation is still open.
       passed =
         input.listingStatus === 'ACTIVE' ||
-        input.listingStatus === 'RESERVED';
+        input.listingStatus === 'RESERVED' ||
+        input.listingStatus === 'CLOSED';
       break;
     case 'primary-price':
-      // RESERVED may be web-visible without a primary price (“Consultar precio”).
-      // ACTIVE (and activation checklist) still require a primary price.
+      // RESERVED/CLOSED may show “Consultar precio”. Activation uses ACTIVE rules.
       passed =
-        input.listingStatus === 'RESERVED' ? true : input.hasPrimaryPrice;
+        input.listingStatus === 'RESERVED' || input.listingStatus === 'CLOSED'
+          ? true
+          : input.hasPrimaryPrice;
       break;
   }
 
@@ -62,7 +61,9 @@ function evaluateChecks(
   keys: PublicationCheckKey[],
 ): PublicationChecklistResult {
   const checks = keys.map((key) => evaluateSingleCheck(key, input));
-  const missing = checks.filter((check) => !check.passed).map((check) => check.key);
+  const missing = checks
+    .filter((check) => !check.passed)
+    .map((check) => check.key);
   const passedCount = checks.filter((check) => check.passed).length;
 
   return {
@@ -101,5 +102,8 @@ export function evaluateListingPublishability(
 export function evaluateActivationChecklist(
   input: PublicationCheckInput,
 ): PublicationChecklistResult {
-  return evaluateChecks(input, ACTIVATION_PUBLICATION_CHECK_KEYS);
+  return evaluateChecks(
+    { ...input, listingStatus: 'ACTIVE' },
+    ACTIVATION_PUBLICATION_CHECK_KEYS,
+  );
 }

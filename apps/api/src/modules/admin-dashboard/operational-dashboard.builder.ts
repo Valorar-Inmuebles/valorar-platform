@@ -1,4 +1,8 @@
-import { evaluateListingPublishability } from '@repo/property-rules';
+import {
+  evaluateListingPublishability,
+  evaluatePropertyAttention,
+  isRecentlyArchivedProperty,
+} from '@repo/property-rules';
 import type {
   Property,
   PropertyImage,
@@ -6,8 +10,6 @@ import type {
   PropertyListingType,
 } from '../../../generated/prisma/client';
 
-const DESCRIPTION_MIN_LENGTH = 40;
-const RECENTLY_ARCHIVED_DAYS = 30;
 const ACTIVITY_WINDOW_DAYS = 90;
 const ACTIVITY_LIMIT = 12;
 const UPDATE_THRESHOLD_MS = 60_000;
@@ -84,21 +86,6 @@ const LISTING_TYPE_LABELS: Record<PropertyListingType, string> = {
   TEMPORARY_RENT: 'Temporario',
 };
 
-function hasDescription(property: Property): boolean {
-  return (property.description?.trim().length ?? 0) >= DESCRIPTION_MIN_LENGTH;
-}
-
-function isRecentlyArchived(property: Property, now: Date): boolean {
-  if (property.isActive) {
-    return false;
-  }
-
-  const threshold = new Date(now);
-  threshold.setDate(threshold.getDate() - RECENTLY_ARCHIVED_DAYS);
-
-  return property.updatedAt >= threshold;
-}
-
 function isWithinActivityWindow(date: Date, now: Date): boolean {
   const threshold = new Date(now);
   threshold.setDate(threshold.getDate() - ACTIVITY_WINDOW_DAYS);
@@ -149,7 +136,7 @@ function buildRecentActivity(
       });
     }
 
-    if (isRecentlyArchived(property, now)) {
+    if (isRecentlyArchivedProperty(property, now)) {
       events.push({
         id: `property-archived-${property.id}`,
         type: 'property_archived',
@@ -234,13 +221,13 @@ function buildRecentActivity(
       actorName: null,
       label: 'Se agregaron imágenes',
       detail:
-        stats && stats.imageCount > 1
-          ? `${stats.imageCount} imágenes`
-          : null,
+        stats && stats.imageCount > 1 ? `${stats.imageCount} imágenes` : null,
     });
   }
 
-  events.sort((left, right) => right.timestamp.getTime() - left.timestamp.getTime());
+  events.sort(
+    (left, right) => right.timestamp.getTime() - left.timestamp.getTime(),
+  );
 
   const seen = new Set<string>();
   const unique: DashboardActivityItem[] = [];
@@ -305,7 +292,7 @@ export function buildOperationalDashboard(
     if (!property.isActive) {
       archived += 1;
 
-      if (isRecentlyArchived(property, now)) {
+      if (isRecentlyArchivedProperty(property, now)) {
         filterSets.recentlyArchived.push(property.id);
       }
 
@@ -313,7 +300,6 @@ export function buildOperationalDashboard(
     }
 
     let isAnyPublishable = false;
-    let hasListing = propertyListings.length > 0;
     let hasActiveListingWithoutPrice = false;
 
     for (const listing of propertyListings) {
@@ -343,27 +329,41 @@ export function buildOperationalDashboard(
       drafts += 1;
     }
 
-    if (stats.imageCount === 0) {
+    const attention = evaluatePropertyAttention(
+      {
+        isActive: property.isActive,
+        updatedAt: property.updatedAt,
+        description: property.description,
+        imageCount: stats.imageCount,
+        listingCount: propertyListings.length,
+        featureCount,
+        isAnyPublishable,
+        hasActiveListingWithoutPrimaryPrice: hasActiveListingWithoutPrice,
+      },
+      now,
+    );
+
+    if (attention['without-images']) {
       filterSets.withoutImages.push(property.id);
     }
 
-    if (!hasListing) {
+    if (attention['without-commercialization']) {
       filterSets.withoutCommercialization.push(property.id);
     }
 
-    if (!hasDescription(property)) {
+    if (attention['without-description']) {
       filterSets.withoutDescription.push(property.id);
     }
 
-    if (featureCount === 0) {
+    if (attention['without-features']) {
       filterSets.withoutFeatures.push(property.id);
     }
 
-    if (hasListing && !isAnyPublishable) {
+    if (attention['pending-publication']) {
       filterSets.pendingPublication.push(property.id);
     }
 
-    if (hasActiveListingWithoutPrice) {
+    if (attention['without-price']) {
       filterSets.withoutPrice.push(property.id);
     }
   }

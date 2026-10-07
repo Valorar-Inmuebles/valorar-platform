@@ -144,6 +144,14 @@ Chips compactos (no botones full-width):
 
 Respuesta incluye `filterSets` con IDs de propiedad por filtro de atención para el listado admin.
 
+**P1.3A — consistencia:** las claves HTTP de `filterSets` permanecen camelCase
+(`withoutImages`, etc.). El cliente API Admin las adapta explícitamente a los IDs
+URL kebab-case (`without-images`, etc.). Los siete predicados puros viven en
+`@repo/property-rules`; matriz exacta y contrato del futuro listado en
+[Property List](../04-modules/property-list-contract.md).
+La publicabilidad compartida incluye CLOSED con precio opcional, en paridad con
+la Web pública. El Dashboard mantiene su alcance tenant-wide actual.
+
 ---
 
 ## Componentes (`apps/admin`)

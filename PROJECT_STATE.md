@@ -53,6 +53,13 @@ Integración Property (GEO-002): FKs en Property + Admin select/autocomplete + W
 
 ## Estado Actual
 
+**Property List P1.3A — reglas y contrato:** publicabilidad compartida alineada con
+la Web para CLOSED (precio opcional), activación hacia ACTIVE con precio siempre
+obligatorio, predicados de atención reutilizables y adaptación explícita de claves
+Dashboard → Admin. Contrato y capacidades del futuro `GET /properties/list` en
+`docs/04-modules/property-list-contract.md`. Endpoint paginado/UI pendientes;
+P1.3B no iniciado. Sin cambios de schema ni datos.
+
 Fase: Foundation + **Auth Foundation v1** ✅ + Property API + Admin UI + Web Premium ✅ + **Fase 5 Administración Base** ✅ + **Fase 6 Plataforma (Super Admin)** ✅ + **Rental Management A+B** ✅
 
 Infraestructura inicial:

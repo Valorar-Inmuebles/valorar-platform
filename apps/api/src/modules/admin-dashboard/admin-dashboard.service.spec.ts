@@ -1,17 +1,23 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { AdminDashboardService } from './admin-dashboard.service';
 
-jest.mock('../property-feature-assignment/repositories/property-feature-assignment.repository', () => ({
-  PropertyFeatureAssignmentRepository: class PropertyFeatureAssignmentRepository {},
-}));
+jest.mock(
+  '../property-feature-assignment/repositories/property-feature-assignment.repository',
+  () => ({
+    PropertyFeatureAssignmentRepository: class PropertyFeatureAssignmentRepository {},
+  }),
+);
 
 jest.mock('../property-image/repositories/property-image.repository', () => ({
   PropertyImageRepository: class PropertyImageRepository {},
 }));
 
-jest.mock('../property-listing/repositories/property-listing.repository', () => ({
-  PropertyListingRepository: class PropertyListingRepository {},
-}));
+jest.mock(
+  '../property-listing/repositories/property-listing.repository',
+  () => ({
+    PropertyListingRepository: class PropertyListingRepository {},
+  }),
+);
 
 jest.mock('../property-price/repositories/property-price.repository', () => ({
   PropertyPriceRepository: class PropertyPriceRepository {},
@@ -53,6 +59,8 @@ describe('AdminDashboardService', () => {
 
   beforeEach(async () => {
     jest.clearAllMocks();
+    // Keep dated fixtures inside the operational activity window.
+    jest.useFakeTimers({ now: new Date('2026-07-01T12:00:00.000Z') });
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -74,6 +82,8 @@ describe('AdminDashboardService', () => {
     service = module.get(AdminDashboardService);
   });
 
+  afterEach(() => jest.useRealTimers());
+
   it('returns empty dashboard when tenant has no properties', async () => {
     propertyRepository.findManyWithCreator.mockResolvedValue([]);
 
@@ -91,7 +101,8 @@ describe('AdminDashboardService', () => {
       {
         id: 'prop-1',
         title: 'Casa Palermo',
-        description: 'Descripción suficientemente larga para SEO y publicación web.',
+        description:
+          'Descripción suficientemente larga para SEO y publicación web.',
         isActive: true,
         createdAt: new Date('2026-06-30T10:00:00.000Z'),
         updatedAt: now,

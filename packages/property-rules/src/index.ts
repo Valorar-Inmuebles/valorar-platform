@@ -9,13 +9,21 @@ export {
   evaluateListingPublishability,
   evaluatePropertyPublishability,
 } from './evaluate-publication-checks';
-export {
-  getPublicationCheckLabel,
-  getPublicationCheckMessage,
-} from './labels';
+export { getPublicationCheckLabel, getPublicationCheckMessage } from './labels';
 export type {
   PublicationCheck,
   PublicationCheckInput,
   PublicationCheckKey,
   PublicationChecklistResult,
 } from './types';
+export {
+  evaluatePropertyAttention,
+  isRecentlyArchivedProperty,
+  propertyRecentlyArchivedThreshold,
+  PROPERTY_DESCRIPTION_MIN_LENGTH,
+  PROPERTY_RECENTLY_ARCHIVED_DAYS,
+} from './property-attention';
+export type {
+  PropertyAttentionFacts,
+  PropertyAttentionFilter,
+} from './property-attention';
