@@ -1,8 +1,8 @@
 # Property List — contrato canónico P1.3A
 
-Estado: **P1.3A implementado para reglas y adaptación de atención**. El contrato
-de `GET /properties/list` queda definido; **el endpoint no está implementado**.
-P1.3B no iniciado.
+Estado: **P1.3A cerrado; P1.3B implementado y validado localmente**.
+`GET /properties/list` disponible en API. Integración SQL real y evidencia en
+[P1.3B](../09-roadmap/property-list-read-model-p1-3b.md). UI pendiente; P1.3C no iniciado.
 
 Baseline: `main @ bcf12620f5b43b5d9fbcfb7485315d564bb7b658`.
 
@@ -184,7 +184,7 @@ página, reutilizando `canEditProperty`; no llamará un método con I/O por fila
 Tenant/visibilidad se validan antes de producir capacidades. Las mutaciones
 siempre reautorizan: las capacidades no son un token ni una garantía transaccional.
 
-## 4. Contrato definitivo del futuro GET /properties/list
+## 4. Contrato definitivo GET /properties/list
 
 Endpoint aditivo de lectura. Registro estático antes de `:id`.
 `GET /properties` conserva su contrato array para compatibilidad API-first.
@@ -243,7 +243,7 @@ Combinaciones incompatibles como archived + without-images devuelven cero result
 
 ### Respuesta compacta
 
-Contrato normativo para implementar en shared-types durante P1.3B; reutiliza el
+Contrato implementado en `packages/shared-types/src/property-list.ts`; reutiliza el
 `PaginatedResponse<T>` ya exportado, sin crear otro envelope.
 
 ```ts
@@ -342,8 +342,8 @@ de IDs autorizados materializadas previamente en la aplicación.
    o semántica de descripción/características. Las equivalencias SQL son gate de P1.3B.
 3. La adaptación Dashboard se hace en la frontera HTTP Admin. El wire permanece
    compatible y los componentes actuales reciben el shape que ya esperaban.
-4. Capacidades documentadas, todavía no implementadas en un read model; guards,
-   roles y políticas actuales permanecen como fuente de autorización.
+4. P1.3B implementa las capacidades en el read model; guards, roles y políticas
+   actuales permanecen como fuente de autorización.
 5. Summary/listings/dashboard legacy no comparten todavía todo el scoping por usuario
    de GET /properties. P1.3A no remedia esa superficie. El nuevo endpoint debe hacerlo
    para sus filas/contadores; dejar de consumir legacy no corrige acceso HTTP directo.
@@ -364,3 +364,27 @@ También se ejecutan regresiones existentes de los consumidores de la regla comp
 
 Gates y resultados de ejecución se registran en
 `../09-roadmap/property-list-consistency-p1-3a.md`.
+
+## 7. Implementación P1.3B
+
+- Un controller estático aditivo, DTO de query estricto y DTO Swagger que implementa
+  los tipos públicos compartidos. Arrays/repeticiones y parámetros desconocidos: 400.
+- `PropertyAccessService.listReadContext` reutiliza `shouldScopePropertyList` y
+  las políticas actuales. Su predicado SQL compone tenant AND (creador OR asignado
+  OR compartición canView). Las comparticiones se acotan además por tenant.
+- Lectura de políticas y consulta agregada en la misma transacción REPEATABLE READ.
+  El universo materializado contiene IDs, lifecycle y publicabilidad; su agregado
+  produce contadores. El conjunto filtrado se ordena y pagina dentro de PostgreSQL.
+- La consulta final devuelve sólo la página, metadatos y contadores. Las operaciones,
+  creador y acceso compartido se proyectan compactos; no hay I/O por fila en Node.
+- Portada se comprueba con EXISTS sobre imágenes del tenant: una portada es una
+  imagen existente, por lo que satisface también el requisito de al menos una imagen.
+- `lower(... COLLATE "und-x-icu")` aplica casing Unicode; el orden usa `COLLATE "C"`.
+  Se verificó la collation ICU preexistente en la DB aislada, sin crear collations.
+  Se prueban acentos, I con punto, sigma contextual y caracteres suplementarios.
+- Descripción: btrim con los caracteres ECMAScript y longitud de codepoints más
+  cantidad de caracteres suplementarios para reproducir UTF-16. El umbral de fecha
+  se calcula con el helper compartido y se envía como parámetro.
+- NUL se rechaza como query inválida (PostgreSQL text no lo admite). Base URL
+  pública ausente/inválida produce null, sin alterar publicabilidad ni contadores.
+- No se agregaron índices, schema, migraciones ni caché persistente.

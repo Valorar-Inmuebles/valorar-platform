@@ -95,3 +95,8 @@ export type {
   PublicPropertyPrimaryPrice,
 } from "./public-property";
 export { getListingStatusLabel } from "./public-property";
+export type {
+  PropertyCommercialStatus,
+  PropertyListItem,
+  PropertyListResponse,
+} from "./property-list";

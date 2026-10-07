@@ -13,6 +13,9 @@ import { PropertyService } from './services/property.service';
 import { PropertyDetailContextController } from './controllers/property-detail-context.controller';
 import { PropertyDetailContextRepository } from './repositories/property-detail-context.repository';
 import { PropertyDetailContextService } from './services/property-detail-context.service';
+import { PropertyListController } from './controllers/property-list.controller';
+import { PropertyListService } from './services/property-list.service';
+import { PropertyListRepository } from './repositories/property-list.repository';
 
 @Module({
   imports: [
@@ -22,8 +25,14 @@ import { PropertyDetailContextService } from './services/property-detail-context
     forwardRef(() => PropertyImageModule),
     forwardRef(() => PropertyPriceModule),
   ],
-  controllers: [PropertyController, PropertyDetailContextController],
+  controllers: [
+    PropertyListController,
+    PropertyController,
+    PropertyDetailContextController,
+  ],
   providers: [
+    PropertyListService,
+    PropertyListRepository,
     PropertyDetailContextRepository,
     PropertyDetailContextService,
     PropertyService,

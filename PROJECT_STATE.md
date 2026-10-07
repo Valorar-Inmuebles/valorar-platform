@@ -57,8 +57,14 @@ Integración Property (GEO-002): FKs en Property + Admin select/autocomplete + W
 la Web para CLOSED (precio opcional), activación hacia ACTIVE con precio siempre
 obligatorio, predicados de atención reutilizables y adaptación explícita de claves
 Dashboard → Admin. Contrato y capacidades del futuro `GET /properties/list` en
-`docs/04-modules/property-list-contract.md`. Endpoint paginado/UI pendientes;
-P1.3B no iniciado. Sin cambios de schema ni datos.
+`docs/04-modules/property-list-contract.md`. Sin cambios de schema ni datos en P1.3A.
+
+**Property List P1.3B — read model API:** `GET /properties/list` implementado,
+aditivo y tenant/visibility-scoped; filtros/sorting/paginación 20/50/100 en PostgreSQL,
+contadores autorizados y capacidades por fila en snapshot REPEATABLE READ.
+Integración SQL real y medición reproducible en DB aislada; evidencia en
+`docs/09-roadmap/property-list-read-model-p1-3b.md`. Sin cambios de schema/migraciones.
+UI del listado pendiente; P1.3C no iniciado.
 
 Fase: Foundation + **Auth Foundation v1** ✅ + Property API + Admin UI + Web Premium ✅ + **Fase 5 Administración Base** ✅ + **Fase 6 Plataforma (Super Admin)** ✅ + **Rental Management A+B** ✅
 

@@ -36,6 +36,7 @@ Ruta base admin: `/properties`
 | ------ | ---- | ----------- |
 | POST | `/properties` | Crear propiedad |
 | GET | `/properties?tenantId=` | Listar por tenant |
+| GET | `/properties/list` | Read model compacto, paginado y acotado por tenant efectivo/visibilidad (P1.3B) |
 | GET | `/properties/:id?tenantId=` | Detalle |
 | GET | `/properties/:id/detail-context` | Contexto de lectura de ficha, con tenant efectivo y visibilidad del detalle |
 | PATCH | `/properties/:id?tenantId=` | Actualizar |
@@ -103,9 +104,22 @@ Medición, concurrencia y evidencia UI: [Performance P1.2](../09-roadmap/propert
 
 Fuente canónica: [Property List](./property-list-contract.md). Define la matriz de
 publicabilidad (incluido CLOSED con precio opcional), los siete filtros de atención,
-capacidades por fila y el contrato del futuro `GET /properties/list`.
+capacidades por fila y el contrato de `GET /properties/list`.
 P1.3A alinea la regla compartida y adapta las claves Dashboard → Admin;
-el endpoint paginado y la nueva UI aún no están implementados.
+P1.3B implementa el endpoint paginado. La nueva UI sigue pendiente.
+
+### Read model paginado (P1.3B)
+
+`PropertyListController` se registra antes del controller con `:id` y conserva
+los guards JWT/tenant/permisos, `property.read` y transporte `private, no-store`.
+Service abre snapshot `REPEATABLE READ`; `PropertyAccessService` resuelve las
+políticas y el predicado de visibilidad con `@repo/rbac`. Repository usa SQL
+parametrizado: universo autorizado, contadores, filtros, orden estable, clamp de
+página y proyección compacta. Comparte `PaginatedResponse<T>` con shared-types.
+Sólo los hechos de la página llegan a Node para capacidades y URL pública.
+El contrato array de `GET /properties` permanece vigente.
+
+Integración, medidas reales y límites: [P1.3B](../09-roadmap/property-list-read-model-p1-3b.md).
 
 ### PropertyListing
 
