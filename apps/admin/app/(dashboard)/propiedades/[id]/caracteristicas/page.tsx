@@ -5,7 +5,7 @@ import { ApiErrorPanel } from "@/components/shared/api-error-panel";
 import { ApiError } from "@/lib/api/client";
 import { listPropertyFeatureAssignments } from "@/lib/api/property-feature-assignment";
 import { listPropertyFeatures } from "@/lib/api/property-feature";
-import { getProperty } from "@/lib/api/property";
+import { getPropertyDetailContext } from "@/lib/api/property-detail-context";
 
 type PropiedadCaracteristicasPageProps = {
   params: Promise<{ id: string }>;
@@ -17,8 +17,8 @@ export default async function PropiedadCaracteristicasPage({
   const { id } = await params;
 
   try {
-    const [property, catalog, assignments] = await Promise.all([
-      getProperty(id),
+    const [, catalog, assignments] = await Promise.all([
+      getPropertyDetailContext(id),
       listPropertyFeatures({ isActive: true }),
       listPropertyFeatureAssignments(id),
     ]);

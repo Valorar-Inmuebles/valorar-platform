@@ -1,5 +1,4 @@
-import { listPropertyFeatureAssignments } from "@/lib/api/property-feature-assignment";
-import { listPropertyImages } from "@/lib/api/property-image";
+import { getPropertyDetailContext } from "@/lib/api/property-detail-context";
 import {
   buildPropertyExecutiveSnapshot,
   type PropertyExecutiveSnapshot,
@@ -17,10 +16,9 @@ export type PropertyExecutiveContext = {
 export async function loadPropertyExecutiveContext(
   propertyId: string,
 ): Promise<PropertyExecutiveContext> {
-  const [commercial, images, features] = await Promise.all([
+  const [commercial, detail] = await Promise.all([
     loadCommercializationContext(propertyId),
-    listPropertyImages(propertyId),
-    listPropertyFeatureAssignments(propertyId),
+    getPropertyDetailContext(propertyId),
   ]);
 
   const snapshot = buildPropertyExecutiveSnapshot({
@@ -28,9 +26,9 @@ export async function loadPropertyExecutiveContext(
     publishability: commercial.summary,
     listings: commercial.listings,
     pricesByListingId: commercial.pricesByListingId,
-    imageCount: images.length,
-    hasCoverImage: images.some((image) => image.isCover),
-    featureCount: features.length,
+    imageCount: detail.imageCount,
+    hasCoverImage: detail.hasCoverImage,
+    featureCount: detail.featureCount,
   });
 
   return {

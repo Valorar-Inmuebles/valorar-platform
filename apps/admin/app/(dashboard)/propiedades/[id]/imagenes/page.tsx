@@ -4,7 +4,7 @@ import { PropertyPageShell } from "@/components/property/property-page-shell";
 import { ApiErrorPanel } from "@/components/shared/api-error-panel";
 import { ApiError } from "@/lib/api/client";
 import { listPropertyImages } from "@/lib/api/property-image";
-import { getProperty } from "@/lib/api/property";
+import { getPropertyDetailContext } from "@/lib/api/property-detail-context";
 
 type PropiedadImagenesPageProps = {
   params: Promise<{ id: string }>;
@@ -16,8 +16,8 @@ export default async function PropiedadImagenesPage({
   const { id } = await params;
 
   try {
-    const [property, images] = await Promise.all([
-      getProperty(id),
+    const [{ property }, images] = await Promise.all([
+      getPropertyDetailContext(id),
       listPropertyImages(id),
     ]);
 
@@ -25,8 +25,12 @@ export default async function PropiedadImagenesPage({
       <PropertyPageShell propertyId={id} embedded>
         <div className="space-y-4">
           <div>
-            <h2 className="text-base font-semibold text-foreground">Imágenes</h2>
-            <p className="text-sm text-muted">Galería e imágenes de la propiedad.</p>
+            <h2 className="text-base font-semibold text-foreground">
+              Imágenes
+            </h2>
+            <p className="text-sm text-muted">
+              Galería e imágenes de la propiedad.
+            </p>
           </div>
           <PropertyImageManager
             propertyId={id}

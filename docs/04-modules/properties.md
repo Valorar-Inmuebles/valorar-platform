@@ -37,6 +37,7 @@ Ruta base admin: `/properties`
 | POST | `/properties` | Crear propiedad |
 | GET | `/properties?tenantId=` | Listar por tenant |
 | GET | `/properties/:id?tenantId=` | Detalle |
+| GET | `/properties/:id/detail-context` | Contexto de lectura de ficha, con tenant efectivo y visibilidad del detalle |
 | PATCH | `/properties/:id?tenantId=` | Actualizar |
 | DELETE | `/properties/:id?tenantId=` | Archivar (`isActive = false`) |
 
@@ -53,6 +54,29 @@ Reglas implementadas:
 * Errores Prisma traducidos: `P2002` → 409, `P2003` → 400, `P2025` → 404.
 * Respuestas tipadas con `PropertyResponseDto`.
 * El listado incluye `listingTypes: PropertyListingType[]` como proyección compacta de las operaciones configuradas por propiedad. No incluye precios ni estados de listing y evita consultas por fila.
+
+### Contexto de lectura de ficha (P1.1)
+
+`GET /properties/:id/detail-context` conserva `JwtAuthGuard`, `TenantGuard`,
+`PermissionsGuard`, `property.read` y el filtro de `PropertyAccessService.buildListWhere`
+del detalle existente (creador, asignado, acceso compartido, políticas y SUPER_ADMIN).
+Devuelve Property con el DTO existente, operaciones con sus precios y checklist,
+`imageCount`, `hasCoverImage` y `featureCount`. No devuelve galería ni asignaciones
+completas. Cada relación de negocio se filtra por el tenant efectivo.
+
+El repositorio carga las relaciones en lote; el servicio calcula cada checklist con
+`evaluateListingPublishability`, sin nuevas consultas por listing. Una llamada Prisma
+con relaciones **no equivale a una sola sentencia SQL**: la estrategia del cliente
+puede ejecutar varias consultas agrupadas, sin crecimiento por listing.
+
+Admin comparte explícitamente la promesa mediante `React.cache` en el render/request
+servidor, con transporte `no-store`. No existe caché persistente entre usuarios o
+tenants. Datos conserva usuarios/catálogo/asignaciones; Características conserva
+catálogo/asignaciones; Imágenes conserva la galería; Comercialización reutiliza el
+contexto. Los builders de snapshot, publicabilidad, labels y URLs siguen siendo los
+existentes. Cambios posteriores disparan las mismas revalidaciones que antes.
+
+Medición reproducible y límites: [Performance P1.1](../09-roadmap/property-detail-performance-p1-1.md).
 
 ### PropertyListing
 

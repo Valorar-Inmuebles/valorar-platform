@@ -1,6 +1,4 @@
-import { getPropertyPublishability } from "@/lib/api/property-publishability";
-import { getProperty } from "@/lib/api/property";
-import { listPropertyListings } from "@/lib/api/property-listing";
+import { getPropertyDetailContext } from "@/lib/api/property-detail-context";
 import type { AdminProperty } from "@/lib/api/types/property";
 import type { AdminPropertyListing } from "@/lib/api/types/property-listing";
 import {
@@ -20,19 +18,14 @@ export type PropertyPublishabilityContext = {
 export async function loadPropertyPublishabilityContext(
   propertyId: string,
 ): Promise<PropertyPublishabilityContext> {
-  const [property, listings] = await Promise.all([
-    getProperty(propertyId),
-    listPropertyListings({ propertyId }),
-  ]);
-
-  const publishabilityEntries = await Promise.all(
-    listings.map(async (listing) => {
-      const api = await getPropertyPublishability(propertyId, listing.id);
-      return [
+  const { property, operations } = await getPropertyDetailContext(propertyId);
+  const listings = operations.map(({ listing }) => listing);
+  const publishabilityEntries = operations.map(
+    ({ listing, publishability }) =>
+      [
         listing.id,
-        mapApiPublishabilityToListing(property, listing, api),
-      ] as const;
-    }),
+        mapApiPublishabilityToListing(property, listing, publishability),
+      ] as const,
   );
 
   const publishabilityByListingId = Object.fromEntries(publishabilityEntries);

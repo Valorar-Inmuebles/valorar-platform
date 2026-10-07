@@ -1,4 +1,4 @@
-import { listPropertyPrices } from "@/lib/api/property-price";
+import { getPropertyDetailContext } from "@/lib/api/property-detail-context";
 import type { AdminPropertyPrice } from "@/lib/api/types/property-price";
 import { loadPropertyPublishabilityContext } from "@/lib/property/load-publishability-context";
 
@@ -11,14 +11,14 @@ export type CommercializationContext = Awaited<
 export async function loadCommercializationContext(
   propertyId: string,
 ): Promise<CommercializationContext> {
-  const base = await loadPropertyPublishabilityContext(propertyId);
-
-  const priceEntries = await Promise.all(
-    base.listings.map(async (listing) => {
-      const prices = await listPropertyPrices(listing.id);
-      return [listing.id, prices] as const;
-    }),
-  );
+  const [base, { operations }] = await Promise.all([
+    loadPropertyPublishabilityContext(propertyId),
+    getPropertyDetailContext(propertyId),
+  ]);
+  const priceEntries = operations.map(({ listing, prices }) => [
+    listing.id,
+    prices,
+  ]);
 
   return {
     ...base,
