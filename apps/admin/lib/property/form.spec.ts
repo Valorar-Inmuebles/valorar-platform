@@ -77,9 +77,81 @@ describe("Property form lifecycle isolation", () => {
     values.title = "Casa centro actualizada";
 
     expect(values).not.toHaveProperty("isActive");
-    expect(formValuesToUpdatePayload(values)).toMatchObject({
+    expect(
+      formValuesToUpdatePayload(values, propertyToFormValues(property)),
+    ).toEqual({
       title: "Casa centro actualizada",
     });
-    expect(formValuesToUpdatePayload(values)).not.toHaveProperty("isActive");
+    expect(
+      formValuesToUpdatePayload(values, propertyToFormValues(property)),
+    ).not.toHaveProperty("isActive");
+  });
+
+  it("sends only description, ignoring unchanged nulls and normalized numbers", () => {
+    const initial = propertyToFormValues({ ...property, totalArea: 100 });
+    expect(
+      formValuesToUpdatePayload(
+        { ...initial, description: "Nueva descripción", totalArea: "100.00" },
+        initial,
+      ),
+    ).toEqual({ description: "Nueva descripción" });
+  });
+
+  it("clears optional text, enum and number explicitly without undefined", () => {
+    const initial = propertyToFormValues({
+      ...property,
+      description: "Texto",
+      internalCode: "REF",
+      condition: "GOOD",
+      totalArea: 100,
+      assignedToId: "user-1",
+    });
+    const payload = formValuesToUpdatePayload(
+      {
+        ...initial,
+        description: "",
+        internalCode: "",
+        condition: "",
+        totalArea: "",
+        assignedToId: "",
+      },
+      initial,
+    );
+    expect(payload).toEqual({
+      description: null,
+      internalCode: null,
+      condition: null,
+      totalArea: null,
+      assignedToId: null,
+    });
+    expect(JSON.parse(JSON.stringify(payload))).toEqual(payload);
+  });
+
+  it("does not turn initially empty values into clear intentions", () => {
+    const initial = propertyToFormValues(property);
+    expect(formValuesToUpdatePayload(initial, initial)).toEqual({});
+  });
+
+  it("includes the GEO hierarchy and postal override only on geographic changes", () => {
+    const initial = propertyToFormValues({ ...property, postalCode: "1234" });
+    expect(
+      formValuesToUpdatePayload(
+        {
+          ...initial,
+          neighborhoodId: "neighborhood-2",
+          neighborhoodName: "Barrio",
+        },
+        initial,
+      ),
+    ).toEqual({
+      provinceId: "province-1",
+      localityId: "locality-1",
+      neighborhoodId: "neighborhood-2",
+      neighborhood: "Barrio",
+      postalCode: "1234",
+    });
+    expect(
+      formValuesToUpdatePayload({ ...initial, street: "Otra calle" }, initial),
+    ).toEqual({ street: "Otra calle" });
   });
 });

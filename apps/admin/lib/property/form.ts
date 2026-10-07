@@ -264,6 +264,32 @@ export function formValuesToCreatePayload(
 
 export function formValuesToUpdatePayload(
   values: PropertyFormValues,
+  initialValues: PropertyFormValues,
 ): UpdatePropertyPayload {
-  return formValuesToCreatePayload(values);
+  const current = formValuesToCreatePayload(values);
+  const initial = formValuesToCreatePayload(initialValues);
+  const patch = Object.fromEntries(
+    Object.entries(current)
+      .filter(([key, value]) => value !== initial[key as keyof typeof initial])
+      // Empty optional inputs represent an intentional clear only if changed.
+      .map(([key, value]) => [key, value === undefined ? null : value]),
+  ) as UpdatePropertyPayload;
+
+  if (
+    current.provinceId !== initial.provinceId ||
+    current.localityId !== initial.localityId ||
+    current.neighborhoodId !== initial.neighborhoodId
+  ) {
+    // GEO is a hierarchical write unit. Include the unchanged parent and postal
+    // override too: the existing resolver otherwise applies the locality default.
+    Object.assign(patch, {
+      provinceId: current.provinceId,
+      localityId: current.localityId,
+      neighborhoodId: current.neighborhoodId,
+      ...(current.postalCode !== undefined
+        ? { postalCode: current.postalCode }
+        : {}),
+    });
+  }
+  return patch;
 }

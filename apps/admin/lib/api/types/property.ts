@@ -109,9 +109,16 @@ export type CreatePropertyPayload = {
   assignedToId?: string | null;
 };
 
-export type UpdatePropertyPayload = Partial<
-  Omit<CreatePropertyPayload, "slug"> & { slug: string }
-> & {
+export type UpdatePropertyPayload = {
+  [K in keyof CreatePropertyPayload]?: K extends
+    | "slug"
+    | "title"
+    | "propertyType"
+    | "city"
+    | "country"
+    ? CreatePropertyPayload[K]
+    : CreatePropertyPayload[K] | null;
+} & {
   /** Exclusivo de la acción explícita Restaurar; no forma parte del formulario. */
   isActive?: boolean;
 };

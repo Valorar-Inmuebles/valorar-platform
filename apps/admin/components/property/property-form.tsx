@@ -78,6 +78,7 @@ export function PropertyForm({
   const [values, setValues] = useState<PropertyFormValues>(() =>
     property ? propertyToFormValues(property) : emptyPropertyFormValues(),
   );
+  const [savedValues, setSavedValues] = useState(values);
   const [selectedGarageTypeSlugs, setSelectedGarageTypeSlugs] = useState<
     Set<string>
   >(
@@ -89,6 +90,9 @@ export function PropertyForm({
       ),
   );
   const [error, setError] = useState<string | null>(null);
+  const [savedGarageTypeSlugs, setSavedGarageTypeSlugs] = useState(
+    selectedGarageTypeSlugs,
+  );
   const [slugTouched, setSlugTouched] = useState(mode === "edit");
   const [isPending, startTransition] = useTransition();
 
@@ -121,6 +125,15 @@ export function PropertyForm({
   };
 
   const saveSpecificAttributes = async (propertyId: string) => {
+    if (
+      mode === "edit" &&
+      selectedGarageTypeSlugs.size === savedGarageTypeSlugs.size &&
+      [...selectedGarageTypeSlugs].every((slug) =>
+        savedGarageTypeSlugs.has(slug),
+      )
+    ) {
+      return { ok: true as const };
+    }
     const featureBySlug = new Map(
       featureCatalog.map((feature) => [feature.slug, feature]),
     );
@@ -138,7 +151,7 @@ export function PropertyForm({
       return { ok: true as const };
     }
 
-    return replacePropertyFeatureAssignmentsAction(propertyId, {
+    const result = await replacePropertyFeatureAssignmentsAction(propertyId, {
       features: [
         ...featureAssignments
           .filter(
@@ -151,6 +164,8 @@ export function PropertyForm({
         ...selectedFeatures.map((feature) => ({ featureId: feature.id })),
       ],
     });
+    if (result.ok) setSavedGarageTypeSlugs(new Set(selectedGarageTypeSlugs));
+    return result;
   };
 
   const handleTitleChange = (title: string) => {
@@ -224,7 +239,7 @@ export function PropertyForm({
 
       const result = await updatePropertyAction(
         property.id,
-        formValuesToUpdatePayload(values),
+        formValuesToUpdatePayload(values, savedValues),
       );
 
       if (!result.ok) {
@@ -233,6 +248,10 @@ export function PropertyForm({
         return;
       }
 
+      // Advance the baseline even if the subsequent attribute write fails.
+      // Refresh preserves mounted client state; the diff must not use new props
+      // against the old draft on retries or successive saves.
+      setSavedValues(values);
       const attributeResult = await saveSpecificAttributes(property.id);
       if (!attributeResult.ok) {
         setError(attributeResult.error);
@@ -241,7 +260,7 @@ export function PropertyForm({
       }
 
       toast.success("Propiedad actualizada correctamente.");
-      router.refresh();
+      // The Server Actions revalidate the detail and return its fresh RSC tree.
     });
   };
 

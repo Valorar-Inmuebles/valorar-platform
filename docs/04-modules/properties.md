@@ -50,7 +50,7 @@ Reglas implementadas:
 * `internalCode` único por tenant (cuando está definido); `""` → `null`.
 * Borrado lógico mediante `isActive = false`.
 * Listados filtrados por `tenantId` (opcional `isActive`).
-* Escrituras con defensa en profundidad (`tenantId` en `updateMany`).
+* Escrituras con defensa en profundidad (`id` + `tenantId` en update; archive conserva `updateMany` tenant-scoped).
 * Errores Prisma traducidos: `P2002` → 409, `P2003` → 400, `P2025` → 404.
 * Respuestas tipadas con `PropertyResponseDto`.
 * El listado incluye `listingTypes: PropertyListingType[]` como proyección compacta de las operaciones configuradas por propiedad. No incluye precios ni estados de listing y evita consultas por fila.
@@ -77,6 +77,27 @@ contexto. Los builders de snapshot, publicabilidad, labels y URLs siguen siendo 
 existentes. Cambios posteriores disparan las mismas revalidaciones que antes.
 
 Medición reproducible y límites: [Performance P1.1](../09-roadmap/property-detail-performance-p1-1.md).
+
+### Guardado diferencial de ficha (P1.2)
+
+Edición Admin envía únicamente cambios normalizados respecto del snapshot del
+formulario, sin `isActive`. Campos opcionales vaciados se expresan como `null`,
+nunca como `undefined`; el API conserva strings vacíos donde el dominio los admite.
+Create mantiene su contrato. Cuando cambia GEO, se envía su unidad jerárquica
+(provincia/localidad/barrio y override postal) para conservar validaciones y defaults.
+
+PATCH conserva autenticación, tenant y política de edición. Slug, código y
+asignado sólo consultan validaciones dependientes cuando cambian; GEO se resuelve
+cuando cambian IDs o hay textos legacy enviados que necesitan canonicalización.
+Update devuelve el mismo `PropertyResponseDto` con relaciones desde la operación
+tenant-scoped, sin segunda llamada explícita del repositorio a `findById`.
+
+Atributos específicos sin cambios no disparan PUT. Con cambios se mantiene
+PATCH → PUT replace transaccional y su validación existente. Las Server Actions
+revalidan listado/detalle/características y devuelven el árbol RSC actualizado;
+edición no agrega otro `router.refresh()`.
+
+Medición, concurrencia y evidencia UI: [Performance P1.2](../09-roadmap/property-write-performance-p1-2.md).
 
 ### PropertyListing
 
