@@ -17,6 +17,7 @@ import {
   buildReorderItems,
   sortImagesByOrder,
 } from "@/lib/property/image-upload";
+import { useImagePreviewUrl } from "@/lib/property/image-preview-url";
 
 type PropertyImageGridProps = {
   propertyId: string;
@@ -34,11 +35,13 @@ type DeleteTarget = {
 };
 
 function ImagePreview({ image }: { image: AdminPropertyImage }) {
-  if (image.url) {
+  const previewUrl = useImagePreviewUrl(image.url);
+
+  if (previewUrl) {
     return (
       // eslint-disable-next-line @next/next/no-img-element
       <img
-        src={image.url}
+        src={previewUrl}
         alt={image.altText ?? image.storageKey}
         className="size-full object-cover object-center"
       />
@@ -47,7 +50,7 @@ function ImagePreview({ image }: { image: AdminPropertyImage }) {
 
   return (
     <div className="flex size-full items-center justify-center bg-zinc-100 text-xs text-muted">
-      Sin preview
+      {image.url ? "Cargando vista previa…" : "Sin preview"}
     </div>
   );
 }
@@ -187,7 +190,9 @@ export function PropertyImageGrid({
               className={[
                 "overflow-hidden transition-opacity",
                 draggedId === image.id ? "opacity-50" : "",
-                rowPending ? "pointer-events-none opacity-70" : "cursor-grab active:cursor-grabbing",
+                rowPending
+                  ? "pointer-events-none opacity-70"
+                  : "cursor-grab active:cursor-grabbing",
               ].join(" ")}
             >
               <div className="relative aspect-video w-full overflow-hidden bg-zinc-900">
@@ -236,7 +241,8 @@ export function PropertyImageGrid({
                     onClick={() =>
                       setDeleteTarget({
                         image,
-                        willPromoteOther: image.isCover && orderedImages.length > 1,
+                        willPromoteOther:
+                          image.isCover && orderedImages.length > 1,
                       })
                     }
                   >

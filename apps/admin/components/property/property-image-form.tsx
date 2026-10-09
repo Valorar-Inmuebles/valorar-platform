@@ -19,6 +19,7 @@ import {
   formValuesToUpdatePayload,
   imageToEditFormValues,
 } from "@/lib/property/image-form";
+import { useImagePreviewUrl } from "@/lib/property/image-preview-url";
 
 type PropertyImageFormProps = {
   propertyId: string;
@@ -39,6 +40,7 @@ export function PropertyImageForm({
   );
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const previewUrl = useImagePreviewUrl(image.url);
 
   useEffect(() => {
     setValues(imageToEditFormValues(image));
@@ -71,17 +73,19 @@ export function PropertyImageForm({
     <form onSubmit={handleSubmit} className="space-y-4">
       <FormField>
         <Label>Vista previa</Label>
-        {image.url ? (
+        {previewUrl ? (
           <div className="overflow-hidden rounded-lg border border-border">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src={image.url}
+              src={previewUrl}
               alt={image.altText ?? image.storageKey}
               className="aspect-video w-full object-cover object-center"
             />
           </div>
         ) : (
-          <p className="text-sm text-muted">Sin preview disponible.</p>
+          <p className="text-sm text-muted">
+            {image.url ? "Cargando vista previa…" : "Sin preview disponible."}
+          </p>
         )}
       </FormField>
 
@@ -90,7 +94,10 @@ export function PropertyImageForm({
         <Input
           value={values.altText}
           onChange={(event) =>
-            setValues((current) => ({ ...current, altText: event.target.value }))
+            setValues((current) => ({
+              ...current,
+              altText: event.target.value,
+            }))
           }
           disabled={isPending}
           placeholder="Descripción de la imagen"
