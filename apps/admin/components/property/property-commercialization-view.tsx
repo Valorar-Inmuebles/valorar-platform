@@ -1,7 +1,5 @@
 "use client";
 
-
-
 import Link from "next/link";
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -25,42 +23,37 @@ import { PropertyListingStatusBadge } from "@/components/property/property-listi
 import { closeListingCommercializationClient } from "@/lib/api/commercialization-client";
 
 import type { AdminPropertyListing } from "@/lib/api/types/property-listing";
+import {
+  listingPublicationAction,
+  type ListingActivationFacts,
+} from "@/lib/property/listing-activation";
 
 import type { AdminPropertyPrice } from "@/lib/api/types/property-price";
 
 import {
-
   formatOtherPrices,
-
   summarizeListingPrices,
-
 } from "@/lib/property/commercialization";
 
 import {
-
   applyListingMutation,
-
   applyListingPricesMutation,
-
 } from "@/lib/property/commercialization-state";
 
 import type { ListingPublishability } from "@/lib/property/publishability";
 
 import {
-
   getListingStatusLabel,
-
   getListingTypeLabel,
-
 } from "@/lib/format/listing-labels";
 
 import { formatPrice } from "@/lib/format/price";
 
 import { cn } from "@/lib/cn";
 
-
-
 type PropertyCommercializationViewProps = {
+  canEdit: boolean;
+  activationFacts: ListingActivationFacts;
 
   propertyId: string;
 
@@ -71,12 +64,11 @@ type PropertyCommercializationViewProps = {
   pricesByListingId: Record<string, AdminPropertyPrice[]>;
 
   publishabilityByListingId: Record<string, ListingPublishability>;
-
 };
 
-
-
 export function PropertyCommercializationView({
+  canEdit,
+  activationFacts,
 
   propertyId,
 
@@ -87,9 +79,7 @@ export function PropertyCommercializationView({
   pricesByListingId: initialPricesByListingId,
 
   publishabilityByListingId: initialPublishabilityByListingId,
-
 }: PropertyCommercializationViewProps) {
-
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -99,115 +89,79 @@ export function PropertyCommercializationView({
   const [listings, setListings] = useState(initialListings);
 
   const [pricesByListingId, setPricesByListingId] = useState(
-
     initialPricesByListingId,
-
   );
 
   const [publishabilityByListingId, setPublishabilityByListingId] = useState(
-
     initialPublishabilityByListingId,
-
   );
 
   const [closeTarget, setCloseTarget] = useState<AdminPropertyListing | null>(
-
     null,
-
   );
 
   const [pendingId, setPendingId] = useState<string | null>(null);
+  const [publicationIntent, setPublicationIntent] = useState<
+    "ACTIVE" | "PAUSED" | undefined
+  >();
 
   const [isPending, startTransition] = useTransition();
 
-
-
   useEffect(() => {
-
     setListings(initialListings);
 
     setPricesByListingId(initialPricesByListingId);
 
     setPublishabilityByListingId(initialPublishabilityByListingId);
-
   }, [
-
     initialListings,
 
     initialPricesByListingId,
 
     initialPublishabilityByListingId,
-
   ]);
-
-
 
   const editId = searchParams.get("edit");
 
   const editingListing = editId
-
     ? listings.find((listing) => listing.id === editId)
-
     : null;
 
-
-
   const buildSearchHref = useCallback(
-
     (nextEditId: string | null) => {
-
       const params = new URLSearchParams(searchParams.toString());
 
       if (nextEditId) {
-
         params.set("edit", nextEditId);
-
       } else {
-
         params.delete("edit");
-
       }
 
       const query = params.toString();
 
       return query ? `${pathname}?${query}` : pathname;
-
     },
 
     [pathname, searchParams],
-
   );
-
-
 
   const openEdit = useCallback(
-
     (listingId: string) => {
-
-      router.replace(buildSearchHref(listingId), { scroll: false });
-
+      setPublicationIntent(undefined);
+      window.history.replaceState(null, "", buildSearchHref(listingId));
     },
 
-    [buildSearchHref, router],
-
+    [buildSearchHref],
   );
 
-
-
   const closeEdit = useCallback(() => {
-
-    router.replace(buildSearchHref(null), { scroll: false });
-
-  }, [buildSearchHref, router]);
-
-
+    setPublicationIntent(undefined);
+    window.history.replaceState(null, "", buildSearchHref(null));
+  }, [buildSearchHref]);
 
   const handleListingUpdated = useCallback(
-
     (listing: AdminPropertyListing, publishability: ListingPublishability) => {
-
       const next = applyListingMutation(
-
         listings,
 
         publishabilityByListingId,
@@ -215,35 +169,26 @@ export function PropertyCommercializationView({
         listing,
 
         publishability,
-
       );
 
       setListings(next.listings);
 
       setPublishabilityByListingId(next.publishabilityByListingId);
-
     },
 
     [listings, publishabilityByListingId],
-
   );
 
-
-
   const handlePricesUpdated = useCallback(
-
     (
-
       listingId: string,
 
       prices: AdminPropertyPrice[],
 
       publishability: ListingPublishability,
-
+      refresh = false,
     ) => {
-
       const next = applyListingPricesMutation(
-
         pricesByListingId,
 
         publishabilityByListingId,
@@ -253,123 +198,85 @@ export function PropertyCommercializationView({
         prices,
 
         publishability,
-
       );
 
       setPricesByListingId(next.pricesByListingId);
 
       setPublishabilityByListingId(next.publishabilityByListingId);
 
+      if (refresh) router.refresh();
     },
 
-    [pricesByListingId, publishabilityByListingId],
-
+    [pricesByListingId, publishabilityByListingId, router],
   );
 
-
-
   const handleListingSaved = useCallback(
-
     (listing: AdminPropertyListing, publishability: ListingPublishability) => {
-
       handleListingUpdated(listing, publishability);
 
       closeEdit();
-
+      router.refresh();
     },
 
-    [closeEdit, handleListingUpdated],
-
+    [closeEdit, handleListingUpdated, router],
   );
 
-
-
   const handlePricesSaved = useCallback(
-
     (
-
       listingId: string,
 
       prices: AdminPropertyPrice[],
 
       publishability: ListingPublishability,
-
     ) => {
-
       handlePricesUpdated(listingId, prices, publishability);
 
       closeEdit();
-
+      router.refresh();
     },
 
-    [closeEdit, handlePricesUpdated],
-
+    [closeEdit, handlePricesUpdated, router],
   );
 
-
-
   const handleClose = () => {
-
     if (!closeTarget) return;
-
-
 
     setPendingId(closeTarget.id);
 
     startTransition(async () => {
-
       const result = await closeListingCommercializationClient(
-
         propertyId,
 
         closeTarget.id,
 
         propertySlug,
-
       );
 
       setPendingId(null);
 
       setCloseTarget(null);
 
-
-
       if (!result.ok) {
-
         toast.error(result.error);
 
         return;
-
       }
 
-
-
       handleListingUpdated(result.listing, result.publishability);
+      router.refresh();
 
       toast.success("Operación cerrada correctamente.");
-
     });
-
   };
 
-
-
   return (
-
     <>
-
       <Card>
-
         <CardContent className="p-0">
-
           <div className="overflow-x-auto">
-
             <table className="min-w-full text-sm">
-
               <thead>
-
                 <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted">
-
                   <th className="px-4 py-3 font-medium">Operación</th>
 
                   <th className="px-4 py-3 font-medium">Estado</th>
@@ -385,305 +292,200 @@ export function PropertyCommercializationView({
                   <th className="px-4 py-3 font-medium">Destacada</th>
 
                   <th className="px-4 py-3 font-medium text-right">Acciones</th>
-
                 </tr>
-
               </thead>
 
               <tbody>
-
                 {listings.map((listing) => {
-
                   const prices = pricesByListingId[listing.id] ?? [];
 
                   const summary = summarizeListingPrices(prices);
 
                   const publishability = publishabilityByListingId[listing.id];
 
-
-
                   return (
-
                     <tr
-
                       key={listing.id}
-
                       className="border-b border-border last:border-b-0 hover:bg-surface-alt"
-
                     >
-
                       <td className="px-4 py-3">
-
                         <button
-
                           type="button"
-
                           onClick={() => openEdit(listing.id)}
-
+                          disabled={!canEdit || isPending}
                           className="font-medium text-foreground hover:text-primary"
-
                         >
-
                           {getListingTypeLabel(listing.listingType)}
-
                         </button>
 
                         {summary.count > 0 ? (
-
                           <p className="mt-0.5 text-xs text-muted">
-
                             {summary.count}{" "}
-
                             {summary.count === 1 ? "precio" : "precios"}
-
                           </p>
-
                         ) : null}
-
                       </td>
 
                       <td className="px-4 py-3">
-
                         <div className="flex flex-wrap items-center gap-2">
-
                           <PropertyListingStatusBadge
-
                             status={listing.status}
-
                             listingType={listing.listingType}
-
                           />
 
                           {listing.status === "ACTIVE" &&
-
                           publishability &&
-
                           !publishability.isPublishable ? (
-
                             <Badge variant="warning">Activa (no visible)</Badge>
-
                           ) : null}
-
                         </div>
-
                       </td>
 
                       <td className="px-4 py-3 font-medium text-foreground">
-
                         {summary.primary
                           ? formatPrice(
                               summary.primary.amount,
                               summary.primary.currency,
                             )
                           : "Consultar precio"}
-
                       </td>
 
                       <td className="px-4 py-3 text-muted">
-
                         {summary.primary?.currency ?? "—"}
-
                       </td>
 
                       <td className="px-4 py-3 text-muted">
-
                         {formatOtherPrices(prices)}
-
                       </td>
 
                       <td className="px-4 py-3">
-
                         {publishability ? (
-
                           <div className="flex flex-col gap-1">
-
                             <Badge
-
                               variant={
-
                                 publishability.isPublishable
-
                                   ? "success"
-
                                   : "neutral"
-
                               }
-
                             >
-
                               {publishability.isPublishable
-
                                 ? "Visible"
-
                                 : "No publicable"}
-
                             </Badge>
 
                             {publishability.publicWebUrl ? (
-
                               <Link
-
                                 href={publishability.publicWebUrl}
-
                                 target="_blank"
-
                                 rel="noopener noreferrer"
-
                                 className="text-xs font-medium text-primary underline-offset-2 hover:underline"
-
                               >
-
                                 Ver en web
-
                               </Link>
-
                             ) : null}
-
                           </div>
-
                         ) : (
-
                           <span className="text-muted">—</span>
-
                         )}
-
                       </td>
 
                       <td className="px-4 py-3 text-muted">
-
                         {listing.isFeatured ? "Sí" : "No"}
-
                       </td>
 
                       <td className="px-4 py-3">
-
-                        <div className="flex justify-end gap-2">
+                        <div className="flex flex-wrap justify-end gap-2">
+                          {canEdit &&
+                          listingPublicationAction(listing.status) ? (
+                            <Button
+                              size="sm"
+                              disabled={isPending}
+                              onClick={() => {
+                                openEdit(listing.id);
+                                setPublicationIntent(
+                                  listingPublicationAction(listing.status)!
+                                    .status,
+                                );
+                              }}
+                            >
+                              {listingPublicationAction(listing.status)!.label}
+                            </Button>
+                          ) : null}
 
                           <Button
-
                             variant="secondary"
-
                             size="sm"
-
                             onClick={() => openEdit(listing.id)}
-
+                            disabled={!canEdit || isPending}
                           >
-
                             Editar
-
                           </Button>
 
                           <Button
-
                             variant="outline-secondary"
-
                             size="sm"
-
-                            disabled={listing.status === "CLOSED" || isPending}
-
+                            disabled={
+                              !canEdit ||
+                              listing.status === "CLOSED" ||
+                              isPending
+                            }
                             onClick={() => setCloseTarget(listing)}
-
                             className={cn(
-
                               listing.status === "CLOSED" && "opacity-50",
-
                             )}
-
                           >
-
                             Cerrar
-
                           </Button>
-
                         </div>
-
                       </td>
-
                     </tr>
-
                   );
-
                 })}
-
               </tbody>
-
             </table>
-
           </div>
-
         </CardContent>
-
       </Card>
 
-
-
-      {editingListing ? (
-
+      {canEdit && editingListing ? (
         <PropertyListingCommercialPanel
-
           open
-
           onClose={closeEdit}
-
           propertyId={propertyId}
-
           propertySlug={propertySlug}
-
           listing={editingListing}
-
+          activationFacts={activationFacts}
+          initialStatus={publicationIntent}
           prices={pricesByListingId[editingListing.id] ?? []}
-
           onListingSaved={handleListingSaved}
-
           onPricesUpdated={handlePricesUpdated}
-
           onPricesSaved={handlePricesSaved}
-
         />
-
       ) : null}
 
-
-
       <ConfirmModal
-
         open={closeTarget != null}
-
         onClose={() => setCloseTarget(null)}
-
         onConfirm={handleClose}
-
         title="Cerrar operación"
-
         description={
-
           closeTarget ? (
-
             <>
-
               ¿Cerrar la operación de{" "}
-
               <strong>{getListingTypeLabel(closeTarget.listingType)}</strong>?
-
-              Pasará a estado {getListingStatusLabel("CLOSED", closeTarget.listingType).toLowerCase()}.
-
+              Pasará a estado{" "}
+              {getListingStatusLabel(
+                "CLOSED",
+                closeTarget.listingType,
+              ).toLowerCase()}
+              .
             </>
-
           ) : null
-
         }
-
         confirmLabel="Cerrar"
-
         cancelLabel="Cancelar"
-
         loading={isPending && pendingId === closeTarget?.id}
-
       />
-
     </>
-
   );
-
 }
-

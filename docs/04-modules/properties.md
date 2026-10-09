@@ -258,6 +258,25 @@ Documentación técnica API: `docs/09-roadmap/property-api-roadmap.md`
 
 Una propiedad puede tener varias publicaciones simultáneas (una por tipo).
 
+### Publicación por operación — refinamiento local 2026-10-08
+
+POST/PATCH/DELETE de PropertyListing requieren los permisos existentes de edición
+`property.update.own/any` y autorización sobre la Property padre mediante
+`PropertyAccessService` (tenant efectivo, creador, asignado, acceso compartido y
+políticas). No se agregan roles ni permisos.
+
+Comercialización ofrece Publicar para DRAFT, Reactivar publicación para PAUSED y
+Pausar publicación para ACTIVE. Cada acción abre el SidePanel de esa operación;
+Editar y Cerrar se conservan. Antes de guardar hacia ACTIVE se evalúan Property
+activa, imagen, portada y precio principal de la operación, con errores/enlaces
+para completar faltantes. La validación definitiva permanece en API. Restaurar
+Property no reactiva listings automáticamente.
+
+El contexto de detalle agrega `canEdit` calculado por API. Después de mutar un
+listing se actualizan fila, encabezado e indicadores y se solicita invalidación
+Web. Implementación, pruebas y límite del UAT en
+`docs/09-roadmap/property-listing-publication-fix.md`.
+
 ---
 
 ## Información física (Property)

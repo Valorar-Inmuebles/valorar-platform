@@ -6,6 +6,7 @@ import type { AdminPropertyPrice } from "@/lib/api/types/property-price";
 import type { PropertyPublishabilityResponse } from "@/lib/api/types/property-publishability";
 
 export type PropertyDetailContext = {
+  canEdit: boolean;
   property: AdminProperty;
   operations: {
     listing: AdminPropertyListing;

@@ -6,15 +6,19 @@ export type CommercializationContext = Awaited<
   ReturnType<typeof loadPropertyPublishabilityContext>
 > & {
   pricesByListingId: Record<string, AdminPropertyPrice[]>;
+  canEdit: boolean;
+  imageCount: number;
+  hasCoverImage: boolean;
 };
 
 export async function loadCommercializationContext(
   propertyId: string,
 ): Promise<CommercializationContext> {
-  const [base, { operations }] = await Promise.all([
-    loadPropertyPublishabilityContext(propertyId),
-    getPropertyDetailContext(propertyId),
-  ]);
+  const [base, { operations, canEdit, imageCount, hasCoverImage }] =
+    await Promise.all([
+      loadPropertyPublishabilityContext(propertyId),
+      getPropertyDetailContext(propertyId),
+    ]);
   const priceEntries = operations.map(({ listing, prices }) => [
     listing.id,
     prices,
@@ -22,6 +26,9 @@ export async function loadCommercializationContext(
 
   return {
     ...base,
+    canEdit,
+    imageCount,
+    hasCoverImage,
     pricesByListingId: Object.fromEntries(priceEntries),
   };
 }

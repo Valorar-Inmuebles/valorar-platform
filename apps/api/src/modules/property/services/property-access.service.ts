@@ -71,9 +71,10 @@ export class PropertyAccessService {
     tenantId: string,
     user: AuthenticatedUser,
     base: Prisma.PropertyWhereInput = {},
+    tenantPolicies?: PropertyTenantPolicies,
   ): Promise<Prisma.PropertyWhereInput> {
     const role = user.role;
-    const policies = await this.getTenantPolicies(tenantId);
+    const policies = tenantPolicies ?? (await this.getTenantPolicies(tenantId));
 
     if (!shouldScopePropertyList(role, policies)) {
       return { ...base, tenantId };

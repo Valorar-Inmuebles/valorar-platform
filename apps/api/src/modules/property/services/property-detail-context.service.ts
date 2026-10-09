@@ -22,11 +22,18 @@ export class PropertyDetailContextService {
     user: AuthenticatedUser,
   ): Promise<PropertyDetailContextResponseDto> {
     // Same visibility filter as GET /properties/:id, including assigned/shared agents.
-    const visibility = await this.access.buildListWhere(tenantId, user, { id });
+    const policies = await this.access.getTenantPolicies(tenantId);
+    const visibility = await this.access.buildListWhere(
+      tenantId,
+      user,
+      { id },
+      policies,
+    );
     const property = await this.repository.findVisible(
       id,
       tenantId,
       visibility,
+      user.id,
     );
     if (!property)
       throw new NotFoundException(`Property with id "${id}" not found`);
@@ -34,6 +41,12 @@ export class PropertyDetailContextService {
     const imageCount = property._count.images;
     const hasCoverImage = property.images.length > 0;
     return {
+      canEdit: this.access.listCapabilities(
+        property,
+        user,
+        policies,
+        property.agentAccess[0] ?? null,
+      ).canEdit,
       property: PropertyResponseDto.fromEntity(property),
       imageCount,
       hasCoverImage,

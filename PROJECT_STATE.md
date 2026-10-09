@@ -74,6 +74,13 @@ sorting, paginación y responsive 390/768. UAT complementario (roles, teclado,
 navegación histórica/red lenta e imágenes autenticadas) pendiente.
 Versionado local; sin push/deployment. P1.3D no iniciado.
 
+**Publicación por operación — fix local de UAT:** mutaciones PropertyListing
+autorizadas sobre Property padre con RBAC/políticas existentes; acciones Publicar,
+Reactivar y Pausar en Comercialización, checklist destino ACTIVE y refresh único
+de ficha. Gates técnicos y acciones principales aprobados; comprobaciones
+complementarias por rol, checklist/enlaces y efecto visual Web/ISR pendientes.
+Evidencia: `docs/09-roadmap/property-listing-publication-fix.md`.
+
 Fase: Foundation + **Auth Foundation v1** ✅ + Property API + Admin UI + Web Premium ✅ + **Fase 5 Administración Base** ✅ + **Fase 6 Plataforma (Super Admin)** ✅ + **Rental Management A+B** ✅
 
 Infraestructura inicial:

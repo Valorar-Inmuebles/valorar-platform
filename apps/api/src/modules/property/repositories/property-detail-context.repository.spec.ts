@@ -15,10 +15,15 @@ describe('PropertyDetailContextRepository tenant boundary', () => {
         property: { findFirst },
       } as never);
       // A conflicting visibility clause must never override the effective tenant/id.
-      await repository.findVisible('property-1', tenantId, {
-        tenantId: 'other-tenant',
-        id: 'other-property',
-      });
+      await repository.findVisible(
+        'property-1',
+        tenantId,
+        {
+          tenantId: 'other-tenant',
+          id: 'other-property',
+        },
+        'user-1',
+      );
       expect(findFirst).toHaveBeenCalledTimes(1);
       const query = findFirst.mock.calls[0][0];
       expect(query.where).toEqual({
@@ -28,6 +33,11 @@ describe('PropertyDetailContextRepository tenant boundary', () => {
         ],
       });
       expect(query.include).toMatchObject({
+        agentAccess: {
+          where: { tenantId, userId: 'user-1' },
+          select: { canView: true, canEdit: true },
+          take: 1,
+        },
         listings: {
           where: { tenantId },
           orderBy: { updatedAt: 'desc' },

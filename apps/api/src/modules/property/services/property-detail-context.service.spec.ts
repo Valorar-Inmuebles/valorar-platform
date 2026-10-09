@@ -47,6 +47,7 @@ function fixture(count = 1): DetailRecord {
     createdAt: date,
     updatedAt: date,
     images: [{ id: 'cover-1' }],
+    agentAccess: [],
     _count: { images: 33, featureAssignments: 5 },
     listings: Array.from({ length: count }, (_, i) => ({
       id: `listing-${i}`,
@@ -160,6 +161,31 @@ function harness(record: DetailRecord | null = fixture()) {
 }
 
 describe('PropertyDetailContextService', () => {
+  it.each([
+    ['AGENT', 'creator', [], true],
+    ['AGENT', 'assigned', [], false],
+    ['AGENT', 'other', [{ canView: true, canEdit: true }], true],
+    ['COLLABORATOR', 'creator', [{ canView: true, canEdit: true }], false],
+    ['MANAGER', 'other', [], true],
+    ['TENANT_ADMIN', 'other', [], true],
+    ['SUPER_ADMIN', 'other', [], true],
+  ] as const)(
+    'returns parent edit capability for %s/%s',
+    async (role, id, shared, expected) => {
+      const record = fixture();
+      record.agentAccess = [...shared];
+      const h = harness(record);
+      const result = await h.service.findOne('property-1', 'tenant-1', {
+        ...h.user,
+        id,
+        role,
+        tenantId: role === 'SUPER_ADMIN' ? null : 'tenant-1',
+      });
+      expect(result.canEdit).toBe(expected);
+      expect(h.prisma.tenantSetting.findUnique).toHaveBeenCalledTimes(1);
+      expect(h.prisma.property.findFirst).toHaveBeenCalledTimes(1);
+    },
+  );
   it.each(['DRAFT', 'ACTIVE', 'PAUSED', 'RESERVED', 'CLOSED'] as const)(
     'preserves legacy checklist and DTOs for %s, active/archived, with/without cover and price',
     async (status) => {
@@ -252,6 +278,7 @@ describe('PropertyDetailContextService', () => {
         properties,
         prices,
         images,
+        access,
       );
       const priceService = new PropertyPriceService(
         prices,
@@ -367,7 +394,12 @@ describe('PropertyDetailContextService', () => {
         id: 'property-1',
       });
       await service.findOne('property-1', 'tenant-1', user);
-      expect(read).toHaveBeenCalledWith('property-1', 'tenant-1', expected);
+      expect(read).toHaveBeenCalledWith(
+        'property-1',
+        'tenant-1',
+        expected,
+        user.id,
+      );
       if (role === 'AGENT' || role === 'COLLABORATOR') {
         expect(expected.OR).toEqual([
           { createdById: user.id },
@@ -388,9 +420,14 @@ describe('PropertyDetailContextService', () => {
     });
     const read = jest.spyOn(repository, 'findVisible');
     await service.findOne('property-1', 'tenant-1', user);
-    expect(read).toHaveBeenCalledWith('property-1', 'tenant-1', {
-      id: 'property-1',
-      tenantId: 'tenant-1',
-    });
+    expect(read).toHaveBeenCalledWith(
+      'property-1',
+      'tenant-1',
+      {
+        id: 'property-1',
+        tenantId: 'tenant-1',
+      },
+      user.id,
+    );
   });
 });

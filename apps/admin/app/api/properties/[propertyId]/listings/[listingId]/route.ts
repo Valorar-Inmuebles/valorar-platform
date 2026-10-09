@@ -54,7 +54,7 @@ export async function PATCH(request: Request, context: RouteContext) {
       listing,
     );
 
-    revalidateWebOnly(body.propertySlug);
+    await revalidateWebOnly(body.propertySlug);
 
     return NextResponse.json({
       ok: true,
@@ -86,7 +86,7 @@ export async function DELETE(request: Request, context: RouteContext) {
       listing,
     );
 
-    revalidateWebOnly(propertySlug);
+    await revalidateWebOnly(propertySlug);
 
     return NextResponse.json({
       ok: true,

@@ -16,6 +16,9 @@ export class PropertyDetailListingDto {
 }
 
 export class PropertyDetailContextResponseDto {
+  @ApiProperty()
+  canEdit!: boolean;
+
   @ApiProperty({ type: PropertyResponseDto })
   property!: PropertyResponseDto;
 

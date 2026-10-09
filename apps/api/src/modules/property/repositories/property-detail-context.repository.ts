@@ -11,11 +11,17 @@ export class PropertyDetailContextRepository {
     id: string,
     tenantId: string,
     visibility: Prisma.PropertyWhereInput,
+    userId: string,
   ) {
     return this.prisma.property.findFirst({
       where: { AND: [{ id, tenantId }, visibility] },
       include: {
         ...propertyInclude,
+        agentAccess: {
+          where: { tenantId, userId },
+          select: { canView: true, canEdit: true },
+          take: 1,
+        },
         listings: {
           where: { tenantId },
           orderBy: { updatedAt: 'desc' },

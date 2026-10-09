@@ -2,6 +2,17 @@ import { BadRequestException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { PUBLICATION_CHECKLIST_INCOMPLETE } from '@repo/property-rules';
 import { PropertyListingService } from './property-listing.service';
+import { PropertyAccessService } from '../../property/services/property-access.service';
+import type { AuthenticatedUser } from '../../../common/types/authenticated-user.type';
+
+jest.mock('../../property/services/property-access.service', () => ({
+  PropertyAccessService: class PropertyAccessService {},
+}));
+const user = {
+  id: 'admin',
+  role: 'TENANT_ADMIN',
+  tenantId: 'tenant-1',
+} as AuthenticatedUser;
 
 jest.mock('../../../../generated/prisma/client', () => ({
   PropertyListingStatus: {
@@ -13,13 +24,19 @@ jest.mock('../../../../generated/prisma/client', () => ({
   },
 }));
 
-jest.mock('../../property-image/repositories/property-image.repository', () => ({
-  PropertyImageRepository: class PropertyImageRepository {},
-}));
+jest.mock(
+  '../../property-image/repositories/property-image.repository',
+  () => ({
+    PropertyImageRepository: class PropertyImageRepository {},
+  }),
+);
 
-jest.mock('../../property-price/repositories/property-price.repository', () => ({
-  PropertyPriceRepository: class PropertyPriceRepository {},
-}));
+jest.mock(
+  '../../property-price/repositories/property-price.repository',
+  () => ({
+    PropertyPriceRepository: class PropertyPriceRepository {},
+  }),
+);
 
 jest.mock('../../property/repositories/property.repository', () => ({
   PropertyRepository: class PropertyRepository {},
@@ -63,6 +80,10 @@ describe('PropertyListingService', () => {
       providers: [
         PropertyListingService,
         {
+          provide: PropertyAccessService,
+          useValue: { assertCanEditProperty: jest.fn() },
+        },
+        {
           provide: PropertyListingRepository,
           useValue: propertyListingRepository,
         },
@@ -105,9 +126,14 @@ describe('PropertyListingService', () => {
         publishedAt: new Date(),
       });
 
-      const result = await service.update(listingId, tenantId, {
-        status: 'ACTIVE',
-      });
+      const result = await service.update(
+        listingId,
+        tenantId,
+        {
+          status: 'ACTIVE',
+        },
+        user,
+      );
 
       expect(result.status).toBe('ACTIVE');
       expect(propertyListingRepository.update).toHaveBeenCalled();
@@ -124,9 +150,14 @@ describe('PropertyListingService', () => {
       propertyPriceRepository.hasPrimaryPrice.mockResolvedValue(false);
 
       await expect(
-        service.update(listingId, tenantId, {
-          status: 'ACTIVE',
-        }),
+        service.update(
+          listingId,
+          tenantId,
+          {
+            status: 'ACTIVE',
+          },
+          user,
+        ),
       ).rejects.toMatchObject({
         response: {
           code: PUBLICATION_CHECKLIST_INCOMPLETE,
@@ -134,7 +165,7 @@ describe('PropertyListingService', () => {
             'has-image',
             'cover-image',
             'primary-price',
-          ]),
+          ]) as string[],
         },
       });
 
@@ -152,9 +183,14 @@ describe('PropertyListingService', () => {
       propertyPriceRepository.hasPrimaryPrice.mockResolvedValue(true);
 
       await expect(
-        service.update(listingId, tenantId, {
-          status: 'ACTIVE',
-        }),
+        service.update(
+          listingId,
+          tenantId,
+          {
+            status: 'ACTIVE',
+          },
+          user,
+        ),
       ).rejects.toBeInstanceOf(BadRequestException);
 
       expect(propertyListingRepository.update).not.toHaveBeenCalled();

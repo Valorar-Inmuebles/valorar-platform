@@ -12,6 +12,8 @@ import { PropertyListingStatus } from '../../../../generated/prisma/client';
 import { PropertyImageRepository } from '../../property-image/repositories/property-image.repository';
 import { PropertyPriceRepository } from '../../property-price/repositories/property-price.repository';
 import { PropertyRepository } from '../../property/repositories/property.repository';
+import { PropertyAccessService } from '../../property/services/property-access.service';
+import type { AuthenticatedUser } from '../../../common/types/authenticated-user.type';
 import { CreatePropertyListingDto } from '../dto/create-property-listing.dto';
 import { PropertyListingResponseDto } from '../dto/property-listing-response.dto';
 import { UpdatePropertyListingDto } from '../dto/update-property-listing.dto';
@@ -35,12 +37,15 @@ export class PropertyListingService {
     private readonly propertyRepository: PropertyRepository,
     private readonly propertyPriceRepository: PropertyPriceRepository,
     private readonly propertyImageRepository: PropertyImageRepository,
+    private readonly propertyAccessService: PropertyAccessService,
   ) {}
 
   async create(
     dto: CreatePropertyListingDto,
     tenantId: string,
+    user: AuthenticatedUser,
   ): Promise<PropertyListingResponseDto> {
+    await this.assertCanEditParent(dto.propertyId, tenantId, user);
     await this.assertTenantExists(tenantId);
     await this.assertPropertyIsActiveForListing(
       dto.propertyId,
@@ -80,7 +85,9 @@ export class PropertyListingService {
       status: filters.status,
     });
 
-    return listings.map(PropertyListingResponseDto.fromEntity);
+    return listings.map((listing) =>
+      PropertyListingResponseDto.fromEntity(listing),
+    );
   }
 
   async findOne(
@@ -100,6 +107,7 @@ export class PropertyListingService {
     id: string,
     tenantId: string,
     dto: UpdatePropertyListingDto,
+    user: AuthenticatedUser,
   ): Promise<PropertyListingResponseDto> {
     const existing = await this.propertyListingRepository.findById(
       id,
@@ -109,6 +117,8 @@ export class PropertyListingService {
     if (!existing) {
       throw new NotFoundException(`Property listing with id "${id}" not found`);
     }
+
+    await this.assertCanEditParent(existing.propertyId, tenantId, user);
 
     if (
       dto.status === PropertyListingStatus.ACTIVE &&
@@ -143,6 +153,7 @@ export class PropertyListingService {
   async remove(
     id: string,
     tenantId: string,
+    user: AuthenticatedUser,
   ): Promise<PropertyListingResponseDto> {
     const existing = await this.propertyListingRepository.findById(
       id,
@@ -152,6 +163,8 @@ export class PropertyListingService {
     if (!existing) {
       throw new NotFoundException(`Property listing with id "${id}" not found`);
     }
+
+    await this.assertCanEditParent(existing.propertyId, tenantId, user);
 
     if (existing.status === PropertyListingStatus.CLOSED) {
       return PropertyListingResponseDto.fromEntity(existing);
@@ -167,6 +180,21 @@ export class PropertyListingService {
     }
 
     return PropertyListingResponseDto.fromEntity(listing);
+  }
+
+  private async assertCanEditParent(
+    propertyId: string,
+    tenantId: string,
+    user: AuthenticatedUser,
+  ): Promise<void> {
+    const property = await this.propertyRepository.findById(
+      propertyId,
+      tenantId,
+    );
+    if (!property) {
+      throw new NotFoundException(`Property with id "${propertyId}" not found`);
+    }
+    await this.propertyAccessService.assertCanEditProperty(property, user);
   }
 
   private async assertTenantExists(tenantId: string): Promise<void> {
@@ -250,8 +278,7 @@ export class PropertyListingService {
 
     if (!result.isPublishable) {
       throw new BadRequestException({
-        message:
-          'Cannot activate listing: publication checklist incomplete.',
+        message: 'Cannot activate listing: publication checklist incomplete.',
         code: PUBLICATION_CHECKLIST_INCOMPLETE,
         missing: result.missing,
       });

@@ -21,6 +21,10 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { CurrentTenant } from '../../../common/decorators/current-tenant.decorator';
+import { CurrentUser } from '../../../common/decorators/current-user.decorator';
+import { RequireAnyPermission } from '../../../common/decorators/require-permissions.decorator';
+import { PermissionsGuard } from '../../../common/guards/permissions.guard';
+import type { AuthenticatedUser } from '../../../common/types/authenticated-user.type';
 import { RequireTenant } from '../../../common/decorators/require-tenant.decorator';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { TenantGuard } from '../../auth/guards/tenant.guard';
@@ -31,7 +35,7 @@ import { UpdatePropertyListingDto } from '../dto/update-property-listing.dto';
 import { PropertyListingService } from '../services/property-listing.service';
 
 @ApiTags('Property Listings')
-@UseGuards(JwtAuthGuard, TenantGuard)
+@UseGuards(JwtAuthGuard, TenantGuard, PermissionsGuard)
 @RequireTenant()
 @Controller('property-listings')
 export class PropertyListingController {
@@ -40,6 +44,7 @@ export class PropertyListingController {
   ) {}
 
   @Post()
+  @RequireAnyPermission('property.update.own', 'property.update.any')
   @ApiOperation({ summary: 'Create a property listing' })
   @ApiBody({ type: CreatePropertyListingDto })
   @ApiCreatedResponse({
@@ -56,8 +61,9 @@ export class PropertyListingController {
   create(
     @CurrentTenant() tenantId: string,
     @Body() dto: CreatePropertyListingDto,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.propertyListingService.create(dto, tenantId);
+    return this.propertyListingService.create(dto, tenantId, user);
   }
 
   @Get()
@@ -92,6 +98,7 @@ export class PropertyListingController {
   }
 
   @Patch(':id')
+  @RequireAnyPermission('property.update.own', 'property.update.any')
   @ApiOperation({ summary: 'Update a property listing' })
   @ApiParam({ name: 'id', type: String })
   @ApiBody({ type: UpdatePropertyListingDto })
@@ -108,11 +115,13 @@ export class PropertyListingController {
     @Param('id') id: string,
     @CurrentTenant() tenantId: string,
     @Body() dto: UpdatePropertyListingDto,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.propertyListingService.update(id, tenantId, dto);
+    return this.propertyListingService.update(id, tenantId, dto, user);
   }
 
   @Delete(':id')
+  @RequireAnyPermission('property.update.own', 'property.update.any')
   @ApiOperation({ summary: 'Close a property listing (soft delete)' })
   @ApiParam({ name: 'id', type: String })
   @ApiOkResponse({
@@ -120,7 +129,11 @@ export class PropertyListingController {
     type: PropertyListingResponseDto,
   })
   @ApiNotFoundResponse({ description: 'Property listing not found' })
-  remove(@Param('id') id: string, @CurrentTenant() tenantId: string) {
-    return this.propertyListingService.remove(id, tenantId);
+  remove(
+    @Param('id') id: string,
+    @CurrentTenant() tenantId: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.propertyListingService.remove(id, tenantId, user);
   }
 }

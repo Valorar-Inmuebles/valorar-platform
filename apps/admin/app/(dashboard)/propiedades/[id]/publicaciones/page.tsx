@@ -19,8 +19,15 @@ export default async function PropiedadComercializacionPage({
   const { id } = await params;
 
   try {
-    const { property, listings, publishabilityByListingId, pricesByListingId } =
-      await loadCommercializationContext(id);
+    const {
+      property,
+      listings,
+      publishabilityByListingId,
+      pricesByListingId,
+      canEdit,
+      imageCount,
+      hasCoverImage,
+    } = await loadCommercializationContext(id);
 
     return (
       <PropertyPageShell propertyId={id} embedded>
@@ -34,9 +41,11 @@ export default async function PropiedadComercializacionPage({
                 Operaciones comerciales, precios y visibilidad en la web.
               </p>
             </div>
-            <Link href={`/propiedades/${id}/publicaciones/crear`}>
-              <Button>Nueva operación</Button>
-            </Link>
+            {canEdit && (
+              <Link href={`/propiedades/${id}/publicaciones/crear`}>
+                <Button>Nueva operación</Button>
+              </Link>
+            )}
           </div>
 
           {listings.length === 0 ? (
@@ -44,9 +53,11 @@ export default async function PropiedadComercializacionPage({
               title="Sin operaciones comerciales"
               description="Creá una operación de venta, alquiler o temporario para comercializar esta propiedad."
               action={
-                <Link href={`/propiedades/${id}/publicaciones/crear`}>
-                  <Button>Nueva operación</Button>
-                </Link>
+                canEdit ? (
+                  <Link href={`/propiedades/${id}/publicaciones/crear`}>
+                    <Button>Nueva operación</Button>
+                  </Link>
+                ) : undefined
               }
             />
           ) : (
@@ -54,6 +65,12 @@ export default async function PropiedadComercializacionPage({
               <PropertyCommercializationView
                 propertyId={id}
                 propertySlug={property.slug}
+                canEdit={canEdit}
+                activationFacts={{
+                  propertyIsActive: property.isActive,
+                  imageCount,
+                  hasCoverImage,
+                }}
                 listings={listings}
                 pricesByListingId={pricesByListingId}
                 publishabilityByListingId={publishabilityByListingId}

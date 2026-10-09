@@ -40,9 +40,9 @@ export async function loadListingCommercializationSlice(
   return { prices, publishability };
 }
 
-export function revalidateWebOnly(propertySlug?: string) {
+export async function revalidateWebOnly(propertySlug?: string) {
   if (propertySlug) {
-    void revalidatePublicWeb(propertySlug);
+    await revalidatePublicWeb(propertySlug);
   }
 }
 
