@@ -10,6 +10,7 @@ node_modules/
 .env.*
 !.env.example
 !apps/api/.env.development.local.example
+!apps/api/.env.realdata.local.example
 
 # Testing
 
@@ -27,6 +28,7 @@ coverage/
 # Next.js
 
 .next/
+.next-realdata/
 out/
 
 # NestJS / Node

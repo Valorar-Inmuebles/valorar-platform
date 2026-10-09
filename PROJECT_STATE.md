@@ -81,6 +81,12 @@ de ficha. Gates técnicos y acciones principales aprobados; comprobaciones
 complementarias por rol, checklist/enlaces y efecto visual Web/ISR pendientes.
 Evidencia: `docs/09-roadmap/property-listing-publication-fix.md`.
 
+**RealData local — tooling de sólo lectura:** launcher independiente con endpoint
+allowlisted, guard de identidad Neon, conexiones read-only, bloqueo de mutaciones
+HTTP y aislamiento de credenciales de storage/mensajería. Versionado local;
+la preparación y el cierre Git sólo verificaron código/tests offline, sin conectar
+a la branch. Procedimiento: `docs/02-architecture/local-realdata.md`.
+
 Fase: Foundation + **Auth Foundation v1** ✅ + Property API + Admin UI + Web Premium ✅ + **Fase 5 Administración Base** ✅ + **Fase 6 Plataforma (Super Admin)** ✅ + **Rental Management A+B** ✅
 
 Infraestructura inicial:

@@ -43,7 +43,9 @@ export class AuthService {
       throw new UnauthorizedException(INVALID_CREDENTIALS_MESSAGE);
     }
 
-    await this.authRepository.updateLastLoginAt(user.id);
+    if (process.env.VALORAR_DATABASE_ENV !== 'realdata') {
+      await this.authRepository.updateLastLoginAt(user.id);
+    }
 
     const authenticatedUser = this.toAuthenticatedUser(user);
     const token = this.signToken(authenticatedUser);
