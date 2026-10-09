@@ -64,7 +64,15 @@ aditivo y tenant/visibility-scoped; filtros/sorting/paginación 20/50/100 en Pos
 contadores autorizados y capacidades por fila en snapshot REPEATABLE READ.
 Integración SQL real y medición reproducible en DB aislada; evidencia en
 `docs/09-roadmap/property-list-read-model-p1-3b.md`. Sin cambios de schema/migraciones.
-UI del listado pendiente; P1.3C no iniciado.
+La integración del listado Admin se implementó posteriormente en P1.3C.
+
+**Property List P1.3C — Admin local:** el listado de `apps/admin` consume exclusivamente
+`GET /properties/list` con búsqueda/filtros/sorting/paginación URL y acciones según
+capacidades. Evidencia y alcance en `docs/09-roadmap/property-list-admin-p1-3c.md`.
+Funcionalidades principales aprobadas manualmente: listado, filtros/búsqueda,
+sorting, paginación y responsive 390/768. UAT complementario (roles, teclado,
+navegación histórica/red lenta e imágenes autenticadas) pendiente.
+Versionado local; sin push/deployment. P1.3D no iniciado.
 
 Fase: Foundation + **Auth Foundation v1** ✅ + Property API + Admin UI + Web Premium ✅ + **Fase 5 Administración Base** ✅ + **Fase 6 Plataforma (Super Admin)** ✅ + **Rental Management A+B** ✅
 

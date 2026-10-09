@@ -20,25 +20,31 @@ import {
 } from "@/lib/api/property-actions";
 
 import type { AdminProperty } from "@/lib/api/types/property";
+import type { PropertyListItem } from "@repo/shared-types";
+
+type LifecycleProperty = Pick<AdminProperty, "id" | "title" | "isActive">;
 
 type PropertyRowActionsProps = {
-  property: AdminProperty;
+  property: LifecycleProperty;
 
   publicUrl: string | null;
 
   activeListingsCount?: number;
+  capabilities?: PropertyListItem["capabilities"];
 };
 
 type PropertyLifecycleActionsProps = {
-  property: AdminProperty;
+  property: LifecycleProperty;
   activeListingsCount?: number;
   presentation?: "buttons" | "menu";
+  capabilities?: PropertyListItem["capabilities"];
 };
 
 export function PropertyLifecycleActions({
   property,
   activeListingsCount = 0,
   presentation = "buttons",
+  capabilities,
 }: PropertyLifecycleActionsProps) {
   const router = useRouter();
   const { toast } = useToast();
@@ -75,6 +81,11 @@ export function PropertyLifecycleActions({
       router.refresh();
     });
   };
+
+  const allowed = property.isActive
+    ? (capabilities?.canArchive ?? true)
+    : (capabilities?.canRestore ?? true);
+  if (!allowed) return null;
 
   const lifecycleAction = property.isActive
     ? {
@@ -162,6 +173,7 @@ export function PropertyRowActions({
   property,
   publicUrl,
   activeListingsCount = 0,
+  capabilities,
 }: PropertyRowActionsProps) {
   return (
     <div className="flex flex-wrap justify-end gap-2">
@@ -172,14 +184,17 @@ export function PropertyRowActions({
           </Button>
         </Link>
       ) : null}
-      <Link href={`/propiedades/${property.id}`}>
-        <Button variant="secondary" size="sm">
-          Editar
-        </Button>
-      </Link>
+      {(capabilities?.canEdit ?? true) ? (
+        <Link href={`/propiedades/${property.id}`}>
+          <Button variant="secondary" size="sm">
+            Editar
+          </Button>
+        </Link>
+      ) : null}
       <PropertyLifecycleActions
         property={property}
         activeListingsCount={activeListingsCount}
+        capabilities={capabilities}
       />
     </div>
   );

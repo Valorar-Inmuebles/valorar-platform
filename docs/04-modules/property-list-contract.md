@@ -2,7 +2,8 @@
 
 Estado: **P1.3A cerrado; P1.3B implementado y validado localmente**.
 `GET /properties/list` disponible en API. Integración SQL real y evidencia en
-[P1.3B](../09-roadmap/property-list-read-model-p1-3b.md). UI pendiente; P1.3C no iniciado.
+[P1.3B](../09-roadmap/property-list-read-model-p1-3b.md). UI Admin P1.3C
+implementada localmente: [evidencia](../09-roadmap/property-list-admin-p1-3c.md).
 
 Baseline: `main @ bcf12620f5b43b5d9fbcfb7485315d564bb7b658`.
 
@@ -388,3 +389,13 @@ Gates y resultados de ejecución se registran en
 - NUL se rechaza como query inválida (PostgreSQL text no lo admite). Base URL
   pública ausente/inválida produce null, sin alterar publicabilidad ni contadores.
 - No se agregaron índices, schema, migraciones ni caché persistente.
+
+## 8. Integración Admin P1.3C
+
+La ruta `/propiedades` envía `estado` y `atencion` como
+`commercialStatus` y `attention` al endpoint paginado, conserva los links del
+Dashboard y refleja los demás filtros, search, sort, page y pageSize en URL.
+La tabla muestra únicamente la página recibida; contadores y capacidades vienen
+del read model. Columnas visibles son preferencia temporal del componente, sin
+almacenamiento persistente. Cierre y límites en
+`../09-roadmap/property-list-admin-p1-3c.md`.

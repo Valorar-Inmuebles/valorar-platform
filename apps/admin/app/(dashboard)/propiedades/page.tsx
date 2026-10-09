@@ -1,121 +1,76 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { Button } from "@repo/ui/button";
-import { PropertyEmptyState } from "@/components/property/property-empty-state";
 import { PropertyListView } from "@/components/property/property-list-view";
+import { PropertyListError } from "@/components/property/property-list-error";
 import { SuperAdminTenantEmptyState } from "@/components/shared/super-admin-tenant-empty-state";
-import { ApiErrorPanel } from "@/components/shared/api-error-panel";
 import { PageShell } from "@/components/shared/page-shell";
 import { mapUnknownError } from "@/lib/api/error-map";
-import { getDashboardSummary } from "@/lib/api/dashboard";
-import { getPropertiesPublishabilitySummary } from "@/lib/api/property-publishability-summary";
-import { listPropertyListings } from "@/lib/api/property-listing";
-import { listProperties } from "@/lib/api/property";
-import { buildActiveListingCountsByPropertyId } from "@/lib/property/active-listing-counts";
+import { getPropertyList } from "@/lib/api/property-list";
+import { getProvinces } from "@/lib/api/geo";
 import { resolveActiveTenantGate } from "@/lib/auth/require-active-tenant";
 import { getActiveTenantId } from "@/lib/auth/active-tenant";
 import { getSession } from "@/lib/auth/session";
+import { sessionHasPermission } from "@/lib/auth/types";
 import { propertyListBreadcrumbs } from "@/lib/property/breadcrumbs";
-import {
-  parseAttentionFilter,
-  parsePropertyListHref,
-} from "@/lib/property/property-list-url";
-
-type PropiedadesPageProps = {
-  searchParams: Promise<{ estado?: string; atencion?: string }>;
-};
+import { parsePropertyListQuery } from "@/lib/property/property-list-query";
 
 export default async function PropiedadesPage({
   searchParams,
-}: PropiedadesPageProps) {
-  const { estado, atencion } = await searchParams;
-  const initialCommercialFilter = parsePropertyListHref(estado);
-  const initialAttentionFilter = parseAttentionFilter(atencion);
-
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const raw = await searchParams;
   const [session, activeTenantId] = await Promise.all([
     getSession(),
     getActiveTenantId(),
   ]);
+  if (!session) redirect("/login");
+  if (!sessionHasPermission(session.user, "property.read")) redirect("/");
 
-  const tenantGate = session
-    ? resolveActiveTenantGate(session.user, activeTenantId)
-    : { ok: true as const };
-
-  if (!tenantGate.ok) {
-    return (
-      <PageShell title="Propiedades" breadcrumbs={propertyListBreadcrumbs()}>
-        <SuperAdminTenantEmptyState />
-      </PageShell>
-    );
-  }
-
-  let properties;
-  let summaryByPropertyId: Record<
-    string,
-    Awaited<ReturnType<typeof getPropertiesPublishabilitySummary>>[number]
-  > = {};
-  let activeListingCountsByPropertyId = {};
-  let attentionFilterSets = null;
-  let errorMessage: string | null = null;
-
-  try {
-    const dataPromises: [
-      ReturnType<typeof listProperties>,
-      ReturnType<typeof getPropertiesPublishabilitySummary>,
-      ReturnType<typeof listPropertyListings>,
-      ReturnType<typeof getDashboardSummary> | Promise<null>,
-    ] = [
-      listProperties(),
-      getPropertiesPublishabilitySummary(),
-      listPropertyListings({ status: "ACTIVE" }),
-      initialAttentionFilter ? getDashboardSummary() : Promise.resolve(null),
-    ];
-
-    const [propertyList, summaries, activeListings, dashboardSummary] =
-      await Promise.all(dataPromises);
-
-    properties = propertyList;
-    summaryByPropertyId = Object.fromEntries(
-      summaries.map((summary) => [summary.propertyId, summary]),
-    );
-    activeListingCountsByPropertyId =
-      buildActiveListingCountsByPropertyId(activeListings);
-    attentionFilterSets = dashboardSummary?.filterSets ?? null;
-  } catch (error) {
-    errorMessage = mapUnknownError(error);
-  }
-
-  return (
+  const tenantGate = resolveActiveTenantGate(session.user, activeTenantId);
+  const shell = (content: React.ReactNode) => (
     <PageShell
       title="Propiedades"
       breadcrumbs={propertyListBreadcrumbs()}
       actions={
-        <Link href="/propiedades/crear">
-          <Button>Nueva propiedad</Button>
-        </Link>
+        sessionHasPermission(session.user, "property.create") ? (
+          <Link href="/propiedades/crear">
+            <Button>Nueva propiedad</Button>
+          </Link>
+        ) : undefined
       }
     >
-      {errorMessage ? (
-        <ApiErrorPanel message={errorMessage} />
-      ) : properties && properties.length === 0 ? (
-        <PropertyEmptyState
-          title="Sin propiedades todavía"
-          description="Creá la primera propiedad del tenant para comenzar a gestionar publicaciones e imágenes."
-          action={
-            <Link href="/propiedades/crear">
-              <Button>Nueva propiedad</Button>
-            </Link>
-          }
-        />
-      ) : properties ? (
-        <PropertyListView
-          properties={properties}
-          summaryByPropertyId={summaryByPropertyId}
-          activeListingCountsByPropertyId={activeListingCountsByPropertyId}
-          initialCommercialFilter={initialCommercialFilter}
-          initialAttentionFilter={initialAttentionFilter}
-          attentionFilterSets={attentionFilterSets}
-        />
-      ) : null}
+      {content}
     </PageShell>
   );
+  if (!tenantGate.ok) return shell(<SuperAdminTenantEmptyState />);
+
+  const filters = parsePropertyListQuery(raw);
+  try {
+    const [result, provinces] = await Promise.all([
+      getPropertyList(filters),
+      getProvinces()
+        .then((value) => ({ value, error: false }))
+        .catch(() => ({ value: [], error: true })),
+    ]);
+    return shell(
+      <PropertyListView
+        result={result}
+        filters={filters}
+        provinceOptions={provinces.value.map(({ id, name }) => ({
+          value: id,
+          label: name,
+        }))}
+        provinceError={
+          provinces.error
+            ? "No pudimos cargar las provincias. Intentá nuevamente."
+            : undefined
+        }
+        canCreate={sessionHasPermission(session.user, "property.create")}
+      />,
+    );
+  } catch (error) {
+    return shell(<PropertyListError message={mapUnknownError(error)} />);
+  }
 }

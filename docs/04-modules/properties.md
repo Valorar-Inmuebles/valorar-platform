@@ -106,7 +106,8 @@ Fuente canónica: [Property List](./property-list-contract.md). Define la matriz
 publicabilidad (incluido CLOSED con precio opcional), los siete filtros de atención,
 capacidades por fila y el contrato de `GET /properties/list`.
 P1.3A alinea la regla compartida y adapta las claves Dashboard → Admin;
-P1.3B implementa el endpoint paginado. La nueva UI sigue pendiente.
+P1.3B implementa el endpoint paginado. P1.3C integra el listado Admin con
+filtrado y paginación server-side; ver [P1.3C](../09-roadmap/property-list-admin-p1-3c.md).
 
 ### Read model paginado (P1.3B)
 
