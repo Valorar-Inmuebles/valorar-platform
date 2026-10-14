@@ -4,6 +4,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import { Button } from "@repo/ui/button";
 import { ErrorMessage, FormField, Label } from "@repo/ui/form-field";
 import { Input } from "@repo/ui/input";
+import { Select } from "@repo/ui/select";
 import {
   confirmCoordinates,
   coordinatesEqual,
@@ -32,6 +33,15 @@ const GRANULARITY: Record<PropertyLocationCandidate["granularity"], string> = {
   LOCALITY: "Localidad aproximada",
 };
 
+function candidateId(candidate: PropertyLocationCandidate): string {
+  return JSON.stringify([
+    candidate.latitude,
+    candidate.longitude,
+    candidate.label,
+    candidate.granularity,
+  ]);
+}
+
 export function PropertyLocationEditor({
   latitude,
   longitude,
@@ -49,7 +59,7 @@ export function PropertyLocationEditor({
   >("idle");
   const [searchError, setSearchError] = useState("");
   const [candidates, setCandidates] = useState<PropertyLocationCandidate[]>([]);
-  const [selected, setSelected] = useState<number | null>(null);
+  const [selected, setSelected] = useState<string | null>(null);
   const searchSerial = useRef(0);
   const loadingRef = useRef(false);
   const addressSignature = JSON.stringify(address);
@@ -74,6 +84,17 @@ export function PropertyLocationEditor({
   }, [latitude, longitude]);
   const changed = !coordinatesEqual(draft, { latitude, longitude });
   const position = readMapPosition(draft);
+  const selectedCandidate = candidates.find(
+    (candidate) => candidateId(candidate) === selected,
+  );
+  const candidateOptions = Array.from(
+    new Map(
+      candidates.slice(0, 5).map((candidate) => {
+        const value = candidateId(candidate);
+        return [value, { value, label: candidate.label }] as const;
+      }),
+    ).values(),
+  );
 
   const search = async () => {
     if (disabled || loadingRef.current || !address) return;
@@ -162,44 +183,42 @@ export function PropertyLocationEditor({
         </p>
       )}
       {searchState === "results" && (
-        <div className="space-y-2" aria-label="Ubicaciones sugeridas">
-          <p className="text-sm font-medium">Elegí una ubicación sugerida</p>
-          <ul className="space-y-2">
-            {candidates.map((candidate, index) => (
-              <li key={`${candidate.latitude}:${candidate.longitude}:${index}`}>
-                <Button
-                  type="button"
-                  variant="secondary"
-                  className="h-auto w-full whitespace-normal text-left"
-                  disabled={disabled}
-                  aria-pressed={selected === index}
-                  onClick={() => {
-                    setSelected(index);
-                    setDraft(
-                      positionToCoordinates([
-                        candidate.latitude,
-                        candidate.longitude,
-                      ]),
-                    );
-                    setError(false);
-                    setMessage(
-                      "Punto sugerido en borrador. Ajustalo o confirmá la ubicación.",
-                    );
-                  }}
-                >
-                  <span className="block">
-                    <span className="block font-medium">{candidate.label}</span>
-                    <span className="block text-xs">
-                      {GRANULARITY[candidate.granularity]}
-                      {candidate.warnings.length
-                        ? ` · ${candidate.warnings.join(" ")}`
-                        : ""}
-                    </span>
-                  </span>
-                </Button>
-              </li>
-            ))}
-          </ul>
+        <div className="min-w-0 space-y-2" aria-label="Ubicaciones sugeridas">
+          <FormField>
+            <Label>Ubicación sugerida</Label>
+            <Select
+              options={candidateOptions}
+              value={selected ?? undefined}
+              placeholder="Elegí una ubicación sugerida"
+              disabled={disabled}
+              wrapLabels
+              onChange={(value) => {
+                const candidate = candidates.find(
+                  (item) => candidateId(item) === value,
+                );
+                if (!candidate) return;
+                setSelected(value);
+                setDraft(
+                  positionToCoordinates([
+                    candidate.latitude,
+                    candidate.longitude,
+                  ]),
+                );
+                setError(false);
+                setMessage(
+                  "Punto sugerido en borrador. Ajustalo o confirmá la ubicación.",
+                );
+              }}
+            />
+          </FormField>
+          {selectedCandidate && (
+            <p className="text-xs text-muted">
+              Precisión: {GRANULARITY[selectedCandidate.granularity]}
+              {selectedCandidate.warnings.length
+                ? ` · ${selectedCandidate.warnings.join(" ")}`
+                : ""}
+            </p>
+          )}
           <p className="text-xs text-muted">
             Resultados de{" "}
             <a

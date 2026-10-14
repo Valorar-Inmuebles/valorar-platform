@@ -12,10 +12,29 @@ import { DatePicker } from "./date-picker";
 import { DropdownMenu } from "./dropdown-menu";
 import { Pagination } from "./pagination";
 import { SearchCombobox } from "./search-combobox";
+import { Select } from "./select";
 import { Stepper } from "./stepper";
 import { TabPanel, Tabs } from "./tabs";
 
 describe("shared primitives semantics", () => {
+  it("allows long Select labels to wrap only when requested", () => {
+    const options = [
+      {
+        value: "address",
+        label:
+          "Av. Constituyentes 6100, Villa Urquiza, Ciudad Autónoma de Buenos Aires",
+      },
+    ];
+    const wrapped = renderToStaticMarkup(
+      <Select options={options} value="address" wrapLabels />,
+    );
+    const defaultSelect = renderToStaticMarkup(
+      <Select options={options} value="address" />,
+    );
+    expect(wrapped).toContain("min-w-0 break-words text-left");
+    expect(wrapped).not.toContain('class="truncate');
+    expect(defaultSelect).toContain('class="truncate');
+  });
   it("renders DatePicker as a localized date-only field with calendar affordance", () => {
     const html = renderToStaticMarkup(
       <DatePicker value="2026-09-19" onChange={vi.fn()} />,

@@ -63,10 +63,14 @@ function Chevron({ open }: { open: boolean }) {
 }
 
 /** Shared select-like trigger styling for controls backed by another menu. */
-export function getSelectTriggerClassName(open: boolean): string {
+export function getSelectTriggerClassName(
+  open: boolean,
+  wrapLabels = false,
+): string {
   return cn(
     triggerBase,
-    "h-8 w-full justify-between px-3 text-left disabled:cursor-not-allowed disabled:bg-zinc-50 disabled:text-zinc-400",
+    "w-full justify-between px-3 text-left disabled:cursor-not-allowed disabled:bg-zinc-50 disabled:text-zinc-400",
+    wrapLabels ? "min-h-8 py-2" : "h-8",
     open ? openedStyles.default : closedStyles.default,
   );
 }
@@ -102,11 +106,13 @@ function OptionItem({
   selected,
   active,
   onSelect,
+  wrapLabels,
 }: {
   option: SelectOption;
   selected: boolean;
   active: boolean;
   onSelect: (value: string) => void;
+  wrapLabels: boolean;
 }) {
   return (
     <div
@@ -126,7 +132,9 @@ function OptionItem({
             : "text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900",
       )}
     >
-      <span className="truncate">{option.label}</span>
+      <span className={wrapLabels ? "min-w-0 break-words" : "truncate"}>
+        {option.label}
+      </span>
       {selected && <Checkmark />}
     </div>
   );
@@ -190,6 +198,7 @@ export type SelectProps = {
   state?: FieldState;
   id?: string;
   className?: string;
+  wrapLabels?: boolean;
 };
 
 export function Select({
@@ -201,6 +210,7 @@ export function Select({
   state: stateProp,
   id: idProp,
   className,
+  wrapLabels = false,
 }: SelectProps) {
   const ctx = useFormFieldCtx();
   const genId = useId();
@@ -280,13 +290,13 @@ export function Select({
         onClick={() => (open ? close() : openWith(value))}
         onKeyDown={handleKeyDown}
         className={cn(
-          getSelectTriggerClassName(open),
+          getSelectTriggerClassName(open, wrapLabels),
           open ? openedStyles[state] : closedStyles[state],
         )}
       >
         <span
           className={cn(
-            "truncate",
+            wrapLabels ? "min-w-0 break-words text-left" : "truncate",
             selected ? "text-zinc-900" : "text-zinc-400",
           )}
         >
@@ -316,6 +326,7 @@ export function Select({
                 onChange?.(v);
                 close();
               }}
+              wrapLabels={wrapLabels}
             />
           ))
         )}

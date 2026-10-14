@@ -59,7 +59,7 @@ async function PropertyExecutiveBar({ propertyId }: PropertyExecutiveBarProps) {
           </ol>
         </nav>
 
-        <div className="sticky top-0 z-20 -mx-1 space-y-2 bg-[var(--background,#fafafa)]/95 px-1 pb-2 pt-1 backdrop-blur supports-[backdrop-filter]:bg-[var(--background,#fafafa)]/80">
+        <div className="space-y-2">
           <PropertyExecutiveHeader property={property} snapshot={snapshot} />
           <PropertyExecutiveKpis
             propertyId={propertyId}

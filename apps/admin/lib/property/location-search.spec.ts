@@ -95,10 +95,23 @@ describe("D2 explicit search and manual draft", () => {
     expect(state.search).not.toHaveBeenCalled();
     await click("Buscar ubicación");
     expect(state.search).toHaveBeenCalledExactlyOnceWith(address, undefined);
-    expect(screen.getByText("Santa Fe 123, Rosario")).toBeTruthy();
-    expect(screen.getByText("Santa Fe, Rosario")).toBeTruthy();
+    const selector = screen.getByRole("button", { name: "Ubicación sugerida" });
+    await click("Ubicación sugerida");
+    expect(screen.getAllByRole("option")).toHaveLength(2);
+    expect(
+      screen.getByRole("option", { name: "Santa Fe 123, Rosario" }),
+    ).toBeTruthy();
+    expect(
+      screen.getByRole("option", { name: "Santa Fe, Rosario" }),
+    ).toBeTruthy();
     expect(state.map?.position).toEqual([-34.1234567, -58.1234567]);
-    await click(/Santa Fe 123, Rosario/);
+    await act(async () =>
+      fireEvent.mouseDown(
+        screen.getByRole("option", { name: "Santa Fe 123, Rosario" }),
+      ),
+    );
+    expect(selector.textContent).toContain("Santa Fe 123, Rosario");
+    expect(screen.getByText("Precisión: Dirección")).toBeTruthy();
     expect(state.map?.position).toEqual([-32.1234568, -60.7654322]);
     expect(confirm).not.toHaveBeenCalled();
     await click("Confirmar ubicación");
@@ -107,6 +120,41 @@ describe("D2 explicit search and manual draft", () => {
       longitude: "-60.7654322",
     });
     expect(state.search).toHaveBeenCalledTimes(1);
+  });
+  it("uses stable candidate values, limits choices to five and shows approximate precision outside the selector", async () => {
+    state.search.mockResolvedValueOnce({
+      ok: true,
+      result: {
+        status: "RESULTS",
+        candidates: [
+          ...result.result.candidates,
+          ...[3, 4, 5, 6].map((number) => ({
+            label: `Opción ${number}`,
+            latitude: -32 - number,
+            longitude: -60 - number,
+            granularity: "LOCALITY" as const,
+            warnings: [],
+          })),
+        ],
+      },
+    });
+    await click("Buscar ubicación");
+    await click("Ubicación sugerida");
+    expect(screen.getAllByRole("option")).toHaveLength(5);
+    expect(screen.queryByRole("option", { name: "Opción 6" })).toBeNull();
+    const selector = screen.getByRole("button", { name: "Ubicación sugerida" });
+    await act(async () => fireEvent.keyDown(selector, { key: "ArrowDown" }));
+    await act(async () => fireEvent.keyDown(selector, { key: "Enter" }));
+    expect(selector.textContent).toContain("Santa Fe, Rosario");
+    expect(
+      screen.getByText(/Precisión: Calle aproximada/).textContent,
+    ).toContain("Verificá la altura.");
+    expect(state.map?.position).toEqual([-32.22, -60.66]);
+    expect(confirm).not.toHaveBeenCalled();
+    await act(async () => state.map!.onSelect([-35, -59]));
+    expect(state.map?.position).toEqual([-35, -59]);
+    expect(selector.textContent).toContain("Elegí una ubicación sugerida");
+    expect(confirm).not.toHaveBeenCalled();
   });
   it("preserves manual marker and confirmed point when search fails or returns empty", async () => {
     await act(async () => state.map!.onSelect([-35, -59]));
@@ -164,11 +212,14 @@ describe("D2 explicit search and manual draft", () => {
     async (width) => {
       vi.stubGlobal("innerWidth", width);
       await click("Buscar ubicación");
-      expect(
-        screen
-          .getByRole("button", { name: /Santa Fe 123, Rosario/ })
-          .getAttribute("type"),
-      ).toBe("button");
+      await click("Ubicación sugerida");
+      expect(screen.getByRole("listbox")).toBeTruthy();
+      expect(screen.getAllByRole("option")).toHaveLength(2);
+      const option = screen.getByRole("option", {
+        name: "Santa Fe 123, Rosario",
+      });
+      expect(option.textContent).toBe("Santa Fe 123, Rosario");
+      expect(option.querySelector("span")?.className).toContain("break-words");
       expect(
         screen
           .getByRole("button", { name: "Buscar ubicación" })
