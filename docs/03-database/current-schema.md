@@ -124,6 +124,22 @@ User
 
 ---
 
+# PasswordChangeRateLimit — B2
+
+Tabla técnica de seguridad por identidad, sin tenantId por excepción explícita:
+incluye SUPER_ADMIN y el cupo no depende del tenant seleccionado.
+
+- `userId`: TEXT PK/FK a User, ON DELETE CASCADE.
+- `attemptedAt`: TIMESTAMPTZ(3)[] NOT NULL, default vacío; array unidimensional
+  sin NULLs con máximo cinco elementos (constraint SQL).
+- `expiresAt`: TIMESTAMPTZ(3) NOT NULL, índice para expiración.
+- Una fila por usuario; sin contraseñas, hashes, JWT ni IP.
+- Migración aditiva `202610130001_password_change_rate_limit`, sin backfill.
+- Expiración lógica y poda bajo lock al acceder; sin TTL físico ni scheduler.
+- Protocolo/semántica canónicos en `docs/04-modules/auth.md`, sección B2.
+
+---
+
 # TenantSetting
 
 Configuración de branding de cada inmobiliaria.

@@ -6,7 +6,7 @@ import {
   IsOptional,
   IsString,
   MaxLength,
-  MinLength,
+  ValidateIf,
 } from 'class-validator';
 import { UserRole } from '../../../../generated/prisma/client';
 
@@ -51,9 +51,11 @@ export class UpdateUserDto {
   @IsBoolean()
   isActive?: boolean;
 
-  @ApiPropertyOptional({ minLength: 8 })
-  @IsOptional()
+  @ApiPropertyOptional({
+    minLength: 12,
+    description: 'Máximo 72 bytes UTF-8; sólo otros usuarios.',
+  })
+  @ValidateIf((_object, value: unknown) => value !== undefined)
   @IsString()
-  @MinLength(8)
   password?: string;
 }

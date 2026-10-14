@@ -10,6 +10,7 @@ import {
 import { Prisma, User, UserRole } from '../../../../generated/prisma/client';
 import type { AuthenticatedUser } from '../../../common/types/authenticated-user.type';
 import { hashPassword } from '../../auth/utils/password.util';
+import { assertNewPassword } from '../../auth/utils/new-password-policy';
 import { CreateUserDto } from '../dto/create-user.dto';
 import { UpdateUserDto } from '../dto/update-user.dto';
 import { UserResponseDto } from '../dto/user-response.dto';
@@ -100,7 +101,11 @@ export class UserService {
 
           await this.userRepository.clearAssignedProperties(id, tenantId, tx);
 
-          const deleted = await this.userRepository.deleteUser(id, tenantId, tx);
+          const deleted = await this.userRepository.deleteUser(
+            id,
+            tenantId,
+            tx,
+          );
           if (deleted.count === 0) {
             throw new NotFoundException(`User with id "${id}" not found`);
           }
@@ -144,6 +149,7 @@ export class UserService {
     dto: CreateUserDto,
     actor: AuthenticatedUser,
   ): Promise<UserResponseDto> {
+    assertNewPassword(dto.password);
     await this.assertTenantExists(tenantId);
     this.assertCanAssignRole(dto.role, actor.role);
 
@@ -183,6 +189,17 @@ export class UserService {
     dto: UpdateUserDto,
     actor: AuthenticatedUser,
   ): Promise<UserResponseDto> {
+    if (dto.password !== undefined) {
+      if (id === actor.id) {
+        throw new BadRequestException({
+          statusCode: 400,
+          code: 'PASSWORD_CHANGE_ENDPOINT_REQUIRED',
+          message:
+            'Usá el cambio de contraseña personal con tu contraseña actual.',
+        });
+      }
+      assertNewPassword(dto.password);
+    }
     // Deactivation must serialize with DELETE via Tenant → User locks.
     // Reactivation and non-lifecycle updates keep the lighter path.
     if (dto.isActive === false) {
@@ -315,11 +332,15 @@ export class UserService {
 
   async updateProfile(
     userId: string,
-    dto: Pick<
-      UpdateUserDto,
-      'firstName' | 'lastName' | 'phone' | 'avatarUrl' | 'password'
-    >,
+    dto: Pick<UpdateUserDto, 'firstName' | 'lastName' | 'phone' | 'avatarUrl'>,
   ): Promise<UserResponseDto> {
+    if ('password' in dto) {
+      throw new BadRequestException({
+        statusCode: 400,
+        code: 'PASSWORD_CHANGE_ENDPOINT_REQUIRED',
+        message: 'El perfil no admite cambios de contraseña.',
+      });
+    }
     const existing = await this.userRepository.findById(userId);
 
     if (!existing) {
@@ -328,7 +349,9 @@ export class UserService {
 
     const tenantId = existing.tenantId;
     if (!tenantId) {
-      throw new BadRequestException('Platform users cannot update profile here');
+      throw new BadRequestException(
+        'Platform users cannot update profile here',
+      );
     }
 
     return this.updateUser(userId, tenantId, dto, {

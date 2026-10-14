@@ -607,10 +607,79 @@ Sin tenant seleccionado: empty state en páginas de datos; no bloquear navegaci�
 | ----- | -------- |
 | Hash | bcrypt |
 | Salt rounds | 12 |
-| Longitud mínima | 8 caracteres |
+| Longitud mínima | Login legacy: 8 caracteres; nuevas contraseñas: política B2 debajo |
 | Almacenamiento | Solo hash; nunca password en logs ni respuestas |
 
-### Rate limiting
+### Cambio de contraseña B2 (contrato aprobado; backend)
+
+`PATCH /users/me/password` recibe exclusivamente `currentPassword` y
+`newPassword`. Requiere JWT válido, actúa sobre `CurrentUser.id` para todos los
+roles e incluye SUPER_ADMIN sin tenant seleccionado. Responde 204 sin cuerpo,
+sin emitir cookie/token ni extender expiración. Los JWT existentes, incluidos
+los de otros navegadores, siguen vigentes; revocación diferida.
+
+Las nuevas contraseñas (también altas y administración de otros usuarios)
+requieren 12 puntos de código Unicode, máximo 72 bytes UTF-8 y no pueden estar
+compuestas sólo por whitespace. No se transforman ni normalizan. Login y
+verificación de la contraseña actual conservan compatibilidad legacy. bcrypt
+mantiene costo 12. Se rechaza reutilización comparando el nuevo valor con bcrypt.
+La escritura personal compara el hash anterior (CAS): un cambio concurrente
+produce 409. La confirmación pertenece exclusivamente al futuro cliente B3.
+
+`PATCH /users/me/profile` ya no admite `password` (legacy rechazado por DTO).
+`PATCH /users/:id` rechaza password cuando actor y destinatario coinciden,
+incluso en solicitudes combinadas con desactivación. RBAC/tenant de cambios a
+otros usuarios se conservan. Perfil Admin no se adapta en B2: su campo legacy
+queda incompatible hasta B3, por lo que B2 no habilita un despliegue aislado.
+
+Rate limiter: cinco **admisiones** en `(ahora - 15 min, ahora]`, clave por usuario,
+independiente de tenant/JWT. Guard después de JWT y antes de DTO/bcrypt. Consume
+éxitos y fallos posteriores; ni éxito ni 429 reinician/prolongan la ventana.
+JSON rechazado por el parser y solicitudes no autenticadas no consumen cupo.
+Sólo JSON; Origin presente debe coincidir con CORS_ORIGIN (BFF server-to-server
+puede omitirlo). Protección Next.js de origen corresponde al futuro consumidor.
+
+`PasswordChangeRateLimit` es estado técnico de identidad: excepción explícita a
+tenantId para incluir cuentas de plataforma. Transacción READ COMMITTED corta:
+inicializar fila, SELECT FOR UPDATE, reloj PostgreSQL tomado después del lock,
+podar timestamps expirados, decidir y confirmar. El commit es independiente del
+cambio de contraseña; bcrypt nunca corre dentro del lock del limiter. Sin
+fallback en memoria ni reintentos de commits inciertos. Timeouts/fallos → 503.
+429 incluye Retry-After y retryAfterSeconds. Filas acotadas a una por usuario y
+cinco timestamps; expiración lógica/poda al acceder, FK cascade al borrar usuario.
+Sin scheduler ni purga física automática en B2; expiresAt se indexa para una
+futura purga por lotes que respete locks y revalide expiración.
+
+Errores de la operación: statusCode/code/message y field cuando corresponde;
+400 INVALID_REQUEST/CURRENT_PASSWORD_INVALID, 422 PASSWORD_POLICY_VIOLATION/
+PASSWORD_REUSED, 409 CREDENTIALS_CHANGED, 429 PASSWORD_CHANGE_RATE_LIMITED,
+503 PASSWORD_CHANGE_UNAVAILABLE; autenticación 401 y origen 403. No se registran
+body, contraseñas, hashes, JWT, cookies ni errores crudos de persistencia.
+
+### Consumidor Admin B3 — Perfil
+
+`/configuracion/perfil` separa Información personal y Seguridad de la cuenta en
+dos columnas desktop y una mobile. Datos personales conservan campos/validación
+y guardado independiente; email permanece informativo. El cliente HTTP serializa
+una allowlist de campos personales, sin password incluso ante propiedades extra.
+
+Seguridad usa una Server Action dedicada y el cliente HTTP existente (204 sin
+JSON); transmite sólo currentPassword/newPassword, sin confirmación, sin cambiar
+cookies ni refrescar JWT. Validación local de puntos de código/bytes, confirmación
+exacta y no reutilización textual; bcrypt/API conservan autoridad definitiva.
+Medidor local de cuatro niveles orientativo, independiente del cumplimiento de
+política. No usa servicios externos ni registra/persiste credenciales.
+
+Se conservan valores tras errores, se limpian los tres campos y se ocultan al
+tener éxito. 429 conserva retryAfterSeconds, muestra cuenta regresiva y bloquea
+reenvío hasta vencer; recargar no evade la protección servidor. Los errores
+conocidos se mapean por código, sin exponer mensajes crudos. Contraseña actual
+incorrecta no se interpreta como expiración de sesión. El card funciona para
+SUPER_ADMIN sin tenant y permanece disponible ante errores del perfil personal.
+RealData conserva el bloqueo existente de mutaciones API; el cliente muestra el
+rechazo de sólo lectura. B3 no modifica esa protección ni el backend B2.
+
+### Rate limiting de login (pendiente)
 
 Recomendado en fase de implementación: limitar `POST /auth/login` (ej. 10 intentos / 15 min por IP). No bloqueante para merge inicial; documentar como hardening inmediato post-v1.
 

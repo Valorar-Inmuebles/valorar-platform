@@ -83,9 +83,10 @@ model User {
   phone     String?
   avatarUrl String?
 
-  passwordHash String
-  isActive     Boolean   @default(true)
-  lastLoginAt  DateTime?
+  passwordHash            String
+  passwordChangeRateLimit PasswordChangeRateLimit?
+  isActive                Boolean                  @default(true)
+  lastLoginAt             DateTime?
 
   role UserRole @default(AGENT)
 
@@ -107,6 +108,16 @@ model User {
   acknowledgedInboundMessages CommunicationInboundMessage[] @relation("RentalInboundAcknowledger")
 
   @@index([tenantId])
+}
+
+// Identity-scoped security state, including platform users without a tenant.
+model PasswordChangeRateLimit {
+  userId      String     @id
+  user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  attemptedAt DateTime[] @default([]) @db.Timestamptz(3)
+  expiresAt   DateTime   @db.Timestamptz(3)
+
+  @@index([expiresAt])
 }
 
 model TenantSetting {

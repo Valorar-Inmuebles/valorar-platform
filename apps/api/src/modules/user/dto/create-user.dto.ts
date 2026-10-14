@@ -6,7 +6,6 @@ import {
   IsOptional,
   IsString,
   MaxLength,
-  MinLength,
 } from 'class-validator';
 import { UserRole } from '../../../../generated/prisma/client';
 
@@ -42,9 +41,8 @@ export class CreateUserDto {
   @IsEnum(UserRole)
   role!: UserRole;
 
-  @ApiProperty({ minLength: 8 })
+  @ApiProperty({ minLength: 12, description: 'Máximo 72 bytes UTF-8.' })
   @IsString()
-  @MinLength(8)
   password!: string;
 
   @ApiPropertyOptional({ default: true })
