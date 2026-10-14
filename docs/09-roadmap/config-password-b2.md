@@ -94,9 +94,40 @@ contraseña (503); un commit incierto puede consumir cupo conservadoramente.
   en B2; ninguno en los archivos modificados o nuevos del gate. Principalmente
   formato y reglas TypeScript. No se corrigen fuera de alcance.
 - `git diff --check`: aprobado.
-- Branch `main`, HEAD `334870429402b1fead315cd24d69fb36868be10c`, siete commits
-  locales previos preservados. Cambios B2 sin commit.
+- Release candidate: `release/release2-password-profile-20261014`, base
+  `origin/main` `b366d2c5d290cb07492f29970d89c6a0ed87a4ac`; commit B2
+  `223ddf5`. Sin push ni deployment.
 
 **GO técnico para B3**, con deuda preexistente de lint global registrada.
 **No habilitar despliegue aislado B2** mientras Perfil siga enviando el campo
-legacy. B3 no se inicia en este cierre.
+legacy. B3 debe publicarse coordinadamente.
+
+## Procedimiento de publicación coordinada
+
+Precondición: confirmar que la rama remota a publicar sigue apuntando a los
+commits revisados, que el destino es producción y que existe una ventana de
+mantenimiento para el Admin. Si no se puede bloquear temporalmente el cambio de
+contraseña en el Admin, es **NO-GO**: no hay despliegue seguro no atómico entre
+API y Admin.
+
+1. Ejecutar controles finales del commit exacto y conservar el SHA de API/Admin
+   desplegado actualmente para rollback.
+2. Verificar explícitamente project, branch, endpoint, host y base productivos;
+   desde el runtime/CI autorizado ejecutar sólo `npx prisma migrate deploy`.
+   Confirmar el historial y checksum de
+   `202610130001_password_change_rate_limit`; no usar `migrate dev`, `db push`,
+   reset ni backfill.
+3. Activar mantenimiento del Admin antes de desplegar B2. El login y sesiones
+   existentes no se alteran, pero ningún usuario debe poder usar el formulario
+   legacy durante la transición.
+4. Desplegar API B2 y verificar salud/autenticación sin cambiar contraseñas
+   reales. Desplegar inmediatamente Admin B3 con el mismo release candidate.
+5. Ejecutar smoke con una cuenta de prueba autorizada: login con contraseña
+   legacy, Perfil sin campo password, cambio válido, rechazo de actual inválida,
+   política, 429, y Super Admin sin tenant. Confirmar que JWT preexistente sigue
+   aceptado. Reabrir el Admin sólo si todos pasan.
+
+Rollback: mantener el Admin en mantenimiento y restaurar API y Admin de forma
+coordinada al SHA previo; nunca reabrir Admin legacy contra API B2. La migración
+es aditiva y no toca `User` ni `passwordHash`, por lo que se conserva la tabla
+al hacer rollback; no se elimina ni se restauran hashes.

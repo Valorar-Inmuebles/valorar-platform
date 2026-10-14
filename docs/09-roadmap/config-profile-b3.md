@@ -21,7 +21,8 @@
 ## Alcance preservado
 
 Backend B2, schema/migraciones, P1.3, Rental, RealData y overlays sin cambios en
-este gate. Sin dependencias nuevas, escrituras DB, commit, push ni deployment.
+este gate. Sin dependencias nuevas ni escrituras DB fuera de los fixtures B2
+aislados/autolimpiables; sin push ni deployment.
 
 ## Validación y UAT
 
@@ -57,9 +58,14 @@ usuarios y revocación JWT pertenecen a gates distintos.
 - ESLint focalizado con cero warnings, Prettier TS/TSX B3 y reporte: aprobados.
 - `git diff --check`: aprobado.
 - Build informa la advertencia preexistente de convención middleware → proxy.
-- Branch `main`, HEAD `334870429402b1fead315cd24d69fb36868be10c`, siete commits
-  locales previos preservados. Sin commit/push/deployment.
+- Release candidate: `release/release2-password-profile-20261014`, base
+  `origin/main` `b366d2c5d290cb07492f29970d89c6a0ed87a4ac`; commit B3
+  `2603a53`. Sin push ni deployment.
 
 **GO para UAT** de Perfil y cambio seguro. La fidelidad visual, interacción real
 con gestores de contraseñas y accesibilidad con lector requieren navegador;
 este gate no presenta las pruebas jsdom como sustituto de esa revisión.
+
+La publicación depende del procedimiento coordinado B2: mantenimiento del
+Admin, migración aditiva, API B2, Admin B3, smoke y reapertura. No publicar B3
+antes de B2 ni exponer el formulario legacy contra API B2.

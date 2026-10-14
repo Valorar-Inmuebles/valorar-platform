@@ -61,8 +61,9 @@ destino development validado `br-hidden-mud-ach3itrr` / `ep-super-glade-ac3ywgv7
 JWT existentes conservados; revocación diferida. Cierre de vías propias legacy;
 UI de Perfil implementada posteriormente en B3. Contrato en `docs/04-modules/auth.md`.
 Evidencia: `docs/09-roadmap/config-password-b2.md` (26 tests PostgreSQL,
-901 tests API aprobados; lint B2 limpio, deuda de lint global preexistente).
-Sin commit/push/deployment; P1.3, Rental, RealData y overlays preservados.
+typecheck/build API y lint B2 limpio; deuda de lint global preexistente).
+Preparado en `release/release2-password-profile-20261014`; sin push ni
+deployment. P1.3, Rental, RealData y overlays preservados.
 
 **Configuración UX B3 — Perfil (local):** información personal y seguridad en
 cards/formularios independientes, dos columnas desktop y una mobile. Cliente y
@@ -70,7 +71,8 @@ Server Action para B2, validación Unicode/UTF-8 sin transformar contraseñas,
 medidor local orientativo, errores por código, espera 429 y limpieza tras éxito.
 Seguridad disponible para Super Admin sin tenant. Sin cambios backend/schema,
 DB writes ni modificaciones de RealData/Rental/P1.3/overlays. UAT visual real
-pendiente por navegador desconectado. Evidencia: `docs/09-roadmap/config-profile-b3.md`.
+pendiente por navegador desconectado. Preparado junto con B2 en la rama Release
+2, sin push ni deployment. Evidencia: `docs/09-roadmap/config-profile-b3.md`.
 
 **Property List P1.3A — reglas y contrato:** publicabilidad compartida alineada con
 la Web para CLOSED (precio opcional), activación hacia ACTIVE con precio siempre
