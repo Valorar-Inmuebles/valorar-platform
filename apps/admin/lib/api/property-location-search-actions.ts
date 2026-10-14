@@ -11,17 +11,32 @@ export type LocationSearchActionResult =
   | { ok: true; result: PropertyLocationSearchResult }
   | { ok: false; error: string; retryAfterSeconds?: number };
 
+const optionalAddressFields = [
+  "streetNumber",
+  "provinceId",
+  "localityId",
+  "neighborhoodId",
+  "province",
+  "city",
+  "neighborhood",
+  "postalCode",
+] as const;
+
 export async function searchPropertyLocationAction(
   payload: PropertyLocationSearchPayload,
   propertyId?: string,
 ): Promise<LocationSearchActionResult> {
   try {
+    const address = { ...payload };
+    for (const field of optionalAddressFields) {
+      if (address[field] === "") delete address[field];
+    }
     const path = propertyId
       ? `/properties/${encodeURIComponent(propertyId)}/location-search`
       : "/properties/location-search";
     const result = await apiFetch<PropertyLocationSearchResult>(path, {
       method: "POST",
-      body: JSON.stringify(payload),
+      body: JSON.stringify(address),
       cache: "no-store",
     });
     return { ok: true, result };
