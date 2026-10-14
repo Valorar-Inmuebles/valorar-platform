@@ -1,6 +1,7 @@
 import { apiFetch } from "@/lib/api/client";
 import type {
   AdminUser,
+  ChangePasswordPayload,
   CreateUserPayload,
   UpdateProfilePayload,
   UpdateUserPayload,
@@ -52,7 +53,23 @@ export function updateProfile(
 ): Promise<AdminUser> {
   return apiFetch<AdminUser>("/users/me/profile", {
     method: "PATCH",
-    body: JSON.stringify(payload),
+    body: JSON.stringify({
+      firstName: payload.firstName,
+      lastName: payload.lastName,
+      phone: payload.phone,
+      avatarUrl: payload.avatarUrl,
+    }),
+  });
+}
+
+export function changePassword(payload: ChangePasswordPayload): Promise<void> {
+  return apiFetch<void>("/users/me/password", {
+    method: "PATCH",
+    cache: "no-store",
+    body: JSON.stringify({
+      currentPassword: payload.currentPassword,
+      newPassword: payload.newPassword,
+    }),
   });
 }
 

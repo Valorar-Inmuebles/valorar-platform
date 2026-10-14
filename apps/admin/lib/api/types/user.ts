@@ -32,7 +32,10 @@ export type CreateUserPayload = {
 };
 
 export type UpdateUserPayload = Partial<
-  Omit<CreateUserPayload, "password"> & { password?: string; isActive?: boolean }
+  Omit<CreateUserPayload, "password"> & {
+    password?: string;
+    isActive?: boolean;
+  }
 >;
 
 export type UpdateProfilePayload = {
@@ -40,7 +43,11 @@ export type UpdateProfilePayload = {
   lastName?: string;
   phone?: string;
   avatarUrl?: string;
-  password?: string;
+};
+
+export type ChangePasswordPayload = {
+  currentPassword: string;
+  newPassword: string;
 };
 
 export type UserDeletionReasonCode =

@@ -1,7 +1,6 @@
 import { redirect } from "next/navigation";
 import { ConfigSubNav } from "@/components/config/config-sub-nav";
-import { ProfileForm } from "@/components/config/profile-form";
-import { ApiErrorPanel } from "@/components/shared/api-error-panel";
+import { ProfileSettings } from "@/components/config/profile-settings";
 import { PageShell } from "@/components/shared/page-shell";
 import { getProfile } from "@/lib/api/users";
 import { mapUnknownError } from "@/lib/api/error-map";
@@ -25,9 +24,7 @@ export default async function ConfiguracionPerfilPage() {
         ]}
         subNav={<ConfigSubNav />}
       >
-        <p className="text-sm text-muted">
-          Perfil de plataforma — edición limitada para Super Admin.
-        </p>
+        <ProfileSettings user={session.user} />
       </PageShell>
     );
   }
@@ -46,13 +43,16 @@ export default async function ConfiguracionPerfilPage() {
         ]}
         subNav={<ConfigSubNav />}
       >
-        <ProfileForm profile={profile} />
+        <ProfileSettings user={session.user} profile={profile} />
       </PageShell>
     );
   } catch (error) {
     return (
       <PageShell title="Perfil" subNav={<ConfigSubNav />}>
-        <ApiErrorPanel message={mapUnknownError(error)} />
+        <ProfileSettings
+          user={session.user}
+          profileError={mapUnknownError(error)}
+        />
       </PageShell>
     );
   }

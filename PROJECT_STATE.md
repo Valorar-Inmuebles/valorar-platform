@@ -53,6 +53,25 @@ Integración Property (GEO-002): FKs en Property + Admin select/autocomplete + W
 
 ## Estado Actual
 
+**Configuración UX B2 — seguridad backend de contraseña (local):** endpoint
+`PATCH /users/me/password`, reautenticación bcrypt, política 12 caracteres/
+72 bytes UTF-8, CAS y ventana móvil PostgreSQL de cinco admisiones/15 minutos.
+Migración aditiva `202610130001_password_change_rate_limit` aplicada sólo al
+destino development validado `br-hidden-mud-ach3itrr` / `ep-super-glade-ac3ywgv7`.
+JWT existentes conservados; revocación diferida. Cierre de vías propias legacy;
+UI de Perfil implementada posteriormente en B3. Contrato en `docs/04-modules/auth.md`.
+Evidencia: `docs/09-roadmap/config-password-b2.md` (26 tests PostgreSQL,
+901 tests API aprobados; lint B2 limpio, deuda de lint global preexistente).
+Sin commit/push/deployment; P1.3, Rental, RealData y overlays preservados.
+
+**Configuración UX B3 — Perfil (local):** información personal y seguridad en
+cards/formularios independientes, dos columnas desktop y una mobile. Cliente y
+Server Action para B2, validación Unicode/UTF-8 sin transformar contraseñas,
+medidor local orientativo, errores por código, espera 429 y limpieza tras éxito.
+Seguridad disponible para Super Admin sin tenant. Sin cambios backend/schema,
+DB writes ni modificaciones de RealData/Rental/P1.3/overlays. UAT visual real
+pendiente por navegador desconectado. Evidencia: `docs/09-roadmap/config-profile-b3.md`.
+
 **Property List P1.3A — reglas y contrato:** publicabilidad compartida alineada con
 la Web para CLOSED (precio opcional), activación hacia ACTIVE con precio siempre
 obligatorio, predicados de atención reutilizables y adaptación explícita de claves

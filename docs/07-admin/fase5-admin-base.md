@@ -4,6 +4,14 @@ Versión: v1
 
 Estado: **implementado** (QA refinamiento v1.1 incluido)
 
+**Actualización B2+B3 (local, octubre 2026):** Perfil ya no acepta `password`;
+cambio personal exclusivo por `PATCH /users/me/password`, con contraseña actual
+y rate limiter. El Admin separa información personal y seguridad, con formularios
+independientes, medidor orientativo local, errores estructurados y cuenta regresiva
+429. Seguridad disponible también para Super Admin sin tenant. Altas y resets
+administrativos requieren la nueva política backend; su ajuste visual no pertenece
+a B3. Contrato canónico: `docs/04-modules/auth.md`, secciones B2 y B3.
+
 Referencias:
 
 * `docs/04-modules/auth.md`
