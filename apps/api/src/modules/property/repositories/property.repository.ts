@@ -1,4 +1,5 @@
-import { Injectable } from '@nestjs/common';
+import { ConflictException, Injectable } from '@nestjs/common';
+import { propertySlugCandidate } from '@repo/property-rules';
 import { Prisma, Property } from '../../../../generated/prisma/client';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { propertyInclude } from '../utils/property-location';
@@ -27,6 +28,48 @@ export class PropertyRepository {
       data,
       include: propertyInclude,
     });
+  }
+
+  async createWithGeneratedSlug(
+    data: CreatePropertyData,
+  ): Promise<PropertyRecord> {
+    const base = data.slug;
+    // Only compact slug strings, tenant-scoped. Reserve room for numeric suffixes
+    // in the prefix search so a 120-character base still has collision coverage.
+    const existing = await this.prisma.property.findMany({
+      where: {
+        tenantId: data.tenantId,
+        slug: { startsWith: base.slice(0, 100) },
+      },
+      select: { slug: true },
+    });
+    const used = new Set(existing.map((property) => property.slug));
+    let ordinal = 1;
+    for (let attempt = 0; attempt < 20; attempt++) {
+      while (used.has(propertySlugCandidate(base, ordinal))) ordinal++;
+      const slug = propertySlugCandidate(base, ordinal);
+      try {
+        return await this.create({ ...data, slug });
+      } catch (error) {
+        // Do not retry internalCode conflicts, foreign keys or uncertain writes.
+        if (
+          !(error instanceof Prisma.PrismaClientKnownRequestError) ||
+          error.code !== 'P2002'
+        )
+          throw error;
+        const target = error.meta?.target;
+        const slugConflict = Array.isArray(target)
+          ? target.length === 2 &&
+            target.includes('tenantId') &&
+            target.includes('slug')
+          : target === 'Property_tenantId_slug_key';
+        if (!slugConflict) throw error;
+        used.add(slug);
+      }
+    }
+    throw new ConflictException(
+      'No se pudo reservar una URL única. Volvé a intentar.',
+    );
   }
 
   findById(id: string, tenantId: string): Promise<PropertyRecord | null> {

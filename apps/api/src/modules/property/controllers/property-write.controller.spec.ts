@@ -16,8 +16,38 @@ import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { TenantGuard } from '../../auth/guards/tenant.guard';
 import { PermissionsGuard } from '../../../common/guards/permissions.guard';
 import { UpdatePropertyDto } from '../dto/update-property.dto';
+import { CreatePropertyDto } from '../dto/create-property.dto';
 
 describe('Property PATCH boundary contract', () => {
+  it.each([undefined, 'url-historica-explicita'])(
+    'accepts create with generated or explicit slug (%s)',
+    async (slug) => {
+      expect(
+        await validate(
+          plainToInstance(CreatePropertyDto, {
+            title: 'Casa',
+            propertyType: 'HOUSE',
+            city: 'Rosario',
+            ...(slug === undefined ? {} : { slug }),
+          }),
+        ),
+      ).toEqual([]);
+    },
+  );
+  it.each([null, '', 'INVALID', 'a'])(
+    'does not reinterpret an invalid explicit slug (%s) as automatic',
+    async (slug) => {
+      const errors = await validate(
+        plainToInstance(CreatePropertyDto, {
+          title: 'Casa',
+          propertyType: 'HOUSE',
+          city: 'Rosario',
+          slug,
+        }),
+      );
+      expect(errors.some((error) => error.property === 'slug')).toBe(true);
+    },
+  );
   it('retains JWT, tenant, and RBAC guards in order', () => {
     expect(Reflect.getMetadata(GUARDS_METADATA, PropertyController)).toEqual([
       JwtAuthGuard,

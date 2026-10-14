@@ -1,4 +1,8 @@
-import type { PropertyListingType, PropertyType } from "./public-property";
+import type {
+  Currency,
+  PropertyListingType,
+  PropertyType,
+} from "./public-property";
 import type { PaginatedResponse } from "./rental-communications";
 
 export type PropertyCommercialStatus =
@@ -15,6 +19,10 @@ export type PropertyListItem = {
   isActive: boolean;
   location: { localityName: string; neighborhoodName: string | null };
   listingTypes: PropertyListingType[];
+  publishedOperations: {
+    listingType: PropertyListingType;
+    primaryPrice: { amount: number; currency: Currency } | null;
+  }[];
   statusVariant: PropertyCommercialStatus;
   isAnyPublishable: boolean;
   publicUrl: string | null;

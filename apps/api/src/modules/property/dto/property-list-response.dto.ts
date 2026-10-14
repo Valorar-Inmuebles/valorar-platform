@@ -4,6 +4,7 @@ import type {
   PropertyListResponse,
 } from '@repo/shared-types';
 import {
+  Currency,
   PropertyListingType,
   PropertyType,
 } from '../../../../generated/prisma/client';
@@ -13,6 +14,15 @@ class PropertyListLocationDto {
   @ApiProperty({ type: String, nullable: true }) neighborhoodName!:
     | string
     | null;
+}
+class PropertyListPrimaryPriceDto {
+  @ApiProperty() amount!: number;
+  @ApiProperty({ enum: Currency }) currency!: Currency;
+}
+class PropertyListPublishedOperationDto {
+  @ApiProperty({ enum: PropertyListingType }) listingType!: PropertyListingType;
+  @ApiProperty({ type: PropertyListPrimaryPriceDto, nullable: true })
+  primaryPrice!: PropertyListPrimaryPriceDto | null;
 }
 class PropertyListCreatorDto {
   @ApiProperty() id!: string;
@@ -43,6 +53,8 @@ class PropertyListItemDto implements PropertyListItem {
   location!: PropertyListLocationDto;
   @ApiProperty({ enum: PropertyListingType, isArray: true })
   listingTypes!: PropertyListingType[];
+  @ApiProperty({ type: [PropertyListPublishedOperationDto] })
+  publishedOperations!: PropertyListPublishedOperationDto[];
   @ApiProperty({ enum: ['published', 'commercial-draft', 'archived'] })
   statusVariant!: PropertyListItem['statusVariant'];
   @ApiProperty() isAnyPublishable!: boolean;

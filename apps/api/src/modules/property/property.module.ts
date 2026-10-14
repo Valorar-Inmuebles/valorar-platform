@@ -16,6 +16,9 @@ import { PropertyDetailContextService } from './services/property-detail-context
 import { PropertyListController } from './controllers/property-list.controller';
 import { PropertyListService } from './services/property-list.service';
 import { PropertyListRepository } from './repositories/property-list.repository';
+import { PropertyLocationSearchController } from './controllers/property-location-search.controller';
+import { PropertyLocationSearchService } from './services/property-location-search.service';
+import { GeoapifyAdapter } from './services/geoapify.adapter';
 
 @Module({
   imports: [
@@ -29,6 +32,7 @@ import { PropertyListRepository } from './repositories/property-list.repository'
     PropertyListController,
     PropertyController,
     PropertyDetailContextController,
+    PropertyLocationSearchController,
   ],
   providers: [
     PropertyListService,
@@ -40,6 +44,8 @@ import { PropertyListRepository } from './repositories/property-list.repository'
     PropertyRepository,
     PropertyPublishabilityService,
     PropertyAccessService,
+    PropertyLocationSearchService,
+    GeoapifyAdapter,
   ],
   exports: [
     PropertyService,

@@ -1,3 +1,8 @@
+export {
+  OPENSTREETMAP_STANDARD_URL,
+  OPENSTREETMAP_STANDARD_ATTRIBUTION,
+  DEFAULT_MAP_ZOOM,
+} from "./map-config";
 export type {
   GeoLocality,
   GeoLocalitySearchResult,

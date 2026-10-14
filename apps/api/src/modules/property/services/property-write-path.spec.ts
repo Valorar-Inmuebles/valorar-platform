@@ -82,6 +82,7 @@ function setup(initial: Record<string, any> = {}) {
   const prisma: any = {
     property: {
       create: op('property.create', apply),
+      findMany: op('property.findMany', () => []),
       findFirst: op('property.findFirst', ({ where }) =>
         matches(where) ? entity : null,
       ),
@@ -240,6 +241,56 @@ const replay = reportPath
 );
 
 describe('Property differential write regressions', () => {
+  it('persists coordinate-only changes without changing postal address, GEO, source or slug', async () => {
+    const h = setup({
+      latitude: '-34.1234567',
+      longitude: '-58.1234567',
+      geocodeSource: 'IMPORT',
+    });
+    const result = await h.service.update(
+      'property-1',
+      'tenant-1',
+      { latitude: -35.7654321, longitude: -59.7654321 },
+      user,
+    );
+    expect(result).toMatchObject({
+      latitude: -35.7654321,
+      longitude: -59.7654321,
+      slug: 'baseline-property',
+      city: 'City',
+      geocodeSource: 'IMPORT',
+    });
+    expect(h.resolve).not.toHaveBeenCalled();
+    expect(h.prisma.property.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: { latitude: -35.7654321, longitude: -59.7654321 },
+      }),
+    );
+  });
+  it('generates only when slug is omitted, preserving canonical GEO and author/assignee validation', async () => {
+    const h = setup();
+    const result = await h.service.create(
+      { title: 'Ático en Córdoba', propertyType: 'HOUSE', city: 'Córdoba' },
+      'tenant-1',
+      'user-1',
+    );
+    expect(result.slug).toBe('atico-en-cordoba');
+    expect(h.prisma.property.create).toHaveBeenCalledTimes(1);
+    expect(h.resolve).toHaveBeenCalledTimes(1);
+    await expect(
+      h.service.create(
+        {
+          title: 'Otra casa',
+          propertyType: 'HOUSE',
+          city: 'Córdoba',
+          assignedToId: 'foreign-user',
+        },
+        'tenant-1',
+        'user-1',
+      ),
+    ).rejects.toThrow(BadRequestException);
+    expect(h.prisma.property.create).toHaveBeenCalledTimes(1);
+  });
   it('preserves create defaults, canonical GEO and tenant-scoped author validation', async () => {
     const h = setup();
     const payload = {

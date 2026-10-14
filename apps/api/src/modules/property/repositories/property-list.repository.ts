@@ -77,6 +77,7 @@ export class PropertyListRepository {
           'propertyType', p."propertyType", 'isActive', p."isActive",
           'location', jsonb_build_object('localityName', pg.locality, 'neighborhoodName', pg.neighborhood),
           'listingTypes', operations.types, 'activeListingsCount', operations.active_count,
+          'publishedOperations', operations.published,
           'statusVariant', CASE WHEN NOT pg."isActive" THEN 'archived' WHEN pg.published THEN 'published' ELSE 'commercial-draft' END,
           'isAnyPublishable', pg.published,
           'publicListingType', CASE WHEN pg.published THEN (SELECT l."listingType" FROM "PropertyListing" l
@@ -91,7 +92,14 @@ export class PropertyListRepository {
         LEFT JOIN "PropertyAgentAccess" access ON access."propertyId" = p.id AND access."tenantId" = ${tenantId} AND access."userId" = ${userId}
         CROSS JOIN LATERAL (
           SELECT COALESCE(jsonb_agg(l."listingType" ORDER BY l."listingType"), '[]'::jsonb) AS types,
-            count(*) FILTER (WHERE l.status = 'ACTIVE') AS active_count
+            count(*) FILTER (WHERE l.status = 'ACTIVE') AS active_count,
+            COALESCE(jsonb_agg(jsonb_build_object(
+              'listingType', l."listingType",
+              'primaryPrice', (SELECT jsonb_build_object('amount', price.amount, 'currency', price.currency)
+                FROM "PropertyPrice" price
+                WHERE price."listingId" = l.id AND price."tenantId" = p."tenantId" AND price."isPrimary"
+                ORDER BY price."createdAt", price.id COLLATE "C" LIMIT 1)
+            ) ORDER BY l."listingType") FILTER (WHERE pg.published AND ${listingEligibleSql}), '[]'::jsonb) AS published
           FROM "PropertyListing" l WHERE l."propertyId" = p.id AND l."tenantId" = ${tenantId}
         ) operations), '[]'::jsonb) AS items
       FROM bounds CROSS JOIN counts

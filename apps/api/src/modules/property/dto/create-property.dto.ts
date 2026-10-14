@@ -26,16 +26,18 @@ import {
 const SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
 export class CreatePropertyDto {
-  @ApiProperty({
-    description: 'URL-friendly slug unique within the tenant',
+  @ApiPropertyOptional({
+    description:
+      'URL-friendly slug unique within the tenant. Omit on create to generate from title.',
     example: 'casa-centro-belgrano',
   })
+  @ValidateIf((_dto, value: unknown) => value !== undefined)
   @IsString()
   @Length(3, 120)
   @Matches(SLUG_PATTERN, {
     message: 'slug must contain only lowercase letters, numbers, and hyphens',
   })
-  slug: string;
+  slug?: string;
 
   @ApiProperty({ example: 'Casa en Belgrano' })
   @IsString()
@@ -93,7 +95,8 @@ export class CreatePropertyDto {
 
   @ApiPropertyOptional({
     example: 'Buenos Aires',
-    description: 'Legacy city/locality text. Required when localityId is not set.',
+    description:
+      'Legacy city/locality text. Required when localityId is not set.',
   })
   @ValidateIf((dto: CreatePropertyDto) => !dto.localityId)
   @IsString()
@@ -115,7 +118,9 @@ export class CreatePropertyDto {
   @IsString()
   localityId?: string;
 
-  @ApiPropertyOptional({ description: 'Geo catalog neighborhood ID (optional)' })
+  @ApiPropertyOptional({
+    description: 'Geo catalog neighborhood ID (optional)',
+  })
   @IsOptional()
   @IsString()
   neighborhoodId?: string;

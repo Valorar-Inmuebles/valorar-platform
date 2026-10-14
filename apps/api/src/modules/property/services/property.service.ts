@@ -5,6 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import type { AuthenticatedUser } from '../../../common/types/authenticated-user.type';
+import { propertySlugFromTitle } from '@repo/property-rules';
 import { PropertyListingRepository } from '../../property-listing/repositories/property-listing.repository';
 import { ListingOperationalTrustService } from '../../property-listing/services/listing-operational-trust.service';
 import { CreatePropertyDto } from '../dto/create-property.dto';
@@ -40,14 +41,22 @@ export class PropertyService {
     await this.assertTenantExists(tenantId);
     await this.assertCreatedByBelongsToTenant(createdById, tenantId);
     await this.assertAssigneeBelongsToTenant(dto.assignedToId, tenantId);
-    await this.assertSlugIsUnique(dto.slug, tenantId);
+    if (dto.slug !== undefined)
+      await this.assertSlugIsUnique(dto.slug, tenantId);
 
     const internalCode = this.normalizeInternalCode(dto.internalCode);
     await this.assertInternalCodeIsUnique(internalCode, tenantId);
 
-    const property = await this.propertyRepository.create(
-      await this.toCreateData(dto, tenantId, createdById, internalCode),
+    const data = await this.toCreateData(
+      { ...dto, slug: dto.slug ?? propertySlugFromTitle(dto.title) },
+      tenantId,
+      createdById,
+      internalCode,
     );
+    const property =
+      dto.slug === undefined
+        ? await this.propertyRepository.createWithGeneratedSlug(data)
+        : await this.propertyRepository.create(data);
 
     return PropertyResponseDto.fromEntity(property);
   }
@@ -328,7 +337,7 @@ export class PropertyService {
     return {
       tenantId,
       createdById,
-      slug: dto.slug,
+      slug: dto.slug!,
       title: dto.title,
       description: dto.description,
       internalCode: internalCode ?? null,
