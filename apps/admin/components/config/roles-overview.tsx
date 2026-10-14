@@ -70,9 +70,7 @@ function PermissionCell({
     <td className="border-b border-border px-3 py-2.5 text-center align-middle">
       <span
         className={
-          granted
-            ? "inline-flex text-green-700"
-            : "inline-flex text-red-600/70"
+          granted ? "inline-flex text-green-700" : "inline-flex text-red-600/70"
         }
         title={label}
         aria-label={`${permissionLabel} — ${roleLabel}: ${label}`}
@@ -90,12 +88,12 @@ function PermissionGroupRows({
   group: (typeof PERMISSION_MATRIX_GROUPS)[number];
 }) {
   return (
-    <>
-      <tr className="bg-surface-alt">
+    <tbody>
+      <tr className="border-t border-border bg-surface-alt">
         <th
-          scope="colgroup"
+          scope="rowgroup"
           colSpan={1 + TENANT_ROLES.length}
-          className="sticky left-0 z-10 bg-surface-alt/95 px-4 py-2 text-left text-xs font-semibold uppercase tracking-wide text-muted"
+          className="sticky left-0 z-10 bg-surface-alt px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-foreground"
         >
           {group.label}
         </th>
@@ -104,23 +102,16 @@ function PermissionGroupRows({
         <tr key={permission} className="hover:bg-surface-alt">
           <th
             scope="row"
-            className="sticky left-0 z-10 max-w-[14rem] border-r border-border bg-white px-4 py-2.5 text-left font-medium text-foreground"
-            title={permission}
+            className="sticky left-0 z-10 w-[17rem] min-w-[17rem] border-r border-border bg-white px-4 py-2.5 text-left font-medium text-foreground"
           >
-            <span className="block truncate">
-              {getPermissionLabel(permission)}
-            </span>
+            <span className="block">{getPermissionLabel(permission)}</span>
           </th>
           {TENANT_ROLES.map((role) => (
-            <PermissionCell
-              key={role}
-              role={role}
-              permission={permission}
-            />
+            <PermissionCell key={role} role={role} permission={permission} />
           ))}
         </tr>
       ))}
-    </>
+    </tbody>
   );
 }
 
@@ -134,14 +125,17 @@ export function RolesOverview({ viewerRole }: RolesOverviewProps) {
         y no se editan desde esta pantalla.
       </Card>
 
-      <Card className="overflow-hidden p-0">
-        <div className="max-h-[min(70vh,40rem)] overflow-auto">
-          <table className="min-w-[44rem] w-full border-collapse text-sm">
+      <Card className="min-w-0 p-0">
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[48rem] border-collapse text-sm">
+            <caption className="sr-only">
+              Permisos concedidos por rol de la inmobiliaria
+            </caption>
             <thead>
               <tr className="border-b border-border">
                 <th
                   scope="col"
-                  className="sticky left-0 top-0 z-30 border-r border-border bg-surface-alt px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-muted"
+                  className="sticky left-0 z-20 border-r border-border bg-surface-alt px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-foreground"
                 >
                   Permiso
                 </th>
@@ -149,7 +143,7 @@ export function RolesOverview({ viewerRole }: RolesOverviewProps) {
                   <th
                     key={role}
                     scope="col"
-                    className="sticky top-0 z-20 min-w-[7.5rem] bg-surface-alt px-3 py-3 text-center text-xs font-medium uppercase tracking-wide text-muted"
+                    className="min-w-[7.5rem] bg-surface-alt px-3 py-3 text-center text-xs font-semibold uppercase tracking-wide text-foreground"
                   >
                     <span className="block normal-case tracking-normal text-foreground">
                       {ROLE_LABELS[role]}
@@ -158,11 +152,9 @@ export function RolesOverview({ viewerRole }: RolesOverviewProps) {
                 ))}
               </tr>
             </thead>
-            <tbody>
-              {PERMISSION_MATRIX_GROUPS.map((group) => (
-                <PermissionGroupRows key={group.label} group={group} />
-              ))}
-            </tbody>
+            {PERMISSION_MATRIX_GROUPS.map((group) => (
+              <PermissionGroupRows key={group.label} group={group} />
+            ))}
           </table>
         </div>
       </Card>

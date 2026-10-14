@@ -5,6 +5,7 @@ import {
   formValuesToCreatePayload,
   formValuesToUpdatePayload,
   propertyToFormValues,
+  validatePropertyFormValues,
 } from "./form";
 
 const property = {
@@ -58,6 +59,79 @@ const property = {
 } satisfies AdminProperty;
 
 describe("Property form lifecycle isolation", () => {
+  const valid = () => propertyToFormValues(property);
+  it("omits the preview slug on create and keeps edit slug and coordinates stable", () => {
+    expect(formValuesToCreatePayload(valid())).not.toHaveProperty("slug");
+    const initial = propertyToFormValues({
+      ...property,
+      latitude: -34.1234567,
+      longitude: -58.1234567,
+    });
+    expect(
+      formValuesToUpdatePayload({ ...initial, title: "Otro título" }, initial),
+    ).toEqual({ title: "Otro título" });
+    expect(
+      formValuesToUpdatePayload(
+        { ...initial, latitude: "-35.1234567" },
+        initial,
+      ),
+    ).toEqual({ latitude: -35.1234567 });
+  });
+  it.each(["80,40", "80.40", "35,79", "120", ",5", "80,"])(
+    "preserves decimal input %s as an API number",
+    (value) => {
+      const values = { ...valid(), totalArea: value };
+      expect(validatePropertyFormValues(values)).toBeNull();
+      expect(formValuesToCreatePayload(values).totalArea).toBe(
+        Number(value.replace(",", ".")),
+      );
+    },
+  );
+  it.each([
+    "1.234,56",
+    "1,234.56",
+    "80,401",
+    "80foo",
+    "1e2",
+    "-1",
+    "100000000",
+  ])("rejects invalid or out-of-scale area %s", (value) => {
+    expect(
+      validatePropertyFormValues({ ...valid(), totalArea: value }),
+    ).not.toBeNull();
+  });
+  it.each(["1.5", "-1", "2e3", "12foo", "2147483648"])(
+    "rejects invalid quantity %s",
+    (rooms) => {
+      expect(validatePropertyFormValues({ ...valid(), rooms })).not.toBeNull();
+    },
+  );
+  it.each(["180", "1799", "2101", "2000x", "2e3", "2000.1"])(
+    "rejects invalid year %s",
+    (yearBuilt) => {
+      expect(
+        validatePropertyFormValues({ ...valid(), yearBuilt }),
+      ).not.toBeNull();
+    },
+  );
+  it("normalizes decimal punctuation for P1.2 and retains empty and zero semantics", () => {
+    const initial = propertyToFormValues({
+      ...property,
+      totalArea: 80.4,
+      rooms: 2,
+    });
+    expect(
+      formValuesToUpdatePayload({ ...initial, totalArea: "80,40" }, initial),
+    ).toEqual({});
+    expect(
+      formValuesToUpdatePayload(
+        { ...initial, totalArea: "", rooms: "0" },
+        initial,
+      ),
+    ).toEqual({ totalArea: null, rooms: 0 });
+    for (const yearBuilt of ["", "1800", "2100"])
+      expect(validatePropertyFormValues({ ...valid(), yearBuilt })).toBeNull();
+  });
   it("relies on the API default when creating a property", () => {
     const values = {
       ...emptyPropertyFormValues(),

@@ -12,6 +12,7 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import { useBodyScrollLock } from "./body-scroll-lock";
+import { useModalLayer } from "./hooks/use-modal-layer";
 import { cn } from "./lib/cn";
 
 export type SidePanelWidth = "sm" | "md" | "lg" | "xl";
@@ -62,6 +63,7 @@ export function SidePanel({
   const titleId = `${uid}-title`;
   const descriptionId = `${uid}-desc`;
   useBodyScrollLock(mounted);
+  useModalLayer({ open, mounted, panelRef, onClose });
 
   useEffect(() => {
     if (open) {
@@ -77,27 +79,10 @@ export function SidePanel({
   }, [open]);
 
   useLayoutEffect(() => {
-    if (!mounted) return;
+    if (!mounted || !open) return;
     const id = requestAnimationFrame(() => setVisible(true));
     return () => cancelAnimationFrame(id);
-  }, [mounted]);
-
-  useEffect(() => {
-    if (!mounted) return;
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    document.addEventListener("keydown", handler);
-    return () => document.removeEventListener("keydown", handler);
-  }, [mounted, onClose]);
-
-  useEffect(() => {
-    if (!visible || !panelRef.current) return;
-    const focusable = panelRef.current.querySelector<HTMLElement>(
-      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
-    );
-    focusable?.focus();
-  }, [visible]);
+  }, [mounted, open]);
 
   if (!mounted) return null;
 
@@ -110,6 +95,7 @@ export function SidePanel({
         )}
       >
         <div
+          data-ui-overlay-backdrop=""
           aria-hidden="true"
           className="absolute inset-0 bg-zinc-900/30 backdrop-blur-[2px]"
           onClick={closeOnOverlay ? onClose : undefined}
@@ -117,10 +103,10 @@ export function SidePanel({
 
         <div
           ref={panelRef}
+          data-ui-modal=""
           role="dialog"
           aria-modal="true"
-          aria-labelledby={titleId}
-          aria-describedby={descriptionId}
+          tabIndex={-1}
           className={cn(
             "relative z-10 flex h-full w-full flex-col overflow-hidden border-l border-zinc-200 bg-white shadow-xl shadow-zinc-900/[0.12] ring-1 ring-zinc-900/[0.04] transition-transform duration-200",
             widthClass[width],
@@ -174,6 +160,7 @@ export function SidePanelTitle({
   return (
     <h2
       id={titleId}
+      data-ui-dialog-title=""
       className={cn(
         "text-sm font-medium tracking-tight text-zinc-900",
         className,
@@ -195,6 +182,7 @@ export function SidePanelDescription({
   return (
     <p
       id={descriptionId}
+      data-ui-dialog-description=""
       className={cn("mt-0.5 text-xs text-zinc-500", className)}
     >
       {children}

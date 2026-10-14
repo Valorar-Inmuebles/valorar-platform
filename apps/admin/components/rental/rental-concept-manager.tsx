@@ -1,11 +1,19 @@
 "use client";
 
-import { useState, useTransition, type FormEvent } from "react";
+import { useRef, useState, useTransition, type FormEvent } from "react";
 import { Badge } from "@repo/ui/badge";
 import { Button } from "@repo/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@repo/ui/card";
 import { FormField, Label } from "@repo/ui/form-field";
 import { Input } from "@repo/ui/input";
+import {
+  SidePanel,
+  SidePanelContent,
+  SidePanelDescription,
+  SidePanelFooter,
+  SidePanelHeader,
+  SidePanelTitle,
+} from "@repo/ui/side-panel";
 import { useToast } from "@repo/ui/toast";
 import {
   createRentalConceptAction,
@@ -32,17 +40,33 @@ export function RentalConceptManager({
   const [concepts, setConcepts] = useState(initialConcepts);
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
+  const [panelOpen, setPanelOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
+  const submitting = useRef(false);
+  const closePanel = () => {
+    if (submitting.current) return;
+    setPanelOpen(false);
+  };
 
   const create = (event: FormEvent) => {
     event.preventDefault();
+    if (submitting.current) return;
+    submitting.current = true;
     startTransition(async () => {
-      const result = await createRentalConceptAction({ name, slug });
-      if (!result.ok) return toast.error(result.error);
-      setConcepts((current) => [...current, result.value]);
-      setName("");
-      setSlug("");
-      toast.success("Concepto personalizado creado.");
+      try {
+        const result = await createRentalConceptAction({ name, slug });
+        if (!result.ok) return toast.error(result.error);
+        setConcepts((current) => [...current, result.value]);
+        submitting.current = false;
+        closePanel();
+        setName("");
+        setSlug("");
+        toast.success("Concepto personalizado creado.");
+      } catch {
+        toast.error("No se pudo crear el concepto. Intentá nuevamente.");
+      } finally {
+        submitting.current = false;
+      }
     });
   };
 
@@ -63,27 +87,29 @@ export function RentalConceptManager({
   };
 
   return (
-    <div className="grid gap-5 lg:grid-cols-[1fr_340px]">
+    <>
       <Card>
-        <CardHeader>
-          <CardTitle>Catálogo del tenant</CardTitle>
+        <CardHeader className="flex-wrap">
+          <CardTitle>Catálogo de conceptos</CardTitle>
+          <Button type="button" size="sm" onClick={() => setPanelOpen(true)}>
+            Agregar concepto
+          </Button>
         </CardHeader>
         <CardContent className="space-y-2">
+          {concepts.length === 0 ? (
+            <p className="py-6 text-center text-sm text-muted">
+              Todavía no hay conceptos. Agregá el primero para comenzar.
+            </p>
+          ) : null}
           {concepts.map((concept) => (
             <div
               key={concept.id}
-              className="flex items-center justify-between gap-3 rounded-lg border border-border px-3 py-2"
+              className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border px-3 py-2"
             >
-              <div>
-                <p className="text-sm font-medium">{concept.name}</p>
-                <p className="text-xs text-muted">
-                  {concept.slug}
-                  {concept.systemCode
-                    ? ` · ${concept.systemCode}`
-                    : " · Personalizado"}
-                </p>
-              </div>
-              <div className="flex items-center gap-2">
+              <p className="min-w-0 break-words text-sm font-medium">
+                {concept.name}
+              </p>
+              <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
                 <Badge variant={concept.isActive ? "success" : "neutral"}>
                   {concept.isActive ? "Activo" : "Inactivo"}
                 </Badge>
@@ -100,16 +126,34 @@ export function RentalConceptManager({
           ))}
         </CardContent>
       </Card>
-      <Card>
-        <CardHeader>
-          <CardTitle>Nuevo concepto</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={create} className="space-y-4">
+      <SidePanel
+        open={panelOpen}
+        onClose={closePanel}
+        width="sm"
+        closeOnOverlay={!isPending}
+      >
+        <SidePanelHeader>
+          <SidePanelTitle>Agregar concepto</SidePanelTitle>
+          <SidePanelDescription>
+            Creá un concepto para las obligaciones de alquiler.
+          </SidePanelDescription>
+        </SidePanelHeader>
+        <SidePanelContent>
+          <form
+            id="create-rental-concept"
+            onSubmit={create}
+            className="space-y-4"
+          >
             <FormField>
-              <Label required>Nombre</Label>
+              <Label htmlFor="concept-name" required>
+                Nombre
+              </Label>
               <Input
+                id="concept-name"
                 value={name}
+                required
+                maxLength={120}
+                disabled={isPending}
                 onChange={(event) => {
                   setName(event.target.value);
                   setSlug(slugify(event.target.value));
@@ -117,22 +161,41 @@ export function RentalConceptManager({
               />
             </FormField>
             <FormField>
-              <Label required>Slug</Label>
+              <Label htmlFor="concept-slug" required>
+                Slug
+              </Label>
               <Input
+                id="concept-slug"
                 value={slug}
+                required
+                minLength={2}
+                maxLength={80}
+                pattern="[a-z0-9]+(-[a-z0-9]+)*"
+                disabled={isPending}
                 onChange={(event) => setSlug(slugify(event.target.value))}
               />
             </FormField>
-            <Button
-              type="submit"
-              loading={isPending}
-              disabled={!name.trim() || !slug}
-            >
-              Crear concepto
-            </Button>
           </form>
-        </CardContent>
-      </Card>
-    </div>
+        </SidePanelContent>
+        <SidePanelFooter>
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={closePanel}
+            disabled={isPending}
+          >
+            Cancelar
+          </Button>
+          <Button
+            type="submit"
+            form="create-rental-concept"
+            loading={isPending}
+            disabled={isPending || !name.trim() || slug.length < 2}
+          >
+            Crear concepto
+          </Button>
+        </SidePanelFooter>
+      </SidePanel>
+    </>
   );
 }

@@ -1,4 +1,5 @@
 import type { PropertyType } from "@repo/shared-types";
+import { propertySlugFromTitle } from "@repo/property-rules";
 import type {
   AdminProperty,
   CreatePropertyPayload,
@@ -7,14 +8,7 @@ import type {
 } from "@/lib/api/types/property";
 
 export function slugifyTitle(value: string): string {
-  return value
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 120);
+  return value.trim() ? propertySlugFromTitle(value) : "";
 }
 
 export function emptyPropertyFormValues(): PropertyFormValues {
@@ -108,15 +102,14 @@ export function propertyToFormValues(
 function parseOptionalInt(value: string): number | undefined {
   const trimmed = value.trim();
   if (!trimmed) return undefined;
-  const parsed = Number.parseInt(trimmed, 10);
-  return Number.isNaN(parsed) ? undefined : parsed;
+  return /^\d+$/.test(trimmed) ? Number(trimmed) : undefined;
 }
 
 function parseOptionalFloat(value: string): number | undefined {
   const trimmed = value.trim();
   if (!trimmed) return undefined;
-  const parsed = Number.parseFloat(trimmed);
-  return Number.isNaN(parsed) ? undefined : parsed;
+  const parsed = Number(trimmed.replace(",", "."));
+  return Number.isFinite(parsed) ? parsed : undefined;
 }
 
 function trimOrUndefined(value: string): string | undefined {
@@ -131,9 +124,13 @@ function validateOptionalNonNegativeInt(
   const trimmed = value.trim();
   if (!trimmed) return null;
 
-  const parsed = Number.parseInt(trimmed, 10);
-  if (Number.isNaN(parsed) || parsed < 0) {
-    return `${label} debe ser un número entero mayor o igual a 0.`;
+  const parsed = Number(trimmed);
+  if (
+    !/^\d+$/.test(trimmed) ||
+    !Number.isInteger(parsed) ||
+    parsed > 2147483647
+  ) {
+    return `${label} debe ser un número entero entre 0 y 2147483647.`;
   }
 
   return null;
@@ -146,9 +143,13 @@ function validateOptionalNonNegativeFloat(
   const trimmed = value.trim();
   if (!trimmed) return null;
 
-  const parsed = Number.parseFloat(trimmed);
-  if (Number.isNaN(parsed) || parsed < 0) {
-    return `${label} debe ser un número mayor o igual a 0.`;
+  const parsed = Number(trimmed.replace(",", "."));
+  if (
+    !/^(?:\d+(?:[.,]\d{0,2})?|[.,]\d{1,2})$/.test(trimmed) ||
+    !Number.isFinite(parsed) ||
+    parsed > 99999999.99
+  ) {
+    return `${label} debe estar entre 0 y 99999999,99 y tener hasta 2 decimales, sin separadores de miles.`;
   }
 
   return null;
@@ -196,24 +197,28 @@ export function validatePropertyFormValues(
 
   const yearBuiltTrimmed = values.yearBuilt.trim();
   if (yearBuiltTrimmed) {
-    const yearBuilt = Number.parseInt(yearBuiltTrimmed, 10);
-    if (Number.isNaN(yearBuilt) || yearBuilt < 1800 || yearBuilt > 2100) {
+    const yearBuilt = Number(yearBuiltTrimmed);
+    if (
+      !/^\d{4}$/.test(yearBuiltTrimmed) ||
+      yearBuilt < 1800 ||
+      yearBuilt > 2100
+    ) {
       return "El año de construcción debe estar entre 1800 y 2100.";
     }
   }
 
   const latitudeTrimmed = values.latitude.trim();
   if (latitudeTrimmed) {
-    const latitude = Number.parseFloat(latitudeTrimmed);
-    if (Number.isNaN(latitude) || latitude < -90 || latitude > 90) {
+    const latitude = Number(latitudeTrimmed);
+    if (!Number.isFinite(latitude) || latitude < -90 || latitude > 90) {
       return "La latitud debe estar entre -90 y 90.";
     }
   }
 
   const longitudeTrimmed = values.longitude.trim();
   if (longitudeTrimmed) {
-    const longitude = Number.parseFloat(longitudeTrimmed);
-    if (Number.isNaN(longitude) || longitude < -180 || longitude > 180) {
+    const longitude = Number(longitudeTrimmed);
+    if (!Number.isFinite(longitude) || longitude < -180 || longitude > 180) {
       return "La longitud debe estar entre -180 y 180.";
     }
   }
@@ -221,7 +226,7 @@ export function validatePropertyFormValues(
   return null;
 }
 
-export function formValuesToCreatePayload(
+function formValuesToPayload(
   values: PropertyFormValues,
 ): CreatePropertyPayload {
   return {
@@ -262,12 +267,21 @@ export function formValuesToCreatePayload(
   };
 }
 
+export function formValuesToCreatePayload(
+  values: PropertyFormValues,
+): CreatePropertyPayload {
+  const payload = formValuesToPayload(values);
+  // The visible slug is only a preview. The API chooses/reserves the final URL.
+  delete payload.slug;
+  return payload;
+}
+
 export function formValuesToUpdatePayload(
   values: PropertyFormValues,
   initialValues: PropertyFormValues,
 ): UpdatePropertyPayload {
-  const current = formValuesToCreatePayload(values);
-  const initial = formValuesToCreatePayload(initialValues);
+  const current = formValuesToPayload(values);
+  const initial = formValuesToPayload(initialValues);
   const patch = Object.fromEntries(
     Object.entries(current)
       .filter(([key, value]) => value !== initial[key as keyof typeof initial])

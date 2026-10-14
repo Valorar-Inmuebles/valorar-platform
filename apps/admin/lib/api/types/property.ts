@@ -71,7 +71,7 @@ export type AdminProperty = {
 };
 
 export type CreatePropertyPayload = {
-  slug: string;
+  slug?: string;
   title: string;
   propertyType: PropertyType;
   city?: string;

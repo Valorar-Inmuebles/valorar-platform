@@ -240,10 +240,6 @@ export function Select({
     }
 
     switch (e.key) {
-      case "Escape":
-        e.preventDefault();
-        close();
-        break;
       case "ArrowDown": {
         e.preventDefault();
         let next = activeIdx + 1;
@@ -268,9 +264,6 @@ export function Select({
         }
         break;
       }
-      case "Tab":
-        close();
-        break;
     }
   }
 

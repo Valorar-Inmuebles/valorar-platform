@@ -117,6 +117,7 @@ export function DatePicker({
     open,
     onClose: () => setOpen(false),
     triggerRef,
+    tabBehavior: "navigate",
   });
 
   useEffect(() => {
@@ -272,15 +273,6 @@ export function DatePicker({
               id={panelId}
               role="dialog"
               aria-label="Elegir fecha"
-              onKeyDown={(event) => {
-                if (event.key === "Escape") {
-                  event.stopPropagation();
-                  setOpen(false);
-                  requestAnimationFrame(() =>
-                    calendarButtonRef.current?.focus(),
-                  );
-                }
-              }}
               style={{
                 ...panelStyle,
                 left: Math.max(

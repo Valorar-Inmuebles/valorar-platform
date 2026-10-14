@@ -244,6 +244,18 @@ Combinaciones incompatibles como archived + without-images devuelven cero result
 
 ### Respuesta compacta
 
+**Extensión aditiva de precios (octubre 2026):** `publishedOperations` contiene
+únicamente operaciones publicables según §1, ordenadas por tipo. Cada entrada
+proyecta `listingType` y `primaryPrice: { amount: number, currency: "ARS" | "USD" } | null`.
+No incluye precios secundarios ni relaciones completas. RESERVED/CLOSED sin
+principal devuelven `null`; propiedad archivada/sin portada o sin operaciones
+publicables devuelve `[]`. `listingTypes` conserva todos los tipos existentes.
+La columna Comercialización conserva sus badges y agrega el precio sólo a las
+operaciones incluidas en `publishedOperations`; `null` se muestra como
+«Consultar precio». Formato institucional compartido (es-AR, dos decimales,
+USD / $ para ARS). Proyección dentro de la consulta existente, sólo para la página;
+sin requests/queries por fila ni cambios de filtros, sorting o contadores.
+
 Contrato implementado en `packages/shared-types/src/property-list.ts`; reutiliza el
 `PaginatedResponse<T>` ya exportado, sin crear otro envelope.
 
@@ -268,6 +280,10 @@ type PropertyListItem = {
     neighborhoodName: string | null;
   };
   listingTypes: PropertyListingType[];
+  publishedOperations: {
+    listingType: PropertyListingType;
+    primaryPrice: { amount: number; currency: "ARS" | "USD" } | null;
+  }[];
   statusVariant: PropertyCommercialStatus;
   isAnyPublishable: boolean;
   publicUrl: string | null;
@@ -303,7 +319,7 @@ type PropertyListResponse = PaginatedResponse<PropertyListItem> & {
 - `commercialCounts`: universo autorizado completo, **sin filtros** de búsqueda,
   estado, tipo, operación, GEO o atención. Conserva los contadores globales del listado.
 - Invariantes: all = active + archived; active = published + commercialDraft.
-- No exponer IDs fuera de página, filterSets, descripción, galerías, precios,
+- No exponer IDs fuera de página, filterSets, descripción, galerías, precios secundarios,
   asignaciones completas ni campos de User ajenos a la proyección segura existente.
 - Cero coincidencias: items=[], total=0, totalPages=0, page=1; contadores del universo
   autorizado pueden ser positivos. Universo vacío: también todos los contadores en 0.

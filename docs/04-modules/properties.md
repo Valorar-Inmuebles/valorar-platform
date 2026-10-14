@@ -360,6 +360,56 @@ Patrón: `/propiedades/{slug}`
 * Generado automáticamente al crear la propiedad.
 * Estable tras publicación.
 
+### Refinamiento Admin de Datos (octubre 2026)
+
+Alta compatible: POST permite omitir `slug` para generarlo a partir del título;
+los clientes que envían slug explícito conservan validación y conflicto existentes.
+La API resuelve sufijos `-2`, `-3`, etc. dentro del tenant, protegida por el unique
+existente y reintento sólo ante colisión de slug. Admin muestra una vista previa
+readonly (el sufijo definitivo se resuelve al guardar). En edición conserva el
+slug persistido incluso al cambiar título; no agrega regeneración ni redirects.
+
+Identificación ordena título, slug/tipo, código interno y condición. Autoría y
+asignación conservan sus reglas en un card Responsables independiente. Slug y
+código incluyen copiar con feedback accesible.
+
+Cantidades Admin: enteros 0..2147483647; superficies/frente/fondo: 0..99999999,99,
+dos decimales (Decimal(10,2)), coma o punto sin separadores de miles. Año calendario:
+cuatro dígitos, 1800..2100. Vacíos siguen representando ausencia/limpieza explícita.
+Piso, calle/número, departamento y código postal siguen siendo texto. No se cambia
+el contrato numérico API ni las columnas. P1.2 compara valores normalizados para
+no enviar diferencias de formato ni modificar slug/GEO/coordenadas accidentalmente.
+
+**D1 — mapa Admin:** Leaflet 1.9 / React-Leaflet 5 (mismas versiones que Web),
+tiles y atribución OpenStreetMap compartidos. Editor específico con carga dinámica
+sin SSR debajo de Ubicación: click, marcador arrastrable y entrada manual accesible.
+Sin coordenadas, muestra Argentina de referencia sin asignar un punto por defecto.
+Los ajustes son un borrador local; `Confirmar ubicación` aplica ambas coordenadas
+al formulario, redondeadas explícitamente a siete decimales. `Cancelar ajuste`
+restaura el último punto del formulario. Sólo guardar persiste el PATCH diferencial;
+no se alteran dirección, GEO, origen geográfico ni slug. Errores de mapa permiten
+seguir con entrada manual. D2 agrega búsqueda explícita sin alterar el contrato
+de confirmación de D1.
+
+**D2 — búsqueda manual Geoapify:** `POST /properties/location-search` en alta
+(`property.create`) y `POST /properties/:id/location-search` en edición
+(`property.update.own/any` y política de edición de la propiedad). JWT y tenant
+efectivo obligatorios. Sólo calle, altura, localidad, provincia, barrio opcional
+y CP se envían al adaptador servidor; país restringido a Argentina. En CABA el
+barrio del catálogo es Locality y la ciudad para búsqueda es CABA. La respuesta
+contiene hasta cinco puntos sugeridos con granularidad y advertencias; ni buscar
+ni seleccionar actualizan la propiedad. El mapa muestra sugerencias como borrador
+separado y exige Confirmar ubicación antes de Guardar. Sólo se persisten las
+coordenadas diferenciales existentes, sin modificar campos postales ni enums
+históricos de origen/precisión. Sin búsquedas por tecla.
+
+El adaptador lee `GEOAPIFY_API_KEY` únicamente del entorno API, con timeout,
+límite de tamaño y errores sanitizados. Límites de cortesía por proceso
+(usuario/tenant/global) sin tablas ni Redis; no son una cuota global garantizada
+entre réplicas o reinicios. La cuota efectiva del proveedor y la monitorización
+operativa son necesarias antes de aumentar el volumen. RealData continúa
+bloqueando todos los POST de búsqueda. No hay migración ni caché persistente.
+
 ---
 
 ## Imágenes (PropertyImage)

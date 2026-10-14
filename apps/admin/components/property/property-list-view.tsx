@@ -38,6 +38,7 @@ import {
 } from "@/lib/api/geo-client";
 import { getPropertyTypeLabel } from "@/lib/format/property-labels";
 import { getListingTypeLabel } from "@/lib/format/listing-labels";
+import { formatPropertyPriceLabel } from "@/lib/format/price";
 import { buildPublicPropertyUrl } from "@/lib/property/publishability";
 import {
   PROPERTY_ATTENTION_FILTER_LABELS,
@@ -357,22 +358,39 @@ export function PropertyListView({
         );
       case "listing":
         return item.listingTypes.length ? (
-          <div className="flex flex-wrap gap-1">
-            {item.listingTypes.map((type) => (
-              <Badge
-                key={type}
-                variant={
-                  type === "SALE"
-                    ? "info"
-                    : type === "RENT"
-                      ? "success"
-                      : "neutral"
-                }
-                className="shrink-0 px-1.5"
-              >
-                {getListingTypeLabel(type)}
-              </Badge>
-            ))}
+          <div className="flex flex-col items-start gap-1.5">
+            {item.listingTypes.map((type) => {
+              const operation = item.publishedOperations.find(
+                (operation) => operation.listingType === type,
+              );
+              return (
+                <div
+                  key={type}
+                  className="flex flex-wrap items-center gap-x-2 gap-y-1"
+                >
+                  <Badge
+                    variant={
+                      type === "SALE"
+                        ? "info"
+                        : type === "RENT"
+                          ? "success"
+                          : "neutral"
+                    }
+                    className="shrink-0 px-1.5"
+                  >
+                    {getListingTypeLabel(type)}
+                  </Badge>
+                  {operation && (
+                    <span className="whitespace-nowrap text-sm tabular-nums">
+                      {formatPropertyPriceLabel(
+                        operation.primaryPrice?.amount,
+                        operation.primaryPrice?.currency,
+                      )}
+                    </span>
+                  )}
+                </div>
+              );
+            })}
           </div>
         ) : (
           <span className="text-muted">—</span>

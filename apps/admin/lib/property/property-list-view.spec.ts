@@ -31,6 +31,7 @@ const item = (
   isActive,
   location: { localityName: "Rosario", neighborhoodName: "Centro" },
   listingTypes: ["SALE", "RENT"],
+  publishedOperations: [],
   statusVariant: isActive ? "published" : "archived",
   isAnyPublishable: isActive,
   publicUrl: isActive
@@ -81,6 +82,85 @@ function render(
 }
 
 describe("Property list server-rendered states", () => {
+  function commercialization(
+    publishedOperations: PropertyListItem["publishedOperations"],
+  ) {
+    const property = item({
+      canEdit: false,
+      canArchive: false,
+      canRestore: false,
+    });
+    const html = render(response([{ ...property, publishedOperations }], 1));
+    const row =
+      html.match(/<tbody[^>]*>\s*<tr[^>]*>([\s\S]*?)<\/tr>/)?.[1] ?? "";
+    return [...row.matchAll(/<td[^>]*>([\s\S]*?)<\/td>/g)][3]![1]!;
+  }
+
+  it("pairs Venta with its principal USD amount in institutional format", () => {
+    const cell = commercialization([
+      {
+        listingType: "SALE",
+        primaryPrice: { amount: 150000.25, currency: "USD" },
+      },
+    ]);
+    expect(cell).toContain(">Venta</span>");
+    expect(cell).toContain("USD 150.000,25");
+    expect(cell).not.toContain("Consultar precio");
+  });
+
+  it("pairs Alquiler with ARS using the shared $ prefix and two decimals", () => {
+    const cell = commercialization([
+      {
+        listingType: "RENT",
+        primaryPrice: { amount: 850000, currency: "ARS" },
+      },
+    ]);
+    expect(cell).toContain(">Alquiler</span>");
+    expect(cell).toContain("$ 850.000,00");
+    expect(cell).not.toContain("USD");
+  });
+
+  it("shows each published operation with its own price and wraps each pair independently", () => {
+    const cell = commercialization([
+      {
+        listingType: "SALE",
+        primaryPrice: { amount: 150000, currency: "USD" },
+      },
+      {
+        listingType: "RENT",
+        primaryPrice: { amount: 850000, currency: "ARS" },
+      },
+    ]);
+    expect(cell).toMatch(
+      /Venta<\/span><span[^>]*>USD 150.000,00<\/span><\/div>/,
+    );
+    expect(cell).toMatch(
+      /Alquiler<\/span><span[^>]*>\$ 850.000,00<\/span><\/div>/,
+    );
+    expect(cell).toContain("flex-col items-start");
+    expect(cell.match(/flex-wrap items-center/g)).toHaveLength(2);
+    expect(cell.match(/whitespace-nowrap text-sm tabular-nums/g)).toHaveLength(
+      2,
+    );
+  });
+
+  it("shows Consultar precio only for publicable operations without a principal", () => {
+    const cell = commercialization([
+      { listingType: "SALE", primaryPrice: null },
+    ]);
+    expect(cell.match(/Consultar precio/g)).toHaveLength(1);
+    expect(cell).not.toContain("0,00");
+    expect(cell).toContain(">Alquiler</span>");
+  });
+
+  it("preserves badges without a price or consult label for nonpublicable operations", () => {
+    const cell = commercialization([]);
+    expect(cell).toContain(">Venta</span>");
+    expect(cell).toContain(">Alquiler</span>");
+    expect(cell).not.toContain("Consultar precio");
+    expect(cell).not.toContain("tabular-nums");
+  });
+
   it.each([
     ["published", "Publicada", true],
     ["commercial-draft", "Borrador comercial", true],

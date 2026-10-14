@@ -9,6 +9,7 @@ import {
   type CSSProperties,
   type RefObject,
 } from "react";
+import { overlayCoordinator } from "../lib/overlay-coordinator";
 
 const FLOATING_PANEL_GAP_PX = 6;
 
@@ -22,15 +23,21 @@ type UseFloatingPanelOptions = {
   open: boolean;
   onClose: () => void;
   triggerRef: RefObject<HTMLElement | null>;
+  tabBehavior?: "dismiss" | "navigate";
 };
 
 export function useFloatingPanel({
   open,
   onClose,
   triggerRef,
+  tabBehavior = "dismiss",
 }: UseFloatingPanelOptions) {
   const panelRef = useRef<HTMLDivElement>(null);
   const [style, setStyle] = useState<FloatingPanelStyle | null>(null);
+  const closeRef = useRef(onClose);
+  useLayoutEffect(() => {
+    closeRef.current = onClose;
+  });
 
   const recalc = useCallback(() => {
     const trigger = triggerRef.current;
@@ -61,31 +68,19 @@ export function useFloatingPanel({
     };
   }, [open, recalc]);
 
-  useEffect(() => {
-    if (!open) return;
-
-    const onMouseDown = (event: MouseEvent) => {
-      if (
-        panelRef.current?.contains(event.target as Node) ||
-        triggerRef.current?.contains(event.target as Node)
-      ) {
-        return;
-      }
-      onClose();
-    };
-
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
-    };
-
-    document.addEventListener("mousedown", onMouseDown);
-    document.addEventListener("keydown", onKeyDown);
-
-    return () => {
-      document.removeEventListener("mousedown", onMouseDown);
-      document.removeEventListener("keydown", onKeyDown);
-    };
-  }, [open, onClose, triggerRef]);
+  const positioned = style !== null;
+  useLayoutEffect(() => {
+    const root = panelRef.current;
+    if (!open || !positioned || !root) return;
+    return overlayCoordinator(root.ownerDocument).register({
+      root,
+      host: root,
+      trigger: triggerRef.current,
+      modal: false,
+      tabBehavior,
+      onClose: () => closeRef.current(),
+    });
+  }, [open, positioned, triggerRef, tabBehavior]);
 
   const panelStyle: CSSProperties | null = style
     ? {
@@ -93,7 +88,6 @@ export function useFloatingPanel({
         top: style.top,
         left: style.left,
         width: style.width,
-        zIndex: 300,
       }
     : null;
 

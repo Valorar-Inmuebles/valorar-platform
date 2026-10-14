@@ -89,10 +89,9 @@ export function DropdownMenu({
     requestAnimationFrame(() => itemRefs.current[index]?.focus());
   }
 
-  function close(returnFocus = true) {
+  function close() {
     setOpen(false);
     setActiveIndex(-1);
-    if (returnFocus) requestAnimationFrame(() => triggerRef.current?.focus());
   }
 
   function handleTriggerKeyDown(event: KeyboardEvent<HTMLButtonElement>) {
@@ -118,13 +117,6 @@ export function DropdownMenu({
       target = firstEnabledIndex(disabledItems);
     } else if (event.key === "End") {
       target = lastEnabledIndex(disabledItems);
-    } else if (event.key === "Escape") {
-      event.preventDefault();
-      close();
-      return;
-    } else if (event.key === "Tab") {
-      setOpen(false);
-      return;
     } else {
       return;
     }
@@ -161,8 +153,7 @@ export function DropdownMenu({
     "aria-haspopup": "menu" as const,
     "aria-expanded": open,
     "aria-controls": menuId,
-    onClick: () =>
-      open ? close(false) : openAt(firstEnabledIndex(disabledItems)),
+    onClick: () => (open ? close() : openAt(firstEnabledIndex(disabledItems))),
     onKeyDown: handleTriggerKeyDown,
   };
 

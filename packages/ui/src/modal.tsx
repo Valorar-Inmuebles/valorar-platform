@@ -4,6 +4,7 @@ import {
   createContext,
   useContext,
   useEffect,
+  useId,
   useLayoutEffect,
   useRef,
   useState,
@@ -12,6 +13,7 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import { useBodyScrollLock } from "./body-scroll-lock";
+import { useModalLayer } from "./hooks/use-modal-layer";
 import { Button } from "./button";
 import { cn } from "./lib/cn";
 
@@ -25,7 +27,9 @@ const sizeMaxW: Record<ModalSize, string> = {
   full: "max-w-none",
 };
 
-const ModalCtx = createContext<{ onClose: () => void } | null>(null);
+const ModalCtx = createContext<{ onClose: () => void; titleId: string } | null>(
+  null,
+);
 
 function useModalCtx() {
   const ctx = useContext(ModalCtx);
@@ -55,7 +59,10 @@ export function Modal({
   const [mounted, setMounted] = useState(false);
   const [visible, setVisible] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const titleId = useId();
   useBodyScrollLock(mounted);
+  useModalLayer({ open, mounted, panelRef, onClose });
 
   useEffect(() => {
     if (open) {
@@ -71,19 +78,10 @@ export function Modal({
   }, [open]);
 
   useLayoutEffect(() => {
-    if (!mounted) return;
+    if (!mounted || !open) return;
     const id = requestAnimationFrame(() => setVisible(true));
     return () => cancelAnimationFrame(id);
-  }, [mounted]);
-
-  useEffect(() => {
-    if (!mounted) return;
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    document.addEventListener("keydown", handler);
-    return () => document.removeEventListener("keydown", handler);
-  }, [mounted, onClose]);
+  }, [mounted, open]);
 
   if (!mounted) return null;
 
@@ -107,7 +105,7 @@ export function Modal({
   const panelRounding = isFullScreen ? "rounded-none" : "rounded-xl";
 
   return createPortal(
-    <ModalCtx.Provider value={{ onClose }}>
+    <ModalCtx.Provider value={{ onClose, titleId }}>
       <div
         className={cn(
           "fixed inset-0 z-50 flex items-center justify-center transition-opacity duration-200",
@@ -116,14 +114,18 @@ export function Modal({
         )}
       >
         <div
+          data-ui-overlay-backdrop=""
           aria-hidden="true"
           className="absolute inset-0 bg-zinc-900/30 backdrop-blur-[2px]"
           onClick={closeOnOverlay ? onClose : undefined}
         />
 
         <div
+          ref={panelRef}
+          data-ui-modal=""
           role="dialog"
           aria-modal="true"
+          tabIndex={-1}
           style={panelStyle}
           className={cn(
             "relative z-10 flex w-full flex-col overflow-hidden border border-zinc-200 bg-white shadow-xl shadow-zinc-900/[0.12] ring-1 ring-zinc-900/[0.04] transition-[opacity,transform] duration-200",
@@ -175,8 +177,13 @@ export function ModalTitle({
   children: ReactNode;
   className?: string;
 }) {
+  const context = useContext(ModalCtx);
+  const fallbackId = useId();
+  const titleId = context?.titleId ?? fallbackId;
   return (
     <h2
+      id={titleId}
+      data-ui-dialog-title=""
       className={cn(
         "text-sm font-medium tracking-tight text-zinc-900",
         className,
@@ -280,6 +287,7 @@ export function ConfirmModal({
   cancelLabel = "Cancelar",
   loading = false,
 }: ConfirmModalProps) {
+  const descriptionId = useId();
   return (
     <Modal open={open} onClose={onClose} size="sm">
       <ModalHeader>
@@ -291,7 +299,11 @@ export function ConfirmModal({
         </div>
       </ModalHeader>
 
-      <ModalContent>{description}</ModalContent>
+      <ModalContent>
+        <div id={descriptionId} data-ui-dialog-description="">
+          {description}
+        </div>
+      </ModalContent>
 
       <ModalFooter>
         <Button variant="secondary" onClick={onClose} disabled={loading}>
@@ -302,7 +314,7 @@ export function ConfirmModal({
           className="bg-red-600 hover:bg-red-700 active:bg-red-800 focus-visible:ring-red-500/30"
           onClick={onConfirm}
           loading={loading}
-          autoFocus
+          data-overlay-autofocus=""
         >
           {confirmLabel}
         </Button>

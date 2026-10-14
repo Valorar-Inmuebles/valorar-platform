@@ -20,6 +20,9 @@ import {
   Label,
 } from "@repo/ui/form-field";
 import { Input } from "@repo/ui/input";
+import { CopyInput } from "@repo/ui/copy-input";
+import { NumericInput } from "@repo/ui/numeric-input";
+import { PropertyLocationEditor } from "./property-location-editor";
 import { Select } from "@repo/ui/select";
 import { useToast } from "@repo/ui/toast";
 import {
@@ -93,7 +96,6 @@ export function PropertyForm({
   const [savedGarageTypeSlugs, setSavedGarageTypeSlugs] = useState(
     selectedGarageTypeSlugs,
   );
-  const [slugTouched, setSlugTouched] = useState(mode === "edit");
   const [isPending, startTransition] = useTransition();
 
   const updateField = <K extends keyof PropertyFormValues>(
@@ -172,7 +174,7 @@ export function PropertyForm({
     setValues((current) => ({
       ...current,
       title,
-      slug: slugTouched ? current.slug : slugifyTitle(title),
+      slug: mode === "edit" ? current.slug : slugifyTitle(title),
     }));
   };
 
@@ -283,17 +285,18 @@ export function PropertyForm({
 
           <FormField>
             <Label required>Slug</Label>
-            <Input
+            <CopyInput
+              copyLabel="Copiar slug"
+              readOnly
               value={values.slug}
-              onChange={(event) => {
-                setSlugTouched(true);
-                updateField("slug", event.target.value);
-              }}
               placeholder="departamento-palermo"
               disabled={isPending}
             />
             <HelperText>
               URL pública: /propiedades/{values.slug || "..."}
+              {mode === "create"
+                ? " · Vista previa: si ya existe, se agregará un sufijo al guardar."
+                : " · Se conserva para mantener los enlaces existentes."}
             </HelperText>
           </FormField>
 
@@ -312,7 +315,8 @@ export function PropertyForm({
 
           <FormField>
             <Label>Código interno</Label>
-            <Input
+            <CopyInput
+              copyLabel="Copiar código interno"
               value={values.internalCode}
               onChange={(event) =>
                 updateField("internalCode", event.target.value)
@@ -321,8 +325,31 @@ export function PropertyForm({
             />
           </FormField>
 
+          <FormField>
+            <Label>Condición</Label>
+            <Select
+              value={values.condition || undefined}
+              onChange={(value) =>
+                updateField(
+                  "condition",
+                  value as PropertyFormValues["condition"],
+                )
+              }
+              placeholder="Seleccionar condición"
+              disabled={isPending}
+              options={PROPERTY_CONDITION_OPTIONS}
+            />
+          </FormField>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Responsables</CardTitle>
+        </CardHeader>
+        <CardContent className="grid gap-4 md:grid-cols-2">
           {mode === "edit" && property?.createdBy ? (
-            <FormField className="md:col-span-2">
+            <FormField>
               <Label>Creada por</Label>
               <div className="flex flex-wrap items-center gap-2 rounded-md border border-border bg-surface-alt/40 px-3 py-2 text-sm">
                 <span className="min-w-0 truncate font-medium">
@@ -346,10 +373,19 @@ export function PropertyForm({
                 responsable comercial.
               </HelperText>
             </FormField>
-          ) : null}
+          ) : (
+            <div className="space-y-2 text-sm">
+              <p className="font-medium">Creada por</p>
+              <p className="text-muted">
+                {mode === "create"
+                  ? "Se registrará al crear la propiedad."
+                  : "Autoría no disponible."}
+              </p>
+            </div>
+          )}
 
           {assignableUsers.length > 0 ? (
-            <FormField className="md:col-span-2">
+            <FormField>
               <Label>Responsable comercial</Label>
               <Select
                 value={values.assignedToId || undefined}
@@ -370,22 +406,6 @@ export function PropertyForm({
               </HelperText>
             </FormField>
           ) : null}
-
-          <FormField>
-            <Label>Condición</Label>
-            <Select
-              value={values.condition || undefined}
-              onChange={(value) =>
-                updateField(
-                  "condition",
-                  value as PropertyFormValues["condition"],
-                )
-              }
-              placeholder="Seleccionar condición"
-              disabled={isPending}
-              options={PROPERTY_CONDITION_OPTIONS}
-            />
-          </FormField>
         </CardContent>
       </Card>
 
@@ -503,33 +523,27 @@ export function PropertyForm({
             />
           </FormField>
 
-          <FormField>
-            <Label>Latitud</Label>
-            <Input
-              type="number"
-              step="any"
-              min={-90}
-              max={90}
-              value={values.latitude}
-              onChange={(event) => updateField("latitude", event.target.value)}
-              placeholder="-34.6037"
-              disabled={isPending}
-            />
-          </FormField>
-
-          <FormField>
-            <Label>Longitud</Label>
-            <Input
-              type="number"
-              step="any"
-              min={-180}
-              max={180}
-              value={values.longitude}
-              onChange={(event) => updateField("longitude", event.target.value)}
-              placeholder="-58.3816"
-              disabled={isPending}
-            />
-          </FormField>
+          <PropertyLocationEditor
+            propertyId={mode === "edit" ? property?.id : undefined}
+            address={{
+              street: values.street,
+              streetNumber: values.streetNumber,
+              provinceId: values.provinceId,
+              localityId: values.localityId,
+              neighborhoodId: values.neighborhoodId,
+              province: values.provinceName || values.province,
+              city: values.localityName || values.city,
+              neighborhood: values.neighborhoodName || values.neighborhood,
+              postalCode: values.postalCode,
+              country: "AR",
+            }}
+            latitude={values.latitude}
+            longitude={values.longitude}
+            disabled={isPending}
+            onConfirm={(coordinates) =>
+              setValues((current) => ({ ...current, ...coordinates }))
+            }
+          />
         </CardContent>
       </Card>
 
@@ -540,59 +554,50 @@ export function PropertyForm({
         <CardContent className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
           <FormField>
             <Label>Ambientes</Label>
-            <Input
-              type="number"
+            <NumericInput
               min={0}
               value={values.rooms}
-              onChange={(event) => updateField("rooms", event.target.value)}
+              onChange={(value) => updateField("rooms", value)}
               disabled={isPending}
             />
           </FormField>
 
           <FormField>
             <Label>Dormitorios</Label>
-            <Input
-              type="number"
+            <NumericInput
               min={0}
               value={values.bedrooms}
-              onChange={(event) => updateField("bedrooms", event.target.value)}
+              onChange={(value) => updateField("bedrooms", value)}
               disabled={isPending}
             />
           </FormField>
 
           <FormField>
             <Label>Baños</Label>
-            <Input
-              type="number"
+            <NumericInput
               min={0}
               value={values.bathrooms}
-              onChange={(event) => updateField("bathrooms", event.target.value)}
+              onChange={(value) => updateField("bathrooms", value)}
               disabled={isPending}
             />
           </FormField>
 
           <FormField>
             <Label>Toilettes</Label>
-            <Input
-              type="number"
+            <NumericInput
               min={0}
               value={values.halfBathrooms}
-              onChange={(event) =>
-                updateField("halfBathrooms", event.target.value)
-              }
+              onChange={(value) => updateField("halfBathrooms", value)}
               disabled={isPending}
             />
           </FormField>
 
           <FormField>
             <Label>Cocheras</Label>
-            <Input
-              type="number"
+            <NumericInput
               min={0}
               value={values.parkingSpaces}
-              onChange={(event) =>
-                updateField("parkingSpaces", event.target.value)
-              }
+              onChange={(value) => updateField("parkingSpaces", value)}
               disabled={isPending}
             />
           </FormField>
@@ -604,80 +609,81 @@ export function PropertyForm({
           <CardTitle>Superficies y características</CardTitle>
         </CardHeader>
         <CardContent className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          <p className="text-xs text-muted md:col-span-2 lg:col-span-3">
+            Medidas con hasta dos decimales. Podés usar coma o punto, sin
+            separadores de miles.
+          </p>
           <FormField>
             <Label>Superficie cubierta (m²)</Label>
-            <Input
-              type="number"
+            <NumericInput
+              decimalScale={2}
               min={0}
               step="0.01"
               value={values.coveredArea}
-              onChange={(event) =>
-                updateField("coveredArea", event.target.value)
-              }
+              onChange={(value) => updateField("coveredArea", value)}
               disabled={isPending}
             />
           </FormField>
 
           <FormField>
             <Label>Superficie descubierta (m²)</Label>
-            <Input
-              type="number"
+            <NumericInput
+              decimalScale={2}
               min={0}
               step="0.01"
               value={values.uncoveredArea}
-              onChange={(event) =>
-                updateField("uncoveredArea", event.target.value)
-              }
+              onChange={(value) => updateField("uncoveredArea", value)}
               disabled={isPending}
             />
           </FormField>
 
           <FormField>
             <Label>Superficie total (m²)</Label>
-            <Input
-              type="number"
+            <NumericInput
+              decimalScale={2}
               min={0}
               step="0.01"
               value={values.totalArea}
-              onChange={(event) => updateField("totalArea", event.target.value)}
+              onChange={(value) => updateField("totalArea", value)}
               disabled={isPending}
             />
           </FormField>
 
           <FormField>
             <Label>Frente (m)</Label>
-            <Input
-              type="number"
+            <NumericInput
+              decimalScale={2}
               min={0}
               step="0.01"
               value={values.lotFront}
-              onChange={(event) => updateField("lotFront", event.target.value)}
+              onChange={(value) => updateField("lotFront", value)}
               disabled={isPending}
             />
           </FormField>
 
           <FormField>
             <Label>Fondo (m)</Label>
-            <Input
-              type="number"
+            <NumericInput
+              decimalScale={2}
               min={0}
               step="0.01"
               value={values.lotDepth}
-              onChange={(event) => updateField("lotDepth", event.target.value)}
+              onChange={(value) => updateField("lotDepth", value)}
               disabled={isPending}
             />
           </FormField>
 
           <FormField>
             <Label>Año de construcción</Label>
-            <Input
-              type="number"
+            <NumericInput
+              maxLength={4}
               min={1800}
               max={2100}
               value={values.yearBuilt}
-              onChange={(event) => updateField("yearBuilt", event.target.value)}
+              onChange={(value) => updateField("yearBuilt", value)}
               disabled={isPending}
             />
+            <HelperText>Cuatro dígitos, entre 1800 y 2100.</HelperText>
           </FormField>
 
           <FormField>

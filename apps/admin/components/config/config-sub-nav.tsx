@@ -1,40 +1,17 @@
-"use client";
+import { isNavItemVisible, navigation } from "@/components/layout/nav-config";
+import { sessionToNavContext } from "@/lib/auth/nav-context";
+import { getSession } from "@/lib/auth/session";
+import { ConfigSubNavLinks } from "./config-sub-nav-links";
 
-import Link from "next/link";
-import { usePathname } from "next/navigation";
+export async function ConfigSubNav() {
+  const session = await getSession();
+  if (!session) return null;
 
-const ITEMS = [
-  { href: "/configuracion/organizacion", label: "Organización" },
-  { href: "/configuracion/usuarios", label: "Usuarios" },
-  { href: "/configuracion/roles", label: "Roles y permisos" },
-  { href: "/configuracion/conceptos-alquiler", label: "Conceptos de alquiler" },
-  { href: "/configuracion/perfil", label: "Perfil" },
-  { href: "/configuracion/preferencias", label: "Preferencias" },
-] as const;
+  const context = sessionToNavContext(session.user);
+  const items = navigation
+    .find((section) => section.id === "configuracion")!
+    .items.filter((item) => item.href && isNavItemVisible(item, context))
+    .map((item) => ({ href: item.href!, label: item.label }));
 
-export function ConfigSubNav() {
-  const pathname = usePathname();
-
-  return (
-    <nav className="flex flex-wrap gap-2 border-b border-border pb-3">
-      {ITEMS.map((item) => {
-        const active =
-          pathname === item.href || pathname.startsWith(`${item.href}/`);
-
-        return (
-          <Link
-            key={item.href}
-            href={item.href}
-            className={`rounded-full px-3 py-1.5 text-sm transition-colors ${
-              active
-                ? "bg-brand-green/10 font-medium text-brand-green"
-                : "text-muted hover:bg-surface-alt hover:text-foreground"
-            }`}
-          >
-            {item.label}
-          </Link>
-        );
-      })}
-    </nav>
-  );
+  return <ConfigSubNavLinks items={items} />;
 }

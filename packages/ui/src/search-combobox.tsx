@@ -176,11 +176,6 @@ export function SearchCombobox({
       }
       return;
     }
-    if (event.key === "Escape") {
-      event.preventDefault();
-      setOpen(false);
-      setQuery(value?.label ?? "");
-    }
   }
 
   const borderState = {

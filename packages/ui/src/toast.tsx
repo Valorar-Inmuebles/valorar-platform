@@ -9,6 +9,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { createPortal } from "react-dom";
 import { cn } from "./lib/cn";
 
 export type ToastVariant = "success" | "error" | "info" | "warning";
@@ -52,6 +53,8 @@ export function useToast(): { toast: ToastApi } {
 
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<ToastItem[]>([]);
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
 
   const dismiss = useCallback((id: string) => {
     setToasts((prev) =>
@@ -86,15 +89,34 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     [add],
   );
 
-  const value = useMemo(
-    () => ({ add, dismiss, toast }),
-    [add, dismiss, toast],
-  );
+  const value = useMemo(() => ({ add, dismiss, toast }), [add, dismiss, toast]);
 
   return (
     <ToastContext.Provider value={value}>
       {children}
-      <ToastContainer toasts={toasts} onDismiss={dismiss} />
+      {mounted
+        ? createPortal(
+            <>
+              <div
+                data-ui-overlay-announcer=""
+                role="status"
+                aria-live="polite"
+                aria-atomic="true"
+                className="sr-only"
+              >
+                {toasts
+                  .filter((item) => !item.leaving)
+                  .map((item) => (
+                    <div key={item.id}>
+                      {item.title} {item.message}
+                    </div>
+                  ))}
+              </div>
+              <ToastContainer toasts={toasts} onDismiss={dismiss} />
+            </>,
+            document.body,
+          )
+        : null}
     </ToastContext.Provider>
   );
 }
@@ -216,8 +238,6 @@ function ToastEntry({
 
   return (
     <div
-      role="status"
-      aria-live="polite"
       className={cn(
         "flex w-80 overflow-hidden rounded-xl border border-zinc-200/80 bg-white shadow-lg shadow-zinc-900/[0.08] transition-all duration-[220ms] ease-out",
         visible ? "translate-x-0 opacity-100" : "translate-x-4 opacity-0",
@@ -279,6 +299,7 @@ function ToastContainer({
   return (
     <div
       className="pointer-events-none fixed right-4 top-4 z-50 flex flex-col-reverse gap-2"
+      style={{ zIndex: 1000 }}
       aria-label="Notificaciones"
     >
       {toasts.map((item) => (
